@@ -11,7 +11,7 @@ use destack_dir::{
     DependencyItem, DependencyMode, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, NodeTree, NodeType, NormalizationMode, ScalarLiteral, StaticArgument,
     StaticExpression, StaticKey, StaticParameterKind, SymbolKind, SymbolSpace, SymbolSpaceOrder,
-    Type, TypeLiteral, TypeTable, TypeUnaryOperator, are_types_equal,
+    SymbolType, Type, TypeLiteral, TypeTable, TypeUnaryOperator, are_types_equal,
 };
 use destack_source::ModuleId;
 use destack_workspace::Module;
@@ -1338,6 +1338,24 @@ impl Compiler {
         if let Some(normalized) = normalized {
             self.cache_type_reference_maybe(reference_cache_key, &normalized, ctx.types);
             return Ok(normalized);
+        }
+
+        // validate alias and newtype targets before keeping the nominal reference
+        if resolve_static_arguments
+            && matches!(
+                target_symbol.ty(),
+                SymbolType::TypeAlias | SymbolType::Newtype
+            )
+        {
+            if let Some(alias_target_id) = self.require_alias_target_type_id_for_symbol(
+                &mut ctx.reborrow(),
+                target_symbol,
+                expression_id.into_any(),
+            )? {
+                if ctx.types.get_type(alias_target_id).is_error() {
+                    return Ok(Type::Error);
+                }
+            }
         }
 
         // fall back to a nominal reference

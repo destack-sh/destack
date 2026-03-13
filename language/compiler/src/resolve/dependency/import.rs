@@ -4,7 +4,7 @@ use destack_dir::{
     GlobalSymbolId, LocalScopeId, ModuleTarget, NodeTree, StaticKey, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ModuleDir, ProfileId};
+use destack_workspace::{ModuleDirData, ProfileId};
 use rustc_hash::FxHashMap;
 
 use crate::resolve::dependency::cache::{
@@ -28,9 +28,7 @@ impl Compiler {
                 self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // load the module namespace symbol
-                let target_module = self.program.modules.get(module_id);
-                let target_module = target_module.read();
-                let target_dir = target_module.dir(profile);
+                let (_, target_dir) = self.prepared_module_artifact(module_id, profile)?;
                 Ok(target_dir.namespace_symbol.into_global(module_id))
             }
             ModuleTarget::Binding(specifier) => {
@@ -62,10 +60,8 @@ impl Compiler {
                 )?;
 
                 // resolve the declaration symbol for the binding
-                let module = self.program.modules.get(binding_ref.module_id);
-                let module = module.read();
-                let dir = module.dir(profile);
-                let tree = dir.tree.read();
+                let (_, dir) = self.prepared_module_artifact(binding_ref.module_id, profile)?;
+                let tree = &dir.tree;
                 let declaration = tree.get(binding_ref.declaration);
                 let symbol_id = declaration.descriptor().symbol;
                 Ok(symbol_id.into_global(binding_ref.module_id))
@@ -91,10 +87,8 @@ impl Compiler {
                 self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // load the module export assignment state
-                let target_module = self.program.modules.get(module_id);
-                let target_module = target_module.read();
-                let target_dir = target_module.dir(profile);
-                if target_dir.export_assignment.read().is_some() {
+                let (_, target_dir) = self.prepared_module_artifact(module_id, profile)?;
+                if target_dir.export_assignment.is_some() {
                     return Ok(Some(
                         target_dir.export_assignment_symbol.into_global(module_id),
                     ));
@@ -120,19 +114,16 @@ impl Compiler {
                     )?;
 
                     // load the binding export assignment entry
-                    let module = self.program.modules.get(binding_ref.module_id);
-                    let module = module.read();
-                    let dir = module.dir(profile);
+                    let (_, dir) = self.prepared_module_artifact(binding_ref.module_id, profile)?;
                     let binding_exports = dir
                         .module_binding_exports
-                        .read()
                         .get(&binding_ref.declaration.into_any())
                         .cloned();
                     let Some(binding_exports) = binding_exports else {
                         continue;
                     };
                     let Some((_, _, export_assignment_symbol)) =
-                        self.binding_info_for_declaration(dir, binding_ref.declaration)
+                        self.binding_info_for_declaration(&dir, binding_ref.declaration)
                     else {
                         continue;
                     };
@@ -195,10 +186,8 @@ impl Compiler {
                 self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // check if module has an export assignment
-                let module = self.program.modules.get(module_id);
-                let module = module.read();
-                let dir = module.dir(profile);
-                let export_assignment = *dir.export_assignment.read();
+                let (_, dir) = self.prepared_module_artifact(module_id, profile)?;
+                let export_assignment = dir.export_assignment;
                 let Some(item_id) = export_assignment else {
                     if let (Some(cache), Some(cache_key)) = (cache.as_deref_mut(), cache_key) {
                         cache.export_assignment_targets.insert(cache_key, None);
@@ -207,12 +196,12 @@ impl Compiler {
                 };
 
                 // resolve the export assignment item
-                let tree = dir.tree.read();
+                let tree = &dir.tree;
                 let item = tree.get(item_id);
                 let resolved = self.resolve_export_assignment_target_for_item(
                     module_id,
                     profile,
-                    dir,
+                    &dir,
                     &tree,
                     dir.namespace_scope,
                     item,
@@ -244,9 +233,7 @@ impl Compiler {
                     )?;
 
                     // load the binding export assignment entry
-                    let module = self.program.modules.get(binding_ref.module_id);
-                    let module = module.read();
-                    let dir = module.dir(profile);
+                    let (_, dir) = self.prepared_module_artifact(binding_ref.module_id, profile)?;
                     let binding_exports = if let Some(cache) = cache.as_deref_mut() {
                         let cache_key = BindingExportCacheKey {
                             module_id: binding_ref.module_id,
@@ -256,15 +243,13 @@ impl Compiler {
                             .binding_exports
                             .entry(cache_key)
                             .or_insert_with(|| {
-                                let binding_exports = dir.module_binding_exports.read();
-                                binding_exports
+                                dir.module_binding_exports
                                     .get(&binding_ref.declaration.into_any())
                                     .cloned()
                             })
                             .clone()
                     } else {
                         dir.module_binding_exports
-                            .read()
                             .get(&binding_ref.declaration.into_any())
                             .cloned()
                     };
@@ -277,21 +262,21 @@ impl Compiler {
 
                     // get binding scope for import lookup
                     let Some((scope_id, _, _)) =
-                        self.binding_info_for_declaration(dir, binding_ref.declaration)
+                        self.binding_info_for_declaration(&dir, binding_ref.declaration)
                     else {
                         continue;
                     };
 
                     // read the export assignment dependency item
-                    let tree = dir.tree.read();
+                    let tree = &dir.tree;
                     let item = tree.get(item_id);
 
                     // resolve the export assignment item
                     if let Some(target) = self.resolve_export_assignment_target_for_item(
                         binding_ref.module_id,
                         profile,
-                        dir,
-                        &tree,
+                        &dir,
+                        tree,
                         scope_id,
                         item,
                         cache.as_deref_mut(),
@@ -318,7 +303,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &ModuleDirData,
         tree: &NodeTree,
         scope_id: LocalScopeId,
         item: &DependencyItem,
@@ -357,17 +342,16 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &ModuleDirData,
         tree: &NodeTree,
         scope_id: LocalScopeId,
         target_symbol: GlobalSymbolId,
         cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<ExportAssignmentTarget>> {
         // prefer import alias redirects for `export = alias` targets
-        let symbols = dir.symbols.read();
+        let symbols = &dir.symbols;
         let symbol = symbols.get_symbol(target_symbol.local_id);
         let symbol_name = symbol.name();
-        drop(symbols);
 
         if let Some(symbol_name) = symbol_name
             && let Some(redirect) = self.find_import_redirect_for_name(
@@ -391,7 +375,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &ModuleDirData,
         tree: &NodeTree,
         scope_id: LocalScopeId,
         value: destack_dir::LocalNodeId<Expression>,
@@ -441,7 +425,7 @@ impl Compiler {
                 return Ok(Some(ExportAssignmentTarget::Module(redirect)));
             }
 
-            let symbols = dir.symbols.read();
+            let symbols = &dir.symbols;
             let key = StaticKey::Name(name);
             let symbol_id = self.find_namespace_symbol_in_scope(&symbols, scope_id, key);
             if let Some(symbol_id) = symbol_id {
@@ -695,10 +679,8 @@ impl Compiler {
         }
 
         // load the namespace symbol's module and check if it's a namespace
-        let module = self.program.modules.get(namespace_symbol.module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
-        let symbols = dir.symbols.read();
+        let (module, dir) = self.prepared_module_artifact(namespace_symbol.module_id, profile)?;
+        let symbols = &dir.symbols;
 
         let symbol = symbols.get_symbol(namespace_symbol.local_id);
 

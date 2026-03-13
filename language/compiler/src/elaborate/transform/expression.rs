@@ -1,8 +1,7 @@
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::ProfileId;
+use destack_workspace::{Module, ModuleDir, ProfileId};
 
 use crate::elaborate::common::{ElaborateContext, ElaborateState};
-use crate::{Compiler, ElaborateError, ElaborateResult};
+use crate::{Compiler, ElaborateResult};
 
 impl Compiler {
     /// Transform a module with target-independent simplifications:
@@ -16,32 +15,19 @@ impl Compiler {
     /// 7. Normalize value expressions into statement form
     pub(crate) fn elaborate_module_transform(
         &self,
-        module_id: ModuleId,
+        module: &Module,
         profile: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        dir: &ModuleDir,
     ) -> ElaborateResult<()> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<ElaborateError>(
-            module_id,
-            module_version,
-            profile,
-            profile_version,
-        )?;
-
         // ensure analysis is complete
-        self.require_dir_analyzed(module_id, profile)?;
-        if !self.is_code_module(module_id) {
+        if !self.is_code_module(module.id) {
             return Ok(());
         }
 
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
         let mut tree = dir.tree.write();
         let mut symbols = dir.symbols.write();
         let mut types = dir.types.write();
-        let ctx = ElaborateContext::new(module_id, &module, profile);
+        let ctx = ElaborateContext::new(module.id, module, profile);
         let mut state = ElaborateState::new(ctx, &mut tree, &mut symbols, &mut types);
 
         // 0. split multi-declarators into individual lets

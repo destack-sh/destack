@@ -1545,17 +1545,9 @@ impl CallSite {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use parking_lot::RwLock;
-
     use destack_mir::parse::ParseOptions;
-    use destack_source::{
-        FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri,
-    };
-    use destack_workspace::{
-        Loader, Module, ModuleFormat, ModuleMir, ModuleSource, SourceType, TargetId,
-    };
+    use destack_source::{FileId, ModuleId, ModuleVersion, PackageId};
+    use destack_workspace::{ModuleMir, TargetId};
 
     use crate::optimize::common::tests::TestProgram;
     use crate::optimize::{
@@ -1569,38 +1561,17 @@ mod tests {
     fn module_work_item(package_id: PackageId, module_index: u32, source: &str) -> ModuleWorkItem {
         let module_id = ModuleId::new(package_id, module_index);
         let target_id = TargetId::new(package_id, "test");
-        let uri = Uri::from_string(format!("test://module/{module_index}"));
-        let file_id = FileId::new(module_index);
-
         let (tree, strings) =
             mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
                 .expect("failed to parse MIR");
         let pool = destack_core::StringPool::new();
         pool.copy_from_immutable(&strings);
 
-        let mut module = Module::blank(
-            module_id,
-            file_id,
-            FileVersion::default(),
-            uri,
-            None,
-            package_id,
-            None,
-            SourceType::Module,
-            ModuleFormat::Esm,
-            LanguageType::Destack,
-            Loader::Destack,
-            ModuleSource::User,
-        );
-
         let mut module_mir = ModuleMir::new(module_id, ModuleVersion::INITIAL, target_id.clone());
         *module_mir.tree.write() = tree;
         module_mir.strings = pool;
-        module.code_mut().mirs.push(module_mir);
 
-        let module_ref = Arc::new(RwLock::new(module));
-
-        ModuleWorkItem::new(module_id, target_id, module_ref, PipelineOptions::default())
+        ModuleWorkItem::new(module_id, target_id, module_mir, PipelineOptions::default())
     }
 
     /// Direct calls create edges in the call graph.

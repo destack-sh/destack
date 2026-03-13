@@ -253,6 +253,11 @@ impl TypeTable {
         self.types.get(type_id.0)
     }
 
+    /// Get a type by its id when present.
+    pub fn get_type_maybe(&self, type_id: LocalTypeId) -> Option<&Type> {
+        self.types.get_maybe(type_id.0)
+    }
+
     /// Strip value wrapper types to reach the underlying type id.
     pub fn unwrap_value_type_id(&self, type_id: LocalTypeId) -> LocalTypeId {
         let mut current = type_id;

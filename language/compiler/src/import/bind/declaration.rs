@@ -433,7 +433,8 @@ impl Compiler {
             } => {
                 let descriptor =
                     self.bind_global_descriptor(module, ast, scope, descriptor, symbols);
-                let global_scope_id = module.dir_base().global_augmentation_scope;
+                let global_scope_id =
+                    self.with_active_base_dir(module.id, |dir| dir.global_augmentation_scope);
                 let global_scope = (global_scope_id, symbols.get_scope_mark(global_scope_id));
                 let expressions: Vec<LocalNodeId<Expression>> = expressions
                     .iter()
@@ -1111,11 +1112,9 @@ impl Compiler {
                 export_assignment_symbol,
             };
             self.bind_module_binding(module, &module_binding);
-            module
-                .dir_base()
-                .module_bindings
-                .write()
-                .push(module_binding);
+            self.with_active_base_dir(module.id, |dir| {
+                dir.module_bindings.write().push(module_binding);
+            });
         }
 
         // attach the declaration to the symbol

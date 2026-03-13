@@ -307,6 +307,9 @@ impl Compiler {
         // resolve `Ordering.<member>` symbol
         let ordering_symbol = self.language_symbol(state.ctx.profile, LanguageSymbol::Ordering);
         let member_key = StaticKey::Name(self.program.strings.intern(member_name));
+        let node = origin_id
+            .into_global_any(state.ctx.module_id)
+            .into_anchored(Some(state.ctx.profile));
         let ordering_member_symbol = self
             .resolve_static_member_symbol(
                 state.ctx.module,
@@ -317,11 +320,7 @@ impl Compiler {
                 state.tree,
                 state.symbols,
             )
-            .map_err(|_| ElaborateError::UnsupportedConstruct {
-                node: origin_id
-                    .into_global_any(state.ctx.module_id)
-                    .into_anchored(Some(state.ctx.profile)),
-            })?;
+            .map_err(|error| self.elaborate_error_from_resolve(error, node))?;
 
         // build the reference expression
         let ordering_name = self

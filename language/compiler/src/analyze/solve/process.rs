@@ -1,13 +1,16 @@
 use crate::analyze::common::InferContext;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use destack_dir::InferTable;
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::ProfileId;
+use destack_workspace::{ModuleDir, ProfileId};
 
 impl Compiler {
     /// Phase 4: Solve infer constraints.
     pub(crate) fn analyze_module_solve(
         &self,
+        dir: &ModuleDir,
+        infer: Option<&mut InferTable>,
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
@@ -39,40 +42,35 @@ impl Compiler {
             return Ok(());
         }
 
-        // load module ctx and solve published infer constraints
         let options = self.analyze_context_options_for_module(module.id);
-        self.with_infer_table_for_module_mut(module_id, profile, |infer| {
-            let tree = module.dir(profile).tree.read();
-            let symbols = module.dir(profile).symbols.read();
-            let mut types = module.dir(profile).types.write();
-            let mut ctx = InferContext::new(
-                &module, profile, &options, &tree, &symbols, &mut types, infer,
-            );
-            {
-                let (mut ctx, infer) = ctx.split_type_context_and_infer();
-                self.solve_infer_table(&mut ctx, infer);
-            }
-            {
-                let (mut ctx, infer) = ctx.split_type_context_and_infer();
-                self.rewrite_inferred_type_overlays_for_instance_substitutions(&mut ctx, infer)?;
-            }
-            {
-                let (mut ctx, infer) = ctx.split_type_context_and_infer();
-                self.discharge_projection_obligations_in_solve(&mut ctx, infer)?;
-            }
-            self.discharge_missing_member_obligations_in_solve(&mut ctx.reborrow())?;
-            {
-                let (mut ctx, infer) = ctx.split_type_context_and_infer();
-                self.discharge_relation_obligations_in_solve(&mut ctx, infer)?;
-            }
+        let Some(infer) = infer else {
+            return Ok(());
+        };
 
-            Ok::<(), AnalyzeError>(())
-        })
-        .ok_or_else(|| AnalyzeError::Internal {
-            message: format!(
-                "missing infer table for solve: module={module_id:?}, profile={profile:?}"
-            ),
-        })??;
+        // solve transient infer constraints
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
+        let mut ctx = InferContext::with_dir(
+            &module, profile, &options, dir, &tree, &symbols, &mut types, infer,
+        );
+        {
+            let (mut ctx, infer) = ctx.split_type_context_and_infer();
+            self.solve_infer_table(&mut ctx, infer);
+        }
+        {
+            let (mut ctx, infer) = ctx.split_type_context_and_infer();
+            self.rewrite_inferred_type_overlays_for_instance_substitutions(&mut ctx, infer)?;
+        }
+        {
+            let (mut ctx, infer) = ctx.split_type_context_and_infer();
+            self.discharge_projection_obligations_in_solve(&mut ctx, infer)?;
+        }
+        self.discharge_missing_member_obligations_in_solve(&mut ctx.reborrow())?;
+        {
+            let (mut ctx, infer) = ctx.split_type_context_and_infer();
+            self.discharge_relation_obligations_in_solve(&mut ctx, infer)?;
+        }
 
         Ok(())
     }

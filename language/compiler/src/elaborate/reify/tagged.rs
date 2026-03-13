@@ -7,7 +7,7 @@ use dir::{
     SymbolTable, Type, TypeKind, TypeTable,
 };
 
-use crate::analyze::TreeSymbolView;
+use crate::analyze::{DirReadBoundary, TreeSymbolView};
 use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
@@ -61,7 +61,8 @@ impl Compiler {
         };
 
         // determine the constructor kind from the nominal declaration
-        let Some(constructor_kind) = self.nominal_constructor_kind_for_symbol(state, callee_symbol)
+        let Some(constructor_kind) =
+            self.nominal_constructor_kind_for_symbol(state, callee_symbol)?
         else {
             return Ok(false);
         };
@@ -116,7 +117,7 @@ impl Compiler {
         &self,
         state: &ElaborateState<'_>,
         symbol: GlobalSymbolId,
-    ) -> Option<ConstructorKind> {
+    ) -> ElaborateResult<Option<ConstructorKind>> {
         // use current module data when the symbol is local
         if symbol.module_id == state.ctx.module.id {
             let view = NominalLookupView {
@@ -125,26 +126,25 @@ impl Compiler {
                 symbols: state.symbols,
                 types: state.types,
             };
-            return self.nominal_constructor_kind_for_symbol_in_dir(symbol, view);
+            return Ok(self.nominal_constructor_kind_for_symbol_in_dir(symbol, view));
         }
 
         // load the remote module data for imported symbols
-        let module = self.program.modules.get(symbol.module_id);
-        let module = module.read();
-        let dir = module.dir(state.ctx.profile);
-
-        // borrow the remote dir tables
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let types = dir.types.read();
+        let dir = self
+            .require_artifact_dir_for_boundary(
+                symbol.module_id,
+                state.ctx.profile,
+                DirReadBoundary::Analyzed,
+            )
+            .map_err(|error| self.elaborate_error_from_requirement(error))?;
 
         let view = NominalLookupView {
             module_id: symbol.module_id,
-            tree: &tree,
-            symbols: &symbols,
-            types: &types,
+            tree: &dir.tree,
+            symbols: &dir.symbols,
+            types: &dir.types,
         };
-        self.nominal_constructor_kind_for_symbol_in_dir(symbol, view)
+        Ok(self.nominal_constructor_kind_for_symbol_in_dir(symbol, view))
     }
 
     /// Resolve the constructor kind for a symbol using a specific module dir.

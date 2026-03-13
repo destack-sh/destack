@@ -1,6 +1,6 @@
 use destack_source::{
-    ModuleId, ModuleStamp, ModuleVersion, PackageId, PackageStamp, PackageVersion, ProfileStamp,
-    ProfileVersion,
+    FileVersion, ModuleId, ModuleStamp, ModuleVersion, PackageId, PackageStamp, PackageVersion,
+    ProfileStamp, ProfileVersion,
 };
 use destack_workspace::{Module, ModuleGraphStamp, ModuleGraphVersion, ProfileId};
 
@@ -11,6 +11,12 @@ impl Compiler {
     pub fn module_version(&self, module_id: ModuleId) -> ModuleVersion {
         let module = self.program.modules.get(module_id);
         module.read().version
+    }
+
+    /// Get the current source version for one module.
+    pub fn module_source_version(&self, module_id: ModuleId) -> FileVersion {
+        let module = self.program.modules.get(module_id);
+        module.read().source_version
     }
 
     /// Get the current module stamp.

@@ -1,16 +1,18 @@
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
+use std::sync::Arc;
 
 use destack_ast::StringId;
 use destack_core::StringPool;
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
 use destack_workspace::{
-    CheckFailurePolicy, Module, ProfileId, Target, TargetId, WellKnownIntrinsics,
+    CheckFailurePolicy, Module, ModuleDirData, ProfileId, Target, TargetId, WellKnownIntrinsics,
 };
 use indexmap::IndexSet;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{Compiler, LowerError, LowerResult};
+use crate::analyze::DirReadBoundary;
+use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
 
 use crate::lower::{
     BuiltinTypeLayouts, ClosureEnvLayout, GlobalBinding, InstanceKey, InterfaceEntry, MethodKey,
@@ -34,6 +36,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) dir_tree: &'a dir::NodeTree,
     /// Provide access to the root expressions for the module.
     pub(crate) dir_roots: &'a [LocalNodeId<dir::Expression>],
+    /// Stable fallback node for diagnostics and synthetic types.
+    pub(crate) anchor_node: dir::LocalNodeIdAny,
     /// Provide access to symbol metadata for type resolution.
     pub(crate) symbols: &'a dir::SymbolTable,
     /// Provide access to inferred and declared types.
@@ -135,6 +139,7 @@ impl<'a> ModuleLowerer<'a> {
         profile: ProfileId,
         dir_tree: &'a dir::NodeTree,
         dir_roots: &'a [LocalNodeId<dir::Expression>],
+        anchor_node: dir::LocalNodeIdAny,
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
         captures: &'a dir::CaptureTable,
@@ -160,6 +165,7 @@ impl<'a> ModuleLowerer<'a> {
         let type_lowerer = TypeLowerer::new(
             &mut builder,
             pointer_bytes,
+            compiler.program.artifacts.clone(),
             compiler.program.modules.clone(),
             compiler.program.packages.clone(),
             vector_symbol,
@@ -189,6 +195,7 @@ impl<'a> ModuleLowerer<'a> {
             module,
             dir_tree,
             dir_roots,
+            anchor_node,
             symbols,
             types,
             captures,
@@ -229,6 +236,38 @@ impl<'a> ModuleLowerer<'a> {
             take_platform_error_function: None,
             pending_function_bodies: VecDeque::new(),
             queued_function_bodies: HashSet::new(),
+        }
+    }
+
+    /// Read one committed DIR snapshot for a module when available.
+    pub(crate) fn artifact_dir_data_if_present(
+        &self,
+        module_id: ModuleId,
+    ) -> Option<Arc<ModuleDirData>> {
+        self.compiler
+            .program
+            .artifacts
+            .dir_snapshot(module_id, self.profile)
+    }
+
+    /// Read one committed analyzed DIR snapshot for a module.
+    pub(crate) fn require_analyzed_dir_data(
+        &self,
+        module_id: ModuleId,
+    ) -> LowerResult<Arc<ModuleDirData>> {
+        let snapshot = self.compiler.require_artifact_dir_for_boundary(
+            module_id,
+            self.profile,
+            DirReadBoundary::Analyzed,
+        );
+        match snapshot {
+            Ok(snapshot) => Ok(snapshot),
+            Err(BuildRequirementError::NotReady { requirement }) => {
+                Err(LowerError::Yield { requirement })
+            }
+            Err(BuildRequirementError::Failed { requirement }) => {
+                Err(LowerError::UnsatisfiedRequirement { requirement })
+            }
         }
     }
 

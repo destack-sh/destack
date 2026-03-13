@@ -558,11 +558,8 @@ impl ModuleLowerer<'_> {
         };
 
         let name = self.qualified_symbol_name(*symbol).or_else(|| {
-            let module = self.compiler.program.modules.get(symbol.module_id);
-            let module = module.read();
-            let dir = module.dir(self.profile);
-            let symbols = dir.symbols.read();
-            self.symbol_path_from_symbols(*symbol, &symbols)
+            let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
+            self.symbol_path_from_symbols(*symbol, &dir.symbols)
         })?;
 
         if symbol.ty() == dir::SymbolType::Class {
@@ -597,11 +594,8 @@ impl ModuleLowerer<'_> {
         // use nominal names without suffix adjustments
         if let dir::Type::Reference { symbol, .. } = dir_type {
             return self.qualified_symbol_name(*symbol).or_else(|| {
-                let module = self.compiler.program.modules.get(symbol.module_id);
-                let module = module.read();
-                let dir = module.dir(self.profile);
-                let symbols = dir.symbols.read();
-                self.symbol_path_from_symbols(*symbol, &symbols)
+                let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
+                self.symbol_path_from_symbols(*symbol, &dir.symbols)
             });
         }
 
@@ -1128,9 +1122,8 @@ impl ModuleLowerer<'_> {
         // load module metadata for the symbol
         let module = self.compiler.program.modules.get(symbol_id.module_id);
         let module = module.read();
-        let dir = module.dir(self.profile);
-        let symbols = dir.symbols.read();
-        self.qualified_symbol_name_for_module(symbol_id, &module, &symbols)
+        let dir = self.artifact_dir_data_if_present(symbol_id.module_id)?;
+        self.qualified_symbol_name_for_module(symbol_id, &module, &dir.symbols)
     }
 
     /// Resolve the qualified name for a symbol and module pair.

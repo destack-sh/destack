@@ -412,8 +412,13 @@ impl Compiler {
         ) = {
             let symbol_module = self.program.modules.get(symbol.module_id);
             let symbol_module = symbol_module.read();
-            let symbol_table = symbol_module.dir_base().symbols.read();
-            let symbol_entry = symbol_table.get_symbol(symbol.local_id);
+            let symbol_dir = self.artifact_dir_base(symbol.module_id).unwrap_or_else(|| {
+                panic!(
+                    "missing committed base dir artifact for {:?}",
+                    symbol.module_id
+                )
+            });
+            let symbol_entry = symbol_dir.symbols.get_symbol(symbol.local_id);
             (
                 symbol_entry.ty,
                 symbol_entry.key,
@@ -464,10 +469,15 @@ impl Compiler {
         // normalize group symbols to the stored symbol types
         let mut normalized_group_symbols = Vec::with_capacity(group_symbols.len());
         for group_symbol in group_symbols {
-            let group_module = self.program.modules.get(group_symbol.module_id);
-            let group_module = group_module.read();
-            let group_symbol_table = group_module.dir_base().symbols.read();
-            let group_entry = group_symbol_table.get_symbol(group_symbol.local_id);
+            let group_dir = self
+                .artifact_dir_base(group_symbol.module_id)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "missing committed base dir artifact for {:?}",
+                        group_symbol.module_id
+                    )
+                });
+            let group_entry = group_dir.symbols.get_symbol(group_symbol.local_id);
             let normalized = GlobalSymbolId::new(
                 group_symbol.module_id,
                 group_symbol.local_id.with_type(group_entry.ty),
@@ -519,8 +529,6 @@ impl Compiler {
             let local_instance_id =
                 if let Some(existing) = ctx.types.get_instance_type_id(group_symbol) {
                     existing
-                } else if group_symbol.module_id == ctx.module.id {
-                    continue;
                 } else {
                     let Some(imported) = self.import_instance_type_for_symbol(
                         ctx.profile,
@@ -590,31 +598,21 @@ impl Compiler {
         symbol: GlobalSymbolId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        let remote_instance = self
-            .with_module_tree_symbols_by_id_at_boundary(
-                profile,
-                symbol.module_id,
-                DirReadBoundary::Declared,
-                |remote_module, _remote_tree, _remote_symbols| {
-                    let remote_dir = remote_module.dir(profile);
-                    let remote_types = remote_dir.types.read();
-                    let remote_instance_id = remote_types.get_instance_type_id(symbol)?;
-                    let remote_instance_ty = remote_types.get_type(remote_instance_id).clone();
-                    let remote_snapshot = remote_types.clone();
-                    Some((remote_instance_ty, remote_snapshot))
-                },
-            )
+        // declared instance shapes are the earliest stable boundary for class, struct,
+        // interface, and extension member access
+        let snapshot = self
+            .require_artifact_dir_for_boundary(symbol.module_id, profile, DirReadBoundary::Declared)
             .map_err(AnalyzeError::from)?;
+        let remote_types = &snapshot.types;
+        let Some(remote_instance_id) = remote_types.get_instance_type_id(symbol) else {
+            return Ok(None);
+        };
 
-        Ok(
-            remote_instance.map(|(remote_instance_ty, remote_snapshot)| {
-                self.import_remote_type_for_node(
-                    node_id,
-                    &remote_instance_ty,
-                    &remote_snapshot,
-                    types,
-                )
-            }),
-        )
+        let remote_instance_ty = remote_types.get_type(remote_instance_id).clone();
+        let remote_snapshot = remote_types.clone();
+        let imported =
+            self.import_remote_type_for_node(node_id, &remote_instance_ty, &remote_snapshot, types);
+
+        Ok(Some(imported))
     }
 }

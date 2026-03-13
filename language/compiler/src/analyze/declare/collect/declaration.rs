@@ -3,14 +3,15 @@ use destack_dir::{
     DeclarationAbstraction, DynamicKey, Expression, Extension, ExtensionKind, FunctionCardinality,
     FunctionMode, FunctionSignature, Generics, GlobalSymbolId, Heritage, Lineage, LocalNodeId,
     LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, Mutability, NodeTree, NodeVisitor,
-    NodeVisitorOptions, Parameter, StaticArgument, StaticExpression, StaticKey, Timing, Type,
-    TypeField, TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, TypeUnaryOperator, walk_block,
-    walk_declaration, walk_expression,
+    NodeVisitorOptions, Parameter, StaticArgument, StaticExpression, StaticKey, SymbolType, Timing,
+    Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, TypeUnaryOperator,
+    walk_block, walk_declaration, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::{HashMap, HashSet};
 
-use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementSet, Compiler};
+use destack_workspace::ArtifactKey;
 
 use crate::analyze::common::{
     CanonicalSymbolMode, DirReadBoundary, ObjectShape, ObjectShapeSet, TypeContext,
@@ -123,14 +124,123 @@ impl NodeVisitor for CollectVisitor<'_> {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return whether alias recursion should be checked later than declaration collection.
+    fn defer_alias_cycle_check(expression: &Expression) -> bool {
+        matches!(expression, Expression::TypeConditional { .. })
+    }
+
+    /// Return whether one declaration type resolution can defer on declared requirements.
+    fn should_defer_declared_type_requirement(&self, requirement: &BuildRequirementSet) -> bool {
+        requirement.all(|requirement| {
+            matches!(
+                requirement.key,
+                BuildKey::Artifact(ArtifactKey::DirDeclared { .. })
+            )
+        })
+    }
+
+    /// Return one alias target value symbol for declaration-time cycle checks.
+    fn alias_target_value_symbol_for_cycle_check(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        source_id: LocalNodeIdAny,
+        typed_symbol: GlobalSymbolId,
+        target_id: LocalTypeId,
+    ) -> Option<GlobalSymbolId> {
+        if let Some(target_symbol) = self.unwrap_type_value_symbol(ctx.types, target_id) {
+            return Some(target_symbol);
+        }
+
+        if matches!(ctx.types.get_type(target_id), Type::Unevaluated(_))
+            && self
+                .resolve_declared_type(&mut ctx.reborrow(), target_id)
+                .is_err()
+        {
+            return None;
+        }
+
+        if let Some(target_symbol) = self.unwrap_type_value_symbol(ctx.types, target_id) {
+            return Some(target_symbol);
+        }
+
+        self.alias_target_type_id_for_symbol(&mut ctx.reborrow(), typed_symbol, source_id)
+            .and_then(|target_id| self.unwrap_type_value_symbol(ctx.types, target_id))
+    }
+
+    /// Return whether one alias symbol chain reaches the expected symbol.
+    fn alias_symbol_contains_symbol(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        expected_symbol: GlobalSymbolId,
+        visited: &mut HashSet<GlobalSymbolId>,
+    ) -> bool {
+        if symbol == expected_symbol {
+            return true;
+        }
+
+        if !visited.insert(symbol) {
+            return false;
+        }
+
+        if symbol.module_id == ctx.module.id {
+            let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
+            let typed_symbol =
+                GlobalSymbolId::new(symbol.module_id, symbol.local_id.with_type(symbol_entry.ty));
+
+            if let Some(target_symbol) =
+                symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)
+                && self.alias_symbol_contains_symbol(
+                    &mut ctx.reborrow(),
+                    source_id,
+                    target_symbol,
+                    expected_symbol,
+                    visited,
+                )
+            {
+                return true;
+            }
+
+            if matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype)
+                && let Some(target_id) = ctx.types.get_alias_target_type_id(typed_symbol)
+                && let Some(target_symbol) = self.alias_target_value_symbol_for_cycle_check(
+                    &mut ctx.reborrow(),
+                    source_id,
+                    typed_symbol,
+                    target_id,
+                )
+            {
+                return self.alias_symbol_contains_symbol(
+                    &mut ctx.reborrow(),
+                    source_id,
+                    target_symbol,
+                    expected_symbol,
+                    visited,
+                );
+            }
+
+            return false;
+        }
+
+        // cross-module alias cycles are diagnosed during alias target materialization
+        // forcing declared publication to chase remote declared aliases here just creates
+        // a declared-surface build cycle between the modules
+        false
+    }
+
     /// Decide whether declared types should be deferred for a module.
-    fn should_defer_declaration_types(&self, module: &Module) -> bool {
+    pub(crate) fn should_defer_declaration_types(&self, module: &Module) -> bool {
+        if module.is_builtin() {
+            return true;
+        }
+
         if !module.language_type.is_declaration() {
             return false;
         }
 
         let module_checks = self.module_check_options_for_module(module.id);
-        module_checks.skip_lib_check || module.is_builtin()
+        module_checks.skip_lib_check
     }
 
     /// Resolve or defer a type expression into a type id.
@@ -154,9 +264,17 @@ impl Compiler {
             return Ok(existing);
         }
 
-        let ty_id = ctx
-            .types
-            .insert_type_from(Type::Unevaluated(expression_id), expression_id);
+        // keep the declared reference shape even when alias target evaluation is deferred
+        let ty = self.resolve_declared_type_expression_value(
+            &mut ctx.reborrow(),
+            expression_id,
+            true,
+            true,
+            false,
+            false,
+            false,
+        )?;
+        let ty_id = ctx.types.insert_type_from(ty, expression_id);
         ctx.types.set_declared_type(global_id, ty_id);
         Ok(ty_id)
     }
@@ -182,12 +300,24 @@ impl Compiler {
         }
     }
 
+    /// Return one declaration symbol with its bound symbol type.
+    fn typed_declaration_symbol(
+        &self,
+        ctx: &TypeContext<'_>,
+        symbol: LocalSymbolId,
+    ) -> GlobalSymbolId {
+        let symbol_entry = ctx.symbols.get_symbol(symbol);
+        let typed_symbol = symbol.with_type(symbol_entry.ty);
+
+        GlobalSymbolId::new(ctx.module.id, typed_symbol)
+    }
+
     /// Declare all declarations reachable from the module roots.
     pub(crate) fn collect_module_declarations(
         &self,
         ctx: &mut TypeContext<'_>,
     ) -> AnalyzeResult<()> {
-        let roots = ctx.module.dir(ctx.profile).roots.clone();
+        let roots = ctx.local_dir().roots.clone();
 
         // prepare the declaration visitor
         let mut visitor = CollectVisitor::new(self, ctx.reborrow());
@@ -274,26 +404,73 @@ impl Compiler {
                 let declared_ty_id = if should_defer {
                     self.collect_or_defer_type_expression(&mut ctx.reborrow(), *value, true)?
                 } else {
-                    self.resolve_declared_type_expression(&mut ctx.reborrow(), *value, true, true)?
+                    match self.resolve_declared_type_expression(
+                        &mut ctx.reborrow(),
+                        *value,
+                        true,
+                        true,
+                    ) {
+                        Ok(type_id) => type_id,
+                        Err(AnalyzeError::Yield { requirement })
+                            if self.should_defer_declared_type_requirement(&requirement) =>
+                        {
+                            self.collect_or_defer_type_expression(
+                                &mut ctx.reborrow(),
+                                *value,
+                                true,
+                            )?
+                        }
+                        Err(AnalyzeError::UnsatisfiedRequirement { requirement })
+                            if self.should_defer_declared_type_requirement(&requirement) =>
+                        {
+                            self.collect_or_defer_type_expression(
+                                &mut ctx.reborrow(),
+                                *value,
+                                true,
+                            )?
+                        }
+                        Err(error) => return Err(error),
+                    }
                 };
-                let symbol = descriptor.symbol.into_global(ctx.module.id);
-                let mut visited = HashSet::new();
-                let contains_recursive_alias_reference = self.type_contains_reference_symbol(
-                    declared_ty_id,
-                    symbol,
-                    ctx.types,
-                    &mut visited,
-                );
-                let declared_ty_id = if contains_recursive_alias_reference {
-                    let node = value
-                        .into_global_any(ctx.module.id)
-                        .into_anchored(Some(ctx.profile));
-                    self.error(AnalyzeError::RecursiveTypeInstantiation { node });
-                    ctx.types
-                        .insert_type_from_any(Type::Error, (*value).into_any())
+                let symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
+                let value_expression = ctx.tree.get(*value);
+                let should_defer_cycle_check = Self::defer_alias_cycle_check(value_expression);
+                let contains_recursive_alias_reference = if should_defer_cycle_check {
+                    false
                 } else {
-                    declared_ty_id
+                    let mut visited = HashSet::new();
+                    self.type_contains_reference_symbol(
+                        declared_ty_id,
+                        symbol,
+                        ctx.types,
+                        &mut visited,
+                    )
                 };
+                let contains_recursive_alias_symbol = if should_defer_cycle_check {
+                    false
+                } else {
+                    self.unwrap_type_value_symbol(ctx.types, declared_ty_id)
+                        .is_some_and(|target_symbol| {
+                            self.alias_symbol_contains_symbol(
+                                &mut ctx.reborrow(),
+                                (*value).into_any(),
+                                target_symbol,
+                                symbol,
+                                &mut HashSet::new(),
+                            )
+                        })
+                };
+                let declared_ty_id =
+                    if contains_recursive_alias_reference || contains_recursive_alias_symbol {
+                        let node = value
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
+                        self.error(AnalyzeError::RecursiveTypeInstantiation { node });
+                        ctx.types
+                            .insert_type_from_any(Type::Error, (*value).into_any())
+                    } else {
+                        declared_ty_id
+                    };
                 ctx.types
                     .set_declared_type(value.into_global_any(ctx.module.id), declared_ty_id);
 
@@ -361,7 +538,7 @@ impl Compiler {
                 // declare generics and heritage
                 self.collect_generics(&mut ctx.reborrow(), generics)?;
                 self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
-                let declaration_symbol = descriptor.symbol.into_global(ctx.module.id);
+                let declaration_symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
                 self.report_missing_associated_requirements(
                     &mut ctx.reborrow(),
                     declaration_symbol,
@@ -371,7 +548,7 @@ impl Compiler {
                 )?;
 
                 // nominal reference for constructors
-                let symbol = descriptor.symbol.into_global(ctx.module.id);
+                let symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
                 let static_arguments = self.self_type_static_arguments_for_declaration(
                     &mut ctx.reborrow(),
                     generics.static_parameters.as_deref(),
@@ -459,7 +636,7 @@ impl Compiler {
                 // declare generics and heritage
                 self.collect_generics(&mut ctx.reborrow(), generics)?;
                 self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
-                let declaration_symbol = descriptor.symbol.into_global(ctx.module.id);
+                let declaration_symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
                 let allows_deferred_associated =
                     descriptor.abstraction == DeclarationAbstraction::Abstract;
                 self.report_missing_associated_requirements(
@@ -471,7 +648,7 @@ impl Compiler {
                 )?;
 
                 // prepare nominal reference for constructors
-                let symbol = descriptor.symbol.into_global(ctx.module.id);
+                let symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
                 let static_arguments = self.self_type_static_arguments_for_declaration(
                     &mut ctx.reborrow(),
                     generics.static_parameters.as_deref(),
@@ -560,7 +737,7 @@ impl Compiler {
                 // declare generics and heritage
                 self.collect_generics(&mut ctx.reborrow(), generics)?;
                 self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
-                let declaration_symbol = descriptor.symbol.into_global(ctx.module.id);
+                let declaration_symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
                 self.report_missing_associated_requirements(
                     &mut ctx.reborrow(),
                     declaration_symbol,
@@ -570,7 +747,7 @@ impl Compiler {
                 )?;
 
                 // prepare the nominal reference for enum values
-                let symbol = descriptor.symbol.into_global(ctx.module.id);
+                let symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
                 let static_arguments = self.self_type_static_arguments_for_declaration(
                     &mut ctx.reborrow(),
                     generics.static_parameters.as_deref(),
@@ -687,7 +864,7 @@ impl Compiler {
 
                 // register the nominal type as the value type
                 let nominal_ty = Type::Reference {
-                    symbol: descriptor.symbol.into_global(ctx.module.id),
+                    symbol: self.typed_declaration_symbol(ctx, descriptor.symbol),
                     static_arguments: None,
                 };
                 let nominal_ty_id = ctx.types.insert_type_from(nominal_ty, declaration_id);
@@ -695,8 +872,8 @@ impl Compiler {
                     value: nominal_ty_id,
                 };
                 let value_ty_id = ctx.types.insert_type_from(value_ty, declaration_id);
-                ctx.types
-                    .set_value_type(descriptor.symbol.into_global(ctx.module.id), value_ty_id);
+                let symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
+                ctx.types.set_value_type(symbol, value_ty_id);
 
                 Ok(())
             }
@@ -820,7 +997,7 @@ impl Compiler {
                         true,
                     )?;
                 }
-                let extension_symbol = descriptor.symbol.into_global(ctx.module.id);
+                let extension_symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
                 self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
 
                 // skip already declared extensions for this symbol

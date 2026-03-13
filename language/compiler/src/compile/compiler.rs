@@ -5,9 +5,11 @@ use dashmap::DashMap;
 use destack_core::ImmutableStringPool;
 use destack_resolver::Resolver;
 use destack_source::{DiagnosticCollector, DiagnosticSeverity, ModuleId, Uri};
-use destack_workspace::{Builtins, Program, Session, Target};
+use destack_workspace::{ProfileId, Program, Session, Target};
 use parking_lot::Mutex;
 
+use super::frame::RetainedDirFrame;
+use crate::analyze::InterfaceComponentGraphIndex;
 use crate::{
     BuildRequirementCollector, BuildRequirementSet, CacheRegistry, CompileDiagnostic,
     CompilerEvent, CompilerOptions, CompilerStats, TaskError, TaskQueue, TaskWarning,
@@ -48,6 +50,10 @@ pub struct Compiler {
     /// Locks for serializing module creation per (URI, loader) pair.
     /// The loader salt distinguishes imports with non-default loaders.
     import_locks: DashMap<(Uri, Option<String>), Arc<Mutex<Option<ModuleId>>>>,
+    /// Retained transient DIR builders for yielded and running builds.
+    pub(super) retained_dir_frames: DashMap<(ModuleId, ProfileId), Vec<RetainedDirFrame>>,
+    /// Cached interface component indexes by profile.
+    pub(crate) interface_component_indexes: DashMap<ProfileId, Arc<InterfaceComponentGraphIndex>>,
 }
 
 #[derive(Debug)]
@@ -88,6 +94,8 @@ impl Compiler {
             comptime_target,
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
+            retained_dir_frames: DashMap::new(),
+            interface_component_indexes: DashMap::new(),
             stats: Arc::new(CompilerStats::new_with_timings(timings)),
             cache: CacheRegistry::new(),
             signature_strings: Mutex::new(None),
@@ -126,11 +134,6 @@ impl Compiler {
             strings: strings.clone(),
         });
         strings
-    }
-
-    /// Get the builtins (if loaded in program).
-    pub fn builtins(&self) -> Option<&Arc<Builtins>> {
-        self.program.builtins.as_ref()
     }
 
     /// Clone the base resolver with one request specific option set.

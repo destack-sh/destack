@@ -22,10 +22,7 @@ outer: while (true) {
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
 
     // find the outer while loop's symbol
@@ -79,10 +76,7 @@ outer: for (let i = 0; i < 10; i++) {
 
     let outer_symbol_id = test.resolve_label_symbol("test.ds", "outer").unwrap();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
 
     // find the continue expression
@@ -133,10 +127,7 @@ myblock: {
 
     let block_symbol_id = test.resolve_label_symbol("test.ds", "myblock").unwrap();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
 
     let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
@@ -218,10 +209,7 @@ outer: while (true) {
 
     let middle_symbol_id = test.resolve_label_symbol("test.ds", "middle").unwrap();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
 
     let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
@@ -263,10 +251,7 @@ outer: loop {
 
     let outer_symbol_id = test.resolve_label_symbol("test.ds", "outer").unwrap();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
 
     let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
@@ -304,10 +289,7 @@ let z = y;
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
     let (x_symbol_id, x_node) = test.resolve_to_node::<Pattern>("test.ds", "x").unwrap();
 
@@ -375,24 +357,11 @@ export let B = A + 1;
     test.resolve_module(module_b_id);
     test.compile_check_clean();
 
-    let module_a = test.module("a.ds");
-    let module_a = module_a.read();
-    let profile_a = test.default_profile_id(module_a.id);
-    let tree_a = module_a.dir(profile_a).tree.read();
-    let module_b = test.program.modules.get(module_b_id);
-    let module_b = module_b.read();
-    let profile_b = test.default_profile_id(module_b_id);
-    let tree_b = module_b.dir(profile_b).tree.read();
+    let dir_b = test.dir_resolved(module_b_id);
+    let tree_b = dir_b.tree.read();
 
     // export let A = 1;
-    let (a_symbol_id, a_node_id) = test.resolve_to_node::<Pattern>("a.ds", "A").unwrap();
-
-    // pattern -> declarator -> let
-    let a_declarator = tree_a.get_parent(a_node_id.id).unwrap();
-    let _a_node = tree_a
-        .get_parent(a_declarator.id)
-        .unwrap()
-        .into_typed::<Expression>();
+    let (a_symbol_id, _a_node_id) = test.resolve_to_node::<Pattern>("a.ds", "A").unwrap();
 
     // export let B = A + 1;
     let (_b_symbol_id, b_node_id) = test.resolve_to_node::<Pattern>("b.ds", "B").unwrap();
@@ -889,10 +858,7 @@ let b = obj.y;
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
     let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
 
@@ -939,10 +905,7 @@ var base = 1, mirror = base;
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
 
     // resolve the base symbol for the target assertion
@@ -986,10 +949,7 @@ function pickFirst() {
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
     let symbols = dir.symbols.read();
     let arguments_name = test.program.strings.intern("arguments");
@@ -1206,10 +1166,7 @@ function readAfterBlock() {
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
     let symbols = dir.symbols.read();
     let separator_name = test.program.strings.intern("separator");
@@ -1259,10 +1216,7 @@ function callBeforeDeclaration() {
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
     let symbols = dir.symbols.read();
     let verb_name = test.program.strings.intern("verb");
@@ -1308,10 +1262,7 @@ runInContext({});
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
 
     // collect the inner and outer runInContext references
@@ -1392,10 +1343,7 @@ function outer() {
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
     let symbols = dir.symbols.read();
     let wrapper_name = test.program.strings.intern("wrapper");
@@ -1441,10 +1389,7 @@ let a = obj.inner.value;
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
 
     let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
@@ -1499,10 +1444,7 @@ export let C = A + B;
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let symbols = dir.symbols.read();
 
     let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();
@@ -1799,10 +1741,8 @@ extension for Foo {
 
     let foo_symbol_id = test.resolve_to_symbol("test.ds", "Foo").unwrap();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let tree = module.dir(profile).tree.read();
+    let dir = test.dir_resolved(module_id);
+    let tree = dir.tree.read();
     let extensions: Vec<_> = tree
         .iter_node_ids_of_type::<Declaration>()
         .into_iter()
@@ -1849,10 +1789,7 @@ string;
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
     let roots = &dir.roots;
 
@@ -1932,10 +1869,7 @@ string;
     test.resolve_module(module_id);
     test.compile_check_clean();
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
     let roots = &dir.roots;
 

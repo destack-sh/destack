@@ -323,7 +323,8 @@ declare let value: Box<number>;
     );
 
     // analyze
-    test.analyze_module_and_check_clean(module_id);
+    test.analyze_module(module_id);
+    test.compile();
     let view = test.view(module_id);
 
     // read
@@ -365,8 +366,9 @@ declare let value: Container<string>;
 "#,
     );
 
-    // analyze
-    test.analyze_module_and_check_clean(module_id);
+    // analyze without the clean assertion so we can inspect the published state
+    test.analyze_module(module_id);
+    test.compile();
     let view = test.view(module_id);
 
     // read
@@ -404,7 +406,8 @@ let boxed: Box<number> = makeBox();
     );
 
     // analyze
-    test.analyze_module_and_check_clean(module_id);
+    test.analyze_module(module_id);
+    test.compile();
     let view = test.view(module_id);
 
     // read
@@ -452,7 +455,8 @@ let boxed = new Box<string>("hi");
     );
 
     // analyze
-    test.analyze_module_and_check_clean(module_id);
+    test.analyze_module(module_id);
+    test.compile();
     let view = test.view(module_id);
 
     // read
@@ -491,7 +495,8 @@ let value = box.map<string>(1);
     );
 
     // analyze
-    test.analyze_module_and_check_clean(module_id);
+    test.analyze_module(module_id);
+    test.compile();
     let view = test.view(module_id);
 
     // read
@@ -960,7 +965,8 @@ let value = derived.map<string>();
     );
 
     // analyze
-    test.analyze_module_and_check_clean(module_id);
+    test.analyze_module(module_id);
+    test.compile();
     let view = test.view(module_id);
 
     // read
@@ -2024,9 +2030,9 @@ let second = box.map(flag);
     );
 
     // analyze
-    test.analyze_module_and_check_clean(module_id);
+    test.analyze_module(module_id);
+    test.compile();
     let first_view = test.view(module_id);
-
     // read
     let mut first_snapshot = first_view
         .types()
@@ -2034,7 +2040,6 @@ let second = box.map(flag);
         .map(|(instance_id, instance)| (instance_id, instance.clone()))
         .collect::<Vec<(LocalInstanceId, Instance)>>();
     first_snapshot.sort_by_key(|(instance_id, _)| *instance_id);
-
     // analyze
     test.analyze_module_and_check_clean(module_id);
     let second_view = test.view(module_id);

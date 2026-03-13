@@ -39,51 +39,52 @@ impl Compiler {
         }
 
         // load the module tree once for dependency scanning
-        let dir = module.dir_base();
-        let tree = dir.tree.read();
+        self.with_active_base_dir(module.id, |dir| {
+            let tree = dir.tree.read();
 
-        // collect top level expressions after unwrapping statement wrappers
-        let mut top_level_expression_ids = HashSet::new();
-        for root_id in &dir.roots {
-            let expression_id = self.unwrap_statement_expression_for_import(&tree, *root_id);
-            top_level_expression_ids.insert(expression_id.id);
-        }
-
-        // report nested static dependencies as import errors
-        for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
-            let is_top_level = top_level_expression_ids.contains(&expression_id.id);
-            if is_top_level {
-                continue;
+            // collect top level expressions after unwrapping statement wrappers
+            let mut top_level_expression_ids = HashSet::new();
+            for root_id in &dir.roots {
+                let expression_id = self.unwrap_statement_expression_for_import(&tree, *root_id);
+                top_level_expression_ids.insert(expression_id.id);
             }
 
-            // import declarations
-            if let Expression::Import { source, .. } | Expression::UnresolvedImport { source, .. } =
-                expression
-            {
-                if self.import_dependency_requires_top_level(*source) {
-                    let node = expression_id.into_global_any(module.id).into_anchored(None);
-                    self.error(ImportError::ImportNotTopLevel { node });
-                }
-                continue;
-            }
-
-            // export declarations
-            if matches!(
-                expression,
-                Expression::Export { .. }
-                    | Expression::ReExport { .. }
-                    | Expression::UnresolvedReExport { .. }
-                    | Expression::ExportNamespace { .. }
-            ) {
-                // namespace bodies are their own declaration roots
-                if self.expression_is_within_namespace_declaration(&tree, expression_id) {
+            // report nested static dependencies as import errors
+            for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
+                let is_top_level = top_level_expression_ids.contains(&expression_id.id);
+                if is_top_level {
                     continue;
                 }
 
-                let node = expression_id.into_global_any(module.id).into_anchored(None);
-                self.error(ImportError::ExportNotTopLevel { node });
+                // import declarations
+                if let Expression::Import { source, .. }
+                | Expression::UnresolvedImport { source, .. } = expression
+                {
+                    if self.import_dependency_requires_top_level(*source) {
+                        let node = expression_id.into_global_any(module.id).into_anchored(None);
+                        self.error(ImportError::ImportNotTopLevel { node });
+                    }
+                    continue;
+                }
+
+                // export declarations
+                if matches!(
+                    expression,
+                    Expression::Export { .. }
+                        | Expression::ReExport { .. }
+                        | Expression::UnresolvedReExport { .. }
+                        | Expression::ExportNamespace { .. }
+                ) {
+                    // namespace bodies are their own declaration roots
+                    if self.expression_is_within_namespace_declaration(&tree, expression_id) {
+                        continue;
+                    }
+
+                    let node = expression_id.into_global_any(module.id).into_anchored(None);
+                    self.error(ImportError::ExportNotTopLevel { node });
+                }
             }
-        }
+        });
     }
 
     /// Return true when an expression is nested under a namespace declaration.
@@ -108,44 +109,45 @@ impl Compiler {
     /// Validate local export item names use binding-compatible identifiers.
     pub(super) fn validate_export_local_item_names(&self, module: &Module) {
         // load the module tree once for dependency scanning
-        let dir = module.dir_base();
-        let tree = dir.tree.read();
+        self.with_active_base_dir(module.id, |dir| {
+            let tree = dir.tree.read();
 
-        // only direct module exports participate in local export name validation
-        for root_id in &dir.roots {
-            let expression_id = self.unwrap_statement_expression_for_import(&tree, *root_id);
-            let Expression::Export { items, .. } = tree.get(expression_id) else {
-                continue;
-            };
+            // only direct module exports participate in local export name validation
+            for root_id in &dir.roots {
+                let expression_id = self.unwrap_statement_expression_for_import(&tree, *root_id);
+                let Expression::Export { items, .. } = tree.get(expression_id) else {
+                    continue;
+                };
 
-            for item_id in items {
-                let item = tree.get(*item_id);
-                let (mode, kind, name) = match item {
-                    DependencyItem::UnresolvedLocal {
-                        mode, kind, name, ..
+                for item_id in items {
+                    let item = tree.get(*item_id);
+                    let (mode, kind, name) = match item {
+                        DependencyItem::UnresolvedLocal {
+                            mode, kind, name, ..
+                        }
+                        | DependencyItem::Local {
+                            mode, kind, name, ..
+                        } => (*mode, *kind, *name),
+                        _ => continue,
+                    };
+
+                    // item mode carries local names that must be binding-compatible
+                    if mode != DependencyMode::Item || kind != DependencyKind::Value {
+                        continue;
                     }
-                    | DependencyItem::Local {
-                        mode, kind, name, ..
-                    } => (*mode, *kind, *name),
-                    _ => continue,
-                };
 
-                // item mode carries local names that must be binding-compatible
-                if mode != DependencyMode::Item || kind != DependencyKind::Value {
-                    continue;
+                    let Some(destack_dir::Name::Identifier(name)) = name else {
+                        continue;
+                    };
+                    if !self.export_local_name_is_disallowed_identifier(name) {
+                        continue;
+                    }
+
+                    let node = (*item_id).into_global_any(module.id).into_anchored(None);
+                    self.error(ImportError::ReservedIdentifier { node, name });
                 }
-
-                let Some(destack_dir::Name::Identifier(name)) = name else {
-                    continue;
-                };
-                if !self.export_local_name_is_disallowed_identifier(name) {
-                    continue;
-                }
-
-                let node = (*item_id).into_global_any(module.id).into_anchored(None);
-                self.error(ImportError::ReservedIdentifier { node, name });
             }
-        }
+        });
     }
 
     /// Return true when a dependency source must be top level.
@@ -165,125 +167,126 @@ impl Compiler {
     /// Validate duplicate value exports in a module.
     pub(super) fn validate_export_conflicts(&self, module: &Module) {
         // load the module tree once for export scanning
-        let dir = module.dir_base();
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let default_name = self.program.strings.intern("default");
-        let mut exported_names = HashMap::new();
+        self.with_active_base_dir(module.id, |dir| {
+            let tree = dir.tree.read();
+            let symbols = dir.symbols.read();
+            let default_name = self.program.strings.intern("default");
+            let mut exported_names = HashMap::new();
 
-        // scan top-level roots in source order
-        for root_id in &dir.roots {
-            let expression_id = self.unwrap_statement_expression_for_import(&tree, *root_id);
-            let expression = tree.get(expression_id);
+            // scan top-level roots in source order
+            for root_id in &dir.roots {
+                let expression_id = self.unwrap_statement_expression_for_import(&tree, *root_id);
+                let expression = tree.get(expression_id);
 
-            // collect exported names by expression kind
-            match expression {
-                Expression::Declaration { declaration } => {
-                    let declaration_id = *declaration;
-                    let declaration = tree.get(declaration_id);
-                    let export_name =
-                        self.value_export_name_for_declaration(declaration, default_name);
-                    if let Some(export_name) = export_name {
-                        let conflict_kind =
-                            self.export_conflict_kind_for_declaration(declaration, &symbols);
-                        self.report_conflicting_export_name_maybe(
-                            module,
-                            export_name,
-                            declaration_id.into_any(),
-                            conflict_kind,
-                            &mut exported_names,
-                            default_name,
-                        );
-                    }
-                }
-                Expression::Let {
-                    descriptor,
-                    declarators,
-                    ..
-                } => {
-                    // only exported declarations participate
-                    if descriptor.export != Some(DependencyMode::Item) {
-                        continue;
-                    }
-
-                    for declarator_id in declarators {
-                        let declarator = tree.get(*declarator_id);
-                        let mut bindings = Vec::new();
-                        self.collect_binding_exports_from_pattern(
-                            &tree,
-                            &symbols,
-                            declarator.pattern,
-                            &mut bindings,
-                        );
-
-                        for binding in bindings {
-                            self.report_conflicting_export_name_maybe(
-                                module,
-                                binding.name,
-                                (*declarator_id).into_any(),
-                                binding.conflict_kind,
-                                &mut exported_names,
-                                default_name,
-                            );
-                        }
-                    }
-                }
-                Expression::Using {
-                    descriptor,
-                    declarators,
-                    ..
-                } => {
-                    // only exported declarations participate
-                    if descriptor.export != Some(DependencyMode::Item) {
-                        continue;
-                    }
-
-                    for declarator_id in declarators {
-                        let declarator = tree.get(*declarator_id);
-                        let mut bindings = Vec::new();
-                        self.collect_binding_exports_from_pattern(
-                            &tree,
-                            &symbols,
-                            declarator.pattern,
-                            &mut bindings,
-                        );
-
-                        for binding in bindings {
-                            self.report_conflicting_export_name_maybe(
-                                module,
-                                binding.name,
-                                (*declarator_id).into_any(),
-                                binding.conflict_kind,
-                                &mut exported_names,
-                                default_name,
-                            );
-                        }
-                    }
-                }
-                Expression::Export { items, .. }
-                | Expression::ReExport { items, .. }
-                | Expression::UnresolvedReExport { items, .. } => {
-                    for item_id in items {
-                        let export_name = self.value_export_name_for_dependency_item(
-                            &tree,
-                            *item_id,
-                            default_name,
-                        );
+                // collect exported names by expression kind
+                match expression {
+                    Expression::Declaration { declaration } => {
+                        let declaration_id = *declaration;
+                        let declaration = tree.get(declaration_id);
+                        let export_name =
+                            self.value_export_name_for_declaration(declaration, default_name);
                         if let Some(export_name) = export_name {
+                            let conflict_kind =
+                                self.export_conflict_kind_for_declaration(declaration, &symbols);
                             self.report_conflicting_export_name_maybe(
                                 module,
                                 export_name,
-                                (*item_id).into_any(),
-                                ExportConflictKind::Other,
+                                declaration_id.into_any(),
+                                conflict_kind,
                                 &mut exported_names,
                                 default_name,
                             );
                         }
                     }
+                    Expression::Let {
+                        descriptor,
+                        declarators,
+                        ..
+                    } => {
+                        // only exported declarations participate
+                        if descriptor.export != Some(DependencyMode::Item) {
+                            continue;
+                        }
+
+                        for declarator_id in declarators {
+                            let declarator = tree.get(*declarator_id);
+                            let mut bindings = Vec::new();
+                            self.collect_binding_exports_from_pattern(
+                                &tree,
+                                &symbols,
+                                declarator.pattern,
+                                &mut bindings,
+                            );
+
+                            for binding in bindings {
+                                self.report_conflicting_export_name_maybe(
+                                    module,
+                                    binding.name,
+                                    (*declarator_id).into_any(),
+                                    binding.conflict_kind,
+                                    &mut exported_names,
+                                    default_name,
+                                );
+                            }
+                        }
+                    }
+                    Expression::Using {
+                        descriptor,
+                        declarators,
+                        ..
+                    } => {
+                        // only exported declarations participate
+                        if descriptor.export != Some(DependencyMode::Item) {
+                            continue;
+                        }
+
+                        for declarator_id in declarators {
+                            let declarator = tree.get(*declarator_id);
+                            let mut bindings = Vec::new();
+                            self.collect_binding_exports_from_pattern(
+                                &tree,
+                                &symbols,
+                                declarator.pattern,
+                                &mut bindings,
+                            );
+
+                            for binding in bindings {
+                                self.report_conflicting_export_name_maybe(
+                                    module,
+                                    binding.name,
+                                    (*declarator_id).into_any(),
+                                    binding.conflict_kind,
+                                    &mut exported_names,
+                                    default_name,
+                                );
+                            }
+                        }
+                    }
+                    Expression::Export { items, .. }
+                    | Expression::ReExport { items, .. }
+                    | Expression::UnresolvedReExport { items, .. } => {
+                        for item_id in items {
+                            let export_name = self.value_export_name_for_dependency_item(
+                                &tree,
+                                *item_id,
+                                default_name,
+                            );
+                            if let Some(export_name) = export_name {
+                                self.report_conflicting_export_name_maybe(
+                                    module,
+                                    export_name,
+                                    (*item_id).into_any(),
+                                    ExportConflictKind::Other,
+                                    &mut exported_names,
+                                    default_name,
+                                );
+                            }
+                        }
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
-        }
+        });
     }
 
     /// Unwrap statement wrappers to access the inner expression.

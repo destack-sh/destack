@@ -36,10 +36,7 @@ fn collect_commonjs_state(
     test: &TestProgram,
     module_id: destack_source::ModuleId,
 ) -> CommonjsExportState {
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
+    let dir = test.dir_resolved(module_id);
     let tree = dir.tree.read();
     let symbols = dir.symbols.read();
 
@@ -69,10 +66,8 @@ fn assert_named_export_targets_name(
 
     match value {
         CommonjsExportValue::Expression(expression_id) => {
-            let module = test.program.modules.get(module_id);
-            let module = module.read();
-            let profile = test.default_profile_id(module_id);
-            let tree = module.dir(profile).tree.read();
+            let dir = test.dir_resolved(module_id);
+            let tree = dir.tree.read();
             let expression = tree.get(*expression_id);
 
             let path = match expression {
@@ -85,10 +80,8 @@ fn assert_named_export_targets_name(
             assert_eq!(path.segments[0], expected_name_id);
         }
         CommonjsExportValue::Symbol(symbol_id) => {
-            let module = test.program.modules.get(module_id);
-            let module = module.read();
-            let profile = test.default_profile_id(module_id);
-            let symbols = module.dir(profile).symbols.read();
+            let dir = test.dir_resolved(module_id);
+            let symbols = dir.symbols.read();
             let symbol = symbols.get_symbol(*symbol_id);
             let Some(symbol_name) = symbol.name() else {
                 panic!("expected symbol name for shorthand export");

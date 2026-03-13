@@ -3,11 +3,11 @@ use std::sync::Arc;
 
 use super::declaration::DeclaratorConstraint;
 
-use crate::analyze::StaticSubstitutionEnvironment;
 use crate::analyze::common::{
     CanonicalSymbolMode, ConstContext, ContextualTypingMode, FreshnessMode, InferContext,
     ModuleSymbolView, RelationMode, TreeSymbolView, TypeContext, TypeRewriteCache, WideningMode,
 };
+use crate::analyze::{DirReadBoundary, StaticSubstitutionEnvironment};
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, BreakTargetKind,
@@ -4227,14 +4227,22 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> Option<StringId> {
         if symbol.module_id == module.id {
-            let symbols = module.dir(profile).symbols.read();
-            return symbols.get_symbol(symbol.local_id).name();
+            if let Some(dir) =
+                self.current_active_dir_frame(module.id, profile, DirReadBoundary::Declared)
+            {
+                return dir.symbols.read().get_symbol(symbol.local_id).name();
+            }
+
+            let snapshot = self
+                .require_artifact_dir_for_boundary(module.id, profile, DirReadBoundary::Declared)
+                .ok()?;
+            return snapshot.symbols.get_symbol(symbol.local_id).name();
         }
 
-        let owner_module = self.program.modules.get(symbol.module_id);
-        let owner_module = owner_module.read();
-        let owner_symbols = owner_module.dir(profile).symbols.read();
-        owner_symbols.get_symbol(symbol.local_id).name()
+        let snapshot = self
+            .require_artifact_dir_for_boundary(symbol.module_id, profile, DirReadBoundary::Declared)
+            .ok()?;
+        snapshot.symbols.get_symbol(symbol.local_id).name()
     }
 
     /// Resolve the dependency item that introduced a symbol when possible.
@@ -4277,9 +4285,13 @@ impl Compiler {
         profile: ProfileId,
         export_name: StringId,
     ) -> bool {
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let exports = module.dir(profile).exported_symbols.read();
+        let Some(exports) = self
+            .require_artifact_dir_for_boundary(module_id, profile, DirReadBoundary::Interface)
+            .ok()
+            .map(|snapshot| snapshot.exported_symbols.clone())
+        else {
+            return false;
+        };
 
         let key = StaticKey::Name(export_name);
         let has_value = exports.contains_key(&(SymbolSpace::Value, key));
@@ -4348,8 +4360,9 @@ impl Compiler {
                 let target_module_id = target_module
                     .or_else(|| {
                         self.imported_module_resolution_for_specifier(
-                            module,
+                            module.id,
                             profile,
+                            None,
                             *target,
                             ImportEdgeKind::Import,
                             None,
@@ -5097,20 +5110,14 @@ impl Compiler {
             return Some(symbol.decorators.clone());
         }
 
-        // ensure the target module is resolved
-        if self
-            .require_dir_resolved(symbol_id.module_id, view.profile)
-            .is_err()
-        {
-            return None;
-        }
+        // read decorators from the target module artifact
+        self.require_dir_resolved(symbol_id.module_id, view.profile)
+            .ok()?;
 
-        // read decorators from the target module dir
-        let other_module = self.program.modules.get(symbol_id.module_id);
-        let other_module = other_module.read();
-        let dir = other_module.dir(view.profile);
-        let other_symbols = dir.symbols.read();
-        let symbol = other_symbols.get_symbol(symbol_id.local_id);
+        let snapshot = self
+            .require_artifact_dir_resolved(symbol_id.module_id, view.profile)
+            .ok()?;
+        let symbol = snapshot.symbols.get_symbol(symbol_id.local_id);
 
         Some(symbol.decorators.clone())
     }

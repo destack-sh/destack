@@ -17,16 +17,32 @@ use destack_dir::{
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
-    ModuleContent, ModuleGraphKey, ModuleSignature, ModuleSignatureAugmentation,
+    ModuleDir, ModuleGraphKey, ModuleSignature, ModuleSignatureAugmentation,
     ModuleSignatureBinding, ModuleSignatureDigest, ModuleSignatureExport, ModuleSignatureKey,
     ProfileId,
 };
 use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 
+use crate::analyze::DirReadBoundary;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
 impl Compiler {
+    /// Return the strongest available DIR for signature building.
+    fn signature_dir(&self, module_id: ModuleId, profile_id: ProfileId) -> Option<ModuleDir> {
+        if let Some(dir) =
+            self.current_active_dir_frame(module_id, profile_id, DirReadBoundary::Analyzed)
+        {
+            return Some(self.finish_transient_dir(dir));
+        }
+
+        let dir = self.program.artifacts.dir_snapshot(module_id, profile_id);
+
+        // FUGU #Architecture: signature building still rebuilds one transient DIR
+        // from the strongest committed artifact until slice 4 narrows signature inputs
+        dir.map(|dir| self.transient_dir_builder_from_artifact(dir))
+    }
+
     /// Update and store the module signature for a profile.
     pub(crate) fn update_module_signature(
         &self,
@@ -114,26 +130,41 @@ impl Compiler {
 
     /// Invalidate profile data for a module.
     fn invalidate_module_profile_data(&self, module_id: ModuleId, profile_id: ProfileId) {
-        // drop profile dirs and dependent artifacts
-        let module = self.program.modules.get(module_id);
-        let mut module = module.write();
-        match &mut module.content {
-            ModuleContent::Code(code) => {
-                code.dirs.retain(|dir| dir.profile_id != Some(profile_id));
-                code.comptimes
-                    .retain(|entry| entry.profile_id != profile_id);
-                code.mirs.clear();
-            }
-            ModuleContent::Data { dirs, .. } => {
-                dirs.retain(|dir| dir.profile_id != Some(profile_id));
-            }
-            ModuleContent::Text { dirs, .. } => {
-                dirs.retain(|dir| dir.profile_id != Some(profile_id));
-            }
-            ModuleContent::Binary { dirs, .. } => {
-                dirs.retain(|dir| dir.profile_id != Some(profile_id));
-            }
-            ModuleContent::Unloaded => {}
+        // drop committed profile artifacts for this module
+        self.program
+            .artifacts
+            .remove_dir_prepared(module_id, profile_id);
+        self.program
+            .artifacts
+            .remove_dir_resolved(module_id, profile_id);
+        self.program
+            .artifacts
+            .remove_dir_declared(module_id, profile_id);
+        self.program
+            .artifacts
+            .remove_dir_interface(module_id, profile_id);
+        self.program
+            .artifacts
+            .remove_dir_analyzed(module_id, profile_id);
+        self.program
+            .artifacts
+            .remove_dir_elaborated(module_id, profile_id);
+        self.program
+            .artifacts
+            .remove_dir_patched(module_id, profile_id);
+
+        // drop committed MIR products for this module and profile
+        let targets: Vec<_> = self
+            .program
+            .artifacts
+            .target_ids_for_mir(module_id, profile_id);
+        for target in targets {
+            self.program
+                .artifacts
+                .remove_mir(module_id, profile_id, &target);
+            self.program
+                .artifacts
+                .remove_optimized_mir(module_id, profile_id, &target);
         }
     }
 
@@ -154,7 +185,7 @@ impl Compiler {
         let profile_version = profile.version;
 
         // return an empty signature when the profile dir is missing
-        let Some(dir) = module.dir_maybe(profile_id) else {
+        let Some(dir) = self.signature_dir(module_id, profile_id) else {
             return Ok(ModuleSignature::new(
                 module_id,
                 profile_id,
@@ -171,15 +202,15 @@ impl Compiler {
 
         // collect export signatures
         let (exports, export_assignment_target, export_assignment_hash) =
-            self.collect_export_signatures(module_id, dir, &mut signature_hasher);
+            self.collect_export_signatures(module_id, &dir, &mut signature_hasher);
 
         // collect global augmentation signatures
         let (global_augmentations, augmentation_signatures) =
-            self.collect_global_augmentation_signatures(module_id, dir, &mut signature_hasher);
+            self.collect_global_augmentation_signatures(module_id, &dir, &mut signature_hasher);
 
         // collect module binding signatures
         let module_bindings =
-            self.collect_module_binding_signatures(module_id, dir, &mut signature_hasher);
+            self.collect_module_binding_signatures(module_id, &dir, &mut signature_hasher);
 
         // build symbol signature map
         let mut symbol_signatures = IndexMap::new();
@@ -559,14 +590,16 @@ impl<'a> SignatureHasher<'a> {
         &self,
         symbol_id: GlobalSymbolId,
     ) -> (Option<SymbolKind>, Option<SymbolType>) {
-        // load the owning module and its symbols
-        let module = self.compiler.program.modules.get(symbol_id.module_id);
-        let module = module.read();
-        let Some(dir) = module.dir_maybe(self.profile_id) else {
+        // load the owning module snapshot and its symbols
+        let Some(dir) = self
+            .compiler
+            .program
+            .artifacts
+            .dir_snapshot(symbol_id.module_id, self.profile_id)
+        else {
             return (None, None);
         };
-        let symbols = dir.symbols.read();
-        let symbol = symbols.get_symbol(symbol_id.into_local());
+        let symbol = dir.symbols.get_symbol(symbol_id.into_local());
         (Some(symbol.kind), Some(symbol.ty))
     }
 
@@ -588,21 +621,22 @@ impl<'a> SignatureHasher<'a> {
             return self.fallback_symbol_hash(symbol_id);
         }
 
-        // load the owning module and its type tables
-        let module = self.compiler.program.modules.get(symbol_id.module_id);
-        let module = module.read();
-        let Some(dir) = module.dir_maybe(self.profile_id) else {
+        // load the owning module snapshot and its type tables
+        let Some(dir) = self
+            .compiler
+            .program
+            .artifacts
+            .dir_snapshot(symbol_id.module_id, self.profile_id)
+        else {
             let hash = self.fallback_symbol_hash(symbol_id);
             self.symbol_in_progress.remove(&symbol_id);
             self.symbol_hashes.insert(symbol_id, hash);
             return hash;
         };
-        let symbols = dir.symbols.read();
-        let types = dir.types.read();
-        let symbol = symbols.get_symbol(symbol_id.into_local());
+        let symbol = dir.symbols.get_symbol(symbol_id.into_local());
 
         // compute and cache the hash
-        let hash = self.symbol_signature_hash_in_tables(symbol_id, symbol, &types);
+        let hash = self.symbol_signature_hash_in_tables(symbol_id, symbol, &dir.types);
         self.symbol_in_progress.remove(&symbol_id);
         self.symbol_hashes.insert(symbol_id, hash);
 
@@ -1734,14 +1768,17 @@ impl<'a> SignatureHasher<'a> {
         }
 
         // load the owning module and its node tree
-        let module = self.compiler.program.modules.get(node_id.module_id);
-        let module = module.read();
-        let Some(dir) = module.dir_maybe(self.profile_id) else {
+        let Some(dir) = self
+            .compiler
+            .program
+            .artifacts
+            .dir_snapshot(node_id.module_id, self.profile_id)
+        else {
             let hash = self.fallback_node_hash(node_id);
             self.node_hashes.insert(node_id, hash);
             return hash;
         };
-        let tree = dir.tree.read();
+        let tree = &dir.tree;
 
         // dump the node subtree with stable formatting
         let mut dumper = Dumper::new(
@@ -1756,22 +1793,22 @@ impl<'a> SignatureHasher<'a> {
             NodeType::Expression => {
                 let local_id = node_id.into_local_typed::<Expression>();
                 let expression = tree.get(local_id);
-                dumper.visit_expression(&tree, local_id, expression);
+                dumper.visit_expression(tree, local_id, expression);
             }
             NodeType::Argument => {
                 let local_id = node_id.into_local_typed::<Argument>();
                 let argument = tree.get(local_id);
-                dumper.visit_argument(&tree, local_id, argument);
+                dumper.visit_argument(tree, local_id, argument);
             }
             NodeType::Declaration => {
                 let local_id = node_id.into_local_typed::<Declaration>();
                 let declaration = tree.get(local_id);
-                dumper.visit_declaration(&tree, local_id, declaration);
+                dumper.visit_declaration(tree, local_id, declaration);
             }
             NodeType::Property => {
                 let local_id = node_id.into_local_typed::<Property>();
                 let property = tree.get(local_id);
-                dumper.visit_property(&tree, local_id, property);
+                dumper.visit_property(tree, local_id, property);
             }
             NodeType::Parameter => {
                 let local_id = node_id.into_local_typed::<Parameter>();

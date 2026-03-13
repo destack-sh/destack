@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
     CanonicalSymbolMode, ContextualTypingMode, DirReadBoundary, InferContext, ModuleContext,
-    SymbolTypeView, TreeSymbolTypeView, TypeContext, TypeView,
+    SymbolTypeView, TreeSymbolTypeView, TreeSymbolView, TypeContext, TypeView,
 };
 use crate::analyze::module::GlobalMergeCategory;
 use crate::timing::tags;
@@ -16,6 +16,7 @@ use destack_dir::{
     StaticKey, StaticParameter, StaticParameterKind, StaticProperty, StringId, SymbolType, Type,
     TypeElement, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
+use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 
 /// Inherited static arguments and substitutions for a type reference.
@@ -29,6 +30,41 @@ pub(crate) struct InheritedStaticArguments {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Run logic with one declared-owner type context for a remote module.
+    fn with_declared_type_context_for_module<T>(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        module_id: ModuleId,
+        handle: impl FnOnce(&mut TypeContext<'_>) -> AnalyzeResult<T>,
+    ) -> AnalyzeResult<T> {
+        // local declared reads should reuse the current context directly
+        if module_id == ctx.module.id {
+            let mut ctx = ctx.reborrow();
+            return handle(&mut ctx);
+        }
+
+        let owner_module = self.program.modules.get(module_id);
+        let owner_module = owner_module.read();
+        let owner_options = self.analyze_context_options_for_module(owner_module.id);
+
+        self.with_module_tree_symbols_at_boundary(
+            ctx.module,
+            ctx.profile,
+            module_id,
+            DirReadBoundary::Declared,
+            |owner_module, tree, symbols| {
+                let mut owner_ctx = ctx.reborrow_for_module_with_options(
+                    owner_module,
+                    &owner_options,
+                    tree,
+                    symbols,
+                );
+                handle(&mut owner_ctx)
+            },
+        )
+        .map_err(AnalyzeError::from)?
+    }
+
     /// Resolve a static parameter symbol for a reference expression.
     pub(crate) fn static_parameter_symbol_for_reference(
         &self,
@@ -66,16 +102,16 @@ impl Compiler {
     /// Run logic with the module and tree that own a static argument node in read-only mode.
     fn with_static_argument_owner_read<T>(
         &self,
-        ctx: TypeView<'_>,
+        view: TreeSymbolView<'_>,
         argument_node: GlobalNodeIdAny,
-        f: impl FnOnce(TypeView<'_>, LocalNodeId<Argument>) -> AnalyzeResult<T>,
+        f: impl FnOnce(TreeSymbolView<'_>, LocalNodeId<Argument>) -> AnalyzeResult<T>,
     ) -> AnalyzeResult<Option<T>> {
         // static arguments should always point at argument nodes
         let argument_id = match argument_node.try_into_local_typed::<Argument>() {
             Ok(argument_id) => argument_id,
             Err(_) => {
                 self.error(AnalyzeError::InvalidStaticArgument {
-                    node: argument_node.into_anchored(Some(ctx.profile)),
+                    node: argument_node.into_anchored(Some(view.profile)),
                     message: "static argument does not resolve to an argument node".to_string(),
                 });
                 return Ok(None);
@@ -83,32 +119,38 @@ impl Compiler {
         };
 
         // prefer the call site tree when it owns the argument node
-        if argument_node.module_id == ctx.module.id
-            && ctx.tree.has_node_id(argument_node.local_id.id)
+        if argument_node.module_id == view.module.id
+            && view.tree.has_node_id(argument_node.local_id.id)
         {
-            return f(ctx, argument_id).map(Some);
+            return f(view, argument_id).map(Some);
         }
 
         // otherwise, resolve the owning module and ensure the node exists there
-        let argument_module = self.program.modules.get(argument_node.module_id);
-        let argument_module = argument_module.read();
-        let argument_tree = argument_module.dir(ctx.profile).tree.read();
-        if !argument_tree.has_node_id(argument_node.local_id.id) {
+        let argument_snapshot = self.require_artifact_dir_for_boundary(
+            argument_node.module_id,
+            view.profile,
+            DirReadBoundary::Declared,
+        )?;
+        if !argument_snapshot
+            .tree
+            .has_node_id(argument_node.local_id.id)
+        {
             self.error(AnalyzeError::InvalidStaticArgument {
-                node: argument_node.into_anchored(Some(ctx.profile)),
+                node: argument_node.into_anchored(Some(view.profile)),
                 message: "static argument node is missing".to_string(),
             });
             return Ok(None);
         }
-        let argument_symbols = argument_module.dir(ctx.profile).symbols.read();
-        let ctx = TypeView::new(
+
+        let argument_module = self.program.modules.get(argument_node.module_id);
+        let argument_module = argument_module.read();
+        let view = TreeSymbolView::new(
             &argument_module,
-            ctx.profile,
-            &argument_tree,
-            &argument_symbols,
-            ctx.types,
+            view.profile,
+            &argument_snapshot.tree,
+            &argument_snapshot.symbols,
         );
-        f(ctx, argument_id).map(Some)
+        f(view, argument_id).map(Some)
     }
 
     // static argument owner resolution: mutable
@@ -140,23 +182,30 @@ impl Compiler {
         }
 
         // otherwise, resolve the owning module and ensure the node exists there
-        let argument_module = self.program.modules.get(argument_node.module_id);
-        let argument_module = argument_module.read();
-        let argument_tree = argument_module.dir(ctx.profile).tree.read();
-        if !argument_tree.has_node_id(argument_node.local_id.id) {
+        let argument_snapshot = self.require_artifact_dir_for_boundary(
+            argument_node.module_id,
+            ctx.profile,
+            DirReadBoundary::Declared,
+        )?;
+        if !argument_snapshot
+            .tree
+            .has_node_id(argument_node.local_id.id)
+        {
             self.error(AnalyzeError::InvalidStaticArgument {
                 node: argument_node.into_anchored(Some(ctx.profile)),
                 message: "static argument node is missing".to_string(),
             });
             return Ok(None);
         }
-        let argument_symbols = argument_module.dir(ctx.profile).symbols.read();
+
+        let argument_module = self.program.modules.get(argument_node.module_id);
+        let argument_module = argument_module.read();
         let argument_options = self.analyze_context_options_for_module(argument_module.id);
         let mut ctx = ctx.reborrow_for_module_with_options(
             &argument_module,
             &argument_options,
-            &argument_tree,
-            &argument_symbols,
+            &argument_snapshot.tree,
+            &argument_snapshot.symbols,
         );
         f(&mut ctx, argument_id).map(Some)
     }
@@ -164,7 +213,7 @@ impl Compiler {
     /// Map static argument values to parameters by name and position.
     pub(crate) fn assign_static_argument_values(
         &self,
-        ctx: &mut TypeContext<'_>,
+        call_site: ModuleContext<'_>,
         node_id: LocalNodeIdAny,
         static_arguments: &[StaticArgument],
         parameters: &[StaticParameter],
@@ -176,21 +225,28 @@ impl Compiler {
             let (argument_name, is_spread) = match argument {
                 StaticArgument::Evaluated { name, .. } => (*name, false),
                 StaticArgument::Unevaluated { node } => {
-                    let mut info = None;
-                    let mut ctx = ctx.reborrow();
-                    let _ = self.with_static_argument_owner(&mut ctx, *node, |ctx, argument_id| {
-                        let argument = ctx.tree.get(argument_id);
-                        info = Some(match argument {
-                            Argument::Named { name, .. } => {
-                                has_named_arguments = true;
-                                (Some(*name), false)
-                            }
-                            Argument::Spread { .. } => (None, true),
-                            _ => (None, false),
-                        });
-                        Ok(())
-                    });
-                    info.unwrap_or((None, false))
+                    let call_site_view = TreeSymbolView::new(
+                        call_site.module,
+                        call_site.profile,
+                        call_site.tree,
+                        call_site.symbols,
+                    );
+                    let info = self.with_static_argument_owner_read(
+                        call_site_view,
+                        *node,
+                        |view, argument_id| {
+                            let argument = view.tree.get(argument_id);
+                            Ok(match argument {
+                                Argument::Named { name, .. } => {
+                                    has_named_arguments = true;
+                                    (Some(*name), false)
+                                }
+                                Argument::Spread { .. } => (None, true),
+                                _ => (None, false),
+                            })
+                        },
+                    );
+                    info.ok().flatten().unwrap_or((None, false))
                 }
             };
 
@@ -198,10 +254,10 @@ impl Compiler {
             if is_spread {
                 let error_node = match argument {
                     StaticArgument::Unevaluated { node } => *node,
-                    _ => node_id.into_global(ctx.module.id),
+                    _ => node_id.into_global(call_site.module.id),
                 };
                 self.error(AnalyzeError::InvalidStaticArgument {
-                    node: error_node.into_anchored(Some(ctx.profile)),
+                    node: error_node.into_anchored(Some(call_site.profile)),
                     message: "static argument spread is not supported".to_string(),
                 });
                 return vec![None; parameters.len()];
@@ -214,8 +270,8 @@ impl Compiler {
         if has_named_arguments {
             self.error(AnalyzeError::InvalidStaticArgument {
                 node: node_id
-                    .into_global(ctx.module.id)
-                    .into_anchored(Some(ctx.profile)),
+                    .into_global(call_site.module.id)
+                    .into_anchored(Some(call_site.profile)),
                 message: "static arguments must be positional".to_string(),
             });
             return vec![None; parameters.len()];
@@ -249,7 +305,7 @@ impl Compiler {
             let Some(target_index) = target_index else {
                 let error_node = match argument {
                     StaticArgument::Unevaluated { node } => *node,
-                    _ => node_id.into_global(ctx.module.id),
+                    _ => node_id.into_global(call_site.module.id),
                 };
                 let message = if argument_name.is_some() {
                     "unknown static argument name".to_string()
@@ -257,7 +313,7 @@ impl Compiler {
                     "too many static arguments".to_string()
                 };
                 self.error(AnalyzeError::InvalidStaticArgument {
-                    node: error_node.into_anchored(Some(ctx.profile)),
+                    node: error_node.into_anchored(Some(call_site.profile)),
                     message,
                 });
                 continue;
@@ -267,10 +323,10 @@ impl Compiler {
             if assigned[target_index].is_some() {
                 let error_node = match argument {
                     StaticArgument::Unevaluated { node } => *node,
-                    _ => node_id.into_global(ctx.module.id),
+                    _ => node_id.into_global(call_site.module.id),
                 };
                 self.error(AnalyzeError::InvalidStaticArgument {
-                    node: error_node.into_anchored(Some(ctx.profile)),
+                    node: error_node.into_anchored(Some(call_site.profile)),
                     message: "duplicate static argument".to_string(),
                 });
                 continue;
@@ -441,24 +497,18 @@ impl Compiler {
                         static_arguments,
                     )
                 } else {
-                    let reference_module = self.program.modules.get(symbol.module_id);
-                    let reference_module = reference_module.read();
-                    let reference_tree = reference_module.dir(ctx.profile).tree.read();
-                    let reference_symbols = reference_module.dir(ctx.profile).symbols.read();
-                    let reference_options =
-                        self.analyze_context_options_for_module(reference_module.id);
-                    let mut remote_ctx = ctx.type_context_reborrow_for_module_with_options(
-                        &reference_module,
-                        &reference_options,
-                        &reference_tree,
-                        &reference_symbols,
-                    );
-                    self.materialize_static_arguments_for_reference(
-                        &mut remote_ctx,
-                        symbol,
-                        resolution_node_id,
-                        static_arguments,
-                    )
+                    self.with_declared_type_context_for_module(
+                        &mut ctx.type_context_reborrow(),
+                        symbol.module_id,
+                        |remote_ctx| {
+                            Ok(self.materialize_static_arguments_for_reference(
+                                remote_ctx,
+                                symbol,
+                                resolution_node_id,
+                                static_arguments,
+                            ))
+                        },
+                    )?
                 }
             }
         };
@@ -475,24 +525,18 @@ impl Compiler {
                     &resolved_arguments,
                 )
             } else {
-                let reference_module = self.program.modules.get(symbol.module_id);
-                let reference_module = reference_module.read();
-                let reference_tree = reference_module.dir(ctx.profile).tree.read();
-                let reference_symbols = reference_module.dir(ctx.profile).symbols.read();
-                let reference_options =
-                    self.analyze_context_options_for_module(reference_module.id);
-                let mut remote_ctx = ctx.type_context_reborrow_for_module_with_options(
-                    &reference_module,
-                    &reference_options,
-                    &reference_tree,
-                    &reference_symbols,
-                );
-                self.materialize_static_arguments_for_reference(
-                    &mut remote_ctx,
-                    symbol,
-                    receiver_id,
-                    &resolved_arguments,
-                )
+                self.with_declared_type_context_for_module(
+                    &mut ctx.type_context_reborrow(),
+                    symbol.module_id,
+                    |remote_ctx| {
+                        Ok(self.materialize_static_arguments_for_reference(
+                            remote_ctx,
+                            symbol,
+                            receiver_id,
+                            &resolved_arguments,
+                        ))
+                    },
+                )?
             };
         }
 
@@ -775,6 +819,7 @@ impl Compiler {
     pub(crate) fn resolve_static_argument(
         &self,
         ctx: &mut TypeContext<'_>,
+        call_site: ModuleContext<'_>,
         static_parameter: &StaticParameter,
         assigned_argument: Option<StaticArgument>,
         treat_type_arguments_as_types: bool,
@@ -783,6 +828,7 @@ impl Compiler {
         if let Some(argument) = assigned_argument {
             let resolved_argument = self.resolve_explicit_static_argument(
                 &mut ctx.reborrow(),
+                call_site,
                 static_parameter,
                 argument,
                 treat_type_arguments_as_types,
@@ -825,6 +871,7 @@ impl Compiler {
     fn resolve_explicit_static_argument(
         &self,
         ctx: &mut TypeContext<'_>,
+        call_site: ModuleContext<'_>,
         static_parameter: &StaticParameter,
         argument: StaticArgument,
         treat_type_arguments_as_types: bool,
@@ -832,19 +879,37 @@ impl Compiler {
         // resolve explicit arguments based on parameter kind
         let resolved_argument = match (static_parameter.kind, argument) {
             (StaticParameterKind::Type, StaticArgument::Unevaluated { node }) => {
+                let mut call_site_ctx = TypeContext::new(
+                    call_site.module,
+                    call_site.profile,
+                    call_site.options,
+                    call_site.tree,
+                    call_site.symbols,
+                    ctx.types,
+                );
+
                 // prefer value literals when type arguments stay unconverted
                 if !treat_type_arguments_as_types
                     && let Some(value) =
-                        self.evaluate_static_argument_as_value(&mut ctx.reborrow(), node)?
+                        self.evaluate_static_argument_as_value(&mut call_site_ctx.reborrow(), node)?
                 {
                     return Ok(value);
                 }
 
-                let resolved = self.evaluate_static_argument_as_type(&mut ctx.reborrow(), node)?;
+                let resolved =
+                    self.evaluate_static_argument_as_type(&mut call_site_ctx.reborrow(), node)?;
                 resolved.unwrap_or(StaticArgument::Unevaluated { node })
             }
             (StaticParameterKind::Value, StaticArgument::Unevaluated { node }) => {
-                self.resolve_value_static_argument(&mut ctx.reborrow(), node)?
+                let mut call_site_ctx = TypeContext::new(
+                    call_site.module,
+                    call_site.profile,
+                    call_site.options,
+                    call_site.tree,
+                    call_site.symbols,
+                    ctx.types,
+                );
+                self.resolve_value_static_argument(&mut call_site_ctx.reborrow(), node)?
             }
             (StaticParameterKind::Type, StaticArgument::Evaluated { name, value }) => {
                 // preserve explicit values when type arguments stay unconverted
@@ -1190,23 +1255,18 @@ impl Compiler {
         }
 
         // load the remote module context for the default expression
-        let default_module = self.program.modules.get(default_expression.module_id);
-        let default_module = default_module.read();
-        let default_tree = default_module.dir(ctx.profile).tree.read();
-        let default_symbols = default_module.dir(ctx.profile).symbols.read();
-        let default_options = self.analyze_context_options_for_module(default_module.id);
-        let mut ctx = ctx.reborrow_for_module_with_options(
-            &default_module,
-            &default_options,
-            &default_tree,
-            &default_symbols,
-        );
-        self.evaluate_static_default_argument(
-            &mut ctx,
-            static_parameter.kind,
-            static_parameter.name,
-            default_expression.local_id,
-            treat_type_arguments_as_types,
+        self.with_declared_type_context_for_module(
+            &mut ctx.reborrow(),
+            default_expression.module_id,
+            |ctx| {
+                self.evaluate_static_default_argument(
+                    ctx,
+                    static_parameter.kind,
+                    static_parameter.name,
+                    default_expression.local_id,
+                    treat_type_arguments_as_types,
+                )
+            },
         )
     }
 
@@ -1870,71 +1930,63 @@ impl Compiler {
         extension_parameters: &[GlobalSymbolId],
         profile: ProfileId,
     ) -> AnalyzeResult<Option<Vec<usize>>> {
-        // read the declared extension surface from artifact truth
-        let snapshot = self.require_artifact_dir_for_boundary(
-            extension_symbol.module_id,
+        let module = self.program.modules.get(extension_symbol.module_id);
+        let module = module.read();
+
+        self.with_module_tree_symbols_at_boundary(
+            &module,
             profile,
+            extension_symbol.module_id,
             DirReadBoundary::Declared,
-        )?;
-        let tree = &snapshot.tree;
-        let symbols = &snapshot.symbols;
+            |_, tree, symbols| {
+                let symbol_entry = symbols.get_symbol(extension_symbol.local_id);
+                let primary_declaration = symbol_entry.primary_declaration?;
+                let declaration_id = primary_declaration
+                    .try_into_local_typed::<Declaration>()
+                    .ok()?;
+                let declaration = tree.get(declaration_id);
+                let Declaration::Extension { target_type, .. } = declaration else {
+                    return None;
+                };
 
-        let symbol_entry = symbols.get_symbol(extension_symbol.local_id);
-        let Some(primary_declaration) = symbol_entry.primary_declaration else {
-            return Ok(None);
-        };
-        let Ok(declaration_id) = primary_declaration.try_into_local_typed::<Declaration>() else {
-            return Ok(None);
-        };
-        let declaration = tree.get(declaration_id);
-        let Declaration::Extension { target_type, .. } = declaration else {
-            return Ok(None);
-        };
+                // read the target type arguments
+                let target_expression = tree.get(*target_type);
+                let static_arguments = match target_expression {
+                    Expression::LocalReference {
+                        static_arguments, ..
+                    }
+                    | Expression::ModuleReference {
+                        static_arguments, ..
+                    }
+                    | Expression::GlobalReference {
+                        static_arguments, ..
+                    } => static_arguments.as_ref(),
+                    _ => None,
+                }?;
 
-        // read the target type arguments
-        let target_expression = tree.get(*target_type);
-        let static_arguments = match target_expression {
-            Expression::LocalReference {
-                static_arguments, ..
-            }
-            | Expression::ModuleReference {
-                static_arguments, ..
-            }
-            | Expression::GlobalReference {
-                static_arguments, ..
-            } => static_arguments.as_ref(),
-            _ => None,
-        };
-        let Some(static_arguments) = static_arguments else {
-            return Ok(None);
-        };
+                // map target arguments to extension parameter indices
+                let mut mapping = Vec::with_capacity(static_arguments.len());
+                for argument_id in static_arguments {
+                    let argument = tree.get(*argument_id);
+                    let expression_id = argument.value();
+                    let expression = tree.get(expression_id);
+                    let target_symbol = match expression {
+                        Expression::LocalReference { target_symbol, .. }
+                        | Expression::ModuleReference { target_symbol, .. }
+                        | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
+                        _ => None,
+                    }?;
 
-        // map target arguments to extension parameter indices
-        let mut mapping = Vec::with_capacity(static_arguments.len());
-        for argument_id in static_arguments {
-            let argument = tree.get(*argument_id);
-            let expression_id = argument.value();
-            let expression = tree.get(expression_id);
-            let target_symbol = match expression {
-                Expression::LocalReference { target_symbol, .. }
-                | Expression::ModuleReference { target_symbol, .. }
-                | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
-                _ => None,
-            };
-            let Some(target_symbol) = target_symbol else {
-                return Ok(None);
-            };
+                    let parameter_index = extension_parameters
+                        .iter()
+                        .position(|parameter_symbol| *parameter_symbol == target_symbol)?;
+                    mapping.push(parameter_index);
+                }
 
-            let parameter_index = extension_parameters
-                .iter()
-                .position(|parameter_symbol| *parameter_symbol == target_symbol);
-            let Some(parameter_index) = parameter_index else {
-                return Ok(None);
-            };
-            mapping.push(parameter_index);
-        }
-
-        Ok(Some(mapping))
+                Some(mapping)
+            },
+        )
+        .map_err(AnalyzeError::from)
     }
 
     /// Resolve a static argument constraint for validation.
@@ -2144,24 +2196,18 @@ impl Compiler {
                         argument_slice,
                     )
                 } else {
-                    let reference_module = self.program.modules.get(symbol.module_id);
-                    let reference_module = reference_module.read();
-                    let reference_tree = reference_module.dir(ctx.profile).tree.read();
-                    let reference_symbols = reference_module.dir(ctx.profile).symbols.read();
-                    let reference_options =
-                        self.analyze_context_options_for_module(reference_module.id);
-                    let mut ctx = ctx.reborrow_for_module_with_options(
-                        &reference_module,
-                        &reference_options,
-                        &reference_tree,
-                        &reference_symbols,
-                    );
-                    self.materialize_static_arguments_for_reference(
-                        &mut ctx,
-                        symbol,
-                        node_id,
-                        argument_slice,
-                    )
+                    self.with_declared_type_context_for_module(
+                        &mut ctx.reborrow(),
+                        symbol.module_id,
+                        |remote_ctx| {
+                            Ok(self.materialize_static_arguments_for_reference(
+                                remote_ctx,
+                                symbol,
+                                node_id,
+                                argument_slice,
+                            ))
+                        },
+                    )?
                 };
                 return Ok(Some(resolved_arguments));
             }
@@ -2236,27 +2282,18 @@ impl Compiler {
             );
         }
 
-        let reference_module = self.program.modules.get(symbol.module_id);
-        let reference_module = reference_module.read();
-        let reference_tree = reference_module.dir(ctx.profile).tree.read();
-        let reference_symbols = reference_module.dir(ctx.profile).symbols.read();
-        let reference_options = self.analyze_context_options_for_module(reference_module.id);
-        let mut ctx = ctx.reborrow_for_module_with_options(
-            &reference_module,
-            &reference_options,
-            &reference_tree,
-            &reference_symbols,
-        );
-        self.resolve_type_reference_static_arguments_in_owner(
-            &mut ctx,
-            call_site,
-            node_id,
-            symbol,
-            static_arguments,
-            validate_static_argument_bounds,
-            bound_substitutions,
-            treat_type_arguments_as_types,
-        )
+        self.with_declared_type_context_for_module(ctx, symbol.module_id, |owner_ctx| {
+            self.resolve_type_reference_static_arguments_in_owner(
+                owner_ctx,
+                call_site,
+                node_id,
+                symbol,
+                static_arguments,
+                validate_static_argument_bounds,
+                bound_substitutions,
+                treat_type_arguments_as_types,
+            )
+        })
     }
 
     /// Resolve static arguments for one owner-module context.
@@ -2310,7 +2347,7 @@ impl Compiler {
         // map arguments to parameter slots
         let argument_values = static_arguments.unwrap_or(&[]);
         let assigned_arguments = self.assign_static_argument_values(
-            &mut ctx.reborrow(),
+            call_site,
             node_id,
             argument_values,
             &static_parameters,
@@ -2337,6 +2374,7 @@ impl Compiler {
             // resolve the argument value or synthesize error recovery when unresolved
             let resolved_argument = self.resolve_static_argument(
                 &mut ctx.reborrow(),
+                call_site,
                 static_parameter,
                 assigned_argument,
                 treat_type_arguments_as_types,
@@ -3265,23 +3303,18 @@ impl Compiler {
                 &argument_arguments,
             )
         } else {
-            let argument_module = self.program.modules.get(argument_symbol.module_id);
-            let argument_module = argument_module.read();
-            let argument_tree = argument_module.dir(ctx.profile).tree.read();
-            let argument_symbols = argument_module.dir(ctx.profile).symbols.read();
-            let argument_options = self.analyze_context_options_for_module(argument_module.id);
-            let mut ctx = ctx.reborrow_for_module_with_options(
-                &argument_module,
-                &argument_options,
-                &argument_tree,
-                &argument_symbols,
-            );
-            self.materialize_static_arguments_for_reference(
-                &mut ctx,
-                argument_symbol,
-                argument_source_id,
-                &argument_arguments,
-            )
+            self.with_declared_type_context_for_module(
+                &mut ctx.reborrow(),
+                argument_symbol.module_id,
+                |remote_ctx| {
+                    Ok(self.materialize_static_arguments_for_reference(
+                        remote_ctx,
+                        argument_symbol,
+                        argument_source_id,
+                        &argument_arguments,
+                    ))
+                },
+            )?
         };
 
         // map explicit static arguments when the parameter and argument share a reference
@@ -3381,18 +3414,14 @@ impl Compiler {
         };
 
         // resolve the owning tree before checking the argument expression
-        let mut matches = false;
-        let _ = self.with_static_argument_owner_read(ctx, *node, |ctx, argument_id| {
-            let expression_id = ctx.tree.get(argument_id).value();
-            if let Some(symbol) =
-                self.reference_symbol_for_expression(ctx.tree_symbol_view(), expression_id)
-            {
-                matches = symbol == target_symbol;
-            }
-            Ok(())
-        });
-
-        matches
+        let view = TreeSymbolView::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols);
+        self.with_static_argument_owner_read(view, *node, |view, argument_id| {
+            let expression_id = view.tree.get(argument_id).value();
+            Ok(self.reference_symbol_for_expression(view, expression_id) == Some(target_symbol))
+        })
+        .ok()
+        .flatten()
+        .unwrap_or(false)
     }
 
     /// Check whether a constraint satisfies a declared bound.

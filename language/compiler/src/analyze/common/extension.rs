@@ -42,15 +42,40 @@ impl Compiler {
         }
 
         // include local extensions from directly imported modules
-        let mut imported_module_ids = HashSet::new();
-        for resolution in ctx.module.dir(ctx.profile).imported_modules.read().values() {
-            for target in [resolution.value, resolution.ty] {
-                let Some(ModuleTarget::Module(module_id)) = target else {
-                    continue;
-                };
-                imported_module_ids.insert(module_id);
+        let imported_module_ids = if let Some(dir) =
+            self.current_active_dir_frame(ctx.module.id, ctx.profile, DirReadBoundary::Declared)
+        {
+            let imported_modules = dir.imported_modules.read();
+            let mut imported_module_ids = HashSet::new();
+            for resolution in imported_modules.values() {
+                for target in [resolution.value, resolution.ty] {
+                    let Some(ModuleTarget::Module(module_id)) = target else {
+                        continue;
+                    };
+                    imported_module_ids.insert(module_id);
+                }
             }
-        }
+            imported_module_ids
+        } else {
+            let declared_dir = self
+                .require_artifact_dir_for_boundary(
+                    ctx.module.id,
+                    ctx.profile,
+                    DirReadBoundary::Declared,
+                )
+                .map_err(AnalyzeError::from)?;
+
+            let mut imported_module_ids = HashSet::new();
+            for resolution in declared_dir.imported_modules.values() {
+                for target in [resolution.value, resolution.ty] {
+                    let Some(ModuleTarget::Module(module_id)) = target else {
+                        continue;
+                    };
+                    imported_module_ids.insert(module_id);
+                }
+            }
+            imported_module_ids
+        };
         for imported_module_id in imported_module_ids {
             self.with_module_types_by_id_at_boundary(
                 ctx.profile,
@@ -184,7 +209,8 @@ impl Compiler {
                 continue;
             }
 
-            let Some(extension) = self.extension_for_symbol(ctx.profile, canonical_extension)?
+            let Some(extension) =
+                self.extension_for_symbol_in_module(ctx.module_type_view(), canonical_extension)?
             else {
                 continue;
             };

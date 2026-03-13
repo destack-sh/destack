@@ -5,13 +5,14 @@ use destack_dir::{
     SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{ModuleDir, ProfileId};
 use rustc_hash::FxHashSet;
 
 use crate::resolve::dependency::cache::{ResolveDependencyItemCache, TargetCacheKey};
 use crate::timing::tags;
 use crate::{
-    Compiler, ImportError, ResolveError, ResolveResult, SymbolDescriptor, can_merge_declarations,
+    Compiler, ImportError, ResolveError, ResolveModuleContext, ResolveResult, SymbolDescriptor,
+    can_merge_declarations,
 };
 
 /// A resolved export symbol with its originating export space.
@@ -110,7 +111,7 @@ impl Compiler {
     /// Resolve a dependency item, optionally using a cache.
     pub(crate) fn resolve_dependency_item(
         &self,
-        module: &Module,
+        module: &ResolveModuleContext,
         dir: &ModuleDir,
         profile: ProfileId,
         item_id: LocalNodeId<DependencyItem>,
@@ -118,6 +119,9 @@ impl Compiler {
         symbols: &SymbolTable,
         mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<DependencyItem>> {
+        let module_handle = self.program.modules.get(module.id);
+        let module_handle = module_handle.read();
+
         // resolve the dependency item based on its mode
         let item = tree.get(item_id);
         let resolved_item: DependencyItem = match item {
@@ -153,7 +157,7 @@ impl Compiler {
                         remote_target
                     } else {
                         let Some(remote_target) = self.resolve_import_maybe(
-                            module,
+                            &module_handle,
                             dir,
                             profile,
                             item_id.into_global_any(module.id),
@@ -176,16 +180,17 @@ impl Compiler {
                     destack_dir::ModuleResolution::from_target(remote_target)
                 } else {
                     self.imported_module_resolution_for_specifier(
-                        module,
+                        module.id,
                         profile,
+                        Some(dir),
                         *target,
-                        self.import_edge_kind(module, *source),
+                        self.import_edge_kind(&module_handle, *source),
                         None,
                     )
                     .unwrap_or_else(|| destack_dir::ModuleResolution::from_target(remote_target))
                 };
                 let remote_symbol_target = self.select_symbol_target_for_dependency(
-                    module,
+                    &module_handle,
                     *kind,
                     target_module,
                     remote_target,
@@ -248,7 +253,7 @@ impl Compiler {
                             Ok(resolved) => resolved,
                             Err(error @ ResolveError::MissingSymbol { .. }) => {
                                 if !self.default_import_uses_namespace_fallback(
-                                    module,
+                                    &module_handle,
                                     *source,
                                     *kind,
                                     profile,
@@ -359,6 +364,7 @@ impl Compiler {
                 // resolve in local scope first
                 let local_symbol_id = self.resolve_absolute_symbol(
                     module,
+                    dir,
                     profile,
                     node,
                     (scope_id, scope, mark),
@@ -377,6 +383,7 @@ impl Compiler {
                         let global_scope = symbols.get_scope_by_id(global_scope_id);
                         self.resolve_absolute_symbol(
                             module,
+                            dir,
                             profile,
                             node,
                             (global_scope_id, global_scope, LocalScopeMark::end()),
@@ -432,13 +439,21 @@ impl Compiler {
     ) {
         let left_module = self.program.modules.get(left.module_id);
         let left_module = left_module.read();
-        let left_symbols = left_module.dir_base().symbols.read();
-        let left_symbol = left_symbols.get_symbol(left.local_id);
+        let left_dir = self.artifact_dir_base(left.module_id).unwrap_or_else(|| {
+            panic!(
+                "missing committed base dir artifact for {:?}",
+                left.module_id
+            )
+        });
+        let left_symbol = left_dir.symbols.get_symbol(left.local_id);
 
-        let right_module = self.program.modules.get(right.module_id);
-        let right_module = right_module.read();
-        let right_symbols = right_module.dir_base().symbols.read();
-        let right_symbol = right_symbols.get_symbol(right.local_id);
+        let right_dir = self.artifact_dir_base(right.module_id).unwrap_or_else(|| {
+            panic!(
+                "missing committed base dir artifact for {:?}",
+                right.module_id
+            )
+        });
+        let right_symbol = right_dir.symbols.get_symbol(right.local_id);
 
         // check if the symbols can merge (e.g., interface + class)
         let language_type = left_module.language_type;

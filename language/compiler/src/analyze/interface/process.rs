@@ -1,6 +1,6 @@
 use crate::{AnalyzeResult, Compiler};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::ProfileId;
+use destack_workspace::{ModuleDirData, ProfileId};
 
 impl Compiler {
     /// Build interface state for a module by converging its canonical interface component.
@@ -10,7 +10,7 @@ impl Compiler {
         profile: ProfileId,
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
-    ) -> AnalyzeResult<()> {
+    ) -> AnalyzeResult<Vec<(ModuleId, ProfileId, ModuleDirData)>> {
         // ensure forward dependency edges are available for component discovery
         self.require_interface_forward_closure(module_id, profile)?;
 
@@ -18,7 +18,7 @@ impl Compiler {
         let anchor_module_id = self.interface_component_anchor_module_id(module_id, profile);
         if anchor_module_id != module_id {
             self.require_dir_interface(anchor_module_id, profile)?;
-            return Ok(());
+            return Ok(Vec::new());
         }
 
         let graph_version = self.module_graph_version(profile);
@@ -28,7 +28,6 @@ impl Compiler {
             module_version,
             profile_version,
             graph_version,
-        )?;
-        Ok(())
+        )
     }
 }

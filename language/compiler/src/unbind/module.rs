@@ -1,8 +1,8 @@
 use destack_ast::{self as ast};
 use destack_core::StringPool;
 use destack_dir::{self as dir};
-use destack_source::{FileId, Span};
-use destack_workspace::{Module, ProfileId};
+use destack_source::{FileId, ModuleId, Span};
+use destack_workspace::{Module, ModuleDirData, ProfileId};
 
 use super::UnbindContext;
 use crate::Compiler;
@@ -19,6 +19,18 @@ pub struct UnboundModule {
 }
 
 impl Compiler {
+    /// Return the most advanced published DIR snapshot for one module and profile.
+    pub(super) fn unbind_dir_snapshot(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Option<ModuleDirData> {
+        self.program
+            .artifacts
+            .dir_snapshot(module_id, profile)
+            .map(|dir| dir.as_ref().clone())
+    }
+
     /// Get the span for a DIR node.
     #[inline]
     pub(super) fn unbind_span(&self, _module: &Module, _node_id: dir::LocalNodeIdAny) -> Span {
@@ -28,37 +40,25 @@ impl Compiler {
 
     /// Unbind a module's DIR tree to an AST tree.
     pub fn unbind_module(&self, module: &Module, profile: ProfileId) -> UnboundModule {
-        // use the profile dir when available
-        if let Some(dir) = module.dir_maybe(profile) {
-            let tree = dir.tree.read();
-            let symbols = dir.symbols.read();
-            let fallback_node = dir
-                .roots
-                .first()
-                .copied()
-                .map(dir::LocalNodeId::into_any)
-                .unwrap_or(dir.anchor_node);
-            return self.unbind_module_from_parts(
-                module,
-                &tree,
-                &symbols,
-                &dir.roots,
-                fallback_node,
-                profile,
-            );
-        }
-
-        // fall back to the base dir
-        let dir = module.dir_base();
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
+        // read the most advanced committed artifact snapshot
+        let dir = self
+            .unbind_dir_snapshot(module.id, profile)
+            .map(std::sync::Arc::new)
+            .unwrap_or_else(|| panic!("missing committed dir artifact for module {:?}", module.id));
         let fallback_node = dir
             .roots
             .first()
             .copied()
             .map(dir::LocalNodeId::into_any)
             .unwrap_or(dir.anchor_node);
-        self.unbind_module_from_parts(module, &tree, &symbols, &dir.roots, fallback_node, profile)
+        self.unbind_module_from_parts(
+            module,
+            &dir.tree,
+            &dir.symbols,
+            &dir.roots,
+            fallback_node,
+            profile,
+        )
     }
 
     /// Unbind module parts into an AST tree.

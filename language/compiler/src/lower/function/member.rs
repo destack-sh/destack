@@ -158,12 +158,10 @@ impl FunctionLowerer<'_> {
 
     /// Identify static members for a symbol when available.
     fn static_member_kind_for_symbol(&self, symbol: GlobalSymbolId) -> Option<StaticMemberKind> {
-        // load the module for this symbol
-        let module = self.env.program.modules.get(symbol.module_id);
-        let module = module.read();
-        let dir = module.dir(self.env.profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
+        // load the analyzed dir artifact for this symbol
+        let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
+        let tree = &dir.tree;
+        let symbols = &dir.symbols;
 
         // resolve the primary declaration node
         let symbol_entry = symbols.get_symbol(symbol.local_id);
@@ -229,12 +227,10 @@ impl FunctionLowerer<'_> {
         &self,
         symbol: GlobalSymbolId,
     ) -> Option<dir::FunctionMode> {
-        // load the module for this symbol
-        let module = self.env.program.modules.get(symbol.module_id);
-        let module = module.read();
-        let dir = module.dir(self.env.profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
+        // load the analyzed dir artifact for this symbol
+        let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
+        let tree = &dir.tree;
+        let symbols = &dir.symbols;
 
         // resolve the primary declaration node
         let symbol_entry = symbols.get_symbol(symbol.local_id);

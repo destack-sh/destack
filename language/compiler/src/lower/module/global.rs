@@ -205,7 +205,7 @@ impl ModuleLowerer<'_> {
         // resolve enum field constants when the target is an enum field
         let node = node_id.into_anchored(Some(self.profile));
         let Some(EnumFieldValueDescriptor { backing: _, value }) = enum_field_value_for_symbol(
-            &self.compiler.program,
+            self.compiler,
             self.profile,
             candidate.target_symbol,
             node,

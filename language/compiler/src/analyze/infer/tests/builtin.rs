@@ -1,5 +1,6 @@
 use super::*;
 use crate::analyze::common::{TypeContext, TypeView};
+use destack_dir::SymbolType;
 
 /// Analyze builtin Pick mapped types.
 #[test]
@@ -49,33 +50,91 @@ const bad: AgeOnly = { name: "Ada" };
 "#,
     );
 
-    // run analyze pipeline
+    // build the module so the alias and diagnostics are both available
     test.resolve_language_environment();
     test.resolve_libs();
     test.analyze_module(module_id);
     test.compile();
-    // load module data for inspection
+
+    // load declared module data for inspection
+    let profile = test.default_profile_id(module_id);
+    let declared_dir = test.dir_declared(module_id);
     let view = test.view(module_id);
-    let profile = view.profile_id();
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let workspace_dir = test.artifact_dir(module_id, profile);
     let resolved_symbol = test.resolve_to_symbol("test.ds", "AgeOnly").unwrap();
-    let age_only_entry = view.symbols().get_symbol(resolved_symbol.into_local());
+    let age_only_entry = declared_dir
+        .symbols
+        .read()
+        .get_symbol(resolved_symbol.into_local())
+        .clone();
     let age_only_symbol = GlobalSymbolId::new(
         resolved_symbol.module_id,
         resolved_symbol.local_id.with_type(age_only_entry.ty),
     );
-    let alias_target_id = view
-        .types()
+    let declaration_id = age_only_entry
+        .primary_declaration
+        .expect("expected AgeOnly declaration");
+    let declared_tree = declared_dir.tree.read();
+    let declaration = declared_tree.get(declaration_id.local_id.into_typed::<Declaration>());
+    let declaration_value = match declaration {
+        Declaration::Type { value, .. } => *value,
+        other => panic!("expected type declaration, got {other:?}"),
+    };
+    let declaration_symbol = test
+        .declaration_symbol_by_name("test.ds", "AgeOnly")
+        .expect("expected AgeOnly declaration symbol");
+    let person_symbol = test
+        .resolve_to_symbol("test.ds", "Person")
+        .expect("expected Person symbol");
+    let declared_types = declared_dir.types.read();
+    let matching_alias_targets: Vec<_> = [
+        SymbolType::Void,
+        SymbolType::Class,
+        SymbolType::Struct,
+        SymbolType::Interface,
+        SymbolType::Enum,
+        SymbolType::Function,
+        SymbolType::Extension,
+        SymbolType::TypeAlias,
+        SymbolType::Newtype,
+    ]
+    .into_iter()
+    .filter_map(|ty| {
+        let symbol = GlobalSymbolId::new(
+            resolved_symbol.module_id,
+            resolved_symbol.local_id.with_type(ty),
+        );
+        declared_types
+            .get_alias_target_type_id(symbol)
+            .map(|type_id| (symbol, type_id))
+    })
+    .collect();
+    let alias_target_id = declared_types
         .get_alias_target_type_id(age_only_symbol)
-        .expect("expected AgeOnly alias target type");
+        .unwrap_or_else(|| {
+            panic!(
+                "expected AgeOnly alias target type: resolved={resolved_symbol:?} declaration={declaration_symbol:?} entry_ty={:?} decl_typed_alias={:?} decl_raw_alias={:?} view_alias={:?} workspace_alias={:?} instance={:?} value={:?} declared_type={:?} inferred_type={:?} person_instance={:?} person_value={:?} matching={matching_alias_targets:?}",
+                age_only_entry.ty,
+                declared_types.get_alias_target_type_id(age_only_symbol),
+                declared_types.get_alias_target_type_id(declaration_symbol),
+                view.types().get_alias_target_type_id(age_only_symbol),
+                workspace_dir.types.read().get_alias_target_type_id(age_only_symbol),
+                declared_types.get_instance_type_id(age_only_symbol),
+                declared_types.get_value_type_id(age_only_symbol),
+                declared_types.get_declared_type_id(declaration_value.into_global_any(module_id)),
+                declared_types.get_inferred_type_id(declaration_value.into_global_any(module_id)),
+                declared_types.get_instance_type_id(person_symbol),
+                declared_types.get_value_type_id(person_symbol),
+            )
+        });
 
     // normalize to the object shape and ensure it only contains the picked key
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let dir = test.artifact_dir(module_id, profile);
-    let tree = dir.tree.read();
+    let tree = declared_dir.tree.read();
     let options = test.compiler.analyze_context_options_for_module(module.id);
-    let symbols = view.symbols().clone();
-    let mut types = view.types().clone();
+    let symbols = declared_dir.symbols.read().clone();
+    let mut types = declared_types.clone();
     let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
     let normalized = test.compiler.normalize_type(
         &mut ctx.reborrow(),

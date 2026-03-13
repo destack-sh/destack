@@ -18,7 +18,7 @@ impl Compiler {
             BuildKey::Artifact(ArtifactKey::Ast { module })
             | BuildKey::Artifact(ArtifactKey::DirBase { module }) => {
                 BuildDependency::Artifact(ArtifactDependency::new(
-                    self.hash_build_dependency(&(build_key, self.module_version(*module))),
+                    self.hash_build_dependency(&(build_key, self.module_source_version(*module))),
                 ))
             }
             BuildKey::Artifact(
@@ -31,7 +31,7 @@ impl Compiler {
                 | ArtifactKey::DirPatched { module, profile },
             ) => BuildDependency::Artifact(ArtifactDependency::new(self.hash_build_dependency(&(
                 build_key,
-                self.module_version(*module),
+                self.module_source_version(*module),
                 self.profile_version(*profile),
             )))),
             BuildKey::Artifact(
@@ -47,7 +47,7 @@ impl Compiler {
                 },
             ) => BuildDependency::Artifact(ArtifactDependency::new(self.hash_build_dependency(&(
                 build_key,
-                self.module_version(*module),
+                self.module_source_version(*module),
                 self.profile_version(*profile),
                 target,
             )))),
@@ -55,7 +55,7 @@ impl Compiler {
                 let dependency = match output_key.scope {
                     OutputScope::Module(module_id) => self.hash_build_dependency(&(
                         build_key,
-                        self.module_version(module_id),
+                        self.module_source_version(module_id),
                         &output_key.target,
                     )),
                     OutputScope::Package(package_id) => self.hash_build_dependency(&(

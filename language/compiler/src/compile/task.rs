@@ -1,6 +1,8 @@
 use destack_workspace::{ArtifactKey, OutputKey, OutputScope, Program};
 
-use crate::{BuildKey, BuildRequirementSet, DiagnosticAnchor, DiagnosticFormat, TaskError};
+use crate::{
+    BuildKey, BuildProduct, BuildRequirementSet, DiagnosticAnchor, DiagnosticFormat, TaskError,
+};
 
 /// Region of the compiler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -380,13 +382,13 @@ impl From<TaskOutcome> for TaskStatus {
             TaskOutcome::Yield { requirement } => Self::Yielded { requirement },
             TaskOutcome::Skipped { reason } => Self::Skipped { reason },
             TaskOutcome::Error { error } => Self::Failed { error },
-            TaskOutcome::Complete => Self::Complete,
+            TaskOutcome::Complete { .. } => Self::Complete,
         }
     }
 }
 
 /// Handle for one task.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct TaskHandle {
     /// The task id.
     pub id: TaskId,
@@ -424,7 +426,7 @@ impl TaskHandle {
 }
 
 /// One step outcome for a task execution attempt.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum TaskOutcome {
     /// The task yielded more requirements.
     Yield { requirement: BuildRequirementSet },
@@ -432,8 +434,8 @@ pub enum TaskOutcome {
     Skipped { reason: TaskSkipReason },
     /// The task failed.
     Error { error: TaskError },
-    /// The task completed successfully.
-    Complete,
+    /// The task completed successfully with an optional build product.
+    Complete { product: Option<BuildProduct> },
 }
 
 impl<E> From<Result<(), E>> for TaskOutcome
@@ -443,7 +445,33 @@ where
 {
     fn from(result: Result<(), E>) -> Self {
         match result {
-            Ok(()) => Self::Complete,
+            Ok(()) => Self::Complete { product: None },
+            Err(error) => {
+                if let Some(reason) = error.skip_reason() {
+                    return Self::Skipped { reason };
+                }
+
+                match error.try_into() {
+                    Ok(requirement) => Self::Yield { requirement },
+                    Err(error) => Self::Error {
+                        error: error.into(),
+                    },
+                }
+            }
+        }
+    }
+}
+
+impl<E> From<Result<BuildProduct, E>> for TaskOutcome
+where
+    E: Into<TaskError> + TaskSkip,
+    E: TryInto<BuildRequirementSet, Error = E>,
+{
+    fn from(result: Result<BuildProduct, E>) -> Self {
+        match result {
+            Ok(product) => Self::Complete {
+                product: Some(product),
+            },
             Err(error) => {
                 if let Some(reason) = error.skip_reason() {
                     return Self::Skipped { reason };

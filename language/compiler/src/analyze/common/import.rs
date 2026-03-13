@@ -21,11 +21,13 @@ impl Compiler {
         };
 
         // resolve the module target from the import specifier
-        let dir = view.module.dir(view.profile);
+        let dir = self
+            .require_artifact_dir_resolved(view.module.id, view.profile)
+            .map_err(AnalyzeError::from)?;
         let node = node.into_global(view.module.id);
-        let target = match self.resolve_import(
+        let target = match self.resolve_import_from_artifact(
             view.module,
-            dir,
+            dir.as_ref(),
             view.profile,
             node,
             DependencySource::ImportStatement,
@@ -71,9 +73,6 @@ impl Compiler {
         let Some(symbol) = symbol else {
             return Ok(None);
         };
-
-        // ensure exported types are available for the resolved symbol
-        self.require_dir_interface(symbol.module_id, view.profile)?;
 
         Ok(Some(symbol))
     }

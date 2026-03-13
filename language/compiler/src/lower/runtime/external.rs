@@ -225,11 +225,8 @@ impl ModuleLowerer<'_> {
         self.require_analyzed_module(symbol.module_id)?;
 
         // read the symbol entry and binding metadata
-        let module = self.compiler.program.modules.get(symbol.module_id);
-        let module = module.read();
-        let dir = module.dir(self.profile);
-        let symbols = dir.symbols.read();
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let dir = self.require_analyzed_dir_data(symbol.module_id)?;
+        let symbol_entry = dir.symbols.get_symbol(symbol.local_id);
         if let Some(binding) = symbol_entry.decorators.binding.as_ref()
             && let Some(name) = binding.name
         {

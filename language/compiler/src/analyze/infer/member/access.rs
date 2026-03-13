@@ -696,14 +696,20 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         // infer the member type from the receiver shape
         let mut member_type_visited = Vec::new();
-        let member_ty_id = self.infer_member_of_type(
+        let member_ty_id = match self.infer_member_of_type(
             &mut ctx.type_context_reborrow(),
             expression_id.into_any(),
             &receiver.receiver_ty,
             &lookup.member_key,
             lookup.receiver_context.lookup_mode,
             &mut member_type_visited,
-        )?;
+        ) {
+            Ok(member_ty_id) => member_ty_id,
+
+            // let concrete symbol lookup drive static associated member typing
+            Err(AnalyzeError::Yield { .. }) if lookup.member_symbol.is_some() => None,
+            Err(error) => return Err(error),
+        };
         let member_ty_id = self.resolve_member_type_for_symbol(
             &mut ctx.reborrow(),
             expression_id,
@@ -756,7 +762,7 @@ impl Compiler {
             )?;
             let member_instance_id = if static_arguments.is_some() {
                 if let Some(member_symbol) = lookup.member_symbol {
-                    self.record_member_instance_for_arguments(
+                    let instance = self.record_member_instance_for_arguments(
                         &mut ctx.reborrow(),
                         expression_id,
                         member_symbol,
@@ -764,7 +770,8 @@ impl Compiler {
                         lookup.extension_context.as_ref(),
                         &resolved_member.static_arguments,
                         &resolved_member.static_parameter_symbols,
-                    )?
+                    )?;
+                    instance
                 } else {
                     None
                 }

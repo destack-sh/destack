@@ -58,6 +58,9 @@ impl Compiler {
         expression: &Expression,
         scope: dir::LocalScope,
     ) -> LocalNodeId<Expression> {
+        // FUGU #Performance #Architecture: slice 3 still clones whole expression nodes
+        // during elaborate rewrites, slice 4 should replace this with finer-grained builders
+
         // clone the expression node in the requested scope
         let cloned_id =
             state
@@ -112,16 +115,21 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         scope: dir::LocalScope,
     ) {
-        // clone the original value expression so the return can own it
-        let expression = state.tree.get(expression_id).clone();
-        let original_expression_id =
-            self.clone_expression_with_analysis(state, expression_id, &expression, scope);
-
         // build the explicit return node
         let return_id =
             state
                 .tree
                 .reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
+        let original_expression_id = state.tree.replace(
+            expression_id,
+            Expression::Statement {
+                statement: LocalNodeId::new(return_id.id),
+            },
+        );
+        state.types.copy_node_analysis(
+            expression_id.into_global_any(state.ctx.module_id),
+            original_expression_id.into_global_any(state.ctx.module_id),
+        );
         let return_expression_id: LocalNodeId<Expression> = state.tree.insert(
             return_id,
             Expression::Return {
@@ -130,11 +138,7 @@ impl Compiler {
         );
         self.set_never_expression_type(state.types, state.ctx.module_id, return_expression_id);
 
-        // replace the original value expression with a statement wrapper
-        let statement = Expression::Statement {
-            statement: return_expression_id,
-        };
-        state.tree.replace(expression_id, statement);
+        // statement wrapper
         self.set_void_expression_type(state.types, state.ctx.module_id, expression_id);
     }
 

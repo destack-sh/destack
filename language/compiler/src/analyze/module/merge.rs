@@ -25,11 +25,15 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> GlobalSymbolId {
-        // read the owner symbol metadata
-        let owner_module = self.program.modules.get(symbol.module_id);
-        let owner_module = owner_module.read();
-        let owner_symbols = owner_module.dir(profile).symbols.read();
-        let owner_symbol = owner_symbols.get_symbol(symbol.local_id);
+        let owner_snapshot = match self.require_artifact_dir_for_boundary(
+            symbol.module_id,
+            profile,
+            DirReadBoundary::Declared,
+        ) {
+            Ok(snapshot) => snapshot,
+            Err(_) => return symbol,
+        };
+        let owner_symbol = owner_snapshot.symbols.get_symbol(symbol.local_id);
 
         // normalize to the owner-declared symbol type
         GlobalSymbolId::new(symbol.module_id, symbol.local_id.with_type(owner_symbol.ty))
@@ -118,11 +122,37 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> Result<GlobalSymbolId, BuildRequirementError> {
-        let module_symbols = module.dir(profile).symbols.read();
-        let view = ModuleSymbolView::new(module, profile, &module_symbols);
+        let normalize_local_symbol = |candidate| {
+            if let Some(dir) =
+                self.current_active_dir_frame(module.id, profile, DirReadBoundary::Declared)
+            {
+                let symbols = dir.symbols.read();
+                let view = ModuleSymbolView::new(module, profile, &symbols);
+                self.normalize_reference_symbol_id(view, candidate)
+            } else {
+                let module_snapshot = self
+                    .require_artifact_dir_for_boundary(
+                        module.id,
+                        profile,
+                        DirReadBoundary::Declared,
+                    )
+                    .expect("missing declared artifact for local symbol normalization");
+                let view = ModuleSymbolView::new(module, profile, &module_snapshot.symbols);
+                self.normalize_reference_symbol_id(view, candidate)
+            }
+        };
+
+        let symbol = if let Some(dir) =
+            self.current_active_dir_frame(module.id, profile, DirReadBoundary::Declared)
+        {
+            let symbols = dir.symbols.read();
+            let view = ModuleSymbolView::new(module, profile, &symbols);
+            self.normalize_reference_symbol_id(view, symbol)
+        } else {
+            normalize_local_symbol(symbol)
+        };
 
         // normalize symbol typing first
-        let symbol = self.normalize_reference_symbol_id(view, symbol);
 
         self.with_module_symbols_at_boundary(
             module,
@@ -139,7 +169,7 @@ impl Compiler {
                     return symbol;
                 };
                 if let Some(candidate) = self.select_canonical_type_symbol(module, profile, key) {
-                    self.normalize_reference_symbol_id(view, candidate)
+                    normalize_local_symbol(candidate)
                 } else {
                     symbol
                 }

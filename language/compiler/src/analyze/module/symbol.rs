@@ -1,4 +1,4 @@
-use destack_dir::SymbolTable;
+use destack_dir::{GlobalSymbolId, LocalSymbolId, SymbolTable};
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
@@ -16,6 +16,19 @@ enum SymbolReadSource {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Build one typed global symbol id from one local symbol id and symbol table.
+    pub(crate) fn typed_global_symbol_id(
+        &self,
+        module_id: ModuleId,
+        symbols: &SymbolTable,
+        symbol_id: LocalSymbolId,
+    ) -> GlobalSymbolId {
+        let symbol_entry = symbols.get_symbol(symbol_id);
+        let symbol_id = symbol_id.with_type(symbol_entry.ty);
+
+        GlobalSymbolId::new(module_id, symbol_id)
+    }
+
     /// Read one symbol table from a module, reusing a local table when possible.
     fn with_module_symbols_read<R>(
         &self,
@@ -33,16 +46,34 @@ impl Compiler {
                 return Ok(handle(module, local_symbols));
             }
 
-            let symbols = match source {
-                SymbolReadSource::Profile => module.dir(profile).symbols.read(),
-                SymbolReadSource::Base => module.dir_base().symbols.read(),
-            };
-            return Ok(handle(module, &symbols));
+            match source {
+                SymbolReadSource::Profile => {
+                    if let Some(dir) = self.current_active_dir_frame(module_id, profile, boundary) {
+                        let symbols = dir.symbols.read();
+                        return Ok(handle(module, &symbols));
+                    }
+
+                    let snapshot =
+                        self.require_artifact_dir_for_boundary(module_id, profile, boundary)?;
+                    return Ok(handle(module, &snapshot.symbols));
+                }
+                SymbolReadSource::Base => {
+                    let snapshot = self.require_artifact_dir_base(module_id)?;
+                    return Ok(handle(module, &snapshot.symbols));
+                }
+            }
         }
 
         // otherwise read symbols from the remote module
         let remote_module = self.program.modules.get(module_id);
         let remote_module = remote_module.read();
+        if let SymbolReadSource::Profile = source
+            && let Some(dir) = self.current_active_dir_frame(module_id, profile, boundary)
+        {
+            let symbols = dir.symbols.read();
+            return Ok(handle(&remote_module, &symbols));
+        }
+
         let snapshot = match source {
             SymbolReadSource::Profile => {
                 self.require_artifact_dir_for_boundary(module_id, profile, boundary)?
@@ -162,8 +193,11 @@ impl Compiler {
             return Ok(handle(symbols));
         }
 
-        let remote_module = self.program.modules.get(module_id);
-        let _remote_module = remote_module.read();
+        if let Some(dir) = self.current_active_dir_frame(module_id, profile, boundary) {
+            let symbols = dir.symbols.read();
+            return Ok(handle(&symbols));
+        }
+
         let snapshot = self.require_artifact_dir_for_boundary(module_id, profile, boundary)?;
         Ok(handle(&snapshot.symbols))
     }

@@ -2471,9 +2471,7 @@ let Foo: Foo = Foo;
         test.check_clean();
 
         // load bound tree
-        let module = test.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir_base();
+        let dir = test.dir_base(module_id);
         let tree = dir.tree.read();
 
         // select the root expression
@@ -2535,9 +2533,7 @@ let Foo: Foo = Foo;
         test.compile();
         test.check_clean();
 
-        let module = test.program.modules.get(main_id);
-        let module = module.read();
-        let dir = module.dir_base();
+        let dir = test.dir_base(main_id);
         let symbols = dir.symbols.read();
         let name = test.program.strings.intern("Foo");
         let key = StaticKey::Name(name);

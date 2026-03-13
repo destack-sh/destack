@@ -153,10 +153,11 @@ impl FunctionLowerer<'_> {
             _ => return false,
         };
 
-        let module = self.env.program.modules.get(symbol.module_id);
-        let module = module.read();
-        let symbols = module.dir(self.env.profile).symbols.read();
-        symbols.get_symbol(symbol.local_id).kind == dir::SymbolKind::Namespace
+        let Some(dir) = self.artifact_dir_data_if_present(symbol.module_id) else {
+            return false;
+        };
+
+        dir.symbols.get_symbol(symbol.local_id).kind == dir::SymbolKind::Namespace
     }
 
     /// Check whether a symbol requires an addressable local.

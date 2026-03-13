@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
@@ -1539,12 +1539,30 @@ impl Compiler {
         symbol: GlobalSymbolId,
         source_id: LocalNodeIdAny,
     ) -> Option<LocalTypeId> {
+        self.require_alias_target_type_id_for_symbol(ctx, symbol, source_id)
+            .ok()
+            .flatten()
+    }
+
+    /// Import the alias target type for a symbol when available, yielding on unmet requirements.
+    pub(crate) fn require_alias_target_type_id_for_symbol(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        symbol: GlobalSymbolId,
+        source_id: LocalNodeIdAny,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
         let mut visited = HashSet::new();
         let mut current = symbol;
 
         loop {
             if !visited.insert(current) {
-                return None;
+                let node = source_id
+                    .into_global(ctx.module.id)
+                    .into_anchored(Some(ctx.profile));
+                self.error(AnalyzeError::RecursiveTypeInstantiation { node });
+
+                let error_id = ctx.types.insert_type_from_any(Type::Error, source_id);
+                return Ok(Some(error_id));
             }
 
             // load the local alias target when the symbol is local
@@ -1558,91 +1576,47 @@ impl Compiler {
                 // check the incoming symbol first, then the declaration-typed symbol
                 ctx.types.record_normalization_symbol_dependency(current);
                 if let Some(target) = ctx.types.get_alias_target_type_id(current) {
-                    return Some(target);
+                    return Ok(Some(target));
                 }
 
                 if matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
                     ctx.types
                         .record_normalization_symbol_dependency(typed_symbol);
                     if let Some(target) = ctx.types.get_alias_target_type_id(typed_symbol) {
-                        return Some(target);
+                        return Ok(Some(target));
+                    }
+
+                    // import declared alias metadata when later artifacts no longer carry it locally
+                    if let Some(target) = self.local_declared_alias_target_type_id(
+                        ctx,
+                        source_id,
+                        current,
+                        typed_symbol,
+                    ) {
+                        return Ok(Some(target));
                     }
                 }
 
                 // follow import targets for local alias references
-                let target_symbol = symbol_entry
-                    .target_symbol
-                    .or(symbol_entry.canonical_symbol)?;
+                let Some(target_symbol) =
+                    symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)
+                else {
+                    return Ok(None);
+                };
                 current = target_symbol;
                 continue;
             }
 
-            // import the alias target when the symbol is remote
+            // import the declared alias target when the symbol is remote
             let (dependency_symbol, remote_alias_target, next) = match self
-                .with_module_tree_symbol_view_at_boundary(
+                .remote_alias_target_snapshot_at_boundary(
                     ctx.module,
                     ctx.profile,
-                    current.module_id,
+                    current,
                     DirReadBoundary::Declared,
-                    |view| {
-                        let symbol_entry = view.symbols.get_symbol(current.local_id);
-                        if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
-                            let target_symbol =
-                                symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
-                            return (None, None, target_symbol);
-                        }
-
-                        let typed_symbol = GlobalSymbolId::new(
-                            current.module_id,
-                            current.local_id.with_type(symbol_entry.ty),
-                        );
-
-                        // resolve the remote alias target id without holding a write lock
-                        let remote_target_id = {
-                            let owner_types = view.module.dir(ctx.profile).types.read();
-                            match owner_types.get_alias_target_type_id(typed_symbol) {
-                                Some(id) => id,
-                                None => {
-                                    let target_symbol = symbol_entry
-                                        .target_symbol
-                                        .or(symbol_entry.canonical_symbol);
-                                    return (Some(typed_symbol), None, target_symbol);
-                                }
-                            }
-                        };
-
-                        // remote modules are read-only here: consume only published alias targets
-                        let owner_types = view.module.dir(ctx.profile).types.read();
-                        if matches!(owner_types.get_type(remote_target_id), Type::Unevaluated(_)) {
-                            let target_symbol =
-                                symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
-                            return (Some(typed_symbol), None, target_symbol);
-                        }
-
-                        let needs_materialization = self
-                            .type_has_unevaluated_value_static_arguments(
-                                view.type_view(&owner_types),
-                                remote_target_id,
-                                &mut HashSet::new(),
-                            );
-                        if needs_materialization {
-                            return (Some(typed_symbol), None, None);
-                        }
-
-                        let remote_target_ty = owner_types.get_type(remote_target_id).clone();
-                        let remote_snapshot = owner_types.clone();
-                        (
-                            Some(typed_symbol),
-                            Some((typed_symbol, remote_target_ty, remote_snapshot)),
-                            None,
-                        )
-                    },
                 ) {
                 Ok(value) => value,
-                Err(error) => {
-                    let _ = error;
-                    return None;
-                }
+                Err(error) => return Err(AnalyzeError::from(error)),
             };
             if let Some(dependency_symbol) = dependency_symbol {
                 ctx.types
@@ -1657,10 +1631,43 @@ impl Compiler {
                 );
                 ctx.types
                     .set_alias_target_type_id(typed_symbol, local_alias_target_id);
-                return Some(local_alias_target_id);
+                return Ok(Some(local_alias_target_id));
             }
-            current = next?;
+            let Some(next) = next else {
+                return Ok(None);
+            };
+            current = next;
         }
+    }
+
+    /// Import one local declared alias target when the current local table no longer carries it.
+    fn local_declared_alias_target_type_id(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        typed_symbol: GlobalSymbolId,
+    ) -> Option<LocalTypeId> {
+        let snapshot = self
+            .require_artifact_dir_for_boundary(
+                symbol.module_id,
+                ctx.profile,
+                DirReadBoundary::Declared,
+            )
+            .ok()?;
+        let remote_target_id = snapshot.types.get_alias_target_type_id(typed_symbol)?;
+        let remote_target_ty = snapshot.types.get_type(remote_target_id).clone();
+        let local_target_id = self.import_remote_type_for_node(
+            source_id,
+            &remote_target_ty,
+            &snapshot.types,
+            ctx.types,
+        );
+
+        ctx.types
+            .set_alias_target_type_id(typed_symbol, local_target_id);
+
+        Some(local_target_id)
     }
 
     /// Query a committed alias target type for a symbol without triggering remote evaluation.
@@ -1703,7 +1710,7 @@ impl Compiler {
                 continue;
             }
 
-            // read one remote symbol edge under declare-boundary gating
+            // read one remote symbol edge under declared gating
             let (typed_symbol, next) = match self.with_module_symbols_or_local_at_boundary(
                 ctx.module,
                 ctx.profile,
@@ -1724,7 +1731,7 @@ impl Compiler {
                 Err(_) => return None,
             };
 
-            // read one committed alias target from the owner type table
+            // read one committed declared alias target from the owner type table
             if matches!(
                 typed_symbol.ty(),
                 SymbolType::TypeAlias | SymbolType::Newtype
@@ -1813,6 +1820,102 @@ impl Compiler {
 
         // otherwise fall back to the instance type
         self.require_instance_type(&mut ctx.reborrow(), source_id, symbol)
+    }
+
+    /// Resolve one specialized instance surface for a reference.
+    pub(crate) fn specialized_instance_type_for_reference(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&[StaticArgument]>,
+    ) -> Option<LocalTypeId> {
+        // preserve alias identity while resolving the underlying surface
+        let symbol = if symbol.ty() == SymbolType::Extension {
+            symbol
+        } else {
+            self.canonical_symbol_id(
+                ctx.module_symbol_view(),
+                symbol,
+                CanonicalSymbolMode::PreserveAliases,
+            )
+        };
+
+        // aliases and newtypes expose their apparent target directly
+        if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype) {
+            let apparent = self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)?;
+            let apparent = self.materialize_reference_static_arguments_in_instance_type(
+                &mut ctx.reborrow(),
+                source_id,
+                symbol,
+                apparent,
+                static_arguments,
+            );
+            return Some(apparent);
+        }
+
+        // start from the committed instance surface
+        let instance_id = self.require_instance_type(&mut ctx.reborrow(), source_id, symbol)?;
+        let instance_id = self.materialize_reference_static_arguments_in_instance_type(
+            &mut ctx.reborrow(),
+            source_id,
+            symbol,
+            instance_id,
+            static_arguments,
+        );
+
+        Some(instance_id)
+    }
+
+    /// Apply explicit reference static arguments to one instance type.
+    fn materialize_reference_static_arguments_in_instance_type(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        instance_id: LocalTypeId,
+        static_arguments: Option<&[StaticArgument]>,
+    ) -> LocalTypeId {
+        let Some(static_arguments) = static_arguments else {
+            return instance_id;
+        };
+        if static_arguments.is_empty() {
+            return instance_id;
+        }
+
+        // resolve static arguments before substitution
+        let resolved_arguments = self
+            .resolve_type_reference_static_arguments(
+                &mut ctx.reborrow(),
+                source_id,
+                symbol,
+                Some(static_arguments),
+                true,
+            )
+            .unwrap_or_else(|error| {
+                self.error(error);
+                None
+            });
+        let Some(resolved_arguments) = resolved_arguments else {
+            return instance_id;
+        };
+        if resolved_arguments.is_empty() {
+            return instance_id;
+        }
+
+        // substitute resolved arguments into the instance surface
+        let substitutions = self.build_type_parameter_substitutions_for_symbol(
+            &mut ctx.reborrow(),
+            symbol,
+            source_id,
+            &resolved_arguments,
+        );
+        if substitutions.is_empty() {
+            return instance_id;
+        }
+
+        let mut cache = HashMap::new();
+        self.substitute_static_parameters(instance_id, &substitutions, ctx.types, &mut cache)
     }
 
     /// Unwrap a type-as-value wrapper to the underlying type id.

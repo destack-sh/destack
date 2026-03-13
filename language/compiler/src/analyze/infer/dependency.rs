@@ -24,7 +24,9 @@ impl Compiler {
         &self,
         view: ModuleTreeView<'_>,
     ) -> AnalyzeResult<HashSet<ModuleId>> {
-        let dir = view.module.dir(view.profile);
+        let dir = self
+            .require_artifact_dir_resolved(view.module.id, view.profile)
+            .map_err(AnalyzeError::from)?;
         let mut required = HashSet::new();
 
         // collect direct and projection-owner interface dependencies
@@ -44,9 +46,9 @@ impl Compiler {
 
             // collect direct target-module interface dependency
             let source_node_id = expression_id.into_global_any(view.module.id);
-            let target_module = match self.resolve_import(
+            let target_module = match self.resolve_import_from_artifact(
                 view.module,
-                dir,
+                dir.as_ref(),
                 view.profile,
                 source_node_id,
                 DependencySource::ImportStatement,

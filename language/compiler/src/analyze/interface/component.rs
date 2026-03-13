@@ -1,3 +1,4 @@
+use crate::analyze::DirReadBoundary;
 use crate::analyze::common::{SymbolTypeView, TreeSymbolView, TypeView};
 use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler};
 use destack_dir::{
@@ -5,10 +6,14 @@ use destack_dir::{
     TypeLiteral, TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleGraph, ModuleGraphKey, ModuleGraphVersion, ModuleSource, ProfileId};
+use destack_workspace::{
+    ModuleDir, ModuleDirData, ModuleGraph, ModuleGraphKey, ModuleGraphVersion, ModuleSource,
+    ProfileId,
+};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 /// One classified interface value state for convergence checks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -63,7 +68,7 @@ impl Compiler {
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
         graph_version: ModuleGraphVersion,
-    ) -> AnalyzeResult<()> {
+    ) -> AnalyzeResult<Vec<(ModuleId, ProfileId, ModuleDirData)>> {
         // skip stale tasks
         self.ensure_module_profile_matches::<AnalyzeError>(
             module_id,
@@ -89,20 +94,43 @@ impl Compiler {
         }
 
         // iterate component-local interface equations to a fixed point
-        let component_set =
-            self.converge_interface_component(module_id, profile, &component.component_modules)?;
+        let mut component_dirs = FxHashMap::default();
+        let component_set = self.converge_interface_component(
+            module_id,
+            profile,
+            &component.component_modules,
+            &mut component_dirs,
+        )?;
 
         // report unresolved interface cycle dependencies after convergence
         self.report_interface_component_cycle_exports(
             profile,
             &component.component_modules,
             &component_set,
+            &mut component_dirs,
         )?;
 
         // report unknown interface exports after convergence
-        self.report_interface_component_unknown_exports(profile, &component.component_modules)?;
+        self.report_interface_component_unknown_exports(
+            profile,
+            &component.component_modules,
+            &component_dirs,
+        )?;
 
-        Ok(())
+        let mut entries = Vec::with_capacity(component.component_modules.len());
+        for component_module_id in component.component_modules.iter().copied() {
+            let Some(dir) = component_dirs.get(&component_module_id) else {
+                return Err(AnalyzeError::Internal {
+                    message: format!(
+                        "missing converged interface dir: module={component_module_id:?}, profile={profile:?}"
+                    ),
+                });
+            };
+
+            entries.push((component_module_id, profile, dir.to_data()));
+        }
+
+        Ok(entries)
     }
 
     /// Converge one interface component to a fixed point and return its module set.
@@ -111,6 +139,7 @@ impl Compiler {
         anchor_module_id: ModuleId,
         profile: ProfileId,
         component_modules: &[ModuleId],
+        component_dirs: &mut FxHashMap<ModuleId, Arc<ModuleDir>>,
     ) -> AnalyzeResult<FxHashSet<ModuleId>> {
         let component_set: FxHashSet<_> = component_modules.iter().copied().collect();
         let graph_key = ModuleGraphKey::new(profile);
@@ -129,16 +158,43 @@ impl Compiler {
             .iter()
             .copied()
             .map(|module_id| {
-                self.interface_module_value_snapshot(profile, module_id)
-                    .len()
+                let dir = self
+                    .require_artifact_dir_for_boundary(
+                        module_id,
+                        profile,
+                        DirReadBoundary::Declared,
+                    )
+                    .map_err(AnalyzeError::from)?;
+                let dir = self.transient_dir_for_artifact(
+                    module_id,
+                    profile,
+                    DirReadBoundary::Interface,
+                    dir,
+                );
+
+                Ok::<usize, AnalyzeError>(
+                    self.interface_module_value_snapshot(module_id, profile, dir.as_ref())
+                        .len(),
+                )
             })
-            .sum::<usize>();
+            .try_fold(0usize, |sum, count| count.map(|count| sum + count))?;
         let max_steps =
             self.interface_component_max_steps(export_slot_count, component_modules.len());
 
         let mut pending = VecDeque::new();
         let mut pending_set = FxHashSet::default();
         for module_id in component_modules.iter().copied() {
+            let dir = self
+                .require_artifact_dir_for_boundary(module_id, profile, DirReadBoundary::Declared)
+                .map_err(AnalyzeError::from)?;
+            let dir = self.transient_dir_for_artifact(
+                module_id,
+                profile,
+                DirReadBoundary::Interface,
+                dir,
+            );
+            self.set_active_dir_frame(module_id, profile, DirReadBoundary::Interface, &dir);
+            component_dirs.insert(module_id, dir);
             pending.push_back(module_id);
             pending_set.insert(module_id);
         }
@@ -162,14 +218,22 @@ impl Compiler {
 
             let module_version = self.module_version(component_module_id);
             let profile_version = self.profile_version(profile);
-            self.analyze_module_interface_inner(
+            let dir = Arc::new(self.analyze_module_interface_inner(
                 component_module_id,
                 profile,
                 module_version,
                 profile_version,
-            )?;
+            )?);
+            let next_snapshot =
+                self.interface_module_value_snapshot(component_module_id, profile, dir.as_ref());
+            self.set_active_dir_frame(
+                component_module_id,
+                profile,
+                DirReadBoundary::Interface,
+                &dir,
+            );
+            component_dirs.insert(component_module_id, dir);
 
-            let next_snapshot = self.interface_module_value_snapshot(profile, component_module_id);
             let changed = snapshots_by_module
                 .get(&component_module_id)
                 .is_none_or(|previous_snapshot| previous_snapshot != &next_snapshot);
@@ -190,7 +254,6 @@ impl Compiler {
 
         Ok(component_set)
     }
-
     /// Compute the fixed-point worklist cap for one component.
     fn interface_component_max_steps(
         &self,
@@ -226,13 +289,13 @@ impl Compiler {
     /// Snapshot one interface module value state vector.
     fn interface_module_value_snapshot(
         &self,
-        profile: ProfileId,
         module_id: ModuleId,
+        profile: ProfileId,
+        dir: &ModuleDir,
     ) -> Vec<InterfaceValueSnapshot> {
         let mut snapshot = Vec::new();
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let types = dir.types.read();
         let exported_symbols = dir.exported_symbols.read();
@@ -313,9 +376,14 @@ impl Compiler {
         profile: ProfileId,
         component_modules: &[ModuleId],
         component_set: &FxHashSet<ModuleId>,
+        component_dirs: &mut FxHashMap<ModuleId, Arc<ModuleDir>>,
     ) -> AnalyzeResult<()> {
-        let cycle_candidates =
-            self.collect_interface_cycle_candidates(profile, component_modules, component_set)?;
+        let cycle_candidates = self.collect_interface_cycle_candidates(
+            profile,
+            component_modules,
+            component_set,
+            component_dirs,
+        )?;
         let cycle_candidates = self.unanchored_interface_cycle_candidates(cycle_candidates);
 
         if cycle_candidates.is_empty() {
@@ -336,9 +404,13 @@ impl Compiler {
                 continue;
             };
 
-            let module = self.program.modules.get(component_module_id);
-            let module = module.read();
-            let dir = module.dir(profile);
+            let Some(dir) = component_dirs.get(&component_module_id) else {
+                return Err(AnalyzeError::Internal {
+                    message: format!(
+                        "missing local interface dir for cycle reporting: module={component_module_id:?}, profile={profile:?}"
+                    ),
+                });
+            };
             let mut types = dir.types.write();
 
             for candidate in cycle_candidates {
@@ -366,6 +438,7 @@ impl Compiler {
         profile: ProfileId,
         component_modules: &[ModuleId],
         component_set: &FxHashSet<ModuleId>,
+        component_dirs: &FxHashMap<ModuleId, Arc<ModuleDir>>,
     ) -> AnalyzeResult<Vec<InterfaceCycleCandidate>> {
         let mut cycle_candidates = Vec::new();
         let mut seen_exports = FxHashSet::default();
@@ -374,7 +447,13 @@ impl Compiler {
         for component_module_id in component_modules.iter().copied() {
             let module = self.program.modules.get(component_module_id);
             let module = module.read();
-            let dir = module.dir(profile);
+            let Some(dir) = component_dirs.get(&component_module_id) else {
+                return Err(AnalyzeError::Internal {
+                    message: format!(
+                        "missing local interface dir for cycle candidate collection: module={component_module_id:?}, profile={profile:?}"
+                    ),
+                });
+            };
             let tree = dir.tree.read();
             let symbols = dir.symbols.read();
             let exported_symbols = dir.exported_symbols.read();
@@ -623,6 +702,7 @@ impl Compiler {
         &self,
         profile: ProfileId,
         component_modules: &[ModuleId],
+        component_dirs: &FxHashMap<ModuleId, Arc<ModuleDir>>,
     ) -> AnalyzeResult<()> {
         let mut warned_symbols = FxHashSet::default();
 
@@ -638,7 +718,13 @@ impl Compiler {
                 continue;
             }
 
-            let dir = module.dir(profile);
+            let Some(dir) = component_dirs.get(&component_module_id) else {
+                return Err(AnalyzeError::Internal {
+                    message: format!(
+                        "missing local interface dir for unknown export reporting: module={component_module_id:?}, profile={profile:?}"
+                    ),
+                });
+            };
             let tree = dir.tree.read();
             let symbols = dir.symbols.read();
             let types = dir.types.read();

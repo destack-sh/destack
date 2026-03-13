@@ -1,3 +1,4 @@
+use destack_builtin::builtin_lib;
 use destack_core::StringId;
 use destack_dir::{
     Argument, DependencyKind, DependencySource, Expression, GlobalNodeIdAny, GlobalSymbolId,
@@ -6,11 +7,12 @@ use destack_dir::{
 };
 use destack_source::ModuleId;
 use destack_workspace::{
-    GlobalSymbolGroupKey, GlobalSymbolTable, GlobalSymbolTableKey, Module, ModuleDir, ProfileId,
+    GlobalSymbolGroupKey, GlobalSymbolTable, GlobalSymbolTableKey, Module, ModuleDir,
+    ModuleDirData, ProfileId,
 };
 
 use crate::resolve::binding::cache::ResolveScopeIndexCache;
-use crate::{BuildRequirementError, Compiler, ResolveError, ResolveResult};
+use crate::{BuildRequirementError, Compiler, ResolveError, ResolveModuleContext, ResolveResult};
 
 /// Track dependency targets while scanning module trees.
 #[derive(Debug, Clone, Copy)]
@@ -57,7 +59,8 @@ impl Compiler {
     /// Resolve a path against the global symbol table.
     pub(crate) fn resolve_global_path(
         &self,
-        module: &Module,
+        module: &ResolveModuleContext,
+        dir: &ModuleDir,
         expression_id: LocalNodeId<Expression>,
         node: GlobalNodeIdAny,
         profile_id: ProfileId,
@@ -107,6 +110,7 @@ impl Compiler {
             Some(target_symbol) => Some(target_symbol),
             None => self.resolve_selected_lib_symbol(
                 module,
+                dir,
                 profile_id,
                 node,
                 symbol_key,
@@ -142,22 +146,26 @@ impl Compiler {
         // load the target module symbols for namespace resolution
         let target_module = self.program.modules.get(target_symbol.module_id);
         let target_module = target_module.read();
-        let target_dir = target_module.dir(profile_id);
-        let symbols = target_dir.symbols.read();
+        let target_context = ResolveModuleContext::from_module(&target_module);
+        let target_dir = self
+            .require_artifact_dir_prepared(target_symbol.module_id, profile_id)
+            .map_err(ResolveError::from)?;
+        let symbols = &target_dir.symbols;
         let local_symbol_id = target_symbol.local_id;
         let symbol = symbols.get_symbol(local_symbol_id);
 
         // resolve namespace members when the root is a namespace
         if symbol.kind == SymbolKind::Namespace {
             let remaining_path = path.slice(1..);
-            match self.resolve_relative_symbol_with_ambient_merge(
-                &target_module,
+            match self.resolve_relative_symbol_with_ambient_merge_from_artifact(
+                &target_context,
+                &target_dir,
                 profile_id,
                 node,
                 local_symbol_id,
                 &remaining_path,
                 space_order,
-                &symbols,
+                symbols,
                 scope_cache,
             ) {
                 // resolve namespace members directly when the local scope has the full path
@@ -299,7 +307,10 @@ impl Compiler {
 
         // look up the first segment through the full export resolution chain
         let key = StaticKey::Name(first_segment);
-        let anchor = module.dir_base().anchor_node.into_global(module.id);
+        let dir_base = self
+            .artifact_dir_base(module.id)
+            .unwrap_or_else(|| panic!("missing committed base dir artifact for {:?}", module.id));
+        let anchor = dir_base.anchor_node.into_global(module.id);
         let Some(resolved_symbol) = self.resolve_export_symbol_for_target(
             module.id,
             anchor,
@@ -337,20 +348,18 @@ impl Compiler {
             // load the module tree and symbols
             self.require_dir_base(module_id)?;
             self.require_dir_prepared(module_id, profile_id)?;
-            let module = self.program.modules.get(module_id);
-            let module = module.read();
-            let dir = module.dir(profile_id);
-            let tree = dir.tree.read();
-            let symbols = dir.symbols.read();
+            let (module, dir) = self.prepared_module_artifact(module_id, profile_id)?;
+            let tree = &dir.tree;
+            let symbols = &dir.symbols;
             cache.module_versions.insert(module_id, module.version);
 
             // collect global declarations from this module
-            self.collect_global_augmentation_symbols(&module, dir, &symbols, &mut cache);
+            self.collect_global_augmentation_symbols(&module, &dir, symbols, &mut cache);
             if module.language_type.is_declaration() {
-                self.collect_export_namespace_globals(&module, &tree, &symbols, &mut cache);
+                self.collect_export_namespace_globals(&module, tree, symbols, &mut cache);
             }
             if self.module_exposes_namespace_scope_globals(&module) {
-                self.collect_namespace_scope_globals(&module, dir, &symbols, &mut cache);
+                self.collect_namespace_scope_globals(&module, &dir, symbols, &mut cache);
             }
         }
 
@@ -406,20 +415,18 @@ impl Compiler {
             }
 
             // load the module tree and symbols
-            let module = self.program.modules.get(module_id);
-            let module = module.read();
-            let dir = module.dir(profile_id);
-            let tree = dir.tree.read();
-            let symbols = dir.symbols.read();
+            let (module, dir) = self.prepared_module_artifact(module_id, profile_id)?;
+            let tree = &dir.tree;
+            let symbols = &dir.symbols;
             cache.module_versions.insert(module_id, module.version);
 
             // collect global declarations from this module
-            self.collect_global_augmentation_symbols(&module, dir, &symbols, &mut cache);
+            self.collect_global_augmentation_symbols(&module, &dir, symbols, &mut cache);
             if module.language_type.is_declaration() {
-                self.collect_export_namespace_globals(&module, &tree, &symbols, &mut cache);
+                self.collect_export_namespace_globals(&module, tree, symbols, &mut cache);
             }
             if self.module_exposes_namespace_scope_globals(&module) {
-                self.collect_namespace_scope_globals(&module, dir, &symbols, &mut cache);
+                self.collect_namespace_scope_globals(&module, &dir, symbols, &mut cache);
             }
 
             // enqueue dependency targets for further discovery
@@ -460,9 +467,13 @@ impl Compiler {
     }
 
     /// Return true when a module's namespace scope contributes global symbols.
-    fn module_exposes_namespace_scope_globals(&self, module: &Module) -> bool {
+    fn module_exposes_namespace_scope_globals(&self, module: &ResolveModuleContext) -> bool {
         // ambient libs always contribute top-level global declarations
-        if self.module_is_ambient_lib(module) {
+        if let Some(builtins) = self.program.builtins.as_ref()
+            && let Some(lib_name) = builtins.lib_name_for_module(module.id)
+            && let Some(lib) = builtin_lib(lib_name)
+            && lib.is_ambient
+        {
             return true;
         }
 
@@ -554,8 +565,8 @@ impl Compiler {
     /// Symbols inside `declare global { }` blocks are bound into this scope by the binder.
     fn collect_global_augmentation_symbols(
         &self,
-        module: &Module,
-        dir: &ModuleDir,
+        module: &ResolveModuleContext,
+        dir: &ModuleDirData,
         symbols: &SymbolTable,
         cache: &mut GlobalSymbolTable,
     ) {
@@ -570,12 +581,15 @@ impl Compiler {
     /// Only call this for declaration modules (`.d.ts`).
     fn collect_export_namespace_globals(
         &self,
-        module: &Module,
+        module: &ResolveModuleContext,
         tree: &NodeTree,
         symbols: &SymbolTable,
         cache: &mut GlobalSymbolTable,
     ) {
-        let symbol_id = module.dir_base().namespace_symbol.into_global(module.id);
+        let Some(dir_base) = self.program.artifacts.dir_base(module.id) else {
+            return;
+        };
+        let symbol_id = dir_base.namespace_symbol.into_global(module.id);
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
             if !self.is_node_active(tree, symbols, expression_id.into_any()) {
                 continue;
@@ -592,8 +606,8 @@ impl Compiler {
     /// Intended only for ambient/global script modules where top-level symbols are globals.
     fn collect_namespace_scope_globals(
         &self,
-        module: &Module,
-        dir: &ModuleDir,
+        module: &ResolveModuleContext,
+        dir: &ModuleDirData,
         symbols: &SymbolTable,
         cache: &mut GlobalSymbolTable,
     ) {

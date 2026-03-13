@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 use super::DirReadBoundary;
-use crate::analyze::common::TreeSymbolView;
+use crate::analyze::common::{TreeSymbolTypeView, TreeSymbolView};
 use crate::{BuildRequirementError, Compiler};
 
 #[allow(clippy::too_many_arguments)]
@@ -25,14 +25,25 @@ impl Compiler {
                 return Ok(handle(module, local_tree, local_symbols));
             }
 
-            let tree = module.dir(profile).tree.read();
-            let symbols = module.dir(profile).symbols.read();
-            return Ok(handle(module, &tree, &symbols));
+            if let Some(dir) = self.current_active_dir_frame(module_id, profile, boundary) {
+                let tree = dir.tree.read();
+                let symbols = dir.symbols.read();
+                return Ok(handle(module, &tree, &symbols));
+            }
+
+            let snapshot = self.require_artifact_dir_for_boundary(module_id, profile, boundary)?;
+            return Ok(handle(module, &snapshot.tree, &snapshot.symbols));
         }
 
         // otherwise read from the remote module
         let remote_module = self.program.modules.get(module_id);
         let remote_module = remote_module.read();
+        if let Some(dir) = self.current_active_dir_frame(module_id, profile, boundary) {
+            let tree = dir.tree.read();
+            let symbols = dir.symbols.read();
+            return Ok(handle(&remote_module, &tree, &symbols));
+        }
+
         let snapshot = self.require_artifact_dir_for_boundary(module_id, profile, boundary)?;
         Ok(handle(&remote_module, &snapshot.tree, &snapshot.symbols))
     }
@@ -53,8 +64,6 @@ impl Compiler {
             return Ok(handle(tree, symbols, types));
         }
 
-        let remote_module = self.program.modules.get(module_id);
-        let _remote_module = remote_module.read();
         let snapshot = self.require_artifact_dir_for_boundary(module_id, profile, boundary)?;
         Ok(handle(&snapshot.tree, &snapshot.symbols, &snapshot.types))
     }
@@ -137,21 +146,33 @@ impl Compiler {
         )
     }
 
-    /// Provide tree and symbol ctx by module id with a boundary gate.
-    pub(crate) fn with_module_tree_symbols_by_id_at_boundary<R>(
+    /// Provide one tree-symbol-type view with boundary-gated cross-module reads.
+    pub(crate) fn with_module_tree_symbol_type_view_at_boundary<R>(
         &self,
+        module: &Module,
         profile: ProfileId,
         module_id: ModuleId,
         boundary: DirReadBoundary,
-        handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
+        handle: impl FnOnce(TreeSymbolTypeView<'_>) -> R,
     ) -> Result<R, BuildRequirementError> {
-        // by id reads are always cross-module, so always gate
-        self.require_module_boundary_for_read(module_id, profile, boundary)?;
+        self.require_boundary_for_remote_module_read(module.id, module_id, profile, boundary)?;
 
-        let remote_module = self.program.modules.get(module_id);
-        let remote_module = remote_module.read();
+        if let Some(dir) = self.current_active_dir_frame(module_id, profile, boundary) {
+            let tree = dir.tree.read();
+            let symbols = dir.symbols.read();
+            let types = dir.types.read();
+            return Ok(handle(TreeSymbolTypeView::new(
+                profile, &tree, &symbols, &types,
+            )));
+        }
+
         let snapshot = self.require_artifact_dir_for_boundary(module_id, profile, boundary)?;
-        Ok(handle(&remote_module, &snapshot.tree, &snapshot.symbols))
+        Ok(handle(TreeSymbolTypeView::new(
+            profile,
+            &snapshot.tree,
+            &snapshot.symbols,
+            &snapshot.types,
+        )))
     }
 
     /// Provide tree, symbol, and type ctx by module id with boundary-gated cross-module reads.

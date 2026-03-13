@@ -1,12 +1,16 @@
 use crate::timing::tags;
-use crate::{BuildKey, BuildRequirementError, Compiler, ExecuteError, ExecuteResult};
+use crate::{BuildKey, BuildProduct, BuildRequirementError, Compiler, ExecuteError, ExecuteResult};
 
 use destack_source::ModuleId;
 use destack_workspace::{ArtifactKey, ProfileId};
 
 impl Compiler {
     /// Build patched DIR for one module.
-    pub fn process_dir_patched(&self, module: ModuleId, profile: ProfileId) -> ExecuteResult<()> {
+    pub fn process_dir_patched(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> ExecuteResult<BuildProduct> {
         let module_version = self.module_version(module);
         let profile_version = self.profile_version(profile);
         self.ensure_module_profile_matches::<ExecuteError>(
@@ -15,17 +19,16 @@ impl Compiler {
             profile,
             profile_version,
         )?;
-        let _timing = self.timing_scope(tags::EXECUTE_MODULE_PREPARE);
-        self.execute_module_prepare(module, profile, module_version, profile_version)?;
         let _timing = self.timing_scope(tags::EXECUTE_MODULE_PATCH);
         self.require_intrinsic_environment(profile)
             .map_err(ExecuteError::from)?;
-        self.execute_module_patch(module, profile, module_version, profile_version)?;
+        let payload =
+            self.execute_module_patch(module, profile, module_version, profile_version)?;
         if self.is_code_module(module) {
             self.stats.record_execute();
         }
 
-        Ok(())
+        Ok(BuildProduct::Dir(payload))
     }
 
     /// Ensure patched DIR exists for a module.

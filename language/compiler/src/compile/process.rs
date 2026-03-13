@@ -152,6 +152,7 @@ impl Compiler {
     fn fail_stalled_yielded_tasks(&self) {
         let yielded_tasks = self.queue.yielded_tasks_with_requirements();
         for (task_id, requirement) in yielded_tasks {
+            let handle = self.queue.get_task(task_id);
             let error = self.get_yield_failed_error(task_id, &requirement);
             self.queue.set_status(
                 task_id,
@@ -159,6 +160,7 @@ impl Compiler {
                     error: error.clone(),
                 },
             );
+            self.clear_retained_build_frame(handle.task.build_key());
             self.error(error);
             self.fail_waiters(task_id);
         }
@@ -180,7 +182,7 @@ impl Compiler {
             if let Some(status) = self.queue.get_status(target_id) {
                 match status {
                     TaskStatus::Complete => {
-                        return TaskOutcome::Complete;
+                        return TaskOutcome::Complete { product: None };
                     }
                     TaskStatus::Skipped { reason } => {
                         return TaskOutcome::Skipped { reason };
@@ -234,6 +236,7 @@ impl Compiler {
         // process task
         let started_at = Instant::now();
         self.queue.set_status(task_id, TaskStatus::Running);
+        self.clear_current_build_frame();
         CURRENT_TASK.with(|current| {
             *current.borrow_mut() = Some(handle.task.clone());
         });
@@ -241,6 +244,7 @@ impl Compiler {
         CURRENT_TASK.with(|current| {
             current.borrow_mut().take();
         });
+        self.clear_current_build_frame();
 
         // handle outcome
         let elapsed = started_at.elapsed();
@@ -276,9 +280,6 @@ impl Compiler {
         };
         let event = format!("{}.{}.{}", task.phase().name(), task.name(), event_name);
         tracing::debug!(%event, %args, ?task_id);
-
-        // bridge module-owned mutable workspace from committed build truth
-        self.ensure_workspace_for_build_key(task.build_key());
 
         // process
         let outcome = match task.build_key() {
@@ -368,12 +369,13 @@ impl Compiler {
         let mut requeued = false;
         match &outcome {
             // complete and wake waiters
-            TaskOutcome::Complete => {
+            TaskOutcome::Complete { product } => {
                 let event = format!("{}.{}.complete", handle.phase().name(), handle.task.name());
                 tracing::debug!(%event, %description, ?task_id);
 
                 // publish the completed product before waking waiters
-                self.commit_completed_build(handle.task.build_key());
+                self.commit_completed_build(handle.task.build_key(), product);
+                self.clear_retained_build_frame(handle.task.build_key());
 
                 self.queue.set_status(task_id, TaskStatus::Complete);
                 self.wake_waiters(task_id);
@@ -403,6 +405,7 @@ impl Compiler {
                 tracing::debug!(%event, %description, ?task_id);
                 self.queue
                     .set_status(task_id, TaskStatus::Skipped { reason: *reason });
+                self.clear_retained_build_frame(handle.task.build_key());
                 self.stats.record_skip();
                 self.stats.record_phase_time(handle.phase(), elapsed);
                 self.wake_waiters(task_id);
@@ -436,6 +439,7 @@ impl Compiler {
                         error: error.clone(),
                     },
                 );
+                self.clear_retained_build_frame(handle.task.build_key());
                 self.error(error.clone());
                 self.fail_waiters(task_id);
 
@@ -459,6 +463,7 @@ impl Compiler {
                             error: internal_error.clone().into(),
                         },
                     );
+                    self.clear_retained_build_frame(handle.task.build_key());
                     self.error(internal_error.clone());
                     self.fail_waiters(task_id);
 
@@ -545,11 +550,6 @@ impl Compiler {
             return true;
         }
 
-        // check if any requirement has failed
-        if self.is_requirement_failed(requirement) {
-            self.fail_waiter(waiter_id, requirement);
-        }
-
         false
     }
 
@@ -568,16 +568,6 @@ impl Compiler {
         });
     }
 
-    /// Check if any requirement in the tree has failed.
-    fn is_requirement_failed(&self, requirement: &BuildRequirementSet) -> bool {
-        requirement.any(|requirement| {
-            matches!(
-                self.queue.find_task_status(&requirement.key),
-                Some(TaskStatus::Failed { .. })
-            )
-        })
-    }
-
     /// Check if a requirement is satisfied.
     fn is_requirement_satisfied(&self, requirement: &BuildRequirementSet) -> bool {
         requirement.all(|requirement| {
@@ -591,9 +581,11 @@ impl Compiler {
         let completed_key = completed_handle.task.build_key().clone();
         let waiters = self.queue.take_waiters(&completed_key);
         for waiter_id in waiters {
-            if let Some(TaskStatus::Yielded { requirement }) = self.queue.get_status(waiter_id)
-                && self.is_requirement_satisfied(&requirement)
-            {
+            // a completed dependency means the waiter must recompute its requirements
+            if matches!(
+                self.queue.get_status(waiter_id),
+                Some(TaskStatus::Yielded { .. })
+            ) {
                 self.queue.try_requeue_yielded(waiter_id);
             }
         }

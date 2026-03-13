@@ -1,32 +1,17 @@
-use crate::{Compiler, ResolveError, ResolveResult};
+use crate::{Compiler, ResolveResult};
 use destack_dir::ModuleTarget;
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleGraph, ModuleGraphKey, ProfileId};
+use destack_source::{ModuleId, ModuleVersion};
+use destack_workspace::{ModuleDir, ModuleGraph, ModuleGraphKey, ProfileId};
 
 impl Compiler {
-    /// Update the module graph for a resolved module.
-    pub(super) fn update_module_graph(
+    /// Update the module graph from one resolved DIR snapshot.
+    pub(crate) fn update_module_graph_from_dir(
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
         module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        dir: &ModuleDir,
     ) -> ResolveResult<()> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<ResolveError>(
-            module_id,
-            module_version,
-            profile_id,
-            profile_version,
-        )?;
-
-        // load module data for dependency discovery
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let Some(dir) = module.dir_maybe(profile_id) else {
-            return Ok(());
-        };
-
         // collect module dependency targets from imports and namespace exports
         let mut targets = Vec::new();
         for targets_for_kind in dir.imported_modules.read().values() {
@@ -40,9 +25,6 @@ impl Compiler {
         for export in dir.namespace_exports.read().iter() {
             targets.push(export.module_id);
         }
-
-        // drop module guard before resolving binding dependencies
-        drop(module);
 
         // resolve module binding targets into module ids
         let mut dependencies = Vec::new();
@@ -73,6 +55,7 @@ impl Compiler {
             .entry(key)
             .or_insert_with(|| ModuleGraph::new(profile_id));
         entry.update_module(module_id, module_version, dependencies);
+        self.interface_component_indexes.remove(&profile_id);
 
         Ok(())
     }

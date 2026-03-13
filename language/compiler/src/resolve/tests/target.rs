@@ -25,10 +25,8 @@ value;
     test.compile_check_clean();
 
     // load symbol data for the main module
-    let module = test.program.modules.get(main_module_id);
-    let module = module.read();
     let profile = test.default_profile_id(main_module_id);
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(main_module_id, profile);
     let symbols = dir.symbols.read();
 
     // locate the imported symbol
@@ -174,10 +172,8 @@ type Share = (typeof import("node:worker_threads"))["SHARE_ENV"];
     test.compile_check_clean();
 
     // assert the module binding was registered in the declaring module's base DIR
-    let module = test.program.modules.get(decl_module_id);
-    let module = module.read();
-    let bindings = module
-        .dir_base()
+    let dir = test.dir_base(decl_module_id);
+    let bindings = dir
         .module_bindings
         .read()
         .iter()

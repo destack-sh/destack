@@ -1,6 +1,11 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use super::hasher::CacheHasher;
+use crate::{
+    BuildKey, CacheContext, CacheKey, CacheOptions, CacheRegistry, Compiler, CompilerOptions,
+    TaskOutcome, TaskStatus, TestFileSystem, TestProgram,
+};
 use destack_resolver::TypeScriptOptionsDiscovery;
 use destack_source::{
     CacheKind, DiagnosticSeverity, File, FileId, FileType, FileVersion, ModuleId, ModuleVersion,
@@ -8,16 +13,8 @@ use destack_source::{
 };
 use destack_workspace::{
     ArtifactKey, CacheMode, CachePolicy, CacheScope, CacheValidate, DiskCacheStore, DsConfig,
-    FileUpdate, MemoryCacheStore, ModuleAst, ModuleDir, ModuleGraphKey, ModuleMir,
-    ModuleSignatureKey, Session, TargetId, Workspace, WorkspaceIndexHeader, WorkspaceIndexStore,
-    hash_workspace_config,
-};
-use indexmap::IndexMap;
-
-use super::hasher::CacheHasher;
-use crate::{
-    BuildKey, CacheContext, CacheKey, CacheOptions, CacheRegistry, Compiler, CompilerOptions,
-    TaskOutcome, TaskStatus, TestFileSystem, TestProgram,
+    FileUpdate, MemoryCacheStore, ModuleAst, ModuleGraphKey, ModuleMir, ModuleSignatureKey,
+    Session, TargetId, Workspace, WorkspaceIndexHeader, WorkspaceIndexStore, hash_workspace_config,
 };
 
 impl TestProgram {
@@ -94,7 +91,7 @@ fn test_task_rebuilds_after_module_version_change() {
 
     // seed the initial artifact
     let outcome = test.compiler.run_build_key(build_key.clone());
-    assert!(matches!(outcome, TaskOutcome::Complete));
+    assert!(matches!(outcome, TaskOutcome::Complete { .. }));
 
     let initial_dependency = test
         .program
@@ -112,7 +109,7 @@ fn test_task_rebuilds_after_module_version_change() {
     let outcome = test.compiler.run_build_key(build_key.clone());
 
     // check that the task completed again under a new dependency
-    assert!(matches!(outcome, TaskOutcome::Complete));
+    assert!(matches!(outcome, TaskOutcome::Complete { .. }));
     let status = test
         .compiler
         .get_status(&build_key)
@@ -164,10 +161,8 @@ value;
     let initial_hash = initial_signature.value().hash;
     let b_has_dir_before = test
         .program
-        .modules
-        .get(module_b_id)
-        .read()
-        .dir_maybe(profile)
+        .artifacts
+        .dir_analyzed(module_b_id, profile)
         .is_some();
     let b_signature_before = test
         .program
@@ -197,10 +192,8 @@ export const value: number = 2;
     let stable_hash = stable_signature.value().hash;
     let b_has_dir_after_internal = test
         .program
-        .modules
-        .get(module_b_id)
-        .read()
-        .dir_maybe(profile)
+        .artifacts
+        .dir_analyzed(module_b_id, profile)
         .is_some();
     let b_signature_after_internal = test
         .program
@@ -244,10 +237,8 @@ export const value: string = "value";
     let changed_hash = changed_signature.value().hash;
     let b_has_dir_after_export = test
         .program
-        .modules
-        .get(module_b_id)
-        .read()
-        .dir_maybe(profile)
+        .artifacts
+        .dir_analyzed(module_b_id, profile)
         .is_some();
     let b_signature_after_export = test
         .program
@@ -410,10 +401,8 @@ value;
     let a_hash_before = a_signature_before.value().hash;
     let c_has_dir_before = test
         .program
-        .modules
-        .get(module_c_id)
-        .read()
-        .dir_maybe(profile)
+        .artifacts
+        .dir_analyzed(module_c_id, profile)
         .is_some();
     drop(a_signature_before);
 
@@ -428,17 +417,13 @@ export const value: string = "value";
 
     let a_has_dir_after_b = test
         .program
-        .modules
-        .get(module_a_id)
-        .read()
-        .dir_maybe(profile)
+        .artifacts
+        .dir_analyzed(module_a_id, profile)
         .is_some();
     let c_has_dir_after_b = test
         .program
-        .modules
-        .get(module_c_id)
-        .read()
-        .dir_maybe(profile)
+        .artifacts
+        .dir_analyzed(module_c_id, profile)
         .is_some();
     let a_signature_after_b = test
         .program
@@ -475,10 +460,8 @@ export const value: string = "value";
     let a_hash_after_a = a_signature_after_a.value().hash;
     let c_has_dir_after_a = test
         .program
-        .modules
-        .get(module_c_id)
-        .read()
-        .dir_maybe(profile)
+        .artifacts
+        .dir_analyzed(module_c_id, profile)
         .is_some();
 
     // check that the module signature is updated
@@ -514,28 +497,22 @@ value;
     // seed module graph and signatures
     test.compile_analyze_modules(&[module_a_id, module_b_id]);
 
-    // seed a mir entry to validate invalidation behavior
+    // seed a mir artifact to validate invalidation behavior
+    let profile = test.default_profile_id(module_b_id);
     let package_id = test.program.modules.get(module_b_id).read().package_id;
     let target_id = TargetId::new(package_id, "native");
-    {
-        let module = test.program.modules.get(module_b_id);
-        let mut module = module.write();
-        let module_version = module.version;
-        module.code_mut().mirs.push(ModuleMir::new(
-            module_b_id,
-            module_version,
-            target_id.clone(),
-        ));
-    }
+    let module_version = test.module_version(module_b_id);
+    let mir = ModuleMir::new(module_b_id, module_version, target_id.clone());
+    test.program
+        .artifacts
+        .set_mir(module_b_id, profile, target_id.clone(), mir.to_data());
+
     let b_has_mir_before = test
         .program
-        .modules
-        .get(module_b_id)
-        .read()
-        .code()
-        .mirs
-        .iter()
-        .any(|mir| mir.target == target_id);
+        .artifacts
+        .optimized_mir(module_b_id, profile, &target_id)
+        .or_else(|| test.program.artifacts.mir(module_b_id, profile, &target_id))
+        .is_some();
 
     // check that the mir is seeded before edits
     assert!(b_has_mir_before, "expected mir to be seeded before edits");
@@ -551,13 +528,10 @@ export const value: string = "value";
 
     let b_has_mir_after = test
         .program
-        .modules
-        .get(module_b_id)
-        .read()
-        .code()
-        .mirs
-        .iter()
-        .any(|mir| mir.target == target_id);
+        .artifacts
+        .optimized_mir(module_b_id, profile, &target_id)
+        .or_else(|| test.program.artifacts.mir(module_b_id, profile, &target_id))
+        .is_some();
 
     // check that the mir is cleared after edits
     assert!(
@@ -1065,81 +1039,8 @@ value;
 "#,
     );
     let profile_id = test.default_profile_id(module_b_id);
-    let profile_version = test.profile_version(profile_id);
-
-    // load module file content for cache context hashing
-    test.compiler
-        .import_module_parse(module_a_id, test.module_version(module_a_id))
-        .unwrap_or_else(|error| panic!("failed to parse module a: {error:?}"));
-    test.compiler
-        .import_module_parse(module_b_id, test.module_version(module_b_id))
-        .unwrap_or_else(|error| panic!("failed to parse module b: {error:?}"));
-
-    // seed module dirs for dependency validation
-    {
-        let module = test.program.modules.get(module_a_id);
-        let mut module = module.write();
-        let file_id = module.file_id;
-        let anchor_id = module.ast_mut().ensure_anchor_expression(file_id);
-        let base = ModuleDir::new_base(module_a_id, module.version, anchor_id.id);
-        let dir = ModuleDir::from_base(&base, profile_id);
-        module.code_mut().dir_base = Some(base);
-        module.code_mut().dirs.push(dir);
-    }
-    {
-        let module = test.program.modules.get(module_b_id);
-        let mut module = module.write();
-        let file_id = module.file_id;
-        let anchor_id = module.ast_mut().ensure_anchor_expression(file_id);
-        let base = ModuleDir::new_base(module_b_id, module.version, anchor_id.id);
-        let dir = ModuleDir::from_base(&base, profile_id);
-        module.code_mut().dir_base = Some(base);
-        module.code_mut().dirs.push(dir);
-    }
-
-    // seed module graph and signatures
-    let graph_key = ModuleGraphKey::new(profile_id);
-    let mut graph = destack_workspace::ModuleGraph::new(profile_id);
-    graph.update_module(module_a_id, test.module_version(module_a_id), Vec::new());
-    graph.update_module(
-        module_b_id,
-        test.module_version(module_b_id),
-        vec![module_a_id],
-    );
-    test.program.index.module_graphs.insert(graph_key, graph);
-
-    let signature_a = destack_workspace::ModuleSignature::new(
-        module_a_id,
-        profile_id,
-        test.module_version(module_a_id),
-        profile_version,
-        100,
-        Vec::new(),
-        None,
-        IndexMap::new(),
-        Vec::new(),
-        Vec::new(),
-    );
-    let signature_b = destack_workspace::ModuleSignature::new(
-        module_b_id,
-        profile_id,
-        test.module_version(module_b_id),
-        profile_version,
-        200,
-        Vec::new(),
-        None,
-        IndexMap::new(),
-        Vec::new(),
-        Vec::new(),
-    );
-    test.program.index.module_signatures.insert(
-        ModuleSignatureKey::new(module_a_id, profile_id),
-        signature_a,
-    );
-    test.program.index.module_signatures.insert(
-        ModuleSignatureKey::new(module_b_id, profile_id),
-        signature_b,
-    );
+    // seed module graph, signatures, and resolved dir artifacts
+    test.compile_analyze_modules(&[module_a_id, module_b_id]);
     let context_before = test
         .compiler
         .cache_context_for_module(module_b_id, Some(profile_id), None, CacheKind::DirResolved)
@@ -1155,11 +1056,13 @@ value;
     };
     let cache_store = test.session.cache_store.as_ref();
     let registry = CacheRegistry::new();
-    let dir_payload = {
-        let module = test.program.modules.get(module_b_id);
-        let module = module.read();
-        module.dir(profile_id).to_data()
-    };
+    let dir_payload = test
+        .program
+        .artifacts
+        .dir_resolved(module_b_id, profile_id)
+        .unwrap_or_else(|| panic!("missing resolved dir for {module_b_id:?}"))
+        .as_ref()
+        .clone();
     registry
         .write_dir_resolved_cache(
             cache_store,
@@ -1170,23 +1073,9 @@ value;
         )
         .unwrap_or_else(|error| panic!("failed to write dir cache entry: {error}"));
 
-    // update dependency signature to simulate export change
-    let updated_signature = destack_workspace::ModuleSignature::new(
-        module_a_id,
-        profile_id,
-        test.module_version(module_a_id),
-        profile_version,
-        999,
-        Vec::new(),
-        None,
-        IndexMap::new(),
-        Vec::new(),
-        Vec::new(),
-    );
-    test.program.index.module_signatures.insert(
-        ModuleSignatureKey::new(module_a_id, profile_id),
-        updated_signature,
-    );
+    // update the dependency export surface and rebuild its signature
+    test.replace_module_source(module_a_id, "export const value = 'value';");
+    test.compile_analyze_modules(&[module_a_id]);
 
     let context_after = test
         .compiler

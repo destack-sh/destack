@@ -1,13 +1,14 @@
 use crate::resolve::binding::cache::ResolveExpressionCache;
 use crate::resolve::dependency::cache::ResolveDependencyItemCache;
 use crate::timing::tags;
-use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
+use crate::{
+    BuildRequirementCollector, Compiler, ResolveError, ResolveModuleContext, ResolveResult,
+};
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, Expression, GlobalSymbolId, LocalNodeId,
     LocalScopeId, NodeTree, SymbolSpace,
 };
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::ProfileId;
+use destack_workspace::{ModuleDir, ProfileId};
 use rustc_hash::FxHashMap;
 
 /// Collect node ids needed for resolve passes.
@@ -88,29 +89,15 @@ impl Compiler {
     /// Resolve expressions, dependencies, and declarations (phase 1).
     pub(crate) fn resolve_module_direct(
         &self,
-        module_id: ModuleId,
+        module: &ResolveModuleContext,
         profile: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        dir: &ModuleDir,
     ) -> ResolveResult<()> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<ResolveError>(
-            module_id,
-            module_version,
-            profile,
-            profile_version,
-        )?;
         let _timing = self.timing_scope(tags::RESOLVE_MODULE_DIRECT);
-
-        self.require_dir_prepared(module_id, profile)?;
-        if !self.is_code_module(module_id) {
+        if !self.is_code_module(module.id) {
             return Ok(());
         }
 
-        // load module data for read
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
         let is_selected_lib_module = self.is_selected_lib_module(profile, module.id);
         let is_standard_lib_environment_module = self.is_standard_lib_environment_module(module.id);
         let skip_builtin_declaration_expressions = module.language_type.is_declaration()
@@ -159,7 +146,7 @@ impl Compiler {
             }
 
             // resolve dependencies
-            self.resolve_dependency_items(module_id, profile)?;
+            self.resolve_dependency_items(module, dir, profile)?;
 
             // build the global symbol table
             if !skip_builtin_global_symbol_table {
@@ -232,13 +219,15 @@ impl Compiler {
 
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_EXPORTS);
+            let module_handle = self.program.modules.get(module.id);
+            let module_handle = module_handle.read();
 
             // finalize export targets (after dependency resolution)
             let tree = dir.tree.read();
             let mut symbols = dir.symbols.write();
-            self.finalize_module_exports(&module, profile, dir, &tree, &mut symbols);
+            self.finalize_module_exports(&module_handle, profile, dir, &tree, &mut symbols);
             self.finalize_module_binding_exports(
-                &module,
+                &module_handle,
                 profile,
                 dir,
                 &tree,
@@ -253,31 +242,29 @@ impl Compiler {
     /// Resolve dependency items (imports/reexports) for a module.
     pub(crate) fn resolve_dependency_items(
         &self,
-        module_id: ModuleId,
+        module: &ResolveModuleContext,
+        dir: &ModuleDir,
         profile: ProfileId,
     ) -> ResolveResult<()> {
         let mut cache = ResolveDependencyItemCache::default();
-        self.resolve_dependency_items_with_cache(module_id, profile, &mut cache)
+        self.resolve_dependency_items_with_cache(module, dir, profile, &mut cache)
     }
 
     /// Resolve dependency items using a shared cache across modules.
     pub(crate) fn resolve_dependency_items_with_cache(
         &self,
-        module_id: ModuleId,
+        module: &ResolveModuleContext,
+        dir: &ModuleDir,
         profile: ProfileId,
         cache: &mut ResolveDependencyItemCache,
     ) -> ResolveResult<()> {
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
-
         // cache module exports for dependency resolution
-        cache.ensure_module_exports(module_id, dir);
+        cache.ensure_module_exports(module.id, dir);
 
         // collect dependency item ids once
         let item_ids = {
             let tree = dir.tree.read();
-            cache.dependency_item_ids_for(module_id, &tree)
+            cache.dependency_item_ids_for(module.id, &tree)
         };
 
         // resolve dependency items using read locks

@@ -229,9 +229,20 @@ impl Compiler {
             target_symbol.module_id,
             DirReadBoundary::Declared,
             |owner_module, owner_symbols| {
-                let owner_types = owner_module.dir(ctx.profile).types.read();
+                let owner_snapshot = self
+                    .require_artifact_dir_for_boundary(
+                        target_symbol.module_id,
+                        ctx.profile,
+                        DirReadBoundary::Declared,
+                    )
+                    .ok()?;
                 self.enum_field_value_for_symbol_reference_read(
-                    SymbolTypeView::new(owner_module, ctx.profile, owner_symbols, &owner_types),
+                    SymbolTypeView::new(
+                        owner_module,
+                        ctx.profile,
+                        owner_symbols,
+                        &owner_snapshot.types,
+                    ),
                     enum_symbol,
                     target_symbol,
                 )

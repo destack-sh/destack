@@ -5,9 +5,7 @@ use destack_workspace::ModuleGraphKey;
 /// Assert one module exports a value symbol for the requested name.
 fn assert_has_value_export(test: &TestProgram, module_id: destack_source::ModuleId, name: &str) {
     let profile = test.default_profile_id(module_id);
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let exports = dir.exported_symbols.read();
     let name_id = test.program.strings.intern(name);
     let key = (SymbolSpace::Value, StaticKey::Name(name_id));
@@ -25,9 +23,7 @@ fn assert_missing_value_export(
     name: &str,
 ) {
     let profile = test.default_profile_id(module_id);
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let dir = module.dir(profile);
+    let dir = test.artifact_dir(module_id, profile);
     let exports = dir.exported_symbols.read();
     let name_id = test.program.strings.intern(name);
     let key = (SymbolSpace::Value, StaticKey::Name(name_id));

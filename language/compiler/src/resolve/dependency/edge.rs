@@ -1,11 +1,20 @@
 use destack_ast::StringId;
 use destack_dir::{DependencyKind, DependencySource, ModuleResolution, ModuleTarget};
-use destack_workspace::{ImportEdgeKind, Module, ModuleDir, ProfileId, Runtime};
+use destack_source::ModuleId;
+use destack_workspace::{ImportEdgeKind, Module, ModuleDir, ModuleDirData, ProfileId, Runtime};
 
 use crate::{
     Compiler, ImportResolveContext, ResolveError, ResolveMode, ResolveResult, ResolveWarning,
     typescript_commonjs_default_interop_is_enabled,
 };
+
+/// The uncached result of resolving one import edge.
+struct ImportResolutionResult {
+    /// The selected target for this dependency kind.
+    target: ModuleTarget,
+    /// The full resolved target set to cache for this specifier.
+    cache: ModuleResolution,
+}
 
 /// Builtin namespace used by protocol specifiers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,6 +66,90 @@ impl BuiltinNamespace {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve one reference-lib directive target to a module target.
+    fn resolve_reference_lib_target(
+        &self,
+        profile: ProfileId,
+        node: destack_dir::GlobalNodeIdAny,
+        target: StringId,
+    ) -> ResolveResult<ModuleTarget> {
+        let target_text = self.program.strings.get(target);
+        let module_id = self
+            .resolve_reference_lib_to_module(profile, target_text.as_ref())
+            .map_err(|_| ResolveError::UnresolvedModule {
+                node: node.into_anchored(Some(profile)),
+                target,
+            })?;
+
+        Ok(ModuleTarget::Module(module_id))
+    }
+
+    /// Resolve one ambient module binding target when available for the requested kind.
+    fn resolve_binding_import_target(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        resolve_target: StringId,
+        kind: DependencyKind,
+    ) -> ResolveResult<Option<(ModuleTarget, ModuleResolution)>> {
+        let Some(binding_target) =
+            self.resolve_module_binding_target(module.id, profile, resolve_target)?
+        else {
+            return Ok(None);
+        };
+        let binding_targets = ModuleResolution::from_target(binding_target);
+        let Some(remote_target) = self.select_import_target_for_kind(module, binding_targets, kind)
+        else {
+            return Ok(None);
+        };
+
+        Ok(Some((remote_target, binding_targets)))
+    }
+
+    /// Resolve one specifier to a module target when available for the requested kind.
+    fn resolve_specifier_import_target(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        resolve_target: StringId,
+        source_module: Option<ModuleId>,
+        edge_kind: ImportEdgeKind,
+        loader_override: Option<destack_workspace::Loader>,
+        kind: DependencyKind,
+    ) -> Option<(ModuleTarget, ModuleResolution)> {
+        let resolved_targets = self
+            .resolve_specifier_to_module_resolution(
+                profile,
+                resolve_target,
+                source_module,
+                edge_kind,
+                loader_override,
+            )
+            .ok()?;
+        let remote_target = self.select_import_target_for_kind(module, resolved_targets, kind)?;
+
+        Some((remote_target, resolved_targets))
+    }
+
+    /// Require bound DIRs for every concrete module target in one resolution.
+    fn require_import_target_modules(&self, targets: ModuleResolution) -> ResolveResult<()> {
+        let mut required_module_ids = Vec::new();
+        for target in [targets.value, targets.ty] {
+            let Some(ModuleTarget::Module(module_id)) = target else {
+                continue;
+            };
+            if !required_module_ids.contains(&module_id) {
+                required_module_ids.push(module_id);
+            }
+        }
+
+        for module_id in required_module_ids {
+            self.require_dir_base(module_id)?;
+        }
+
+        Ok(())
+    }
+
     /// Select import edge semantics from dependency source and source module kind.
     pub(crate) fn import_edge_kind_for_dependency(
         source: DependencySource,
@@ -164,16 +257,23 @@ impl Compiler {
     /// Load resolved module targets for an import specifier from the module dir cache.
     pub(crate) fn imported_module_resolution_for_specifier(
         &self,
-        module: &Module,
+        module_id: ModuleId,
         profile: ProfileId,
+        dir: Option<&ModuleDir>,
         target: StringId,
         edge_kind: ImportEdgeKind,
         loader_override: Option<destack_workspace::Loader>,
     ) -> Option<ModuleResolution> {
-        let source_module = Some(module.id);
-        let dir = module.dir(profile);
+        if let Some(dir) = dir {
+            let source_module = Some(module_id);
+            let cache_key = (source_module, target, edge_kind, loader_override);
+            return dir.imported_modules.read().get(&cache_key).copied();
+        }
+
+        let source_module = Some(module_id);
         let cache_key = (source_module, target, edge_kind, loader_override);
-        dir.imported_modules.read().get(&cache_key).copied()
+        let snapshot = self.program.artifacts.dir_resolved(module_id, profile)?;
+        snapshot.imported_modules.get(&cache_key).copied()
     }
 
     /// Emit diagnostics for unresolved modules based on resolve mode.
@@ -234,6 +334,42 @@ impl Compiler {
         }
     }
 
+    /// Resolve an import from one immutable prepared DIR artifact, returning `None` for unresolved modules.
+    pub(crate) fn resolve_import_maybe_from_artifact(
+        &self,
+        module: &Module,
+        dir: &ModuleDirData,
+        profile: ProfileId,
+        node: destack_dir::GlobalNodeIdAny,
+        source: DependencySource,
+        target: StringId,
+        kind: DependencyKind,
+        loader_override: Option<destack_workspace::Loader>,
+    ) -> ResolveResult<Option<ModuleTarget>> {
+        let resolved = if let Some(loader_override) = loader_override {
+            self.resolve_import_with_loader_from_artifact(
+                module,
+                dir,
+                profile,
+                node,
+                source,
+                target,
+                kind,
+                Some(loader_override),
+            )
+        } else {
+            self.resolve_import_from_artifact(module, dir, profile, node, source, target, kind)
+        };
+        match resolved {
+            Ok(target) => Ok(Some(target)),
+            Err(error @ ResolveError::UnresolvedModule { .. }) => {
+                self.handle_unresolved_module(error);
+                Ok(None)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
     /// Try to resolve an import of some target specifier synchronously.
     pub(crate) fn resolve_import(
         &self,
@@ -246,6 +382,22 @@ impl Compiler {
         kind: DependencyKind,
     ) -> ResolveResult<ModuleTarget> {
         self.resolve_import_with_loader(module, dir, profile, node, source, target, kind, None)
+    }
+
+    /// Try to resolve an import of one target specifier from one immutable prepared DIR artifact.
+    pub(crate) fn resolve_import_from_artifact(
+        &self,
+        module: &Module,
+        dir: &ModuleDirData,
+        profile: ProfileId,
+        node: destack_dir::GlobalNodeIdAny,
+        source: DependencySource,
+        target: StringId,
+        kind: DependencyKind,
+    ) -> ResolveResult<ModuleTarget> {
+        self.resolve_import_with_loader_from_artifact(
+            module, dir, profile, node, source, target, kind, None,
+        )
     }
 
     /// Try to resolve an import with an optional loader override.
@@ -271,22 +423,77 @@ impl Compiler {
             return Ok(remote_target);
         }
 
+        let resolved = self.resolve_import_uncached(
+            module,
+            profile,
+            node,
+            source,
+            target,
+            kind,
+            loader_override,
+        )?;
+        dir.imported_modules.write().insert(cache_key, resolved.cache);
+
+        Ok(resolved.target)
+    }
+
+    /// Try to resolve an import from one immutable prepared DIR artifact with an optional loader override.
+    pub(crate) fn resolve_import_with_loader_from_artifact(
+        &self,
+        module: &Module,
+        dir: &ModuleDirData,
+        profile: ProfileId,
+        node: destack_dir::GlobalNodeIdAny,
+        source: DependencySource,
+        target: StringId,
+        kind: DependencyKind,
+        loader_override: Option<destack_workspace::Loader>,
+    ) -> ResolveResult<ModuleTarget> {
+        let source_module = Some(module.id);
+        let edge_kind = self.import_edge_kind(module, source);
+        let cache_key = (source_module, target, edge_kind, loader_override);
+
+        // check if already resolved in the prepared snapshot
+        if let Some(targets) = dir.imported_modules.get(&cache_key)
+            && let Some(remote_target) = self.select_import_target_for_kind(module, *targets, kind)
+        {
+            return Ok(remote_target);
+        }
+
+        let resolved = self.resolve_import_uncached(
+            module,
+            profile,
+            node,
+            source,
+            target,
+            kind,
+            loader_override,
+        )?;
+
+        Ok(resolved.target)
+    }
+
+    /// Resolve one import edge without consulting or mutating local import caches.
+    fn resolve_import_uncached(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node: destack_dir::GlobalNodeIdAny,
+        source: DependencySource,
+        target: StringId,
+        kind: DependencyKind,
+        loader_override: Option<destack_workspace::Loader>,
+    ) -> ResolveResult<ImportResolutionResult> {
+        let source_module = Some(module.id);
+        let edge_kind = self.import_edge_kind(module, source);
+
         // resolve reference lib directives through builtin library loading
         if source == DependencySource::ReferenceLibDirective {
-            let target_text = self.program.strings.get(target);
-            let module_id = self
-                .resolve_reference_lib_to_module(profile, target_text.as_ref())
-                .map_err(|_| ResolveError::UnresolvedModule {
-                    node: node.into_anchored(Some(profile)),
-                    target,
-                })?;
-            let remote_target = ModuleTarget::Module(module_id);
-            let resolved_targets = ModuleResolution::from_target(remote_target);
-            dir.imported_modules
-                .write()
-                .insert(cache_key, resolved_targets);
-
-            return Ok(remote_target);
+            let target = self.resolve_reference_lib_target(profile, node, target)?;
+            return Ok(ImportResolutionResult {
+                target,
+                cache: ModuleResolution::from_target(target),
+            });
         }
 
         // normalize target specifiers for source-specific semantics
@@ -297,19 +504,14 @@ impl Compiler {
         // builtin libs prefer ambient module bindings before package resolution
         if module.is_builtin()
             && loader_override.is_none()
-            && let Some(binding_target) =
-                self.resolve_module_binding_target(module.id, profile, resolve_target)?
+            && let Some((target, cache)) = self.resolve_binding_import_target(
+                module,
+                profile,
+                resolve_target,
+                kind,
+            )?
         {
-            let binding_targets = ModuleResolution::from_target(binding_target);
-            dir.imported_modules
-                .write()
-                .insert(cache_key, binding_targets);
-
-            if let Some(remote_target) =
-                self.select_import_target_for_kind(module, binding_targets, kind)
-            {
-                return Ok(remote_target);
-            }
+            return Ok(ImportResolutionResult { target, cache });
         }
 
         // prepare root context for non-relative import resolution
@@ -318,60 +520,35 @@ impl Compiler {
         }
 
         // resolve specifier to module ids first
-        let resolved_targets = self
-            .resolve_specifier_to_module_resolution(
-                profile,
-                resolve_target,
-                source_module,
-                edge_kind,
-                loader_override,
-            )
-            .ok();
-
         // use resolved module targets when they satisfy the dependency kind
-        if let Some(resolved_targets) = resolved_targets
-            && let Some(remote_target) =
-                self.select_import_target_for_kind(module, resolved_targets, kind)
+        if let Some((remote_target, resolved_targets)) = self.resolve_specifier_import_target(
+            module,
+            profile,
+            resolve_target,
+            source_module,
+            edge_kind,
+            loader_override,
+            kind,
+        )
         {
-            // collect unique module targets that must be import validated
-            let mut required_module_ids = Vec::new();
-            for target in [resolved_targets.value, resolved_targets.ty] {
-                let Some(ModuleTarget::Module(module_id)) = target else {
-                    continue;
-                };
-                if !required_module_ids.contains(&module_id) {
-                    required_module_ids.push(module_id);
-                }
-            }
+            self.require_import_target_modules(resolved_targets)?;
 
-            // require resolved modules to be bound
-            for module_id in required_module_ids {
-                self.require_dir_base(module_id)?;
-            }
-
-            // record the resolved import
-            dir.imported_modules
-                .write()
-                .insert(cache_key, resolved_targets);
-
-            return Ok(remote_target);
+            return Ok(ImportResolutionResult {
+                target: remote_target,
+                cache: resolved_targets,
+            });
         }
 
         // user modules fall back to ambient module bindings after package resolution
         if loader_override.is_none()
-            && let Some(binding_target) =
-                self.resolve_module_binding_target(module.id, profile, resolve_target)?
+            && let Some((target, cache)) = self.resolve_binding_import_target(
+                module,
+                profile,
+                resolve_target,
+                kind,
+            )?
         {
-            let binding_targets = ModuleResolution::from_target(binding_target);
-            dir.imported_modules
-                .write()
-                .insert(cache_key, binding_targets);
-
-            if let Some(remote_target) =
-                self.select_import_target_for_kind(module, binding_targets, kind)
-            {
-                return Ok(remote_target);
-            }
+            return Ok(ImportResolutionResult { target, cache });
         }
 
         // only user modules get bare node builtin compatibility
@@ -392,7 +569,7 @@ impl Compiler {
                 });
             }
 
-            if self.options.resolve_mode == crate::ResolveMode::Lenient {
+            if self.options.resolve_mode == ResolveMode::Lenient {
                 self.warning(ResolveWarning::UnprefixedBuiltinModule {
                     node: node.into_anchored(Some(profile)),
                     target: resolve_target,
@@ -400,26 +577,15 @@ impl Compiler {
                 });
             }
 
-            let remote_target = self.resolve_import_with_loader(
+            return self.resolve_import_uncached(
                 module,
-                dir,
                 profile,
                 node,
                 source,
                 prefixed_target,
                 kind,
                 loader_override,
-            )?;
-
-            // cache the bare target through the same resolved targets as the canonical target
-            let prefixed_cache_key = (source_module, prefixed_target, edge_kind, loader_override);
-            if let Some(prefixed_targets) = dir.imported_modules.read().get(&prefixed_cache_key) {
-                dir.imported_modules
-                    .write()
-                    .insert(cache_key, *prefixed_targets);
-            }
-
-            return Ok(remote_target);
+            );
         }
 
         Err(self.unresolved_error_for_specifier(node, profile, target, resolve_target))

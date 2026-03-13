@@ -7,22 +7,23 @@ use crate::{
     AnalyzeError, AnalyzeResult, BuildRequirementCollector, Compiler, FlowContext, InferSession,
 };
 use destack_dir::{
-    Declaration, Declarator, Expression, FlowGraphBuilder, IntType, LocalNodeId, NodeTree,
-    PrimitiveType, Type, TypeLiteral,
+    Declaration, Declarator, Expression, FlowGraphBuilder, InferTable, IntType, LocalNodeId,
+    NodeTree, PrimitiveType, Type, TypeLiteral,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{Module, ModuleContent, ModuleSource, ModuleType, ProfileId};
+use destack_workspace::{Module, ModuleContent, ModuleDir, ModuleSource, ModuleType, ProfileId};
 use std::collections::HashSet;
 
 impl Compiler {
     /// Phase 3: Infer expression types.
     pub(crate) fn analyze_module_infer(
         &self,
+        dir: &ModuleDir,
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
-    ) -> AnalyzeResult<()> {
+    ) -> AnalyzeResult<Option<InferTable>> {
         // skip stale tasks
         self.ensure_module_profile_matches::<AnalyzeError>(
             module_id,
@@ -31,23 +32,19 @@ impl Compiler {
             profile_version,
         )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_INFER);
-        self.clear_infer_table_for_module(module_id, profile);
-
         // analyze data modules specially
         if !self.is_code_module(module_id) {
-            return self.analyze_data_module_infer(module_id, profile);
+            self.analyze_data_module_infer(dir, module_id)?;
+            return Ok(None);
         }
 
         // skip inference when module language is disabled
         if !self.module_language_allowed(module_id) {
-            return Ok(());
+            return Ok(None);
         }
-
-        self.require_dir_declared(module_id, profile)?;
 
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir(profile);
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
@@ -58,11 +55,12 @@ impl Compiler {
                 || (matches!(module.source, ModuleSource::Builtin(_))
                     && !self.options.validate_builtin_libs);
             if should_skip_enum_validation {
-                return Ok(());
+                return Ok(None);
             }
 
             let options = self.analyze_context_options_for_module(module.id);
-            let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+            let mut ctx =
+                TypeContext::with_dir(&module, profile, &options, dir, &tree, &symbols, &mut types);
 
             // infer enum backing types when declaration validation is enabled
             for root_id in dir.roots.iter() {
@@ -81,12 +79,17 @@ impl Compiler {
                 ctx.types.set_enum_backing_type(enum_symbol, backing_type);
             }
 
-            return Ok(());
+            return Ok(None);
         }
 
         // select runtime roots for the inference pass
         let runtime_roots = self.collect_runtime_roots(&module, &tree, &dir.roots);
         let infer_roots = runtime_roots.clone();
+
+        // skip infer entirely when no roots require infer work
+        if infer_roots.is_empty() {
+            return Ok(None);
+        }
 
         // resolve builtins before resolving type-import operator dependencies
         self.require_language_environment(profile)
@@ -105,7 +108,6 @@ impl Compiler {
         self.require_interface_dependencies(module_id, profile)?;
         self.require_interface_inference_for_ambient_libs(profile)?;
 
-        let dir = module.dir(profile);
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
@@ -115,10 +117,11 @@ impl Compiler {
         // initialize infer session state
         let mut session = InferSession::new(profile, options);
         let (infer_table, context) = session.parts_mut();
-        let mut ctx = InferContext::new(
+        let mut ctx = InferContext::with_dir(
             &module,
             profile,
             &options,
+            dir,
             &tree,
             &symbols,
             &mut types,
@@ -190,9 +193,7 @@ impl Compiler {
         }
 
         // publish infer-table state for later solve and commit work
-        self.publish_infer_table_for_module(module.id, profile, session.into_table());
-
-        Ok(())
+        Ok(Some(session.into_table()))
     }
 
     /// Collect root expressions that can produce runtime behavior.
@@ -271,14 +272,9 @@ impl Compiler {
     ///
     /// This function converts the parsed data into a structural DIR type and associates
     /// it with the module's default export symbol.
-    fn analyze_data_module_infer(
-        &self,
-        module_id: ModuleId,
-        profile: ProfileId,
-    ) -> AnalyzeResult<()> {
+    fn analyze_data_module_infer(&self, dir: &ModuleDir, module_id: ModuleId) -> AnalyzeResult<()> {
         let module_ref = self.program.modules.get(module_id);
         let module = module_ref.read();
-        let dir = module.dir(profile);
         let default_symbol = dir.default_symbol;
         let source_id = dir.anchor_node;
         let module_type = module.module_type;
@@ -290,11 +286,6 @@ impl Compiler {
                     _ => return Ok(()),
                 };
                 drop(module);
-
-                // re-acquire the module and infer type
-                let module_ref = self.program.modules.get(module_id);
-                let module = module_ref.read();
-                let dir = module.dir(profile);
                 let mut types = dir.types.write();
 
                 let inferred_type =

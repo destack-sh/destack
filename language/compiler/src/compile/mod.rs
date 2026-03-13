@@ -9,6 +9,7 @@ mod directive;
 mod error;
 mod event;
 mod format;
+mod frame;
 mod options;
 mod parallel;
 mod process;
@@ -18,7 +19,6 @@ mod task;
 pub mod timing;
 mod version;
 mod warning;
-mod workspace;
 
 pub use anchor::*;
 pub use build::*;

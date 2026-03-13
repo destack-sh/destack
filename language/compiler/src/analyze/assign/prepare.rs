@@ -560,11 +560,20 @@ impl Compiler {
                             return Ok(None);
                         }
 
-                        let options = self.analyze_context_options_for_module(view.module.id);
-                        let mut owner_types = view.module.dir(ctx.profile).types.write();
+                        let owner_snapshot = self
+                            .require_artifact_dir_for_boundary(
+                                symbol.module_id,
+                                ctx.profile,
+                                DirReadBoundary::Declared,
+                            )
+                            .map_err(AnalyzeError::from)?;
+                        let owner_module = self.program.modules.get(symbol.module_id);
+                        let owner_module = owner_module.read();
+                        let options = self.analyze_context_options_for_module(owner_module.id);
+                        let mut owner_types = owner_snapshot.types.clone();
                         let mut owner_ctx = ctx
                             .type_context_reborrow_for_module_with_options_and_types(
-                                view.module,
+                                &owner_module,
                                 &options,
                                 view.tree,
                                 view.symbols,
@@ -787,9 +796,11 @@ impl Compiler {
             } => (*symbol, static_arguments.clone()),
             _ => return type_id,
         };
-        let symbol = self
-            .declaration_symbol_id(ctx.module_symbol_view(), symbol)
-            .unwrap_or(symbol);
+        let symbol = self.canonical_symbol_id(
+            ctx.module_symbol_view(),
+            symbol,
+            CanonicalSymbolMode::PreserveAliases,
+        );
 
         // require an alias symbol
         if symbol.ty() != SymbolType::TypeAlias {

@@ -878,13 +878,23 @@ impl Compiler {
 
             let argument_module = self.program.modules.get(node.module_id);
             let argument_module = argument_module.read();
-            let argument_tree = argument_module.dir(context.profile).tree.read();
-            let argument_symbols = argument_module.dir(context.profile).symbols.read();
+            let snapshot = self
+                .program
+                .artifacts
+                .dir_snapshot(node.module_id, context.profile)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "missing dir artifact for static argument module {:?}",
+                        node.module_id
+                    )
+                });
+            let argument_tree = &snapshot.tree;
+            let argument_symbols = &snapshot.symbols;
             return self.unbind_argument(
                 &argument_module,
                 argument_id,
-                &argument_tree,
-                &argument_symbols,
+                argument_tree,
+                argument_symbols,
                 ast_tree,
                 ast_strings,
                 context,
@@ -1317,21 +1327,15 @@ impl Compiler {
                     _ => None,
                 })
         } else {
-            self.program
-                .modules
-                .get(symbol_id.module_id)
-                .read()
-                .dir_base_maybe()
-                .and_then(|dir| {
-                    let symbols = dir.symbols.read();
-                    symbols
-                        .get_symbol(symbol_id.into_local())
-                        .key
-                        .and_then(|key| match key {
-                            dir::StaticKey::Name(name) | dir::StaticKey::Number(name) => Some(name),
-                            _ => None,
-                        })
-                })
+            self.artifact_dir_base(symbol_id.module_id).and_then(|dir| {
+                dir.symbols
+                    .get_symbol(symbol_id.into_local())
+                    .key
+                    .and_then(|key| match key {
+                        dir::StaticKey::Name(name) | dir::StaticKey::Number(name) => Some(name),
+                        _ => None,
+                    })
+            })
         };
 
         // return the interned name with a fallback

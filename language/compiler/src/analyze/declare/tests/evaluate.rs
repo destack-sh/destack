@@ -164,6 +164,39 @@ declare let value: Remap<{ name: string }>;
 }
 
 #[test]
+fn test_cross_module_recursive_type_alias_reports_recursion() {
+    let test = TestProgram::memory_sequential();
+    test.add_module(
+        "a.ds",
+        r#"
+import type { B } from "./b";
+
+export type A<T> = B<T>;
+"#,
+    );
+    test.add_module(
+        "b.ds",
+        r#"
+import type { A } from "./a";
+
+export type B<T> = A<T>;
+"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+import type { A } from "./a";
+
+declare let value: A<number>;
+"#,
+    );
+
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostic("EA121");
+}
+
+#[test]
 fn test_type_index_integer_literal_reports_missing_property_and_keeps_index_access_when_not_admissible()
  {
     let test = TestProgram::memory_sequential();

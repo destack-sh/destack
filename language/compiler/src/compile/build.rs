@@ -1,4 +1,9 @@
-use destack_workspace::{ArtifactDependency, ArtifactKey, OutputDependency, OutputKey};
+use destack_workspace::{
+    ArtifactDependency, ArtifactKey, IntrinsicEnvironment, LanguageEnvironment, LibEnvironment,
+    ModuleAstData, ModuleDirData, ModuleMirData, OutputDependency, OutputKey, ProfileId,
+};
+
+use destack_source::ModuleId;
 
 use crate::{DiagnosticAnchor, TaskError};
 
@@ -18,6 +23,25 @@ pub enum BuildDependency {
     Artifact(ArtifactDependency),
     /// Dependency for a build product.
     Output(OutputDependency),
+}
+
+/// Completed build product for one build key.
+#[derive(Debug, Clone)]
+pub enum BuildProduct {
+    /// One language environment payload.
+    LanguageEnvironment(LanguageEnvironment),
+    /// One intrinsic environment payload.
+    IntrinsicEnvironment(IntrinsicEnvironment),
+    /// One lib environment payload.
+    LibEnvironment(LibEnvironment),
+    /// One AST payload.
+    Ast(ModuleAstData),
+    /// One DIR payload for the current build key.
+    Dir(ModuleDirData),
+    /// One converged interface artifact batch.
+    DirInterfaceBatch(Vec<(ModuleId, ProfileId, ModuleDirData)>),
+    /// One MIR payload for the current build key.
+    Mir(ModuleMirData),
 }
 
 /// Requirement for one build key.

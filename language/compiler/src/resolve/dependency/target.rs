@@ -162,7 +162,7 @@ impl Compiler {
 
         // include ambient lib module bindings visible to this profile
         for module_id in self.ambient_binding_module_ids(profile_id)? {
-            self.append_module_bindings_from_module(&mut cache, module_id);
+            self.append_module_bindings_from_module(&mut cache, module_id)?;
         }
 
         Ok(cache)
@@ -195,13 +195,31 @@ impl Compiler {
         &self,
         cache: &mut ModuleBindingTable,
         module_id: ModuleId,
-    ) {
+    ) -> ResolveResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         cache.module_versions.insert(module_id, module.version);
 
-        let module_bindings = module.dir_base().module_bindings.read();
-        for module_binding in module_bindings.iter() {
+        // only code modules can contribute module bindings
+        if !module.is_code() {
+            return Ok(());
+        }
+
+        let module_bindings = if let Some(active) =
+            self.with_current_active_base_dir(module_id, |dir| dir.module_bindings.read().clone())
+        {
+            active
+        } else {
+            self.require_dir_base(module_id)?;
+
+            let dir = self
+                .artifact_dir_base(module_id)
+                .unwrap_or_else(|| panic!("missing committed base dir artifact for {module_id:?}"));
+
+            dir.module_bindings.clone()
+        };
+
+        for module_binding in &module_bindings {
             let binding_ref = ModuleBindingReference {
                 module_id,
                 declaration: module_binding.declaration,
@@ -216,6 +234,8 @@ impl Compiler {
             }
             entries.push(binding_ref);
         }
+
+        Ok(())
     }
 
     /// Collect ambient modules that can contribute module bindings.

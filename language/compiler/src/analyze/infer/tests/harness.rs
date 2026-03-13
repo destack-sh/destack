@@ -58,14 +58,14 @@ pub(super) fn is_type_assignable(
     compiler: &Compiler,
     module: &Module,
     profile: ProfileId,
+    tree: &NodeTree,
     symbols: &SymbolTable,
     target_id: LocalTypeId,
     source_id: LocalTypeId,
     types: &mut TypeTable,
     options: &AnalyzeOptions,
 ) -> Assignability {
-    let tree = module.dir(profile).tree.read();
-    let mut ctx = TypeContext::new(module, profile, options, &tree, symbols, types);
+    let mut ctx = TypeContext::new(module, profile, options, tree, symbols, types);
     compiler.is_type_assignable(&mut ctx, target_id, source_id)
 }
 

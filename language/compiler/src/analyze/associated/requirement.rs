@@ -1,8 +1,8 @@
 use crate::analyze::common::{CanonicalSymbolMode, TreeSymbolView, TypeContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Expression, Generics, GlobalSymbolId, Heritage, LocalNodeId, Member, NodeTree, Parameter,
-    StringId, WhereClause,
+    Expression, Generics, GlobalSymbolId, Heritage, LocalNodeId, LocalTypeId, Member, NodeTree,
+    Parameter, StringId, WhereClause,
 };
 use destack_workspace::ModuleSource;
 use std::collections::HashSet;
@@ -28,6 +28,28 @@ impl DeclaredAssociatedRequirementKind {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Collect one associated member type expression, deferring only when eager resolution yields.
+    fn collect_associated_member_type_expression(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        defer_type_evaluation: bool,
+    ) -> AnalyzeResult<LocalTypeId> {
+        if defer_type_evaluation {
+            return self.collect_or_defer_type_expression(ctx, expression_id, true);
+        }
+
+        match self.resolve_declared_type_expression(&mut ctx.reborrow(), expression_id, true, true)
+        {
+            Ok(type_id) => Ok(type_id),
+            // keep a declared slot stable even when eager resolution still depends on later work
+            Err(AnalyzeError::Yield { .. }) => {
+                self.collect_or_defer_type_expression(ctx, expression_id, true)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
     /// Report missing declared associated requirements for one declaration in one ctx context.
     pub(crate) fn report_missing_associated_requirements(
         &self,
@@ -284,7 +306,7 @@ impl Compiler {
 
         // resolve associated type bound
         if let Some(ty) = ty {
-            let bound_ty_id = self.collect_or_defer_type_expression(
+            let bound_ty_id = self.collect_associated_member_type_expression(
                 &mut ctx.reborrow(),
                 ty,
                 defer_type_evaluation,
@@ -295,7 +317,7 @@ impl Compiler {
 
         // resolve and register associated type default
         if let Some(value) = value {
-            let value_ty_id = self.collect_or_defer_type_expression(
+            let value_ty_id = self.collect_associated_member_type_expression(
                 &mut ctx.reborrow(),
                 value,
                 defer_type_evaluation,

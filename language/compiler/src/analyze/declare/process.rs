@@ -2,6 +2,7 @@ use std::collections::{HashMap, VecDeque};
 
 use indexmap::IndexMap;
 
+use crate::analyze::DirReadBoundary;
 use crate::analyze::common::{ModuleTreeView, TypeContext};
 use crate::timing::tags;
 use crate::{
@@ -14,7 +15,7 @@ use destack_dir::{
     SymbolSpace, SymbolType, Type,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ArtifactKey, Module, ModuleSource, ProfileId};
+use destack_workspace::{ArtifactKey, Module, ModuleDir, ModuleSource, ProfileId};
 
 impl Compiler {
     /// Ensure declared DIR exists for a module.
@@ -23,8 +24,17 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
+        // current local build frame already satisfies declared reads
+        if self
+            .current_active_dir_frame(module, profile, DirReadBoundary::Declared)
+            .is_some()
+        {
+            return Ok(());
+        }
+
+        let current_build_key = self.current_build_key();
         // avoid self dependency when already declaring this module
-        if self.current_build_key()
+        if current_build_key
             == Some(BuildKey::Artifact(ArtifactKey::DirDeclared {
                 module,
                 profile,
@@ -34,10 +44,13 @@ impl Compiler {
         }
 
         // skip ambient builtin declarations when libs are disabled
+        let module_ref = self.program.modules.get(module);
+        let module_ref = module_ref.read();
         if !self.options.load_libs {
-            let module = self.program.modules.get(module);
-            let module = module.read();
-            if matches!(module.source, ModuleSource::Builtin(BuiltinLibKind::Lib)) {
+            if matches!(
+                module_ref.source,
+                ModuleSource::Builtin(BuiltinLibKind::Lib)
+            ) {
                 return Ok(());
             }
         }
@@ -51,6 +64,7 @@ impl Compiler {
     /// Phase 1: Evaluate declarations.
     pub(crate) fn analyze_module_declare(
         &self,
+        dir: &ModuleDir,
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
@@ -65,7 +79,6 @@ impl Compiler {
         )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_DECLARE);
 
-        self.require_dir_resolved(module_id, profile)?;
         if !self.is_code_module(module_id) {
             return Ok(());
         }
@@ -87,14 +100,14 @@ impl Compiler {
         self.ensure_ambient_libs_declared(&module, profile)?;
 
         // snapshot the module dir ctx for analysis
-        let dir = module.dir(profile);
         let tree = dir.tree.read();
         let mut types = dir.types.write();
         let symbols = dir.symbols.read();
         let mut collector = BuildRequirementCollector::new();
         let module_checks = self.module_check_options_for_module(module.id);
         let options = self.analyze_context_options_for_module(module.id);
-        let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+        let mut ctx =
+            TypeContext::with_dir(&module, profile, &options, dir, &tree, &symbols, &mut types);
 
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECLARATIONS);
@@ -167,6 +180,13 @@ impl Compiler {
                     self.publish_declared_alias_targets(&mut ctx.reborrow(), &binding.exports),
                 );
             }
+
+            // publish ambient declared aliases that are visible through local scopes
+            self.publish_declared_scope_alias_targets(&mut ctx.reborrow(), dir.namespace_scope)?;
+            self.publish_declared_scope_alias_targets(
+                &mut ctx.reborrow(),
+                dir.global_augmentation_scope,
+            )?;
         }
 
         // yield after static-constraint publication
@@ -297,11 +317,20 @@ impl Compiler {
     /// Decide whether declared types should be eagerly evaluated for a module.
     fn should_eager_evaluate_declared_types(
         &self,
-        _module: &Module,
+        module: &Module,
         _module_checks: ModuleCheckOptions,
     ) -> bool {
-        // declared type commitments back cross-module declared reads
-        true
+        // builtin core declarations still need lazy declared alias materialization
+        if matches!(module.source, ModuleSource::Builtin(BuiltinLibKind::Core)) {
+            return false;
+        }
+
+        // eager declare evaluation only works when declaration collection did not defer types
+        if module.is_builtin() {
+            return true;
+        }
+
+        !self.should_defer_declaration_types(module)
     }
 
     /// Evaluate unevaluated types to a fixed point.
@@ -389,7 +418,7 @@ impl Compiler {
                 continue;
             }
 
-            // load the declared alias target and ensure it is evaluated
+            // keep declared alias targets symbolic until a consumer needs evaluation
             let typed_symbol = GlobalSymbolId::new(
                 ctx.module.id,
                 export_symbol.local_id.with_type(symbol_entry.ty),
@@ -397,9 +426,46 @@ impl Compiler {
             let Some(alias_target_id) = ctx.types.get_alias_target_type_id(typed_symbol) else {
                 continue;
             };
-            self.ensure_type_evaluated(&mut ctx.reborrow(), alias_target_id)?;
+            if matches!(ctx.types.get_type(alias_target_id), Type::Unevaluated(_)) {
+                continue;
+            }
 
             // materialize static arguments before publishing
+            let mut cache = HashMap::new();
+            let materialized =
+                self.materialize_static_arguments_in_type(ctx, alias_target_id, &mut cache);
+            if materialized != alias_target_id {
+                ctx.types
+                    .set_alias_target_type_id(typed_symbol, materialized);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Publish alias targets from one declared scope.
+    fn publish_declared_scope_alias_targets(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        scope_id: destack_dir::LocalScopeId,
+    ) -> AnalyzeResult<()> {
+        let scope = ctx.symbols.get_scope_by_id(scope_id);
+
+        for (_, symbol_id) in ctx.symbols.active_named_symbols(scope) {
+            let symbol_entry = ctx.symbols.get_symbol(symbol_id);
+            if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+                continue;
+            }
+
+            let typed_symbol =
+                GlobalSymbolId::new(ctx.module.id, symbol_id.with_type(symbol_entry.ty));
+            let Some(alias_target_id) = ctx.types.get_alias_target_type_id(typed_symbol) else {
+                continue;
+            };
+            if matches!(ctx.types.get_type(alias_target_id), Type::Unevaluated(_)) {
+                continue;
+            }
+
             let mut cache = HashMap::new();
             let materialized =
                 self.materialize_static_arguments_in_type(ctx, alias_target_id, &mut cache);

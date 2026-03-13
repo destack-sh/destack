@@ -56,6 +56,12 @@ impl<T> Arena<T> {
         &self.items[local_id as usize]
     }
 
+    /// Get an immutable reference to the element with the given local id when present.
+    #[inline]
+    pub fn get_maybe(&self, local_id: u32) -> Option<&T> {
+        self.items.get(local_id as usize)
+    }
+
     /// Get a mutable reference to the element with the given local id.
     #[inline]
     pub fn get_mut(&mut self, local_id: u32) -> &mut T {

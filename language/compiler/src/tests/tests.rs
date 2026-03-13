@@ -226,17 +226,7 @@ impl TestProgram {
         profile: ProfileId,
     ) -> Option<ModuleDirData> {
         // prefer the most advanced published semantic product
-        let dir = self
-            .program
-            .artifacts
-            .dir_patched(module_id, profile)
-            .or_else(|| self.program.artifacts.dir_elaborated(module_id, profile))
-            .or_else(|| self.program.artifacts.dir_analyzed(module_id, profile))
-            .or_else(|| self.program.artifacts.dir_interface(module_id, profile))
-            .or_else(|| self.program.artifacts.dir_declared(module_id, profile))
-            .or_else(|| self.program.artifacts.dir_resolved(module_id, profile))
-            .or_else(|| self.program.artifacts.dir_prepared(module_id, profile))
-            .or_else(|| self.program.artifacts.dir_base(module_id));
+        let dir = self.program.artifacts.dir_snapshot(module_id, profile);
 
         dir.map(|dir| dir.as_ref().clone())
     }
@@ -256,6 +246,41 @@ impl TestProgram {
         ModuleDir::from_data(self.artifact_dir_data(module_id, profile))
     }
 
+    /// Return the resolved DIR artifact for one module's default profile.
+    pub(crate) fn dir_resolved(&self, module_id: ModuleId) -> ModuleDir {
+        let profile = self.default_profile_id(module_id);
+        let dir = self
+            .program
+            .artifacts
+            .dir_resolved(module_id, profile)
+            .unwrap_or_else(|| panic!("missing resolved dir for module {module_id:?}"));
+
+        ModuleDir::from_data(dir.as_ref().clone())
+    }
+
+    /// Return the base DIR artifact for one module.
+    pub(crate) fn dir_base(&self, module_id: ModuleId) -> ModuleDir {
+        let dir = self
+            .program
+            .artifacts
+            .dir_base(module_id)
+            .unwrap_or_else(|| panic!("missing base dir for module {module_id:?}"));
+
+        ModuleDir::from_data(dir.as_ref().clone())
+    }
+
+    /// Return the declared DIR artifact for one module's default profile.
+    pub(crate) fn dir_declared(&self, module_id: ModuleId) -> ModuleDir {
+        let profile = self.default_profile_id(module_id);
+        let dir = self
+            .program
+            .artifacts
+            .dir_declared(module_id, profile)
+            .unwrap_or_else(|| panic!("missing declared dir for module {module_id:?}"));
+
+        ModuleDir::from_data(dir.as_ref().clone())
+    }
+
     /// Return the most advanced published MIR for one module, profile, and target.
     pub(crate) fn artifact_mir_data(
         &self,
@@ -267,8 +292,7 @@ impl TestProgram {
         let mir = self
             .program
             .artifacts
-            .optimized_mir(module_id, profile, target_id)
-            .or_else(|| self.program.artifacts.mir(module_id, profile, target_id))
+            .mir_snapshot(module_id, profile, target_id)
             .unwrap_or_else(|| panic!("missing artifact mir for module {module_id:?}"));
 
         mir.as_ref().clone()
@@ -601,6 +625,14 @@ impl TestProgram {
             module,
             profile,
         }));
+    }
+
+    /// Drive declaration analysis for one module to completion.
+    pub fn declare_module(&self, module: ModuleId) {
+        let profile = self.default_profile_id(module);
+        self.compiler
+            .drive(|compiler| compiler.require_dir_declared(module, profile))
+            .unwrap_or_else(|error| panic!("failed to declare module {module:?}: {error:?}"));
     }
 
     /// Analyze a module and check no diagnostics.
@@ -1319,9 +1351,7 @@ impl TestProgram {
     /// Get the root expression for a bound module.
     pub fn expect_root_expression(&self, module_id: ModuleId) -> LocalNodeId<Expression> {
         // load bound module state
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir_base();
+        let dir = self.dir_base(module_id);
         let tree = dir.tree.read();
 
         // require a single root expression

@@ -662,19 +662,17 @@ impl Compiler {
                 }
 
                 dir::Expression::Type { value } => {
-                    // load the dir for the active profile
-                    let dir = module
-                        .dir_maybe(context.profile)
-                        .unwrap_or_else(|| module.dir_base());
+                    // read the committed dir snapshot for the active profile
+                    let dir = self
+                        .unbind_dir_snapshot(module.id, context.profile)
+                        .unwrap_or_else(|| panic!("missing committed dir artifact for module {:?}", module.id));
 
-                    // read the type table for the module
-                    let types = dir.types.read();
                     let ast_expression_id = self.unbind_type_expression(
                         module,
                         *value,
                         tree,
                         symbols,
-                        &types,
+                        &dir.types,
                         ast_tree,
                         ast_strings,
                         context,
@@ -1049,15 +1047,8 @@ impl Compiler {
                 let name_id = if symbol_id.module_id == module.id {
                     symbols.get_symbol(symbol_id.into_local()).name()
                 } else {
-                    self.program
-                        .modules
-                        .get(symbol_id.module_id)
-                        .read()
-                        .dir_base_maybe()
-                        .and_then(|dir| {
-                            let symbols = dir.symbols.read();
-                            symbols.get_symbol(symbol_id.into_local()).name()
-                        })
+                    self.artifact_dir_base(symbol_id.module_id)
+                        .and_then(|dir| dir.symbols.get_symbol(symbol_id.into_local()).name())
                 };
                 let name_id = name_id
                     .map(|name| ast_strings.intern_from(&self.program.strings, name))

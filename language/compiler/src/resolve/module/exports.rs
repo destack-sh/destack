@@ -1101,6 +1101,13 @@ impl Compiler {
         // resolve export targets for reexports
         let mut exports = dir.exported_symbols.write();
         self.finalize_export_targets(tree, &mut exports);
+        self.normalize_reexport_export_spaces(
+            module.id,
+            module.language_type,
+            tree,
+            symbols,
+            &mut exports,
+        );
         self.finalize_export_dependencies(module, profile, tree, symbols, &mut exports);
     }
 
@@ -1163,6 +1170,13 @@ impl Compiler {
             // resolve export targets for reexports
             if let Some(binding_exports) = binding_exports.get_mut(&binding_key) {
                 self.finalize_export_targets(tree, &mut binding_exports.exports);
+                self.normalize_reexport_export_spaces(
+                    module.id,
+                    module.language_type,
+                    tree,
+                    symbols,
+                    &mut binding_exports.exports,
+                );
                 self.finalize_export_dependencies(
                     module,
                     profile,
@@ -1196,6 +1210,71 @@ impl Compiler {
             };
             export.resolve_target(target_symbol);
         }
+    }
+
+    /// Normalize reexport export spaces from the resolved dependency item kind.
+    fn normalize_reexport_export_spaces(
+        &self,
+        module_id: ModuleId,
+        language_type: LanguageType,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
+    ) {
+        let mut normalized = IndexMap::new();
+
+        // rebuild reexport entries from their resolved dependency item kinds
+        for export in exports.values().cloned() {
+            if export.kind != ExportKind::ReExport {
+                self.insert_exports(
+                    module_id,
+                    language_type,
+                    symbols,
+                    &mut normalized,
+                    export,
+                    None,
+                );
+                continue;
+            }
+
+            let Some(item_id) = export.item else {
+                self.insert_exports(
+                    module_id,
+                    language_type,
+                    symbols,
+                    &mut normalized,
+                    export,
+                    None,
+                );
+                continue;
+            };
+
+            let spaces = match tree.get(item_id) {
+                DependencyItem::Local { kind, .. }
+                | DependencyItem::Remote { kind, .. }
+                | DependencyItem::UnresolvedLocal { kind, .. }
+                | DependencyItem::UnresolvedRemote { kind, .. } => match kind {
+                    DependencyKind::Type => SymbolSpaceOrder::TypeOnly,
+                    DependencyKind::Value => SymbolSpaceOrder::ValueOnly,
+                },
+                DependencyItem::Value { .. } => SymbolSpaceOrder::ValueOnly,
+            };
+
+            for space in spaces.spaces() {
+                let mut export = export.clone();
+                export.space = *space;
+                self.insert_exports(
+                    module_id,
+                    language_type,
+                    symbols,
+                    &mut normalized,
+                    export,
+                    None,
+                );
+            }
+        }
+
+        *exports = normalized;
     }
 
     /// Finalize canonical export dependency symbols after target resolution.
@@ -1417,10 +1496,17 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> SymbolSpace {
-        let module = self.program.modules.get(symbol.module_id);
-        let module = module.read();
-        let symbols = module.dir(profile).symbols.read();
-        symbols.get_symbol(symbol.local_id).space
+        let dir = self
+            .program
+            .artifacts
+            .dir_prepared(symbol.module_id, profile)
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing prepared dir for symbol space lookup: module={:?} profile={:?}",
+                    symbol.module_id, profile
+                )
+            });
+        dir.symbols.get_symbol(symbol.local_id).space
     }
 
     /// Get the symbol type for a global symbol.
@@ -1429,10 +1515,17 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> SymbolType {
-        let module = self.program.modules.get(symbol.module_id);
-        let module = module.read();
-        let symbols = module.dir(profile).symbols.read();
-        symbols.get_symbol(symbol.local_id).ty
+        let dir = self
+            .program
+            .artifacts
+            .dir_prepared(symbol.module_id, profile)
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing prepared dir for symbol type lookup: module={:?} profile={:?}",
+                    symbol.module_id, profile
+                )
+            });
+        dir.symbols.get_symbol(symbol.local_id).ty
     }
 
     /// Check whether a symbol can be used as a value.
@@ -1445,10 +1538,17 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> bool {
         // load the symbol entry
-        let module = self.program.modules.get(symbol.module_id);
-        let module = module.read();
-        let symbols = module.dir(profile).symbols.read();
-        let entry = symbols.get_symbol(symbol.local_id);
+        let dir = self
+            .program
+            .artifacts
+            .dir_prepared(symbol.module_id, profile)
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing prepared dir for symbol capability lookup: module={:?} profile={:?}",
+                    symbol.module_id, profile
+                )
+            });
+        let entry = dir.symbols.get_symbol(symbol.local_id);
 
         // value-space symbols are always value-capable
         if entry.space == SymbolSpace::Value {

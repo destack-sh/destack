@@ -1,31 +1,15 @@
-use std::sync::Arc;
-
 use std::collections::HashSet;
 
 use destack_dir::{
     BindingAnchor, Declaration, DynamicKey, Expression, GlobalSymbolId, Heritage, LocalNodeId,
     NodeTree, StaticKey, SymbolTable,
 };
-use destack_workspace::{Module, ModuleDirData, ProfileId};
+use destack_workspace::{Module, ProfileId};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Read one committed DIR snapshot for resolve-time cross-module member lookup.
-    fn artifact_dir_snapshot_for_member_lookup(
-        &self,
-        module_id: destack_source::ModuleId,
-        profile: ProfileId,
-    ) -> Arc<ModuleDirData> {
-        self.program
-            .artifacts
-            .dir_resolved(module_id, profile)
-            .or_else(|| self.program.artifacts.dir_prepared(module_id, profile))
-            .or_else(|| self.program.artifacts.dir_base(module_id))
-            .unwrap_or_else(|| panic!("missing artifact snapshot for module {module_id:?}"))
-    }
-
     /// Resolve a static member symbol for a target symbol using module context fields.
     pub fn query_static_member_symbol(
         &self,
@@ -57,8 +41,16 @@ impl Compiler {
         // otherwise switch to the canonical target module snapshot
         let target_module = self.program.modules.get(target_symbol.module_id);
         let target_module = target_module.read();
-        let snapshot =
-            self.artifact_dir_snapshot_for_member_lookup(target_symbol.module_id, profile);
+        let snapshot = self
+            .program
+            .artifacts
+            .dir_snapshot(target_symbol.module_id, profile)
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing committed dir artifact for {:?}",
+                    target_symbol.module_id
+                )
+            });
         self.query_static_member_symbol_inner(
             &target_module,
             profile,
@@ -132,6 +124,7 @@ impl Compiler {
                     enum_fields,
                     member_key,
                     tree,
+                    symbols,
                 )
             {
                 return Some(symbol);
@@ -143,6 +136,7 @@ impl Compiler {
                 member_key,
                 fields_static_by_default,
                 tree,
+                symbols,
             ) {
                 return Some(symbol);
             }
@@ -184,7 +178,7 @@ impl Compiler {
 
             // resolve extension members before interface fallback
             if let Some(symbol) = self.resolve_static_member_symbol_in_members(
-                module.id, members, member_key, false, tree,
+                module.id, members, member_key, false, tree, symbols,
             ) {
                 return Some(symbol);
             }
@@ -213,12 +207,15 @@ impl Compiler {
         fields: &[LocalNodeId<destack_dir::EnumField>],
         member_key: StaticKey,
         tree: &NodeTree,
+        symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
         for field_id in fields {
             let field = tree.get(*field_id);
             let field_key = StaticKey::Name(field.name);
             if field_key.matches(&member_key) {
-                return Some(field.symbol.into_global(module_id));
+                let symbol_entry = symbols.get_symbol(field.symbol);
+                let symbol_id = field.symbol.with_type(symbol_entry.ty);
+                return Some(GlobalSymbolId::new(module_id, symbol_id));
             }
         }
 
@@ -233,6 +230,7 @@ impl Compiler {
         member_key: StaticKey,
         fields_static_by_default: bool,
         tree: &NodeTree,
+        symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
         for member_id in members {
             let member = tree.get(*member_id);
@@ -292,7 +290,9 @@ impl Compiler {
                 continue;
             };
             if static_key.matches(&member_key) {
-                return Some(symbol.into_global(module_id));
+                let symbol_entry = symbols.get_symbol(symbol);
+                let symbol_id = symbol.with_type(symbol_entry.ty);
+                return Some(GlobalSymbolId::new(module_id, symbol_id));
             }
         }
 
@@ -337,7 +337,15 @@ impl Compiler {
                 let remote_module = self.program.modules.get(canonical_symbol.module_id);
                 let remote_module = remote_module.read();
                 let snapshot = self
-                    .artifact_dir_snapshot_for_member_lookup(canonical_symbol.module_id, profile);
+                    .program
+                    .artifacts
+                    .dir_snapshot(canonical_symbol.module_id, profile)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "missing committed dir artifact for {:?}",
+                            canonical_symbol.module_id
+                        )
+                    });
                 if let Some(symbol) = self.query_static_member_symbol_inner(
                     &remote_module,
                     profile,
@@ -384,7 +392,13 @@ impl Compiler {
             let symbol_entry = symbols.get_symbol(symbol.local_id);
             (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
         } else {
-            let snapshot = self.artifact_dir_snapshot_for_member_lookup(symbol.module_id, profile);
+            let snapshot = self
+                .program
+                .artifacts
+                .dir_snapshot(symbol.module_id, profile)
+                .unwrap_or_else(|| {
+                    panic!("missing committed dir artifact for {:?}", symbol.module_id)
+                });
             let symbol_entry = snapshot.symbols.get_symbol(symbol.local_id);
             (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
         };
@@ -452,8 +466,16 @@ impl Compiler {
         // load the target module tables for member lookup
         let target_module = self.program.modules.get(target_symbol.module_id);
         let target_module = target_module.read();
-        let snapshot =
-            self.artifact_dir_snapshot_for_member_lookup(target_symbol.module_id, profile);
+        let snapshot = self
+            .program
+            .artifacts
+            .dir_snapshot(target_symbol.module_id, profile)
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing committed dir artifact for {:?}",
+                    target_symbol.module_id
+                )
+            });
 
         let Some(symbol) = self.query_static_member_symbol(
             &target_module,

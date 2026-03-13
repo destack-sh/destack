@@ -1,12 +1,15 @@
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use destack_dir::InferTable;
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::ProfileId;
+use destack_workspace::{ModuleDir, ProfileId};
 
 impl Compiler {
     /// Phase 5: Commit solved infer table outputs and discharge obligations.
     pub(crate) fn analyze_module_commit(
         &self,
+        dir: &ModuleDir,
+        infer: Option<&mut InferTable>,
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
@@ -38,6 +41,10 @@ impl Compiler {
             return Ok(());
         }
 
-        self.commit_module_solved_infer_table(&module, profile)
+        let Some(infer) = infer else {
+            return Ok(());
+        };
+
+        self.commit_module_solved_infer_table(dir, infer, &module, profile)
     }
 }

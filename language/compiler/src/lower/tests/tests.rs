@@ -287,14 +287,8 @@ impl TestProgram {
         index: usize,
     ) -> Option<dir::LocalTypeId> {
         // load the dir module state
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module
-            .dir_base_maybe()
-            .or_else(|| module.dir_maybe(self.default_profile_id(module_id)))
-            .unwrap_or_else(|| {
-                panic!("no DIR available for module {module_id:?}");
-            });
+        let profile = self.default_profile_id(module_id);
+        let dir = self.artifact_dir(module_id, profile);
         let tree = dir.tree.read();
         let types = dir.types.read();
 

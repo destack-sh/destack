@@ -2,16 +2,22 @@ use destack_dir::{AnchoredGlobalNodeId, Symbol, SymbolType};
 use destack_source::ModuleId;
 use destack_workspace::{ArtifactKey, IntrinsicEnvironment, ProfileId, WellKnownIntrinsics};
 
+use crate::analyze::DirReadBoundary;
 use crate::analyze::common::{CanonicalSymbolMode, ModuleSymbolView};
 use crate::{
-    AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementCollector, BuildRequirementError,
-    Compiler,
+    AnalyzeError, AnalyzeResult, BuildKey, BuildProduct, BuildRequirementCollector,
+    BuildRequirementError, Compiler,
 };
 
 impl Compiler {
     /// Process the intrinsic environment for a profile.
-    pub(crate) fn process_intrinsic_environment(&self, profile: ProfileId) -> AnalyzeResult<()> {
-        self.resolve_intrinsic_environment(profile)
+    pub(crate) fn process_intrinsic_environment(
+        &self,
+        profile: ProfileId,
+    ) -> AnalyzeResult<BuildProduct> {
+        let environment = self.resolve_intrinsic_environment(profile)?;
+
+        Ok(BuildProduct::IntrinsicEnvironment(environment))
     }
 
     /// Require the intrinsic environment for a profile.
@@ -25,20 +31,18 @@ impl Compiler {
     }
 
     /// Resolve the intrinsic environment for a profile.
-    pub(crate) fn resolve_intrinsic_environment(&self, profile: ProfileId) -> AnalyzeResult<()> {
+    pub(crate) fn resolve_intrinsic_environment(
+        &self,
+        profile: ProfileId,
+    ) -> AnalyzeResult<IntrinsicEnvironment> {
         // skip when builtins are unavailable
         if self.program.builtins.is_none() {
-            return Ok(());
+            return Ok(IntrinsicEnvironment::default());
         }
 
         // reuse the committed environment when available
-        if self
-            .program
-            .artifacts
-            .intrinsic_environment(profile)
-            .is_some()
-        {
-            return Ok(());
+        if let Some(environment) = self.program.artifacts.intrinsic_environment(profile) {
+            return Ok(environment.as_ref().clone());
         }
 
         // collect builtin modules that can host intrinsic bindings
@@ -66,11 +70,7 @@ impl Compiler {
 
         // build and publish the intrinsic binding table
         let intrinsics = self.build_well_known_intrinsics(module_ids, profile)?;
-        self.program
-            .artifacts
-            .set_intrinsic_environment(profile, IntrinsicEnvironment { intrinsics });
-
-        Ok(())
+        Ok(IntrinsicEnvironment { intrinsics })
     }
 
     /// Build well-known intrinsic bindings from builtin modules.
@@ -94,7 +94,10 @@ impl Compiler {
             }
 
             // scan active symbols for intrinsic bindings
-            let symbols = module.dir(profile).symbols.read();
+            let dir = self
+                .require_artifact_dir_for_boundary(module_id, profile, DirReadBoundary::Declared)
+                .map_err(AnalyzeError::from)?;
+            let symbols = &dir.symbols;
             for local_symbol_id in symbols.active_symbol_ids() {
                 // intrinsic bindings are only meaningful on callable function symbols
                 if local_symbol_id.ty != SymbolType::Function {

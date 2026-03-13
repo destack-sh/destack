@@ -1,5 +1,5 @@
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::ProfileId;
+use destack_workspace::{ModuleDir, ProfileId};
 
 use crate::analyze::common::TreeSymbolView;
 use crate::timing::tags;
@@ -9,6 +9,7 @@ impl Compiler {
     /// Post-commit pass: resolve captures for closures and nested functions.
     pub(crate) fn analyze_module_capture(
         &self,
+        dir: &ModuleDir,
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
@@ -36,7 +37,6 @@ impl Compiler {
         // load module state and dir ctx
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir(profile);
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let mut captures = dir.captures.write();

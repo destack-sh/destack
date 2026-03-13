@@ -185,6 +185,12 @@ impl Compiler {
             true,
             true,
         )?;
+
+        // keep unresolved late materialization deferred
+        if matches!(evaluated_ty, Type::Unevaluated(_)) {
+            return Ok(());
+        }
+
         ctx.types.update_type(ty_id, evaluated_ty);
         if !ctx.types.get_type(ty_id).is_unevaluated() {
             let cache_context =

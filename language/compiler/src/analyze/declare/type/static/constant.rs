@@ -55,7 +55,7 @@ impl StaticConstantResolutionMode {
     fn remote_dependency_boundary(self) -> DirReadBoundary {
         match self {
             Self::Parametric | Self::InstantiatedInfer => DirReadBoundary::Analyzed,
-            Self::InstantiatedDeclare => DirReadBoundary::Declared,
+            Self::InstantiatedDeclare => DirReadBoundary::Interface,
         }
     }
 
@@ -284,7 +284,7 @@ impl Compiler {
         let node = symbol_entry
             .primary_declaration
             .map(|primary_declaration| primary_declaration.local_id)
-            .unwrap_or(ctx.module.dir(ctx.profile).anchor_node);
+            .unwrap_or(ctx.local_anchor_node());
         if cycle_diagnostic_mode == StaticCycleDiagnosticMode::Report {
             self.error(AnalyzeError::CircularStaticArgument {
                 node: node
@@ -381,7 +381,7 @@ impl Compiler {
             if !is_constant_cycle_candidate {
                 return Ok(None);
             }
-            let source_node = ctx.module.dir(ctx.profile).anchor_node;
+            let source_node = ctx.local_anchor_node();
             let error = self.static_cycle_error_expression(
                 &mut ctx.reborrow(),
                 symbol,
@@ -424,7 +424,7 @@ impl Compiler {
                 return Ok(None);
             }
 
-            let source_node = ctx.module.dir(ctx.profile).anchor_node;
+            let source_node = ctx.local_anchor_node();
             let error = self.static_cycle_error_expression(
                 &mut ctx.reborrow(),
                 symbol,
@@ -439,7 +439,7 @@ impl Compiler {
 
         // evaluate cross-module constants from declare-published static constant values
         if symbol.module_id != ctx.module.id {
-            let source_node = ctx.module.dir(ctx.profile).anchor_node;
+            let source_node = ctx.local_anchor_node();
             let mut pending_symbols = vec![symbol];
             let mut visited_symbols = HashSet::new();
             let mut local_value = None;
@@ -508,14 +508,13 @@ impl Compiler {
             // evaluate unresolved remote constants on a cloned remote snapshot when publication is absent
             if local_value.is_none() {
                 let evaluated_remote_value = self
-                    .with_module_tree_symbol_view_at_boundary(
+                    .with_module_tree_symbol_type_view_at_boundary(
                         ctx.module,
                         ctx.profile,
                         symbol.module_id,
                         remote_dependency_boundary,
                         |view| -> AnalyzeResult<Option<(StaticExpression, TypeTable)>> {
-                            let remote_types = view.module.dir(ctx.profile).types.read();
-                            let mut remote_snapshot = remote_types.clone();
+                            let mut remote_snapshot = view.types.clone();
                             let mut remote_visited = visited.clone();
                             let remote_substitutions =
                                 substitution_entries.as_ref().map(|entries| {
@@ -532,10 +531,12 @@ impl Compiler {
                                     mapped
                                 });
 
+                            let remote_module = self.program.modules.get(symbol.module_id);
+                            let remote_module = remote_module.read();
                             let remote_options =
-                                self.analyze_context_options_for_module(view.module.id);
+                                self.analyze_context_options_for_module(remote_module.id);
                             let mut view = ctx.reborrow_for_module_with_options_and_types(
-                                view.module,
+                                &remote_module,
                                 &remote_options,
                                 view.tree,
                                 view.symbols,

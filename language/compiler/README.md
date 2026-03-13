@@ -56,6 +56,11 @@ It should drive one unified build graph over:
 - `BuildKey::Artifact(ArtifactKey)`
 - `BuildKey::Output(OutputKey)`
 
+`Build*` is execution vocabulary only.
+It does not name products.
+The products are semantic compiler products in `ArtifactRegistry` and build products in `OutputRegistry`.
+There should be no `BuildProduct` noun in the long-term design.
+
 ## Pipeline
 
 The compiler still has a familiar phase structure, but the phase names are not the semantic dependency model.
