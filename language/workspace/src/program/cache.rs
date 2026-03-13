@@ -471,24 +471,24 @@ pub fn write_module_dir_analyzed_cache(
     Ok(())
 }
 
-/// Read and validate an executed DIR cache entry from a path.
-pub fn read_module_dir_executed_cache(path: &Path) -> Result<ModuleDirCacheEntry, CacheError> {
+/// Read and validate a patched DIR cache entry from a path.
+pub fn read_module_dir_patched_cache(path: &Path) -> Result<ModuleDirCacheEntry, CacheError> {
     // read cache entry
     let entry: ModuleDirCacheEntry = read_cache_entry(path)?;
 
     // validate cache entry
-    entry.validate_for_kind(CacheKind::DirExecuted)?;
+    entry.validate_for_kind(CacheKind::DirPatched)?;
 
     Ok(entry)
 }
 
-/// Write an executed DIR cache entry to a path after validation.
-pub fn write_module_dir_executed_cache(
+/// Write a patched DIR cache entry to a path after validation.
+pub fn write_module_dir_patched_cache(
     path: &Path,
     entry: &ModuleDirCacheEntry,
 ) -> Result<(), CacheError> {
     // validate cache entry
-    entry.validate_for_kind(CacheKind::DirExecuted)?;
+    entry.validate_for_kind(CacheKind::DirPatched)?;
 
     // write cache entry
     write_cache_entry(path, entry)?;
@@ -668,8 +668,8 @@ mod tests {
     }
 
     #[test]
-    fn test_module_dir_executed_cache_roundtrip() {
-        // roundtrip executed dir cache entries through disk
+    fn test_module_dir_patched_cache_roundtrip() {
+        // roundtrip patched dir cache entries through disk
         let anchor_source_id = test_anchor_source_id();
         let base = ModuleDir::new_base(
             ModuleId::EPHEMERAL,
@@ -678,16 +678,16 @@ mod tests {
         );
         let module_dir = ModuleDir::from_base(&base, ProfileId::new(1));
         let entry =
-            ModuleDirCacheEntry::new(test_header(CacheKind::DirExecuted), module_dir.to_data())
+            ModuleDirCacheEntry::new(test_header(CacheKind::DirPatched), module_dir.to_data())
                 .unwrap();
-        let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_executed_cache");
-        let path = cache_path(&root, "dir-executed");
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_patched_cache");
+        let path = cache_path(&root, "dir-patched");
 
-        write_module_dir_executed_cache(&path, &entry).expect("write executed dir cache");
-        let loaded = read_module_dir_executed_cache(&path).expect("read executed dir cache");
+        write_module_dir_patched_cache(&path, &entry).expect("write patched dir cache");
+        let loaded = read_module_dir_patched_cache(&path).expect("read patched dir cache");
 
         // assert essential header and payload fields
-        assert_eq!(loaded.header.cache_kind, CacheKind::DirExecuted);
+        assert_eq!(loaded.header.cache_kind, CacheKind::DirPatched);
         assert_eq!(loaded.payload.id, ModuleId::EPHEMERAL);
         assert_eq!(loaded.payload.version, ModuleVersion::INITIAL);
         assert_eq!(loaded.payload.profile_id, Some(ProfileId::new(1)));

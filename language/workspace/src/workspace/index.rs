@@ -919,8 +919,6 @@ mod tests {
             Arc::new(PackageRegistry::new()),
             Arc::new(TsConfigRegistry::new()),
             Arc::new(StringPool::new()),
-            Arc::new(ArtifactRegistry::new()),
-            Arc::new(OutputRegistry::new()),
             None,
         );
 
@@ -1006,8 +1004,6 @@ mod tests {
             Arc::new(PackageRegistry::new()),
             Arc::new(TsConfigRegistry::new()),
             Arc::new(StringPool::new()),
-            Arc::new(ArtifactRegistry::new()),
-            Arc::new(OutputRegistry::new()),
             None,
         );
         program.apply_workspace_index(loaded);

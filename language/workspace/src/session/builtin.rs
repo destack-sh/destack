@@ -11,6 +11,7 @@ use destack_source::{
     File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri,
 };
 use indexmap::IndexMap;
+use parking_lot::Mutex;
 
 use crate::{
     Loader, Module, ModuleFormat, ModuleRegistry, ModuleSource, OutputFormat, Package, PackageKind,
@@ -94,10 +95,8 @@ pub struct Builtins {
     lib_module_by_name: DashMap<(BuiltinLibKey, String), Vec<ModuleId>>,
     /// Selected builtin lib modules for one profile key.
     lib_selection_by_key: DashMap<BuiltinLibKey, BuiltinLibSelection>,
-    /// Lib load markers by name.
-    /// FUGU #Architecture: slice 3 should replace builtin-side load coordination
-    ///  with a cleaner input selection boundary instead of ad hoc re-entrant guards
-    lib_loading_by_name: DashMap<(BuiltinLibKey, String), ()>,
+    /// Input-side lock for builtin lib registration.
+    lib_load_lock: Mutex<()>,
     /// Lib name for each registered lib module.
     pub lib_name_by_module: DashMap<ModuleId, &'static str>,
 }
@@ -207,7 +206,7 @@ impl Builtins {
             prelude_module_id,
             lib_module_by_name: DashMap::new(),
             lib_selection_by_key: DashMap::new(),
-            lib_loading_by_name: DashMap::new(),
+            lib_load_lock: Mutex::new(()),
             lib_name_by_module: DashMap::new(),
         }
     }
@@ -263,6 +262,8 @@ impl Builtins {
         modules: Arc<ModuleRegistry>,
         profile_key: &ProfileKey,
     ) -> Option<Vec<ModuleId>> {
+        let _guard = self.lib_load_lock.lock();
+
         // create a local cycle guard
         let mut loading = HashSet::new();
 
@@ -309,16 +310,6 @@ impl Builtins {
             return None;
         }
 
-        // wait if another thread is already loading this lib
-        let loading_key = (lib_cache_key.clone(), name.to_string());
-        if self
-            .lib_loading_by_name
-            .insert(loading_key.clone(), ())
-            .is_some()
-        {
-            return self.wait_for_lib_modules(name, &lib_cache_key);
-        }
-
         // track this lib for the current load chain
         loading.insert(name.to_string());
 
@@ -358,7 +349,6 @@ impl Builtins {
                 )
                 .is_none()
             {
-                self.lib_loading_by_name.remove(&loading_key);
                 loading.remove(name);
                 return None;
             }
@@ -383,8 +373,6 @@ impl Builtins {
             module_ids.clone(),
         );
 
-        // clear load markers
-        self.lib_loading_by_name.remove(&loading_key);
         loading.remove(name);
 
         Some(module_ids)
@@ -410,32 +398,6 @@ impl Builtins {
 
         Some(cached.clone())
     }
-
-    /// Wait for a lib that is already loading elsewhere.
-    fn wait_for_lib_modules(
-        &self,
-        name: &str,
-        lib_cache_key: &BuiltinLibKey,
-    ) -> Option<Vec<ModuleId>> {
-        loop {
-            // return cached modules when they appear
-            if let Some(cached) = self.cached_lib_modules(name, lib_cache_key) {
-                return Some(cached);
-            }
-
-            // stop waiting if the load marker is gone
-            if !self
-                .lib_loading_by_name
-                .contains_key(&(lib_cache_key.clone(), name.to_string()))
-            {
-                return None;
-            }
-
-            // yield to the loader thread
-            std::thread::yield_now();
-        }
-    }
-
     /// Get the lib name for a module, if any.
     pub fn lib_name_for_module(&self, module_id: ModuleId) -> Option<&'static str> {
         self.lib_name_by_module.get(&module_id).map(|name| *name)
