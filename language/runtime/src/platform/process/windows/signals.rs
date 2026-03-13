@@ -60,7 +60,7 @@ pub(crate) unsafe fn destack_process_signal_mask_read(
     }
     let _ = (binding, out);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.process.signalMaskRead",
+        "destack.process.signals.signalMaskRead",
     ))
     .boxed())
 }
@@ -89,7 +89,7 @@ pub(crate) unsafe fn destack_process_signal_mask_update(
 ) -> RuntimeResult<()> {
     let _ = (binding, how, signals);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.process.signalMaskUpdate",
+        "destack.process.signals.signalMaskUpdate",
     ))
     .boxed())
 }
@@ -112,20 +112,18 @@ pub(crate) unsafe fn destack_process_signal_mask_update(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_receive(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let signals = core_process::resolve_signal_subscription(binding, handle)?;
-    let event = process_signal_wait(&signals)?;
-    unsafe {
-        *out = event;
-    }
-
-    Ok(())
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.signals.signalReceive",
+    ))
+    .boxed())
 }
 
 /// Subscribe to one signal value.
@@ -146,7 +144,7 @@ pub(crate) unsafe fn destack_process_signal_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_subscribe(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut resource::SignalHandle,
     signal: Signal,
 ) -> RuntimeResult<()> {
@@ -161,22 +159,10 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
         .boxed());
     }
 
-    let entry = resource::ResourceEntry::new(resource::ResourceKind::Signal)
-        .with_label("process.signal.subscription")
-        .with_payload(core_process::SignalSubscription {
-            signals: vec![signal],
-        });
-    let resource_id =
-        binding
-            .agent()
-            .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
-
-    unsafe {
-        *out = resource::SignalHandle(resource_id);
-    }
-
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.signals.signalSubscribe",
+    ))
+    .boxed())
 }
 
 /// Poll one signal event without blocking.
@@ -197,20 +183,18 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_try_receive(
-    binding: &BindingCallContext,
+    _binding: &BindingCallContext,
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let signals = core_process::resolve_signal_subscription(binding, handle)?;
-    let event = process_signal_try_wait(&signals)?;
-    unsafe {
-        *out = event;
-    }
-
-    Ok(())
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.signals.signalTryReceive",
+    ))
+    .boxed())
 }
 
 /// Poll one signal from a requested set without blocking.
@@ -268,22 +252,11 @@ pub(crate) unsafe fn destack_process_signal_unsubscribe(
     binding: &BindingCallContext,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
-    let _ = core_process::resolve_signal_subscription(binding, handle)?;
-
-    let removed = binding.agent().resources.remove_and_finalize(
-        binding.world(),
-        handle.0,
-        Some(binding.engine()),
-    );
-    if !removed {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal subscription handle",
-        ))
-        .boxed());
-    }
-
-    Ok(())
+    let _ = (binding, handle);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.signals.signalUnsubscribe",
+    ))
+    .boxed())
 }
 
 /// Wait for one signal from a requested set.
@@ -391,13 +364,16 @@ pub(super) fn process_kill(pid: u32, signal: u32) -> RuntimeResult<()> {
 
 /// Wait for one signal from the provided set.
 pub(super) fn process_signal_wait(_signals: &[Signal]) -> RuntimeResult<SignalEvent> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.signalWait")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.signals.signalWait",
+    ))
+    .boxed())
 }
 
 /// Poll for one signal from the provided set without blocking.
 pub(super) fn process_signal_try_wait(_signals: &[Signal]) -> RuntimeResult<SignalEvent> {
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.process.signalTryWait",
+        "destack.process.signals.signalTryWait",
     ))
     .boxed())
 }

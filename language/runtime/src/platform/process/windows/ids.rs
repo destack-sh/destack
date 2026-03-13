@@ -1,11 +1,67 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
+use crate::platform::{PlatformError, PlatformErrorCode};
 use crate::runtime::NativeSlice;
 
 use crate::runtime::BindingCallContext;
 
 use crate::platform::process::{GroupId, ProcessGroupIds, ProcessId, ProcessUserIds, UserId};
+use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
+use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+    CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW, TH32CS_SNAPPROCESS,
+};
+use windows_sys::Win32::System::Threading::GetCurrentProcessId;
+
+/// Read the parent process identifier for the current process.
+fn current_parent_pid() -> RuntimeResult<ProcessId> {
+    let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
+    if snapshot == INVALID_HANDLE_VALUE {
+        let error = std::io::Error::last_os_error();
+        return Err(RuntimeError::from(PlatformError::io(format!(
+            "failed to create process snapshot: {error}",
+        )))
+        .boxed());
+    }
+
+    let current_pid = unsafe { GetCurrentProcessId() };
+    let mut entry = PROCESSENTRY32W {
+        dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+        cntUsage: 0,
+        th32ProcessID: 0,
+        th32DefaultHeapID: 0,
+        th32ModuleID: 0,
+        cntThreads: 0,
+        th32ParentProcessID: 0,
+        pcPriClassBase: 0,
+        dwFlags: 0,
+        szExeFile: [0; 260],
+    };
+
+    let mut result = Err(RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoInvalidData),
+        None,
+        None,
+        Some("CreateToolhelp32Snapshot".to_string()),
+        None,
+        format!("failed to locate current process entry for pid {current_pid}"),
+    ))
+    .boxed());
+    let mut process_entry = unsafe { Process32FirstW(snapshot, &mut entry) };
+    while process_entry != 0 {
+        if entry.th32ProcessID == current_pid {
+            result = Ok(ProcessId(entry.th32ParentProcessID));
+            break;
+        }
+
+        process_entry = unsafe { Process32NextW(snapshot, &mut entry) };
+    }
+
+    unsafe {
+        CloseHandle(snapshot);
+    }
+
+    result
+}
 
 /// Return the effective group identifier.
 ///
@@ -31,7 +87,7 @@ pub(crate) unsafe fn destack_process_egid(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = GroupId(not_supported("destack.process.egid")?);
+    let value = GroupId(not_supported("destack.process.ids.egid")?);
     unsafe {
         *out = value;
     }
@@ -63,7 +119,7 @@ pub(crate) unsafe fn destack_process_euid(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = UserId(not_supported("destack.process.euid")?);
+    let value = UserId(not_supported("destack.process.ids.euid")?);
     unsafe {
         *out = value;
     }
@@ -95,7 +151,7 @@ pub(crate) unsafe fn destack_process_gid(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = GroupId(not_supported("destack.process.gid")?);
+    let value = GroupId(not_supported("destack.process.ids.gid")?);
     unsafe {
         *out = value;
     }
@@ -127,7 +183,7 @@ pub(crate) unsafe fn destack_process_group_ids(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = not_supported("destack.process.groupIds")?;
+    let value = not_supported("destack.process.ids.groupIds")?;
     unsafe {
         *out = value;
     }
@@ -159,7 +215,7 @@ pub(crate) unsafe fn destack_process_groups(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let groups = not_supported("destack.process.groups")?;
+    let groups = not_supported("destack.process.ids.groups")?;
     unsafe {
         *out = binding.store_slice(groups);
     }
@@ -223,7 +279,7 @@ pub(crate) unsafe fn destack_process_ppid(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = ProcessId(not_supported("destack.process.ppid")?);
+    let value = current_parent_pid()?;
     unsafe {
         *out = value;
     }
@@ -430,7 +486,7 @@ pub(crate) unsafe fn destack_process_uid(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = UserId(not_supported("destack.process.uid")?);
+    let value = UserId(not_supported("destack.process.ids.uid")?);
     unsafe {
         *out = value;
     }
@@ -462,7 +518,7 @@ pub(crate) unsafe fn destack_process_user_ids(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = not_supported("destack.process.userIds")?;
+    let value = not_supported("destack.process.ids.userIds")?;
     unsafe {
         *out = value;
     }

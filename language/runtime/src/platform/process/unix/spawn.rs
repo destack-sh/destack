@@ -60,8 +60,6 @@ enum ResolvedStdioDescriptor {
     Null,
     /// Bind the descriptor to one explicit fd.
     Descriptor(i32),
-    /// Bind the descriptor to one one-shot pipe endpoint.
-    Pipe,
 }
 
 /// Resolve a file handle into a unix descriptor.
@@ -79,6 +77,28 @@ fn resolve_file_fd(
                 RuntimeError::from(PlatformError::generic(
                     None,
                     "file handle missing descriptor",
+                ))
+                .boxed()
+            })
+        },
+    )
+}
+
+/// Resolve a pipe handle into a unix descriptor.
+fn resolve_pipe_fd(
+    binding: &BindingCallContext,
+    handle: resource::PipeHandle,
+) -> RuntimeResult<i32> {
+    core_fs::require_resource(
+        binding,
+        handle.0,
+        resource::ResourceKind::Pipe,
+        "pipe",
+        |entry| {
+            entry.fd().ok_or_else(|| {
+                RuntimeError::from(PlatformError::generic(
+                    None,
+                    "pipe handle missing descriptor",
                 ))
                 .boxed()
             })
@@ -198,7 +218,18 @@ fn resolve_spawn_stdio(
         let value = match descriptor {
             ProcessStdio::ProcessStdioInherit(_) => ResolvedStdioDescriptor::Inherit,
             ProcessStdio::ProcessStdioNull(_) => ResolvedStdioDescriptor::Null,
-            ProcessStdio::ProcessStdioPipe(_) => ResolvedStdioDescriptor::Pipe,
+            ProcessStdio::ProcessStdioPipe(descriptor_pipe) => {
+                let pipe_descriptor = resolve_pipe_fd(binding, descriptor_pipe.pipe)?;
+                if pipe_descriptor < 0 {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "stdio.pipe",
+                        "descriptor must be non-negative",
+                    ))
+                    .boxed());
+                }
+
+                ResolvedStdioDescriptor::Descriptor(pipe_descriptor)
+            }
             ProcessStdio::ProcessStdioFile(descriptor_file) => {
                 let file_descriptor = resolve_file_fd(binding, descriptor_file.file)?;
                 if file_descriptor < 0 {
@@ -370,25 +401,6 @@ fn apply_spawn_stdio_child(stdio: &[ResolvedStdioDescriptor; 3]) -> Result<(), i
                 }
 
                 let _ = unsafe { libc::close(null_fd) };
-            }
-            ResolvedStdioDescriptor::Pipe => {
-                let mut pipe_fds = [0_i32; 2];
-                let pipe_rc = unsafe { libc::pipe(pipe_fds.as_mut_ptr()) };
-                if pipe_rc != 0 {
-                    return Err(last_errno());
-                }
-
-                let child_fd = if index == 0 { pipe_fds[0] } else { pipe_fds[1] };
-                let sibling_fd = if index == 0 { pipe_fds[1] } else { pipe_fds[0] };
-
-                let _ = unsafe { libc::close(sibling_fd) };
-
-                if let Err(errno) = bind_child_descriptor(child_fd, target) {
-                    let _ = unsafe { libc::close(child_fd) };
-                    return Err(errno);
-                }
-
-                let _ = unsafe { libc::close(child_fd) };
             }
         }
     }

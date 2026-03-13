@@ -3,10 +3,13 @@ use std::time::Duration;
 use super::{
     assert_platform_error_code_with_privileged_policy, is_would_block, with_harness_context,
 };
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeError;
+#[cfg(target_os = "linux")]
+use crate::diagnostic::RuntimeResult;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::process::{Signal, SignalFdFlags, SignalMaskHow};
+#[cfg(target_os = "linux")]
 use crate::platform::resource::{ResourceId, SignalFdHandle};
 
 /// Poll attempts used by nonblocking signal tests.
@@ -127,7 +130,7 @@ fn test_process_signal_subscribe_try_receive_roundtrip() {
 }
 
 /// Read one blocked signal through signal_fd_try_read polling.
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
 fn test_process_signal_fd_try_read_roundtrip() {
     let signal = Signal(libc::SIGUSR1 as u32);
@@ -233,7 +236,7 @@ fn test_process_signal_receive_and_wait_roundtrip() {
 }
 
 /// Read a blocked signal through signal_fd_read after updating signal_fd mask.
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
 fn test_process_signal_fd_read_and_set_mask_roundtrip() {
     let signal = Signal(libc::SIGUSR2 as u32);
@@ -288,6 +291,63 @@ fn test_process_signal_wait_rejects_invalid_signal_value() {
     });
 }
 
+/// Require blocked signals before allowing signal-fd open and mask updates.
+#[cfg(target_os = "linux")]
+#[test]
+fn test_process_signal_fd_requires_blocked_mask() {
+    let signal = Signal(libc::SIGUSR1 as u32);
+
+    with_harness_context(|mut context| {
+        let original = context.destack_process_signal_mask_read()?;
+        let original = context.signal_list_from_value(original)?;
+
+        let test_result = (|| {
+            context.destack_process_signal_mask_update(
+                SignalMaskHow::Unblock,
+                context.signal_slice_value(&[signal])?,
+            )?;
+
+            assert_platform_error_code_with_privileged_policy(
+                context.destack_process_signal_fd_open(
+                    context.signal_slice_value(&[signal])?,
+                    SignalFdFlags(0),
+                ),
+                PlatformErrorCode::InvalidArgumentValue,
+            )?;
+
+            context.destack_process_signal_mask_update(
+                SignalMaskHow::Block,
+                context.signal_slice_value(&[signal])?,
+            )?;
+            let handle = context.destack_process_signal_fd_open(
+                context.signal_slice_value(&[signal])?,
+                SignalFdFlags(0),
+            )?;
+
+            context.destack_process_signal_mask_update(
+                SignalMaskHow::Unblock,
+                context.signal_slice_value(&[signal])?,
+            )?;
+            assert_platform_error_code_with_privileged_policy(
+                context.destack_process_signal_fd_set_mask(
+                    handle,
+                    context.signal_slice_value(&[signal])?,
+                ),
+                PlatformErrorCode::InvalidArgumentValue,
+            )?;
+
+            context.destack_process_signal_fd_close(handle)?;
+            Ok(())
+        })();
+
+        context.destack_process_signal_mask_update(
+            SignalMaskHow::Set,
+            context.signal_slice_value(&original)?,
+        )?;
+        test_result
+    });
+}
+
 /// Require blocked signals before allowing signal_wait and signal_try_wait.
 #[cfg(unix)]
 #[test]
@@ -322,7 +382,7 @@ fn test_process_signal_wait_requires_blocked_mask() {
 }
 
 /// Report specific errors for invalid signal-fd flags and forged handles.
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
 fn test_process_signal_fd_validation_errors_are_specific() {
     with_harness_context(|mut context| {
@@ -381,6 +441,23 @@ fn test_process_signal_fd_validation_errors_are_specific() {
             context.signal_slice_value(&original)?,
         )?;
         forged_result?;
+
+        Ok(())
+    });
+}
+
+/// Park signal-fd support on unix hosts without signalfd semantics.
+#[cfg(all(unix, not(target_os = "linux")))]
+#[test]
+fn test_process_signal_fd_reports_not_supported_without_signalfd() {
+    with_harness_context(|mut context| {
+        assert_platform_error_code_with_privileged_policy(
+            context.destack_process_signal_fd_open(
+                context.signal_slice_value(&[Signal(libc::SIGUSR1 as u32)])?,
+                SignalFdFlags(0),
+            ),
+            PlatformErrorCode::NotSupported,
+        )?;
 
         Ok(())
     });

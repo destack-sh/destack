@@ -11,6 +11,7 @@ use crate::platform::process::{
     ProcessWaitStoppedStatus, Signal,
 };
 use crate::platform::resource;
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use std::time::{Duration, Instant};
 
 /// Resolve a process handle into its process id payload.
@@ -195,6 +196,7 @@ pub(super) fn process_wait_pid(pid: u32, flags: u32) -> RuntimeResult<ProcessWai
 }
 
 /// Wait for one process state transition with a timeout.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub(super) fn process_wait_pid_timeout(
     pid: u32,
     timeout_ns: u64,
@@ -239,6 +241,7 @@ pub(super) fn process_wait_pid_timeout(
 }
 
 /// Sleep for one duration using host nanosleep semantics.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn sleep_for_duration(duration: Duration) {
     if duration.is_zero() {
         return;
@@ -273,6 +276,7 @@ fn sleep_for_duration(duration: Duration) {
 }
 
 /// Return true when a runtime error maps to `ioWouldBlock`.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn is_would_block_error(error: &RuntimeError) -> bool {
     let Some(platform_error) = error.platform_error() else {
         return false;

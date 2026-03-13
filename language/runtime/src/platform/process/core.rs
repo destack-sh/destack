@@ -1,10 +1,13 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 #[cfg(unix)]
 use crate::platform::PlatformErrorCode;
 #[cfg(unix)]
 use crate::platform::diagnostic::process_error_code_from_errno;
-use crate::platform::process::{ProcessId, Signal};
-use crate::platform::{PlatformError, resource};
+use crate::platform::process::ProcessId;
+#[cfg(unix)]
+use crate::platform::{process::Signal, resource};
+#[cfg(unix)]
 use crate::runtime::BindingCallContext;
 #[cfg(unix)]
 use std::ffi::CString;
@@ -158,6 +161,7 @@ pub(crate) fn process_pid_to_windows_target(pid: u32, field: &str) -> RuntimeRes
 }
 
 /// Resolve a signal subscription handle into its signal set.
+#[cfg(unix)]
 pub(crate) fn resolve_signal_subscription(
     binding: &BindingCallContext,
     handle: resource::SignalHandle,
@@ -180,6 +184,7 @@ pub(crate) fn resolve_signal_subscription(
 }
 
 /// Subscription payload stored for signal handles.
+#[cfg(unix)]
 #[derive(Debug, Clone)]
 pub(crate) struct SignalSubscription {
     /// Signals associated with this subscription.
@@ -194,6 +199,10 @@ pub(crate) struct SpawnedProcess {
 }
 
 /// Process payload stored for process-fd style handles.
+#[cfg_attr(
+    all(unix, not(target_os = "linux"), not(target_os = "android")),
+    allow(dead_code)
+)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ProcessFdBinding {
     /// Process id associated with the descriptor handle.
@@ -201,6 +210,11 @@ pub(crate) struct ProcessFdBinding {
 }
 
 /// Process payload stored for signal-fd style handles.
+#[cfg_attr(
+    all(unix, not(target_os = "linux"), not(target_os = "android")),
+    allow(dead_code)
+)]
+#[cfg(unix)]
 #[derive(Debug, Clone)]
 pub(crate) struct SignalFdBinding {
     /// Signal mask associated with the descriptor handle.

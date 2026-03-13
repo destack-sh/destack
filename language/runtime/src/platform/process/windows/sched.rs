@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::process::{
-    ProcessCpuSet, ProcessId, ProcessSchedulerConfig, core as core_process,
+    ProcessCpuSet, ProcessId, ProcessSchedulerConfig, ProcessSchedulerPolicy, core as core_process,
 };
 use crate::platform::thread::ThreadCpu;
 use crate::platform::{PlatformError, PlatformErrorCode, core as core_platform};
@@ -540,11 +540,25 @@ pub(crate) unsafe fn destack_process_get_scheduler(
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = pid;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.process.sched.getScheduler",
-    ))
-    .boxed())
+
+    // open the target process for scheduler-class reads
+    let process = open_process_handle(pid, PROCESS_QUERY_LIMITED_INFORMATION, "scheduler read")?;
+
+    let class = unsafe { GetPriorityClass(process.handle) };
+    if class == 0 {
+        let error = core_platform::last_error_code();
+        return Err(RuntimeError::from(PlatformError::io(format!(
+            "failed to read process scheduler class: {error}",
+        )))
+        .boxed());
+    }
+
+    let config = scheduler_config_from_priority_class(class)?;
+    unsafe {
+        *out = config;
+    }
+
+    Ok(())
 }
 
 /// Set process CPU affinity.
@@ -650,11 +664,29 @@ pub(crate) unsafe fn destack_process_set_scheduler(
     pid: ProcessId,
     config: ProcessSchedulerConfig,
 ) -> RuntimeResult<()> {
-    let _ = (pid, config);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.process.sched.setScheduler",
-    ))
-    .boxed())
+    // reject unsupported scheduler flags eagerly
+    if config.flags != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "config.flags",
+            "windows process scheduler flags are not supported",
+        ))
+        .boxed());
+    }
+
+    // open the target process for scheduler-class updates
+    let process = open_process_handle(pid, PROCESS_SET_INFORMATION, "scheduler update")?;
+
+    let priority_class = priority_class_from_scheduler_config(config)?;
+    let result = unsafe { SetPriorityClass(process.handle, priority_class) };
+    if result == 0 {
+        let error = core_platform::last_error_code();
+        Err(RuntimeError::from(PlatformError::io(format!(
+            "failed to set process scheduler class: {error}",
+        )))
+        .boxed())
+    } else {
+        Ok(())
+    }
 }
 
 /// Yield the current thread to the scheduler.
@@ -742,4 +774,44 @@ fn windows_nice_to_priority_class(priority: i32) -> u32 {
     }
 
     IDLE_PRIORITY_CLASS
+}
+
+/// Map a Windows priority class into one scheduler configuration.
+fn scheduler_config_from_priority_class(class: u32) -> RuntimeResult<ProcessSchedulerConfig> {
+    use windows_sys::Win32::System::Threading::{BELOW_NORMAL_PRIORITY_CLASS, IDLE_PRIORITY_CLASS};
+
+    let priority = windows_priority_class_to_nice(class)?;
+    let policy = if class == IDLE_PRIORITY_CLASS {
+        ProcessSchedulerPolicy::Idle
+    } else if class == BELOW_NORMAL_PRIORITY_CLASS {
+        ProcessSchedulerPolicy::Batch
+    } else {
+        ProcessSchedulerPolicy::Other
+    };
+
+    Ok(ProcessSchedulerConfig {
+        policy,
+        priority,
+        flags: 0,
+    })
+}
+
+/// Map one scheduler configuration into a Windows priority class.
+fn priority_class_from_scheduler_config(config: ProcessSchedulerConfig) -> RuntimeResult<u32> {
+    use windows_sys::Win32::System::Threading::{BELOW_NORMAL_PRIORITY_CLASS, IDLE_PRIORITY_CLASS};
+
+    if config.policy == ProcessSchedulerPolicy::Idle {
+        return Ok(IDLE_PRIORITY_CLASS);
+    }
+    if config.policy == ProcessSchedulerPolicy::Batch {
+        return Ok(BELOW_NORMAL_PRIORITY_CLASS);
+    }
+    if config.policy == ProcessSchedulerPolicy::Other {
+        return Ok(windows_nice_to_priority_class(config.priority));
+    }
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.sched.setScheduler",
+    ))
+    .boxed())
 }
