@@ -155,14 +155,6 @@ pub(crate) fn midi_output_write(
     Err(core_platform::not_supported("destack.midi.output.write"))
 }
 
-/// Flush queued MIDI output records on unsupported hosts.
-pub(crate) fn midi_output_flush(
-    _binding: &BindingCallContext,
-    _handle: resource::MidiOutputPortHandle,
-) -> RuntimeResult<()> {
-    Err(core_platform::not_supported("destack.midi.output.flush"))
-}
-
 /// Create one virtual MIDI output on unsupported hosts.
 pub(crate) fn midi_output_virtual_create(
     _binding: &BindingCallContext,

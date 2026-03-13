@@ -335,15 +335,6 @@ pub(crate) fn destack_midi_output_write(
     host::midi_output_write(binding, handle, records)
 }
 
-/// Flush queued outbound MIDI records.
-pub(crate) fn destack_midi_output_flush(
-    binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::MidiOutputPortHandle,
-) -> RuntimeResult<()> {
-    host::midi_output_flush(binding, handle)
-}
-
 /// Create one virtual MIDI output endpoint.
 pub(crate) fn destack_midi_output_virtual_create(
     binding: &BindingCallContext,

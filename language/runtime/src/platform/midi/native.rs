@@ -291,14 +291,6 @@ pub(crate) unsafe fn destack_midi_output_write(
     write_out(out, written)
 }
 
-/// Flush queued outbound MIDI records.
-pub(crate) unsafe fn destack_midi_output_flush(
-    binding: &BindingCallContext,
-    handle: resource::MidiOutputPortHandle,
-) -> RuntimeResult<()> {
-    host::midi_output_flush(binding, handle)
-}
-
 /// Create one virtual MIDI output endpoint.
 pub(crate) unsafe fn destack_midi_output_virtual_create(
     binding: &BindingCallContext,

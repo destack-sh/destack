@@ -1,6 +1,7 @@
-use crate::diagnostic::RuntimeError;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::core::BackendSupport;
+use tracing::warn;
 
 /// The strongest support rank seen in one selector lane.
 const AVAILABLE_SUPPORT_RANK: u8 = 0;
@@ -15,6 +16,24 @@ impl BackendSupport {
     /// Return whether the backend integration is available.
     pub(crate) fn is_available(self) -> bool {
         matches!(self, Self::Available)
+    }
+}
+
+/// Convert one backend availability check result into one support state.
+pub(crate) fn backend_support_from_check<T>(
+    backend_name: &str,
+    check: RuntimeResult<T>,
+) -> BackendSupport {
+    match check {
+        Ok(_) => BackendSupport::Available,
+        Err(error) => {
+            warn!(
+                backend = backend_name,
+                error = %error,
+                "backend availability check failed"
+            );
+            BackendSupport::HostUnavailable
+        }
     }
 }
 
