@@ -11,24 +11,54 @@ export enum SerialParity {
     Odd = 2,
     /// Even parity bit.
     Even = 3,
+    /// Mark parity bit.
+    Mark = 4,
+    /// Space parity bit.
+    Space = 5,
 }
 
 /// Serial stop-bit mode.
 export enum SerialStopBits {
     /// One stop bit.
     One = 1,
+    /// One and one-half stop bits.
+    OnePointFive = 2,
     /// Two stop bits.
-    Two = 2,
+    Two = 3,
 }
 
-/// Serial flow-control mode.
-export enum SerialFlowControl {
-    /// No flow control.
-    None = 1,
-    /// RTS or CTS hardware flow control.
-    RtsCts = 2,
-    /// XON or XOFF software flow control.
-    XonXoff = 3,
+/// Serial data-bit count.
+export enum SerialDataBits {
+    /// Five data bits per frame.
+    Five = 5,
+    /// Six data bits per frame.
+    Six = 6,
+    /// Seven data bits per frame.
+    Seven = 7,
+    /// Eight data bits per frame.
+    Eight = 8,
+}
+
+/// Serial flow-control configuration.
+export struct SerialFlowControl {
+    /// Whether RTS or CTS hardware flow control is enabled.
+    requestToSendClearToSendEnabled: boolean;
+    /// Whether DTR or DSR hardware flow control is enabled.
+    dataTerminalReadyDataSetReadyEnabled: boolean;
+    /// Whether XON or XOFF software flow control is enabled.
+    xonXoffEnabled: boolean;
+}
+
+/// Serial transport kind.
+export enum SerialPortTransport {
+    /// Native serial controller transport.
+    Native = 1,
+    /// USB-backed serial transport.
+    Usb = 2,
+    /// Bluetooth-backed serial transport.
+    Bluetooth = 3,
+    /// Host did not classify the transport.
+    Unknown = 4,
 }
 
 /// Serial endpoint configuration.
@@ -36,71 +66,115 @@ export struct SerialPortConfig {
     /// Baud rate in symbols per second.
     baudRate: uint32;
     /// Number of data bits per frame.
-    dataBits: uint8;
+    dataBits: SerialDataBits;
     /// Parity mode.
     parity: SerialParity;
     /// Stop-bit mode.
     stopBits: SerialStopBits;
     /// Flow-control mode.
     flowControl: SerialFlowControl;
-    /// Read timeout in nanoseconds.
-    readTimeoutNs: uint64;
-    /// Write timeout in nanoseconds.
-    writeTimeoutNs: uint64;
+}
+
+/// Serial open options.
+export struct SerialPortOpenOptions {
+    /// Serial line configuration to apply when opening.
+    config: SerialPortConfig;
+    /// Whether the open should request exclusive access.
+    exclusive?: boolean;
+    /// Preferred inbound host buffer size in bytes.
+    readBufferSize?: uint32;
+    /// Preferred outbound host buffer size in bytes.
+    writeBufferSize?: uint32;
 }
 
 /// Serial endpoint descriptor.
 export struct SerialPortDescriptor {
     /// Stable serial endpoint identifier.
     id: string;
+    /// Host-classified serial transport kind.
+    transport: SerialPortTransport;
     /// Host-visible endpoint name.
     name: string;
+    /// Host-visible manufacturer string when available.
+    manufacturer?: string;
+    /// Host-visible product string when available.
+    product?: string;
+    /// Host-visible device serial number when available.
+    serialNumber?: string;
     /// Device path for the endpoint.
     path: OsPath;
     /// USB vendor identifier when the endpoint is USB backed.
     usbVendorId?: uint16;
     /// USB product identifier when the endpoint is USB backed.
     usbProductId?: uint16;
-    /// Whether the endpoint is USB backed.
-    usbBacked: boolean;
+    /// Bluetooth service-class identifier when the endpoint is Bluetooth backed.
+    bluetoothServiceClassId?: string;
 }
 
-/// Serial status-line bitmask.
-export enum SerialSignalBits {
-    /// Clear-to-send line.
-    Cts = 0x1,
-    /// Data-set-ready line.
-    Dsr = 0x2,
-    /// Data-carrier-detect line.
-    Dcd = 0x4,
-    /// Ring-indicator line.
-    Ri = 0x8,
+/// Serial input signal state.
+export struct SerialInputSignals {
+    /// Clear-to-send line state.
+    clearToSend: boolean;
+    /// Data-set-ready line state.
+    dataSetReady: boolean;
+    /// Data-carrier-detect line state.
+    dataCarrierDetect: boolean;
+    /// Ring-indicator line state.
+    ringIndicator: boolean;
+}
+
+/// Serial output signal state update.
+export struct SerialOutputSignals {
+    /// Data-terminal-ready output line state when updated.
+    dataTerminalReady?: boolean;
+    /// Request-to-send output line state when updated.
+    requestToSend?: boolean;
+    /// Break signaling state when updated.
+    break?: boolean;
+}
+
+/// Serial error kind.
+export enum SerialErrorKind {
+    /// Host did not provide a stronger error classification.
+    Unknown = 1,
+    /// Break condition was detected on the line.
+    Break = 2,
+    /// Framing error was detected on the line.
+    Framing = 3,
+    /// Parity error was detected on the line.
+    Parity = 4,
+    /// Receiver overrun was detected on the line.
+    Overrun = 5,
+    /// Backend receive buffer overflow was detected.
+    BufferOverflow = 6,
 }
 
 /// Read-ready event payload.
 export struct SerialReadReadyPayload {
     /// Estimated number of readable bytes.
-    availableBytes: uint32;
+    availableBytes?: uint64;
 }
 
-/// Write-ready event payload.
-export struct SerialWriteReadyPayload {
-    /// Estimated number of writable bytes.
-    writableBytes: uint32;
+/// Output-drained event payload.
+export struct SerialWriteDrainedPayload {}
+
+/// Modem-status changed event payload.
+export struct SerialModemStatusPayload {
+    /// Current serial input signal state.
+    signals: SerialInputSignals;
 }
 
-/// Signal-line changed event payload.
-export struct SerialSignalsChangedPayload {
-    /// Current serial signal-line bitmask.
-    signalBits: uint32;
-}
+/// Disconnected serial event payload.
+export struct SerialDisconnectedPayload {}
 
 /// Serial error event payload.
 export struct SerialErrorPayload {
-    /// Backend-specific error code.
-    code: int32;
-    /// Backend-specific detail value.
-    detail: int32;
+    /// Normalized error classification.
+    kind: SerialErrorKind;
+    /// Backend-specific error code when available.
+    backendCode?: int32;
+    /// Backend-specific detail value when available.
+    backendDetail?: int32;
 }
 
 /// Shared metadata for all serial events.
@@ -121,24 +195,24 @@ export struct SerialReadReadyEvent {
     payload: SerialReadReadyPayload;
 }
 
-/// Write-ready serial event.
-export struct SerialWriteReadyEvent {
+/// Output-drained serial event.
+export struct SerialWriteDrainedEvent {
     /// Discriminator for this serial event variant.
-    kind: "writeReady";
+    kind: "writeDrained";
     /// Shared event metadata.
     metadata: SerialEventMetadata;
-    /// Write-ready payload.
-    payload: SerialWriteReadyPayload;
+    /// Output-drained payload.
+    payload: SerialWriteDrainedPayload;
 }
 
-/// Signal-line-changed serial event.
-export struct SerialSignalsChangedEvent {
+/// Modem-status-changed serial event.
+export struct SerialModemStatusChangedEvent {
     /// Discriminator for this serial event variant.
-    kind: "signalsChanged";
+    kind: "modemStatusChanged";
     /// Shared event metadata.
     metadata: SerialEventMetadata;
-    /// Signal-line payload.
-    payload: SerialSignalsChangedPayload;
+    /// Modem-status payload.
+    payload: SerialModemStatusPayload;
 }
 
 /// Error serial event.
@@ -151,11 +225,22 @@ export struct SerialErrorEvent {
     payload: SerialErrorPayload;
 }
 
+/// Disconnected serial event.
+export struct SerialDisconnectedEvent {
+    /// Discriminator for this serial event variant.
+    kind: "disconnected";
+    /// Shared event metadata.
+    metadata: SerialEventMetadata;
+    /// Disconnected payload.
+    payload: SerialDisconnectedPayload;
+}
+
 /// Serial event.
 export newtype SerialEvent =
     | SerialReadReadyEvent
-    | SerialWriteReadyEvent
-    | SerialSignalsChangedEvent
+    | SerialWriteDrainedEvent
+    | SerialModemStatusChangedEvent
+    | SerialDisconnectedEvent
     | SerialErrorEvent;
 
 /// Serial bindings.
@@ -191,7 +276,7 @@ declare namespace device {
 
     /// Open serial endpoint.
     ///
-    /// Open one serial endpoint with explicit line configuration.
+    /// Open one serial endpoint with explicit line configuration and host open policy.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -217,7 +302,7 @@ declare namespace device {
     })
     export function serialOpen(
         id: string,
-        config: SerialPortConfig,
+        options: SerialPortOpenOptions,
     ): Result<SerialPortHandle, PlatformError>;
 
     /// Close serial endpoint.
@@ -247,6 +332,64 @@ declare namespace device {
         affinity: "any",
     })
     export function serialClose(handle: SerialPortHandle): Result<void, PlatformError>;
+
+    /// Read serial endpoint descriptor.
+    ///
+    /// Read one stable descriptor snapshot for one opened serial endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend descriptor and device-metadata queries.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.serial.descriptor", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.serial.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function serialDescriptor(
+        handle: SerialPortHandle,
+    ): Result<SerialPortDescriptor, PlatformError>;
+
+    /// Read serial endpoint configuration.
+    ///
+    /// Read one line-configuration snapshot for one opened serial endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend serial line-configuration queries.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.serial.config", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.serial.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function serialConfig(handle: SerialPortHandle): Result<SerialPortConfig, PlatformError>;
 
     /// Reconfigure serial endpoint.
     ///
@@ -281,7 +424,8 @@ declare namespace device {
 
     /// Read serial bytes.
     ///
-    /// Read up to `maxBytes` from one opened serial endpoint.
+    /// Read bytes into caller memory from one opened serial endpoint.
+    /// Partial reads are preserved exactly as reported by the host backend.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -295,7 +439,7 @@ declare namespace device {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.device.serial.read", {
+    @binding("destack.device.serial.readInto", {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.serial.read"],
@@ -305,15 +449,16 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function serialRead(
+    export function serialReadInto(
         handle: SerialPortHandle,
-        maxBytes: uint32,
+        buffer: Slice<uint8>,
         timeoutNs: uint64,
-    ): Result<Slice<uint8>, PlatformError>;
+    ): Result<uint64, PlatformError>;
 
     /// Poll serial bytes without blocking.
     ///
-    /// Read up to `maxBytes` from one opened serial endpoint without waiting.
+    /// Read bytes into caller memory from one opened serial endpoint without waiting.
+    /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -327,7 +472,7 @@ declare namespace device {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.device.serial.tryRead", {
+    @binding("destack.device.serial.tryReadInto", {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.serial.read"],
@@ -337,10 +482,10 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function serialTryRead(
+    export function serialTryReadInto(
         handle: SerialPortHandle,
-        maxBytes: uint32,
-    ): Result<Slice<uint8>, PlatformError>;
+        buffer: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
 
     /// Write serial bytes.
     ///
@@ -372,15 +517,15 @@ declare namespace device {
         handle: SerialPortHandle,
         data: Slice<uint8>,
         timeoutNs: uint64,
-    ): Result<uint32, PlatformError>;
+    ): Result<uint64, PlatformError>;
 
-    /// Flush serial output.
+    /// Drain serial output.
     ///
-    /// Drain queued outbound bytes on one opened serial endpoint.
+    /// Wait until queued outbound bytes drain on one opened serial endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend serial flush operations.
+    /// Uses backend serial drain operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -390,7 +535,7 @@ declare namespace device {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.device.serial.flush", {
+    @binding("destack.device.serial.drain", {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.serial.write"],
@@ -400,7 +545,7 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function serialFlush(handle: SerialPortHandle): Result<void, PlatformError>;
+    export function serialDrain(handle: SerialPortHandle): Result<void, PlatformError>;
 
     /// Discard queued inbound serial bytes.
     ///
@@ -458,9 +603,9 @@ declare namespace device {
     })
     export function serialDiscardOutput(handle: SerialPortHandle): Result<void, PlatformError>;
 
-    /// Read serial signal lines.
+    /// Read serial input signal state.
     ///
-    /// Return current serial signal-line bitmask for one opened endpoint.
+    /// Return current serial input signal state for one opened endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -474,7 +619,7 @@ declare namespace device {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.device.serial.signalBits", {
+    @binding("destack.device.serial.getSignals", {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.serial.control"],
@@ -484,11 +629,13 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function serialSignalBits(handle: SerialPortHandle): Result<uint32, PlatformError>;
+    export function serialGetSignals(
+        handle: SerialPortHandle,
+    ): Result<SerialInputSignals, PlatformError>;
 
-    /// Set DTR and RTS control lines.
+    /// Update serial output signal state.
     ///
-    /// Apply DTR and RTS line state for one opened endpoint.
+    /// Apply one partial output signal update for one opened endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -502,7 +649,7 @@ declare namespace device {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.device.serial.setControlLines", {
+    @binding("destack.device.serial.setSignals", {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.serial.control"],
@@ -512,41 +659,9 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function serialSetControlLines(
+    export function serialSetSignals(
         handle: SerialPortHandle,
-        dtr: boolean,
-        rts: boolean,
-    ): Result<void, PlatformError>;
-
-    /// Set serial break state.
-    ///
-    /// Apply break signaling state for one opened serial endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend serial break-control APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.device.serial.setBreak", {
-        effect: "external",
-        replay: "recordable",
-        capabilities: ["device.serial.control"],
-        platforms: ["windows", "unix"],
-        simulation: "stub",
-        scope: "host",
-        blocking: "sometimes",
-        affinity: "any",
-    })
-    export function serialSetBreak(
-        handle: SerialPortHandle,
-        enabled: boolean,
+        signals: SerialOutputSignals,
     ): Result<void, PlatformError>;
 
     /// Wait for one serial event.
