@@ -167,7 +167,7 @@ impl VmAbiCodec for PathUtf16Abi<VmAbi> {
 }
 
 /// ABI enum for BluetoothPairState.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BluetoothPairState {
     /// Unknown.
@@ -182,12 +182,12 @@ pub enum BluetoothPairState {
 
 impl VmValueCodec for BluetoothPairState {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Unknown,
-            2u8 => Self::Unpaired,
-            3u8 => Self::Pairing,
-            4u8 => Self::Paired,
+            1i32 => Self::Unknown,
+            2i32 => Self::Unpaired,
+            3i32 => Self::Pairing,
+            4i32 => Self::Paired,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -200,7 +200,7 @@ impl VmValueCodec for BluetoothPairState {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -238,7 +238,7 @@ impl VmAbiCodec for BluetoothPairState {
 }
 
 /// ABI enum for BluetoothPhy.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BluetoothPhy {
     /// Le1M.
@@ -253,12 +253,12 @@ pub enum BluetoothPhy {
 
 impl VmValueCodec for BluetoothPhy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Le1M,
-            2u8 => Self::Le2M,
-            3u8 => Self::LeCoded,
-            4u8 => Self::Any,
+            1i32 => Self::Le1M,
+            2i32 => Self::Le2M,
+            3i32 => Self::LeCoded,
+            4i32 => Self::Any,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -271,7 +271,7 @@ impl VmValueCodec for BluetoothPhy {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -309,7 +309,7 @@ impl VmAbiCodec for BluetoothPhy {
 }
 
 /// ABI enum for BluetoothScanMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BluetoothScanMode {
     /// Passive.
@@ -320,10 +320,10 @@ pub enum BluetoothScanMode {
 
 impl VmValueCodec for BluetoothScanMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Passive,
-            2u8 => Self::Active,
+            1i32 => Self::Passive,
+            2i32 => Self::Active,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -336,7 +336,7 @@ impl VmValueCodec for BluetoothScanMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -374,7 +374,7 @@ impl VmAbiCodec for BluetoothScanMode {
 }
 
 /// ABI enum for BluetoothTransport.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BluetoothTransport {
     /// LowEnergy.
@@ -387,11 +387,11 @@ pub enum BluetoothTransport {
 
 impl VmValueCodec for BluetoothTransport {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::LowEnergy,
-            2u8 => Self::Classic,
-            3u8 => Self::Dual,
+            1i32 => Self::LowEnergy,
+            2i32 => Self::Classic,
+            3i32 => Self::Dual,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -404,7 +404,7 @@ impl VmValueCodec for BluetoothTransport {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -442,7 +442,7 @@ impl VmAbiCodec for BluetoothTransport {
 }
 
 /// ABI enum for CameraColorSpace.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CameraColorSpace {
     /// Unknown.
@@ -459,13 +459,13 @@ pub enum CameraColorSpace {
 
 impl VmValueCodec for CameraColorSpace {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Unknown,
-            2u8 => Self::Srgb,
-            3u8 => Self::Bt601,
-            4u8 => Self::Bt709,
-            5u8 => Self::Bt2020,
+            1i32 => Self::Unknown,
+            2i32 => Self::Srgb,
+            3i32 => Self::Bt601,
+            4i32 => Self::Bt709,
+            5i32 => Self::Bt2020,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -478,7 +478,7 @@ impl VmValueCodec for CameraColorSpace {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -516,7 +516,7 @@ impl VmAbiCodec for CameraColorSpace {
 }
 
 /// ABI enum for CameraControl.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CameraControl {
     /// Exposure.
@@ -531,12 +531,12 @@ pub enum CameraControl {
 
 impl VmValueCodec for CameraControl {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Exposure,
-            2u8 => Self::WhiteBalance,
-            3u8 => Self::Focus,
-            4u8 => Self::Zoom,
+            1i32 => Self::Exposure,
+            2i32 => Self::WhiteBalance,
+            3i32 => Self::Focus,
+            4i32 => Self::Zoom,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -549,7 +549,7 @@ impl VmValueCodec for CameraControl {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -587,7 +587,7 @@ impl VmAbiCodec for CameraControl {
 }
 
 /// ABI enum for CameraDynamicRange.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CameraDynamicRange {
     /// Standard.
@@ -600,11 +600,11 @@ pub enum CameraDynamicRange {
 
 impl VmValueCodec for CameraDynamicRange {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Standard,
-            2u8 => Self::Hdr10,
-            3u8 => Self::Hlg,
+            1i32 => Self::Standard,
+            2i32 => Self::Hdr10,
+            3i32 => Self::Hlg,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -617,7 +617,7 @@ impl VmValueCodec for CameraDynamicRange {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -655,7 +655,7 @@ impl VmAbiCodec for CameraDynamicRange {
 }
 
 /// ABI enum for CameraExposureMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CameraExposureMode {
     /// Auto.
@@ -668,11 +668,11 @@ pub enum CameraExposureMode {
 
 impl VmValueCodec for CameraExposureMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Auto,
-            2u8 => Self::ContinuousAuto,
-            3u8 => Self::Manual,
+            1i32 => Self::Auto,
+            2i32 => Self::ContinuousAuto,
+            3i32 => Self::Manual,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -685,7 +685,7 @@ impl VmValueCodec for CameraExposureMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -723,7 +723,7 @@ impl VmAbiCodec for CameraExposureMode {
 }
 
 /// ABI enum for CameraPixelFormat.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CameraPixelFormat {
     /// Bgra8.
@@ -738,12 +738,12 @@ pub enum CameraPixelFormat {
 
 impl VmValueCodec for CameraPixelFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Bgra8,
-            2u8 => Self::Rgba8,
-            3u8 => Self::Yuv420,
-            4u8 => Self::Jpeg,
+            1i32 => Self::Bgra8,
+            2i32 => Self::Rgba8,
+            3i32 => Self::Yuv420,
+            4i32 => Self::Jpeg,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -756,7 +756,7 @@ impl VmValueCodec for CameraPixelFormat {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -794,7 +794,7 @@ impl VmAbiCodec for CameraPixelFormat {
 }
 
 /// ABI enum for CameraStabilizationMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CameraStabilizationMode {
     /// Off.
@@ -807,11 +807,11 @@ pub enum CameraStabilizationMode {
 
 impl VmValueCodec for CameraStabilizationMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Off,
-            2u8 => Self::Standard,
-            3u8 => Self::HighQuality,
+            1i32 => Self::Off,
+            2i32 => Self::Standard,
+            3i32 => Self::HighQuality,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -824,7 +824,7 @@ impl VmValueCodec for CameraStabilizationMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -862,7 +862,7 @@ impl VmAbiCodec for CameraStabilizationMode {
 }
 
 /// ABI enum for CameraTorchMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CameraTorchMode {
     /// Off.
@@ -875,11 +875,11 @@ pub enum CameraTorchMode {
 
 impl VmValueCodec for CameraTorchMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Off,
-            2u8 => Self::On,
-            3u8 => Self::Auto,
+            1i32 => Self::Off,
+            2i32 => Self::On,
+            3i32 => Self::Auto,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -892,7 +892,7 @@ impl VmValueCodec for CameraTorchMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -930,7 +930,7 @@ impl VmAbiCodec for CameraTorchMode {
 }
 
 /// ABI enum for SerialFlowControl.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SerialFlowControl {
     /// None.
@@ -943,11 +943,11 @@ pub enum SerialFlowControl {
 
 impl VmValueCodec for SerialFlowControl {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::None,
-            2u8 => Self::RtsCts,
-            3u8 => Self::XonXoff,
+            1i32 => Self::None,
+            2i32 => Self::RtsCts,
+            3i32 => Self::XonXoff,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -960,7 +960,7 @@ impl VmValueCodec for SerialFlowControl {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -998,7 +998,7 @@ impl VmAbiCodec for SerialFlowControl {
 }
 
 /// ABI enum for SerialParity.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SerialParity {
     /// None.
@@ -1011,11 +1011,11 @@ pub enum SerialParity {
 
 impl VmValueCodec for SerialParity {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::None,
-            2u8 => Self::Odd,
-            3u8 => Self::Even,
+            1i32 => Self::None,
+            2i32 => Self::Odd,
+            3i32 => Self::Even,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1028,7 +1028,7 @@ impl VmValueCodec for SerialParity {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1066,7 +1066,7 @@ impl VmAbiCodec for SerialParity {
 }
 
 /// ABI enum for SerialSignalBits.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SerialSignalBits {
     /// Cts.
@@ -1081,12 +1081,12 @@ pub enum SerialSignalBits {
 
 impl VmValueCodec for SerialSignalBits {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Cts,
-            2u8 => Self::Dsr,
-            4u8 => Self::Dcd,
-            8u8 => Self::Ri,
+            1i32 => Self::Cts,
+            2i32 => Self::Dsr,
+            4i32 => Self::Dcd,
+            8i32 => Self::Ri,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1099,7 +1099,7 @@ impl VmValueCodec for SerialSignalBits {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1137,7 +1137,7 @@ impl VmAbiCodec for SerialSignalBits {
 }
 
 /// ABI enum for SerialStopBits.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SerialStopBits {
     /// One.
@@ -1148,10 +1148,10 @@ pub enum SerialStopBits {
 
 impl VmValueCodec for SerialStopBits {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::One,
-            2u8 => Self::Two,
+            1i32 => Self::One,
+            2i32 => Self::Two,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1164,7 +1164,7 @@ impl VmValueCodec for SerialStopBits {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1291,9 +1291,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1493,9 +1491,7 @@ impl VmAggregateCodec for SerialEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1699,9 +1695,7 @@ impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1865,9 +1859,7 @@ impl VmAggregateCodec for BluetoothAdapterDescriptorAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.powered, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.low_energy, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2025,9 +2017,7 @@ impl VmAggregateCodec for BluetoothAdvertisementDataAbi<VmAbi> {
             <VmArray<BluetoothAdvertisementManufacturerDataVm> as VmAggregateCodec>::encode_with_context(self.manufacturer_data, context)?,
             <VmArray<BluetoothAdvertisementServiceDataVm> as VmAggregateCodec>::encode_with_context(self.service_data, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2225,9 +2215,7 @@ impl VmAggregateCodec for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
             <u16 as VmAggregateCodec>::encode_with_context(self.company_id, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2357,9 +2345,7 @@ impl VmAggregateCodec for BluetoothAdvertisementServiceDataAbi<VmAbi> {
             )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2543,9 +2529,7 @@ impl VmAggregateCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2740,9 +2724,7 @@ impl VmAggregateCodec for BluetoothGattCharacteristicDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uuid, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.properties, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2896,9 +2878,7 @@ impl VmAggregateCodec for BluetoothGattDescriptorDescriptorAbi<VmAbi> {
             )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uuid, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3050,9 +3030,7 @@ impl VmAggregateCodec for BluetoothGattServiceDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uuid, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3197,9 +3175,7 @@ impl VmAggregateCodec for BluetoothGattValueEventAbi<VmAbi> {
             )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.value, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3417,9 +3393,7 @@ impl VmAggregateCodec for BluetoothScanFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3653,9 +3627,7 @@ impl VmAggregateCodec for CameraControlRange {
             <f64 as VmAggregateCodec>::encode_with_context(self.step, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.auto_supported, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3786,9 +3758,7 @@ impl VmAggregateCodec for CameraDeviceDescriptorAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.front_facing, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.depth_capable, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3991,9 +3961,7 @@ impl VmAggregateCodec for CameraFrameAbi<VmAbi> {
             )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4182,9 +4150,7 @@ impl VmAggregateCodec for CameraFrameMetadata {
             )?,
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.zoom_ratio, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4283,9 +4249,7 @@ impl VmAggregateCodec for CameraPlaneLayout {
             <u32 as VmAggregateCodec>::encode_with_context(self.row_stride_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.pixel_stride_bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4398,9 +4362,7 @@ impl VmAggregateCodec for CameraStreamCapability {
             <u32 as VmAggregateCodec>::encode_with_context(self.dynamic_range_mask, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.stabilization_mode_mask, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4499,9 +4461,7 @@ impl VmAggregateCodec for CameraStreamConfig {
             <u32 as VmAggregateCodec>::encode_with_context(self.frame_rate_milli_hz, context)?,
             <CameraPixelFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4611,9 +4571,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4741,9 +4699,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4880,9 +4836,7 @@ impl VmAggregateCodec for SerialErrorEventAbi<VmAbi> {
             )?,
             <SerialErrorPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4995,9 +4949,7 @@ impl VmAggregateCodec for SerialErrorPayload {
             <i32 as VmAggregateCodec>::encode_with_context(self.code, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.detail, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5084,9 +5036,7 @@ impl VmAggregateCodec for SerialEventMetadata {
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5206,9 +5156,7 @@ impl VmAggregateCodec for SerialPortConfig {
             <u64 as VmAggregateCodec>::encode_with_context(self.read_timeout_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.write_timeout_ns, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5341,9 +5289,7 @@ impl VmAggregateCodec for SerialPortDescriptorAbi<VmAbi> {
             <Option<u16> as VmAggregateCodec>::encode_with_context(self.usb_product_id, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.usb_backed, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5517,9 +5463,7 @@ impl VmAggregateCodec for SerialReadReadyEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5631,9 +5575,7 @@ impl VmAggregateCodec for SerialReadReadyPayload {
             self.available_bytes,
             context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5757,9 +5699,7 @@ impl VmAggregateCodec for SerialSignalsChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5879,9 +5819,7 @@ impl VmAggregateCodec for SerialSignalsChangedPayload {
             self.signal_bits,
             context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6004,9 +5942,7 @@ impl VmAggregateCodec for SerialWriteReadyEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6121,9 +6057,7 @@ impl VmAggregateCodec for SerialWriteReadyPayload {
             self.writable_bytes,
             context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6248,9 +6182,7 @@ impl VmAggregateCodec for UsbConfigurationDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6406,9 +6338,7 @@ impl VmAggregateCodec for UsbControlSetup {
             <u16 as VmAggregateCodec>::encode_with_context(self.index, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6564,9 +6494,7 @@ impl VmAggregateCodec for UsbDeviceDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6751,9 +6679,7 @@ impl VmAggregateCodec for UsbEndpointDescriptor {
             <u16 as VmAggregateCodec>::encode_with_context(self.max_packet_size, context)?,
             <u8 as VmAggregateCodec>::encode_with_context(self.interval, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6867,9 +6793,7 @@ impl VmAggregateCodec for UsbHotplugAttachedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7012,9 +6936,7 @@ impl VmAggregateCodec for UsbHotplugDetachedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7157,9 +7079,7 @@ impl VmAggregateCodec for UsbHotplugEventMetadataAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <UsbDeviceDescriptorVm as VmAggregateCodec>::encode_with_context(self.device, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7318,9 +7238,7 @@ impl VmAggregateCodec for UsbInterfaceDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7494,9 +7412,7 @@ impl VmAggregateCodec for UsbIsochronousTransferResultAbi<VmAbi> {
             )?,
             <VmSlice<i32> as VmAggregateCodec>::encode_with_context(self.packet_statuses, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7672,9 +7588,7 @@ impl VmAggregateCodec for UsbStringDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

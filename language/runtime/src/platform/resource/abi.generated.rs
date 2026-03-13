@@ -3907,59 +3907,6 @@ impl VmAbiCodec for SymbolHandle {
     }
 }
 
-/// ABI newtype for ThreadHandle.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ThreadHandle(
-    /// Inner value.
-    pub ResourceId,
-);
-
-pub type ThreadHandleVm = ThreadHandle;
-
-impl VmValueCodec for ThreadHandle {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
-    }
-
-    fn encode(self) -> vm::Value {
-        <ResourceId as VmValueCodec>::encode(self.0)
-    }
-}
-
-/// Value type for ThreadHandle.
-pub type ThreadHandleValue = ThreadHandle;
-
-impl NativeAbiCodec for ThreadHandle {
-    type Value = ThreadHandleValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for ThreadHandle {
-    type Value = ThreadHandleValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
 /// ABI newtype for ThreadEntryHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -3997,6 +3944,59 @@ impl NativeAbiCodec for ThreadEntryHandle {
 
 impl VmAbiCodec for ThreadEntryHandle {
     type Value = ThreadEntryHandleValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI newtype for ThreadHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ThreadHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type ThreadHandleVm = ThreadHandle;
+
+impl VmValueCodec for ThreadHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// Value type for ThreadHandle.
+pub type ThreadHandleValue = ThreadHandle;
+
+impl NativeAbiCodec for ThreadHandle {
+    type Value = ThreadHandleValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for ThreadHandle {
+    type Value = ThreadHandleValue;
 
     fn into_value(
         self,
@@ -4756,7 +4756,7 @@ impl VmAbiCodec for WindowHandle {
 }
 
 /// ABI enum for ResourceOwnership.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ResourceOwnership {
     /// Borrowed.
@@ -4767,10 +4767,10 @@ pub enum ResourceOwnership {
 
 impl VmValueCodec for ResourceOwnership {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Borrowed,
-            2u8 => Self::Owned,
+            1i32 => Self::Borrowed,
+            2i32 => Self::Owned,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -4783,7 +4783,7 @@ impl VmValueCodec for ResourceOwnership {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 

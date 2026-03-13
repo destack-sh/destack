@@ -335,7 +335,7 @@ impl VmAbiCodec for MidiProtocolFlags {
 }
 
 /// ABI enum for BackendSupport.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BackendSupport {
     /// Available.
@@ -350,12 +350,12 @@ pub enum BackendSupport {
 
 impl VmValueCodec for BackendSupport {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Available,
-            1u8 => Self::UnsupportedTarget,
-            2u8 => Self::DisabledByBuild,
-            3u8 => Self::HostUnavailable,
+            0i32 => Self::Available,
+            1i32 => Self::UnsupportedTarget,
+            2i32 => Self::DisabledByBuild,
+            3i32 => Self::HostUnavailable,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -368,7 +368,7 @@ impl VmValueCodec for BackendSupport {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -406,7 +406,7 @@ impl VmAbiCodec for BackendSupport {
 }
 
 /// ABI enum for MidiBackend.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MidiBackend {
     /// Auto.
@@ -417,31 +417,25 @@ pub enum MidiBackend {
     JackMidi = 2,
     /// CoreMIDI.
     CoreMIDI = 3,
-    /// WindowsMidi.
-    WindowsMidi = 4,
     /// WinMM.
-    WinMM = 5,
+    WinMM = 4,
     /// WinRT.
-    WinRT = 6,
-    /// AndroidMidi.
-    AndroidMidi = 7,
+    WinRT = 5,
     /// Null.
     Null = 255,
 }
 
 impl VmValueCodec for MidiBackend {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Auto,
-            1u8 => Self::Alsa,
-            2u8 => Self::JackMidi,
-            3u8 => Self::CoreMIDI,
-            4u8 => Self::WindowsMidi,
-            5u8 => Self::WinMM,
-            6u8 => Self::WinRT,
-            7u8 => Self::AndroidMidi,
-            255u8 => Self::Null,
+            0i32 => Self::Auto,
+            1i32 => Self::Alsa,
+            2i32 => Self::JackMidi,
+            3i32 => Self::CoreMIDI,
+            4i32 => Self::WinMM,
+            5i32 => Self::WinRT,
+            255i32 => Self::Null,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -454,7 +448,7 @@ impl VmValueCodec for MidiBackend {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -492,7 +486,7 @@ impl VmAbiCodec for MidiBackend {
 }
 
 /// ABI enum for MidiBackendSelectionPolicy.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MidiBackendSelectionPolicy {
     /// Strict.
@@ -503,10 +497,10 @@ pub enum MidiBackendSelectionPolicy {
 
 impl VmValueCodec for MidiBackendSelectionPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Strict,
-            2u8 => Self::AllowFallback,
+            1i32 => Self::Strict,
+            2i32 => Self::AllowFallback,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -519,7 +513,7 @@ impl VmValueCodec for MidiBackendSelectionPolicy {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -557,7 +551,7 @@ impl VmAbiCodec for MidiBackendSelectionPolicy {
 }
 
 /// ABI enum for MidiDataFormat.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MidiDataFormat {
     /// Midi1Bytes.
@@ -568,10 +562,10 @@ pub enum MidiDataFormat {
 
 impl VmValueCodec for MidiDataFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Midi1Bytes,
-            2u8 => Self::Ump,
+            1i32 => Self::Midi1Bytes,
+            2i32 => Self::Ump,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -584,7 +578,7 @@ impl VmValueCodec for MidiDataFormat {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -622,7 +616,7 @@ impl VmAbiCodec for MidiDataFormat {
 }
 
 /// ABI enum for MidiEventDeliveryMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MidiEventDeliveryMode {
     /// Auto.
@@ -635,11 +629,11 @@ pub enum MidiEventDeliveryMode {
 
 impl VmValueCodec for MidiEventDeliveryMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Auto,
-            2u8 => Self::NativeOnly,
-            3u8 => Self::PollOnly,
+            1i32 => Self::Auto,
+            2i32 => Self::NativeOnly,
+            3i32 => Self::PollOnly,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -652,7 +646,7 @@ impl VmValueCodec for MidiEventDeliveryMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -690,7 +684,7 @@ impl VmAbiCodec for MidiEventDeliveryMode {
 }
 
 /// ABI enum for MidiEventOverflowPolicy.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MidiEventOverflowPolicy {
     /// DropOldest.
@@ -703,11 +697,11 @@ pub enum MidiEventOverflowPolicy {
 
 impl VmValueCodec for MidiEventOverflowPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::DropOldest,
-            2u8 => Self::DropNewest,
-            3u8 => Self::Error,
+            1i32 => Self::DropOldest,
+            2i32 => Self::DropNewest,
+            3i32 => Self::Error,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -720,7 +714,7 @@ impl VmValueCodec for MidiEventOverflowPolicy {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -758,7 +752,7 @@ impl VmAbiCodec for MidiEventOverflowPolicy {
 }
 
 /// ABI enum for MidiEventSource.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MidiEventSource {
     /// Native.
@@ -769,10 +763,10 @@ pub enum MidiEventSource {
 
 impl VmValueCodec for MidiEventSource {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Native,
-            2u8 => Self::SyntheticPoll,
+            1i32 => Self::Native,
+            2i32 => Self::SyntheticPoll,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -785,7 +779,7 @@ impl VmValueCodec for MidiEventSource {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -823,7 +817,7 @@ impl VmAbiCodec for MidiEventSource {
 }
 
 /// ABI enum for MidiPortDirection.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MidiPortDirection {
     /// Input.
@@ -834,10 +828,10 @@ pub enum MidiPortDirection {
 
 impl VmValueCodec for MidiPortDirection {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Input,
-            2u8 => Self::Output,
+            1i32 => Self::Input,
+            2i32 => Self::Output,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -850,7 +844,7 @@ impl VmValueCodec for MidiPortDirection {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -888,7 +882,7 @@ impl VmAbiCodec for MidiPortDirection {
 }
 
 /// ABI enum for MidiProtocol.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MidiProtocol {
     /// Midi1.
@@ -899,10 +893,10 @@ pub enum MidiProtocol {
 
 impl VmValueCodec for MidiProtocol {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Midi1,
-            2u8 => Self::Midi2,
+            1i32 => Self::Midi1,
+            2i32 => Self::Midi2,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -915,7 +909,7 @@ impl VmValueCodec for MidiProtocol {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -953,7 +947,7 @@ impl VmAbiCodec for MidiProtocol {
 }
 
 /// ABI enum for MidiRecordFraming.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MidiRecordFraming {
     /// Complete.
@@ -968,12 +962,12 @@ pub enum MidiRecordFraming {
 
 impl VmValueCodec for MidiRecordFraming {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Complete,
-            2u8 => Self::Start,
-            3u8 => Self::Continue,
-            4u8 => Self::End,
+            1i32 => Self::Complete,
+            2i32 => Self::Start,
+            3i32 => Self::Continue,
+            4i32 => Self::End,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -986,7 +980,7 @@ impl VmValueCodec for MidiRecordFraming {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1152,9 +1146,7 @@ impl VmAggregateCodec for MidiEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1376,9 +1368,7 @@ impl VmAggregateCodec for MidiBackendDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1580,9 +1570,7 @@ impl VmAggregateCodec for MidiBackendDisconnectedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1697,9 +1685,7 @@ impl VmAggregateCodec for MidiBackendDisconnectedPayload {
         let slots = vec![<u32 as VmAggregateCodec>::encode_with_context(
             self.flags, context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1804,9 +1790,7 @@ impl VmAggregateCodec for MidiEventMetadata {
             <MidiEventSource as VmAggregateCodec>::encode_with_context(self.source, context)?,
             <MidiBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1949,9 +1933,7 @@ impl VmAggregateCodec for MidiEventSubscriptionOptions {
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.poll_interval_ns, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2070,9 +2052,7 @@ impl VmAggregateCodec for MidiInputPortOpenOptions {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2215,9 +2195,7 @@ impl VmAggregateCodec for MidiInputRecordAbi<VmAbi> {
             <MidiRecordFraming as VmAggregateCodec>::encode_with_context(self.framing, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2391,9 +2369,7 @@ impl VmAggregateCodec for MidiOutputPortOpenOptions {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2527,9 +2503,7 @@ impl VmAggregateCodec for MidiOutputRecordAbi<VmAbi> {
             <MidiRecordFraming as VmAggregateCodec>::encode_with_context(self.framing, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2692,9 +2666,7 @@ impl VmAggregateCodec for MidiPortAddedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2831,9 +2803,7 @@ impl VmAggregateCodec for MidiPortAddedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2980,9 +2950,7 @@ impl VmAggregateCodec for MidiPortChangedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3121,9 +3089,7 @@ impl VmAggregateCodec for MidiPortChangedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3369,9 +3335,7 @@ impl VmAggregateCodec for MidiPortDescriptorAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.is_virtual, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_connected, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3659,9 +3623,7 @@ impl VmAggregateCodec for MidiPortListOptions {
             )?,
             <MidiPortListFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3780,9 +3742,7 @@ impl VmAggregateCodec for MidiPortRemovedEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3927,9 +3887,7 @@ impl VmAggregateCodec for MidiPortRemovedPayloadAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4129,9 +4087,7 @@ impl VmAggregateCodec for MidiVirtualInputCreateOptionsAbi<VmAbi> {
             <MidiProtocol as VmAggregateCodec>::encode_with_context(self.protocol, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.queue_capacity, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4381,9 +4337,7 @@ impl VmAggregateCodec for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
             <MidiDataFormat as VmAggregateCodec>::encode_with_context(self.data_format, context)?,
             <MidiProtocol as VmAggregateCodec>::encode_with_context(self.protocol, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

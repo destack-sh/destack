@@ -388,7 +388,7 @@ impl VmAbiCodec for TimerFdSetFlags {
 }
 
 /// ABI enum for CompletionOperationKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CompletionOperationKind {
     /// Read.
@@ -411,16 +411,16 @@ pub enum CompletionOperationKind {
 
 impl VmValueCodec for CompletionOperationKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Read,
-            2u8 => Self::Write,
-            3u8 => Self::Accept,
-            4u8 => Self::Connect,
-            5u8 => Self::Timeout,
-            6u8 => Self::Fsync,
-            7u8 => Self::Send,
-            8u8 => Self::Receive,
+            1i32 => Self::Read,
+            2i32 => Self::Write,
+            3i32 => Self::Accept,
+            4i32 => Self::Connect,
+            5i32 => Self::Timeout,
+            6i32 => Self::Fsync,
+            7i32 => Self::Send,
+            8i32 => Self::Receive,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -433,7 +433,7 @@ impl VmValueCodec for CompletionOperationKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -471,7 +471,7 @@ impl VmAbiCodec for CompletionOperationKind {
 }
 
 /// ABI enum for PollBackend.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PollBackend {
     /// Auto.
@@ -486,12 +486,12 @@ pub enum PollBackend {
 
 impl VmValueCodec for PollBackend {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Auto,
-            1u8 => Self::Epoll,
-            2u8 => Self::Kqueue,
-            3u8 => Self::Poll,
+            0i32 => Self::Auto,
+            1i32 => Self::Epoll,
+            2i32 => Self::Kqueue,
+            3i32 => Self::Poll,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -504,7 +504,7 @@ impl VmValueCodec for PollBackend {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -542,7 +542,7 @@ impl VmAbiCodec for PollBackend {
 }
 
 /// ABI enum for TimerFdClock.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TimerFdClock {
     /// Realtime.
@@ -555,11 +555,11 @@ pub enum TimerFdClock {
 
 impl VmValueCodec for TimerFdClock {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Realtime,
-            2u8 => Self::Monotonic,
-            3u8 => Self::Boottime,
+            1i32 => Self::Realtime,
+            2i32 => Self::Monotonic,
+            3i32 => Self::Boottime,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -572,7 +572,7 @@ impl VmValueCodec for TimerFdClock {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -664,9 +664,7 @@ impl VmAggregateCodec for CompletionEvent {
             <i64 as VmAggregateCodec>::encode_with_context(self.result, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -785,9 +783,7 @@ impl VmAggregateCodec for CompletionOperation {
             <u64 as VmAggregateCodec>::encode_with_context(self.argument0, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.argument1, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -906,9 +902,7 @@ impl VmAggregateCodec for DescriptorRequestAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.output_size, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1047,9 +1041,7 @@ impl VmAggregateCodec for DescriptorResultAbi<VmAbi> {
             <i64 as VmAggregateCodec>::encode_with_context(self.return_value, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.output, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1160,9 +1152,7 @@ impl VmAggregateCodec for PollEvent {
             <PollInterest as VmAggregateCodec>::encode_with_context(self.ready, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1249,9 +1239,7 @@ impl VmAggregateCodec for TimerFdSpec {
             <u64 as VmAggregateCodec>::encode_with_context(self.initial_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.interval_ns, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1357,9 +1345,7 @@ impl VmAggregateCodec for UringFeatures {
             <bool as VmAggregateCodec>::encode_with_context(self.has_fixed_buffers, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.max_entries, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1452,9 +1438,7 @@ impl VmAggregateCodec for UringParameters {
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.sq_thread_idle_ms, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

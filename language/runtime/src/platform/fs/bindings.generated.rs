@@ -37,7 +37,7 @@ use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::trace::TraceError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -116,6 +116,16 @@ fn decode_uint(
     }
 
     Ok(raw)
+}
+
+/// Decode an i32 argument.
+#[allow(dead_code)]
+fn decode_int32(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<i32> {
+    Ok(decode_int(value, name, expected, 32)? as i32)
 }
 
 /// Decode an i64 argument.
@@ -630,32 +640,24 @@ fn encode_destack_fs_dir_mkdtemp_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         OsPathVm::OsPathBytes(value) => {
             let tag_value = vm::Value::uint(1243901586u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = value.bytes.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         OsPathVm::OsPathUtf16(value) => {
             let tag_value = vm::Value::uint(2271740357u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = value.utf16.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -699,7 +701,7 @@ fn encode_destack_fs_dir_readdir_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<DirentVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.dir.readdirNext.
@@ -721,67 +723,46 @@ fn encode_destack_fs_dir_readdir_next_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DirentNextVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         DirentNextVm::DirentNextEnd(value) => {
             let tag_value = vm::Value::uint(2090254866u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                context
-                    .allocate_aggregate(vec![field_0?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                context.allocate_aggregate(vec![field_0])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         DirentNextVm::DirentNextEntry(value) => {
             let tag_value = vm::Value::uint(2677729269u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.entry.name {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = match value.entry.name {
                         OsPathVm::OsPathBytes(value) => {
                             let tag_value = vm::Value::uint(1243901586u64, 32);
                             let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                let field_1: RuntimeResult<vm::Value> =
-                                    value.bytes.0.to_value(context);
-                                context
-                                    .allocate_aggregate(vec![field_0?, field_1?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
+                                let field_0 = value.kind.value();
+                                let field_1 = value.bytes.0.to_value(context);
+                                context.allocate_aggregate(vec![field_0, field_1])
+                            };
+                            context.allocate_aggregate(vec![tag_value, payload_value])
                         }
                         OsPathVm::OsPathUtf16(value) => {
                             let tag_value = vm::Value::uint(2271740357u64, 32);
                             let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                let field_1: RuntimeResult<vm::Value> =
-                                    value.utf16.0.to_value(context);
-                                context
-                                    .allocate_aggregate(vec![field_0?, field_1?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
+                                let field_0 = value.kind.value();
+                                let field_1 = value.utf16.0.to_value(context);
+                                context.allocate_aggregate(vec![field_0, field_1])
+                            };
+                            context.allocate_aggregate(vec![tag_value, payload_value])
                         }
                     };
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.entry.kind as u8 as u64, 8));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let field_1 = vm::Value::int(value.entry.kind as i32 as i64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -985,14 +966,14 @@ fn decode_destack_fs_file_fadvise_args(
     let length_inner = decode_uint64(length_value, "length_inner", "FileSize")?;
     let length = FileSize(length_inner);
     let advice_value = arg_value(args, 3, "advice", "FileAdvice")?;
-    let advice_raw = decode_uint8(advice_value, "advice_raw", "FileAdvice")?;
+    let advice_raw = decode_int32(advice_value, "advice_raw", "FileAdvice")?;
     let advice = match advice_raw {
-        0u8 => FileAdvice::Normal,
-        1u8 => FileAdvice::Sequential,
-        2u8 => FileAdvice::Random,
-        3u8 => FileAdvice::WillNeed,
-        4u8 => FileAdvice::DontNeed,
-        5u8 => FileAdvice::NoReuse,
+        0i32 => FileAdvice::Normal,
+        1i32 => FileAdvice::Sequential,
+        2i32 => FileAdvice::Random,
+        3i32 => FileAdvice::WillNeed,
+        4i32 => FileAdvice::DontNeed,
+        5i32 => FileAdvice::NoReuse,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "advice",
@@ -1538,11 +1519,11 @@ fn decode_destack_fs_file_seek_args(
     let offset_inner = decode_int64(offset_value, "offset_inner", "FileOffset")?;
     let offset = FileOffset(offset_inner);
     let whence_value = arg_value(args, 2, "whence", "SeekWhence")?;
-    let whence_raw = decode_uint8(whence_value, "whence_raw", "SeekWhence")?;
+    let whence_raw = decode_int32(whence_value, "whence_raw", "SeekWhence")?;
     let whence = match whence_raw {
-        0u8 => SeekWhence::Set,
-        1u8 => SeekWhence::Cur,
-        2u8 => SeekWhence::End,
+        0i32 => SeekWhence::Set,
+        1i32 => SeekWhence::Cur,
+        2i32 => SeekWhence::End,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "whence",
@@ -1950,13 +1931,13 @@ fn decode_destack_fs_mmap_madvise_args(
     let mapping_value = arg_value(args, 0, "mapping", "Slice<uint8>")?;
     let mapping = decode_slice::<u8>(context, mapping_value, "mapping", "Slice<uint8>")?;
     let advice_value = arg_value(args, 1, "advice", "MmapAdvice")?;
-    let advice_raw = decode_uint8(advice_value, "advice_raw", "MmapAdvice")?;
+    let advice_raw = decode_int32(advice_value, "advice_raw", "MmapAdvice")?;
     let advice = match advice_raw {
-        0u8 => MmapAdvice::Normal,
-        1u8 => MmapAdvice::Sequential,
-        2u8 => MmapAdvice::Random,
-        3u8 => MmapAdvice::WillNeed,
-        4u8 => MmapAdvice::DontNeed,
+        0i32 => MmapAdvice::Normal,
+        1i32 => MmapAdvice::Sequential,
+        2i32 => MmapAdvice::Random,
+        3i32 => MmapAdvice::WillNeed,
+        4i32 => MmapAdvice::DontNeed,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "advice",
@@ -2001,7 +1982,7 @@ fn encode_destack_fs_mmap_mmap_anonymous_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.mmap.mmapFile.
@@ -2041,7 +2022,7 @@ fn encode_destack_fs_mmap_mmap_file_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.mmap.mprotect.
@@ -2325,32 +2306,24 @@ fn encode_destack_fs_path_readlink_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         OsPathVm::OsPathBytes(value) => {
             let tag_value = vm::Value::uint(1243901586u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = value.bytes.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         OsPathVm::OsPathUtf16(value) => {
             let tag_value = vm::Value::uint(2271740357u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = value.utf16.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -2376,32 +2349,24 @@ fn encode_destack_fs_path_readlinkat_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         OsPathVm::OsPathBytes(value) => {
             let tag_value = vm::Value::uint(1243901586u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = value.bytes.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         OsPathVm::OsPathUtf16(value) => {
             let tag_value = vm::Value::uint(2271740357u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = value.utf16.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -2423,32 +2388,24 @@ fn encode_destack_fs_path_realpath_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         OsPathVm::OsPathBytes(value) => {
             let tag_value = vm::Value::uint(1243901586u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = value.bytes.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         OsPathVm::OsPathUtf16(value) => {
             let tag_value = vm::Value::uint(2271740357u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = value.utf16.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -2562,11 +2519,11 @@ fn decode_destack_fs_path_symlink_args(
     let path_value = arg_value(args, 1, "path", "OsPath")?;
     let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let kind_value = arg_value(args, 2, "kind", "SymlinkType")?;
-    let kind_raw = decode_uint8(kind_value, "kind_raw", "SymlinkType")?;
+    let kind_raw = decode_int32(kind_value, "kind_raw", "SymlinkType")?;
     let kind = match kind_raw {
-        0u8 => SymlinkType::Auto,
-        1u8 => SymlinkType::File,
-        2u8 => SymlinkType::Directory,
+        0i32 => SymlinkType::Auto,
+        1i32 => SymlinkType::File,
+        2i32 => SymlinkType::Directory,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "kind",
@@ -2602,11 +2559,11 @@ fn decode_destack_fs_path_symlinkat_args(
     let path_value = arg_value(args, 2, "path", "OsPath")?;
     let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let kind_value = arg_value(args, 3, "kind", "SymlinkType")?;
-    let kind_raw = decode_uint8(kind_value, "kind_raw", "SymlinkType")?;
+    let kind_raw = decode_int32(kind_value, "kind_raw", "SymlinkType")?;
     let kind = match kind_raw {
-        0u8 => SymlinkType::Auto,
-        1u8 => SymlinkType::File,
-        2u8 => SymlinkType::Directory,
+        0i32 => SymlinkType::Auto,
+        1i32 => SymlinkType::File,
+        2i32 => SymlinkType::Directory,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "kind",
@@ -2693,27 +2650,25 @@ fn encode_destack_fs_stat_fstat_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dev, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ino, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mode.0 as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.nlink as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.uid as u64, 32));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.gid as u64, 32));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.rdev, 64));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.size.0, 64));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.blksize, 64));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.blocks, 64));
-        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.atime_ns, 64));
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mtime_ns, 64));
-        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ctime_ns, 64));
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.birthtime_ns, 64));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.dev, 64);
+        let field_1 = vm::Value::uint(value.ino, 64);
+        let field_2 = vm::Value::uint(value.mode.0 as u64, 32);
+        let field_3 = vm::Value::uint(value.nlink as u64, 32);
+        let field_4 = vm::Value::uint(value.uid as u64, 32);
+        let field_5 = vm::Value::uint(value.gid as u64, 32);
+        let field_6 = vm::Value::uint(value.rdev, 64);
+        let field_7 = vm::Value::uint(value.size.0, 64);
+        let field_8 = vm::Value::uint(value.blksize, 64);
+        let field_9 = vm::Value::uint(value.blocks, 64);
+        let field_10 = vm::Value::uint(value.atime_ns, 64);
+        let field_11 = vm::Value::uint(value.mtime_ns, 64);
+        let field_12 = vm::Value::uint(value.ctime_ns, 64);
+        let field_13 = vm::Value::uint(value.birthtime_ns, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13,
+        ])
     })
 }
 
@@ -2736,23 +2691,21 @@ fn encode_destack_fs_stat_fstatfs_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatFsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bsize, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.frsize, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.blocks, 64));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bfree, 64));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bavail, 64));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.files, 64));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ffree, 64));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.fsid, 64));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags.0, 64));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.namelen, 64));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.bsize, 64);
+        let field_1 = vm::Value::uint(value.frsize, 64);
+        let field_2 = vm::Value::uint(value.blocks, 64);
+        let field_3 = vm::Value::uint(value.bfree, 64);
+        let field_4 = vm::Value::uint(value.bavail, 64);
+        let field_5 = vm::Value::uint(value.files, 64);
+        let field_6 = vm::Value::uint(value.ffree, 64);
+        let field_7 = vm::Value::uint(value.fsid, 64);
+        let field_8 = vm::Value::uint(value.flags.0, 64);
+        let field_9 = vm::Value::uint(value.namelen, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9,
+        ])
     })
 }
 
@@ -2773,27 +2726,25 @@ fn encode_destack_fs_stat_lstat_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dev, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ino, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mode.0 as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.nlink as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.uid as u64, 32));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.gid as u64, 32));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.rdev, 64));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.size.0, 64));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.blksize, 64));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.blocks, 64));
-        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.atime_ns, 64));
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mtime_ns, 64));
-        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ctime_ns, 64));
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.birthtime_ns, 64));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.dev, 64);
+        let field_1 = vm::Value::uint(value.ino, 64);
+        let field_2 = vm::Value::uint(value.mode.0 as u64, 32);
+        let field_3 = vm::Value::uint(value.nlink as u64, 32);
+        let field_4 = vm::Value::uint(value.uid as u64, 32);
+        let field_5 = vm::Value::uint(value.gid as u64, 32);
+        let field_6 = vm::Value::uint(value.rdev, 64);
+        let field_7 = vm::Value::uint(value.size.0, 64);
+        let field_8 = vm::Value::uint(value.blksize, 64);
+        let field_9 = vm::Value::uint(value.blocks, 64);
+        let field_10 = vm::Value::uint(value.atime_ns, 64);
+        let field_11 = vm::Value::uint(value.mtime_ns, 64);
+        let field_12 = vm::Value::uint(value.ctime_ns, 64);
+        let field_13 = vm::Value::uint(value.birthtime_ns, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13,
+        ])
     })
 }
 
@@ -2814,27 +2765,25 @@ fn encode_destack_fs_stat_path_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dev, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ino, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mode.0 as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.nlink as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.uid as u64, 32));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.gid as u64, 32));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.rdev, 64));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.size.0, 64));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.blksize, 64));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.blocks, 64));
-        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.atime_ns, 64));
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mtime_ns, 64));
-        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ctime_ns, 64));
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.birthtime_ns, 64));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.dev, 64);
+        let field_1 = vm::Value::uint(value.ino, 64);
+        let field_2 = vm::Value::uint(value.mode.0 as u64, 32);
+        let field_3 = vm::Value::uint(value.nlink as u64, 32);
+        let field_4 = vm::Value::uint(value.uid as u64, 32);
+        let field_5 = vm::Value::uint(value.gid as u64, 32);
+        let field_6 = vm::Value::uint(value.rdev, 64);
+        let field_7 = vm::Value::uint(value.size.0, 64);
+        let field_8 = vm::Value::uint(value.blksize, 64);
+        let field_9 = vm::Value::uint(value.blocks, 64);
+        let field_10 = vm::Value::uint(value.atime_ns, 64);
+        let field_11 = vm::Value::uint(value.mtime_ns, 64);
+        let field_12 = vm::Value::uint(value.ctime_ns, 64);
+        let field_13 = vm::Value::uint(value.birthtime_ns, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13,
+        ])
     })
 }
 
@@ -2862,27 +2811,25 @@ fn encode_destack_fs_stat_pathat_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dev, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ino, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mode.0 as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.nlink as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.uid as u64, 32));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.gid as u64, 32));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.rdev, 64));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.size.0, 64));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.blksize, 64));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.blocks, 64));
-        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.atime_ns, 64));
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mtime_ns, 64));
-        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ctime_ns, 64));
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.birthtime_ns, 64));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.dev, 64);
+        let field_1 = vm::Value::uint(value.ino, 64);
+        let field_2 = vm::Value::uint(value.mode.0 as u64, 32);
+        let field_3 = vm::Value::uint(value.nlink as u64, 32);
+        let field_4 = vm::Value::uint(value.uid as u64, 32);
+        let field_5 = vm::Value::uint(value.gid as u64, 32);
+        let field_6 = vm::Value::uint(value.rdev, 64);
+        let field_7 = vm::Value::uint(value.size.0, 64);
+        let field_8 = vm::Value::uint(value.blksize, 64);
+        let field_9 = vm::Value::uint(value.blocks, 64);
+        let field_10 = vm::Value::uint(value.atime_ns, 64);
+        let field_11 = vm::Value::uint(value.mtime_ns, 64);
+        let field_12 = vm::Value::uint(value.ctime_ns, 64);
+        let field_13 = vm::Value::uint(value.birthtime_ns, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13,
+        ])
     })
 }
 
@@ -2903,23 +2850,21 @@ fn encode_destack_fs_stat_pathfs_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatFsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bsize, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.frsize, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.blocks, 64));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bfree, 64));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bavail, 64));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.files, 64));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ffree, 64));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.fsid, 64));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags.0, 64));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.namelen, 64));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.bsize, 64);
+        let field_1 = vm::Value::uint(value.frsize, 64);
+        let field_2 = vm::Value::uint(value.blocks, 64);
+        let field_3 = vm::Value::uint(value.bfree, 64);
+        let field_4 = vm::Value::uint(value.bavail, 64);
+        let field_5 = vm::Value::uint(value.files, 64);
+        let field_6 = vm::Value::uint(value.ffree, 64);
+        let field_7 = vm::Value::uint(value.fsid, 64);
+        let field_8 = vm::Value::uint(value.flags.0, 64);
+        let field_9 = vm::Value::uint(value.namelen, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9,
+        ])
     })
 }
 
@@ -2950,32 +2895,30 @@ fn encode_destack_fs_stat_pathx_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatxVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mask.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.blksize as u64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mount_id, 64));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dev_major as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dev_minor as u64, 32));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ino, 64));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mode.0 as u64, 32));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.nlink as u64, 32));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.uid as u64, 32));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.gid as u64, 32));
-        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.rdev_major as u64, 32));
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.rdev_minor as u64, 32));
-        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.size.0, 64));
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.blocks, 64));
-        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.atime_ns, 64));
-        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.btime_ns, 64));
-        let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.ctime_ns, 64));
-        let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mtime_ns, 64));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                field_15?, field_16?, field_17?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.mask.0 as u64, 32);
+        let field_1 = vm::Value::uint(value.blksize as u64, 32);
+        let field_2 = vm::Value::uint(value.mount_id, 64);
+        let field_3 = vm::Value::uint(value.dev_major as u64, 32);
+        let field_4 = vm::Value::uint(value.dev_minor as u64, 32);
+        let field_5 = vm::Value::uint(value.ino, 64);
+        let field_6 = vm::Value::uint(value.mode.0 as u64, 32);
+        let field_7 = vm::Value::uint(value.nlink as u64, 32);
+        let field_8 = vm::Value::uint(value.uid as u64, 32);
+        let field_9 = vm::Value::uint(value.gid as u64, 32);
+        let field_10 = vm::Value::uint(value.rdev_major as u64, 32);
+        let field_11 = vm::Value::uint(value.rdev_minor as u64, 32);
+        let field_12 = vm::Value::uint(value.size.0, 64);
+        let field_13 = vm::Value::uint(value.blocks, 64);
+        let field_14 = vm::Value::uint(value.atime_ns, 64);
+        let field_15 = vm::Value::uint(value.btime_ns, 64);
+        let field_16 = vm::Value::uint(value.ctime_ns, 64);
+        let field_17 = vm::Value::uint(value.mtime_ns, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+            field_17,
+        ])
     })
 }
 
@@ -3070,12 +3013,10 @@ fn encode_destack_fs_watch_open_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WatchBatchVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = value.events.to_value(context);
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.overflowed));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = value.events.to_value(context);
+        let field_1 = vm::Value::bool(value.overflowed);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -3155,7 +3096,7 @@ fn encode_destack_fs_xattr_fgetxattr_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.xattr.fgetxattrBytes.
@@ -3179,7 +3120,7 @@ fn encode_destack_fs_xattr_fgetxattr_bytes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.xattr.flistxattr.
@@ -3201,7 +3142,7 @@ fn encode_destack_fs_xattr_flistxattr_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.xattr.flistxattrBytes.
@@ -3223,7 +3164,7 @@ fn encode_destack_fs_xattr_flistxattr_bytes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<VmArray<u8>>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.xattr.fremovexattr.
@@ -3366,7 +3307,7 @@ fn encode_destack_fs_xattr_getxattr_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.xattr.getxattrBytes.
@@ -3388,7 +3329,7 @@ fn encode_destack_fs_xattr_getxattr_bytes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.xattr.lgetxattr.
@@ -3410,7 +3351,7 @@ fn encode_destack_fs_xattr_lgetxattr_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.xattr.lgetxattrBytes.
@@ -3432,7 +3373,7 @@ fn encode_destack_fs_xattr_lgetxattr_bytes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.xattr.listxattr.
@@ -3452,7 +3393,7 @@ fn encode_destack_fs_xattr_listxattr_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.xattr.listxattrBytes.
@@ -3472,7 +3413,7 @@ fn encode_destack_fs_xattr_listxattr_bytes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<VmArray<u8>>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.xattr.llistxattr.
@@ -3492,7 +3433,7 @@ fn encode_destack_fs_xattr_llistxattr_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.xattr.llistxattrBytes.
@@ -3512,7 +3453,7 @@ fn encode_destack_fs_xattr_llistxattr_bytes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<VmArray<u8>>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.fs.xattr.lremovexattr.
@@ -4911,7 +4852,7 @@ pub(crate) const FS_DIR_OPENDIR: BindingDescriptor =
 pub(crate) const FS_DIR_READDIR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.dir.readdir",
-        "export function readdir(handle: DirectoryHandle): Result<Dirent[], PlatformError>",
+        "export function readdir(handle: DirectoryHandle): Result<Array<Dirent>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.read"],
@@ -6309,7 +6250,7 @@ pub(crate) const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::externa
 /// Binding descriptor for destack.fs.xattr.fgetxattr.
 pub(crate) const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fgetxattr",
-    "export function fgetxattr(handle: FileHandle, name: string): Result<uint8[], PlatformError>",
+    "export function fgetxattr(handle: FileHandle, name: string): Result<Array<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["fs.xattr"],
@@ -6323,7 +6264,7 @@ pub(crate) const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::exte
 /// Binding descriptor for destack.fs.xattr.fgetxattrBytes.
 pub(crate) const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.fgetxattrBytes",
-    "export function fgetxattrBytes(handle: FileHandle, name: Slice<uint8>): Result<uint8[], PlatformError>",
+    "export function fgetxattrBytes(handle: FileHandle, name: Slice<uint8>): Result<Array<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["fs.xattr"],
@@ -6338,7 +6279,7 @@ pub(crate) const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor
 pub(crate) const FS_XATTR_FLISTXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.flistxattr",
-        "export function flistxattr(handle: FileHandle): Result<string[], PlatformError>",
+        "export function flistxattr(handle: FileHandle): Result<Array<string>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.xattr"],
@@ -6363,32 +6304,18 @@ pub(crate) const FS_XATTR_FLISTXATTR: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.fs.xattr.flistxattrBytes.
-pub(crate) const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.flistxattrBytes",
-        "export function flistxattrBytes(handle: FileHandle): Result<uint8[][], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.xattr"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
+pub(crate) const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.flistxattrBytes",
+    "export function flistxattrBytes(handle: FileHandle): Result<Array<uint8[]>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["fs.xattr"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fremovexattr.
 pub(crate) const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6450,7 +6377,7 @@ pub(crate) const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor
 pub(crate) const FS_XATTR_GETXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.getxattr",
-        "export function getxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
+        "export function getxattr(path: OsPath, name: string): Result<Array<uint8>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.xattr"],
@@ -6477,7 +6404,7 @@ pub(crate) const FS_XATTR_GETXATTR: BindingDescriptor =
 /// Binding descriptor for destack.fs.xattr.getxattrBytes.
 pub(crate) const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.getxattrBytes",
-    "export function getxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
+    "export function getxattrBytes(path: OsPath, name: Slice<uint8>): Result<Array<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["fs.xattr"],
@@ -6489,37 +6416,23 @@ pub(crate) const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor:
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattr.
-pub(crate) const FS_XATTR_LGETXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.lgetxattr",
-        "export function lgetxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.xattr"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
+pub(crate) const FS_XATTR_LGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.lgetxattr",
+    "export function lgetxattr(path: OsPath, name: string): Result<Array<uint8>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["fs.xattr"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattrBytes.
 pub(crate) const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.fs.xattr.lgetxattrBytes",
-    "export function lgetxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
+    "export function lgetxattrBytes(path: OsPath, name: Slice<uint8>): Result<Array<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["fs.xattr"],
@@ -6534,7 +6447,7 @@ pub(crate) const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor
 pub(crate) const FS_XATTR_LISTXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.listxattr",
-        "export function listxattr(path: OsPath): Result<string[], PlatformError>",
+        "export function listxattr(path: OsPath): Result<Array<string>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.xattr"],
@@ -6562,7 +6475,7 @@ pub(crate) const FS_XATTR_LISTXATTR: BindingDescriptor =
 pub(crate) const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.listxattrBytes",
-        "export function listxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
+        "export function listxattrBytes(path: OsPath): Result<Array<uint8[]>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.xattr"],
@@ -6590,7 +6503,7 @@ pub(crate) const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
 pub(crate) const FS_XATTR_LLISTXATTR: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.llistxattr",
-        "export function llistxattr(path: OsPath): Result<string[], PlatformError>",
+        "export function llistxattr(path: OsPath): Result<Array<string>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.xattr"],
@@ -6618,7 +6531,7 @@ pub(crate) const FS_XATTR_LLISTXATTR: BindingDescriptor =
 pub(crate) const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.fs.xattr.llistxattrBytes",
-        "export function llistxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
+        "export function llistxattrBytes(path: OsPath): Result<Array<uint8[]>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["fs.xattr"],
@@ -18008,11 +17921,12 @@ fn destack_fs_dir_mkdtemp_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         OspathReplayRecord::OsPathBytes(value) => {
-                            let vm_result_os_path_bytes_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_os_path_bytes_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_bytes_kind =
+                                vm::StringHandle::new(vm_result_os_path_bytes_kind_value);
                             let vm_result_os_path_bytes_bytes_inner =
-                                VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                             let vm_result_os_path_bytes_bytes =
                                 platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
                                     vm_result_os_path_bytes_bytes_inner,
@@ -18024,9 +17938,10 @@ fn destack_fs_dir_mkdtemp_vm_replay(
                             OsPathVm::OsPathBytes(vm_result_os_path_bytes)
                         }
                         OspathReplayRecord::OsPathUtf16(value) => {
-                            let vm_result_os_path_utf16_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_os_path_utf16_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_utf16_kind =
+                                vm::StringHandle::new(vm_result_os_path_utf16_kind_value);
                             let mut vm_result_os_path_utf16_utf16_inner_values =
                                 Vec::with_capacity(value.utf16.len());
                             for vm_result_os_path_utf16_utf16_inner_item in
@@ -18145,8 +18060,8 @@ fn destack_fs_dir_readdir_vm_replay(
                         let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 2 fields")).boxed()); }
                         let result_recorded_item_name = <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-                        let result_recorded_item_kind_raw = decode_uint8(slots[1], "result_recorded_item_kind_raw", "kind")?;
-                        let result_recorded_item_kind = match result_recorded_item_kind_raw { 1u8 => DirentKind::File, 2u8 => DirentKind::Directory, 3u8 => DirentKind::Symlink, 4u8 => DirentKind::BlockDevice, 5u8 => DirentKind::CharDevice, 6u8 => DirentKind::Fifo, 7u8 => DirentKind::Socket, 255u8 => DirentKind::Unknown , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_kind", "unknown DirentKind value")).boxed()), };
+                        let result_recorded_item_kind_raw = decode_int32(slots[1], "result_recorded_item_kind_raw", "kind")?;
+                        let result_recorded_item_kind = match result_recorded_item_kind_raw { 1i32 => DirentKind::File, 2i32 => DirentKind::Directory, 3i32 => DirentKind::Symlink, 4i32 => DirentKind::BlockDevice, 5i32 => DirentKind::CharDevice, 6i32 => DirentKind::Fifo, 7i32 => DirentKind::Socket, 255i32 => DirentKind::Unknown , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_kind", "unknown DirentKind value")).boxed()), };
                         DirentVm {
                             name: result_recorded_item_name,
                             kind: result_recorded_item_kind,
@@ -18220,8 +18135,9 @@ fn destack_fs_dir_readdir_vm_replay(
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value_name = match vm_result_item.name {
                             OspathReplayRecord::OsPathBytes(value) => {
-                                let vm_result_item_value_name_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_name_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                let vm_result_item_value_name_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_name_os_path_bytes_kind = vm::StringHandle::new(vm_result_item_value_name_os_path_bytes_kind_value);
+                                let vm_result_item_value_name_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                                 let vm_result_item_value_name_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_item_value_name_os_path_bytes_bytes_inner);
                                 let vm_result_item_value_name_os_path_bytes = OsPathBytesVm {
                                     kind: vm_result_item_value_name_os_path_bytes_kind,
@@ -18230,7 +18146,8 @@ fn destack_fs_dir_readdir_vm_replay(
                                 OsPathVm::OsPathBytes(vm_result_item_value_name_os_path_bytes)
                             }
                             OspathReplayRecord::OsPathUtf16(value) => {
-                                let vm_result_item_value_name_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_name_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_name_os_path_utf16_kind = vm::StringHandle::new(vm_result_item_value_name_os_path_utf16_kind_value);
                                 let mut vm_result_item_value_name_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                 for vm_result_item_value_name_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                     let vm_result_item_value_name_os_path_utf16_utf16_inner_item_value = vm_result_item_value_name_os_path_utf16_utf16_inner_item;
@@ -18371,18 +18288,21 @@ fn destack_fs_dir_readdir_next_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         DirentnextReplayRecord::DirentNextEnd(value) => {
-                            let vm_result_dirent_next_end_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_dirent_next_end_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_dirent_next_end_kind = vm::StringHandle::new(vm_result_dirent_next_end_kind_value);
                             let vm_result_dirent_next_end = DirentNextEndVm {
                                 kind: vm_result_dirent_next_end_kind,
                             };
                             DirentNextVm::DirentNextEnd(vm_result_dirent_next_end)
                         }
                         DirentnextReplayRecord::DirentNextEntry(value) => {
-                            let vm_result_dirent_next_entry_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_dirent_next_entry_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_dirent_next_entry_kind = vm::StringHandle::new(vm_result_dirent_next_entry_kind_value);
                             let vm_result_dirent_next_entry_entry_name = match value.entry.name {
                                 OspathReplayRecord::OsPathBytes(value) => {
-                                    let vm_result_dirent_next_entry_entry_name_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    let vm_result_dirent_next_entry_entry_name_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                    let vm_result_dirent_next_entry_entry_name_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                    let vm_result_dirent_next_entry_entry_name_os_path_bytes_kind = vm::StringHandle::new(vm_result_dirent_next_entry_entry_name_os_path_bytes_kind_value);
+                                    let vm_result_dirent_next_entry_entry_name_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                                     let vm_result_dirent_next_entry_entry_name_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_dirent_next_entry_entry_name_os_path_bytes_bytes_inner);
                                     let vm_result_dirent_next_entry_entry_name_os_path_bytes = OsPathBytesVm {
                                         kind: vm_result_dirent_next_entry_entry_name_os_path_bytes_kind,
@@ -18391,7 +18311,8 @@ fn destack_fs_dir_readdir_next_vm_replay(
                                     OsPathVm::OsPathBytes(vm_result_dirent_next_entry_entry_name_os_path_bytes)
                                 }
                                 OspathReplayRecord::OsPathUtf16(value) => {
-                                    let vm_result_dirent_next_entry_entry_name_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_dirent_next_entry_entry_name_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                    let vm_result_dirent_next_entry_entry_name_os_path_utf16_kind = vm::StringHandle::new(vm_result_dirent_next_entry_entry_name_os_path_utf16_kind_value);
                                     let mut vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                     for vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                         let vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_value = vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item;
@@ -20639,7 +20560,7 @@ fn destack_fs_mmap_mmap_anonymous_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -20699,7 +20620,7 @@ fn destack_fs_mmap_mmap_file_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -21346,11 +21267,12 @@ fn destack_fs_path_readlink_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         OspathReplayRecord::OsPathBytes(value) => {
-                            let vm_result_os_path_bytes_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_os_path_bytes_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_bytes_kind =
+                                vm::StringHandle::new(vm_result_os_path_bytes_kind_value);
                             let vm_result_os_path_bytes_bytes_inner =
-                                VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                             let vm_result_os_path_bytes_bytes =
                                 platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
                                     vm_result_os_path_bytes_bytes_inner,
@@ -21362,9 +21284,10 @@ fn destack_fs_path_readlink_vm_replay(
                             OsPathVm::OsPathBytes(vm_result_os_path_bytes)
                         }
                         OspathReplayRecord::OsPathUtf16(value) => {
-                            let vm_result_os_path_utf16_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_os_path_utf16_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_utf16_kind =
+                                vm::StringHandle::new(vm_result_os_path_utf16_kind_value);
                             let mut vm_result_os_path_utf16_utf16_inner_values =
                                 Vec::with_capacity(value.utf16.len());
                             for vm_result_os_path_utf16_utf16_inner_item in
@@ -21496,11 +21419,12 @@ fn destack_fs_path_readlinkat_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         OspathReplayRecord::OsPathBytes(value) => {
-                            let vm_result_os_path_bytes_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_os_path_bytes_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_bytes_kind =
+                                vm::StringHandle::new(vm_result_os_path_bytes_kind_value);
                             let vm_result_os_path_bytes_bytes_inner =
-                                VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                             let vm_result_os_path_bytes_bytes =
                                 platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
                                     vm_result_os_path_bytes_bytes_inner,
@@ -21512,9 +21436,10 @@ fn destack_fs_path_readlinkat_vm_replay(
                             OsPathVm::OsPathBytes(vm_result_os_path_bytes)
                         }
                         OspathReplayRecord::OsPathUtf16(value) => {
-                            let vm_result_os_path_utf16_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_os_path_utf16_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_utf16_kind =
+                                vm::StringHandle::new(vm_result_os_path_utf16_kind_value);
                             let mut vm_result_os_path_utf16_utf16_inner_values =
                                 Vec::with_capacity(value.utf16.len());
                             for vm_result_os_path_utf16_utf16_inner_item in
@@ -21645,11 +21570,12 @@ fn destack_fs_path_realpath_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         OspathReplayRecord::OsPathBytes(value) => {
-                            let vm_result_os_path_bytes_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_os_path_bytes_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_bytes_kind =
+                                vm::StringHandle::new(vm_result_os_path_bytes_kind_value);
                             let vm_result_os_path_bytes_bytes_inner =
-                                VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                             let vm_result_os_path_bytes_bytes =
                                 platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
                                     vm_result_os_path_bytes_bytes_inner,
@@ -21661,9 +21587,10 @@ fn destack_fs_path_realpath_vm_replay(
                             OsPathVm::OsPathBytes(vm_result_os_path_bytes)
                         }
                         OspathReplayRecord::OsPathUtf16(value) => {
-                            let vm_result_os_path_utf16_kind = context
-                                .string_handle(value.kind.as_str())
-                                .map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_os_path_utf16_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_utf16_kind =
+                                vm::StringHandle::new(vm_result_os_path_utf16_kind_value);
                             let mut vm_result_os_path_utf16_utf16_inner_values =
                                 Vec::with_capacity(value.utf16.len());
                             for vm_result_os_path_utf16_utf16_inner_item in
@@ -23317,15 +23244,17 @@ fn destack_fs_watch_open_read_vm_replay(
                     for vm_result_events_item in value.events.iter().cloned() {
                         let vm_result_events_item_value = match vm_result_events_item {
                             WatcheventReplayRecord::WatchCreateEvent(value) => {
-                                let vm_result_events_item_value_watch_create_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_events_item_value_watch_create_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_events_item_value_watch_create_event_kind = vm::StringHandle::new(vm_result_events_item_value_watch_create_event_kind_value);
                                 let vm_result_events_item_value_watch_create_event_metadata_cookie = value.metadata.cookie;
                                 let vm_result_events_item_value_watch_create_event_metadata = WatchEventMetadata {
                                     cookie: vm_result_events_item_value_watch_create_event_metadata_cookie,
                                 };
                                 let vm_result_events_item_value_watch_create_event_path = match value.path {
                                     OspathReplayRecord::OsPathBytes(value) => {
-                                        let vm_result_events_item_value_watch_create_event_path_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let vm_result_events_item_value_watch_create_event_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_events_item_value_watch_create_event_path_os_path_bytes_kind_value);
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                                         let vm_result_events_item_value_watch_create_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_create_event_path_os_path_bytes_bytes_inner);
                                         let vm_result_events_item_value_watch_create_event_path_os_path_bytes = OsPathBytesVm {
                                             kind: vm_result_events_item_value_watch_create_event_path_os_path_bytes_kind,
@@ -23334,7 +23263,8 @@ fn destack_fs_watch_open_read_vm_replay(
                                         OsPathVm::OsPathBytes(vm_result_events_item_value_watch_create_event_path_os_path_bytes)
                                     }
                                     OspathReplayRecord::OsPathUtf16(value) => {
-                                        let vm_result_events_item_value_watch_create_event_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_events_item_value_watch_create_event_path_os_path_utf16_kind_value);
                                         let mut vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                             let vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item;
@@ -23357,15 +23287,17 @@ fn destack_fs_watch_open_read_vm_replay(
                                 WatchEventVm::WatchCreateEvent(vm_result_events_item_value_watch_create_event)
                             }
                             WatcheventReplayRecord::WatchMetadataEvent(value) => {
-                                let vm_result_events_item_value_watch_metadata_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_events_item_value_watch_metadata_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_events_item_value_watch_metadata_event_kind = vm::StringHandle::new(vm_result_events_item_value_watch_metadata_event_kind_value);
                                 let vm_result_events_item_value_watch_metadata_event_metadata_cookie = value.metadata.cookie;
                                 let vm_result_events_item_value_watch_metadata_event_metadata = WatchEventMetadata {
                                     cookie: vm_result_events_item_value_watch_metadata_event_metadata_cookie,
                                 };
                                 let vm_result_events_item_value_watch_metadata_event_path = match value.path {
                                     OspathReplayRecord::OsPathBytes(value) => {
-                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_kind_value);
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                                         let vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_bytes_inner);
                                         let vm_result_events_item_value_watch_metadata_event_path_os_path_bytes = OsPathBytesVm {
                                             kind: vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_kind,
@@ -23374,7 +23306,8 @@ fn destack_fs_watch_open_read_vm_replay(
                                         OsPathVm::OsPathBytes(vm_result_events_item_value_watch_metadata_event_path_os_path_bytes)
                                     }
                                     OspathReplayRecord::OsPathUtf16(value) => {
-                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_kind_value);
                                         let mut vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                             let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item;
@@ -23397,15 +23330,17 @@ fn destack_fs_watch_open_read_vm_replay(
                                 WatchEventVm::WatchMetadataEvent(vm_result_events_item_value_watch_metadata_event)
                             }
                             WatcheventReplayRecord::WatchModifyEvent(value) => {
-                                let vm_result_events_item_value_watch_modify_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_events_item_value_watch_modify_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_events_item_value_watch_modify_event_kind = vm::StringHandle::new(vm_result_events_item_value_watch_modify_event_kind_value);
                                 let vm_result_events_item_value_watch_modify_event_metadata_cookie = value.metadata.cookie;
                                 let vm_result_events_item_value_watch_modify_event_metadata = WatchEventMetadata {
                                     cookie: vm_result_events_item_value_watch_modify_event_metadata_cookie,
                                 };
                                 let vm_result_events_item_value_watch_modify_event_path = match value.path {
                                     OspathReplayRecord::OsPathBytes(value) => {
-                                        let vm_result_events_item_value_watch_modify_event_path_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let vm_result_events_item_value_watch_modify_event_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_events_item_value_watch_modify_event_path_os_path_bytes_kind_value);
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                                         let vm_result_events_item_value_watch_modify_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_modify_event_path_os_path_bytes_bytes_inner);
                                         let vm_result_events_item_value_watch_modify_event_path_os_path_bytes = OsPathBytesVm {
                                             kind: vm_result_events_item_value_watch_modify_event_path_os_path_bytes_kind,
@@ -23414,7 +23349,8 @@ fn destack_fs_watch_open_read_vm_replay(
                                         OsPathVm::OsPathBytes(vm_result_events_item_value_watch_modify_event_path_os_path_bytes)
                                     }
                                     OspathReplayRecord::OsPathUtf16(value) => {
-                                        let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_events_item_value_watch_modify_event_path_os_path_utf16_kind_value);
                                         let mut vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                             let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item;
@@ -23437,7 +23373,8 @@ fn destack_fs_watch_open_read_vm_replay(
                                 WatchEventVm::WatchModifyEvent(vm_result_events_item_value_watch_modify_event)
                             }
                             WatcheventReplayRecord::WatchOverflowEvent(value) => {
-                                let vm_result_events_item_value_watch_overflow_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_events_item_value_watch_overflow_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_events_item_value_watch_overflow_event_kind = vm::StringHandle::new(vm_result_events_item_value_watch_overflow_event_kind_value);
                                 let vm_result_events_item_value_watch_overflow_event_metadata_cookie = value.metadata.cookie;
                                 let vm_result_events_item_value_watch_overflow_event_metadata = WatchEventMetadata {
                                     cookie: vm_result_events_item_value_watch_overflow_event_metadata_cookie,
@@ -23449,15 +23386,17 @@ fn destack_fs_watch_open_read_vm_replay(
                                 WatchEventVm::WatchOverflowEvent(vm_result_events_item_value_watch_overflow_event)
                             }
                             WatcheventReplayRecord::WatchRemoveEvent(value) => {
-                                let vm_result_events_item_value_watch_remove_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_events_item_value_watch_remove_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_events_item_value_watch_remove_event_kind = vm::StringHandle::new(vm_result_events_item_value_watch_remove_event_kind_value);
                                 let vm_result_events_item_value_watch_remove_event_metadata_cookie = value.metadata.cookie;
                                 let vm_result_events_item_value_watch_remove_event_metadata = WatchEventMetadata {
                                     cookie: vm_result_events_item_value_watch_remove_event_metadata_cookie,
                                 };
                                 let vm_result_events_item_value_watch_remove_event_path = match value.path {
                                     OspathReplayRecord::OsPathBytes(value) => {
-                                        let vm_result_events_item_value_watch_remove_event_path_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let vm_result_events_item_value_watch_remove_event_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_events_item_value_watch_remove_event_path_os_path_bytes_kind_value);
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                                         let vm_result_events_item_value_watch_remove_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_remove_event_path_os_path_bytes_bytes_inner);
                                         let vm_result_events_item_value_watch_remove_event_path_os_path_bytes = OsPathBytesVm {
                                             kind: vm_result_events_item_value_watch_remove_event_path_os_path_bytes_kind,
@@ -23466,7 +23405,8 @@ fn destack_fs_watch_open_read_vm_replay(
                                         OsPathVm::OsPathBytes(vm_result_events_item_value_watch_remove_event_path_os_path_bytes)
                                     }
                                     OspathReplayRecord::OsPathUtf16(value) => {
-                                        let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_events_item_value_watch_remove_event_path_os_path_utf16_kind_value);
                                         let mut vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                             let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item;
@@ -23489,15 +23429,17 @@ fn destack_fs_watch_open_read_vm_replay(
                                 WatchEventVm::WatchRemoveEvent(vm_result_events_item_value_watch_remove_event)
                             }
                             WatcheventReplayRecord::WatchRenameEvent(value) => {
-                                let vm_result_events_item_value_watch_rename_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_events_item_value_watch_rename_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_events_item_value_watch_rename_event_kind = vm::StringHandle::new(vm_result_events_item_value_watch_rename_event_kind_value);
                                 let vm_result_events_item_value_watch_rename_event_metadata_cookie = value.metadata.cookie;
                                 let vm_result_events_item_value_watch_rename_event_metadata = WatchEventMetadata {
                                     cookie: vm_result_events_item_value_watch_rename_event_metadata_cookie,
                                 };
                                 let vm_result_events_item_value_watch_rename_event_path = match value.path {
                                     OspathReplayRecord::OsPathBytes(value) => {
-                                        let vm_result_events_item_value_watch_rename_event_path_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let vm_result_events_item_value_watch_rename_event_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_events_item_value_watch_rename_event_path_os_path_bytes_kind_value);
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                                         let vm_result_events_item_value_watch_rename_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_rename_event_path_os_path_bytes_bytes_inner);
                                         let vm_result_events_item_value_watch_rename_event_path_os_path_bytes = OsPathBytesVm {
                                             kind: vm_result_events_item_value_watch_rename_event_path_os_path_bytes_kind,
@@ -23506,7 +23448,8 @@ fn destack_fs_watch_open_read_vm_replay(
                                         OsPathVm::OsPathBytes(vm_result_events_item_value_watch_rename_event_path_os_path_bytes)
                                     }
                                     OspathReplayRecord::OsPathUtf16(value) => {
-                                        let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_events_item_value_watch_rename_event_path_os_path_utf16_kind_value);
                                         let mut vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                             let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item;
@@ -23523,8 +23466,9 @@ fn destack_fs_watch_open_read_vm_replay(
                                 };
                                 let vm_result_events_item_value_watch_rename_event_related_path = match value.related_path {
                                     OspathReplayRecord::OsPathBytes(value) => {
-                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_kind_value);
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_bytes_inner = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                                         let vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_bytes_inner);
                                         let vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes = OsPathBytesVm {
                                             kind: vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_kind,
@@ -23533,7 +23477,8 @@ fn destack_fs_watch_open_read_vm_replay(
                                         OsPathVm::OsPathBytes(vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes)
                                     }
                                     OspathReplayRecord::OsPathUtf16(value) => {
-                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_kind_value);
                                         let mut vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
                                         for vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
                                             let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item;
@@ -23677,7 +23622,7 @@ fn destack_fs_xattr_fgetxattr_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -23734,7 +23679,7 @@ fn destack_fs_xattr_fgetxattr_bytes_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -23802,9 +23747,10 @@ fn destack_fs_xattr_flistxattr_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter() {
-                        let vm_result_item_value = context
-                            .string_handle(vm_result_item.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_value =
+                            context.intern_string(vm_result_item.as_str());
+                        let vm_result_item_value =
+                            vm::StringHandle::new(vm_result_item_value_value);
                         vm_result_values.push(vm_result_item_value);
                     }
                     let vm_result = VmArray::from_values(context, &vm_result_values)?;
@@ -23877,7 +23823,7 @@ fn destack_fs_xattr_flistxattr_bytes_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter() {
                         let vm_result_item_value =
-                            VmArray::<u8>::from_bytes(context, vm_result_item.as_ref())?;
+                            VmArray::<u8>::from_bytes(context, vm_result_item.as_ref());
                         vm_result_values.push(vm_result_item_value);
                     }
                     let vm_result = VmArray::from_values(context, &vm_result_values)?;
@@ -24171,7 +24117,7 @@ fn destack_fs_xattr_getxattr_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -24228,7 +24174,7 @@ fn destack_fs_xattr_getxattr_bytes_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -24283,7 +24229,7 @@ fn destack_fs_xattr_lgetxattr_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -24340,7 +24286,7 @@ fn destack_fs_xattr_lgetxattr_bytes_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmArray::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -24408,9 +24354,10 @@ fn destack_fs_xattr_listxattr_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter() {
-                        let vm_result_item_value = context
-                            .string_handle(vm_result_item.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_value =
+                            context.intern_string(vm_result_item.as_str());
+                        let vm_result_item_value =
+                            vm::StringHandle::new(vm_result_item_value_value);
                         vm_result_values.push(vm_result_item_value);
                     }
                     let vm_result = VmArray::from_values(context, &vm_result_values)?;
@@ -24481,7 +24428,7 @@ fn destack_fs_xattr_listxattr_bytes_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter() {
                         let vm_result_item_value =
-                            VmArray::<u8>::from_bytes(context, vm_result_item.as_ref())?;
+                            VmArray::<u8>::from_bytes(context, vm_result_item.as_ref());
                         vm_result_values.push(vm_result_item_value);
                     }
                     let vm_result = VmArray::from_values(context, &vm_result_values)?;
@@ -24552,9 +24499,10 @@ fn destack_fs_xattr_llistxattr_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter() {
-                        let vm_result_item_value = context
-                            .string_handle(vm_result_item.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_value =
+                            context.intern_string(vm_result_item.as_str());
+                        let vm_result_item_value =
+                            vm::StringHandle::new(vm_result_item_value_value);
                         vm_result_values.push(vm_result_item_value);
                     }
                     let vm_result = VmArray::from_values(context, &vm_result_values)?;
@@ -24625,7 +24573,7 @@ fn destack_fs_xattr_llistxattr_bytes_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter() {
                         let vm_result_item_value =
-                            VmArray::<u8>::from_bytes(context, vm_result_item.as_ref())?;
+                            VmArray::<u8>::from_bytes(context, vm_result_item.as_ref());
                         vm_result_values.push(vm_result_item_value);
                     }
                     let vm_result = VmArray::from_values(context, &vm_result_values)?;

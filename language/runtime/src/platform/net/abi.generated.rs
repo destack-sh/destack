@@ -985,7 +985,7 @@ impl VmAbiCodec for UdpMessageFlags {
 }
 
 /// ABI enum for PacketBackend.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PacketBackend {
     /// Auto.
@@ -1002,13 +1002,13 @@ pub enum PacketBackend {
 
 impl VmValueCodec for PacketBackend {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Auto,
-            1u8 => Self::AfPacket,
-            2u8 => Self::Bpf,
-            3u8 => Self::WinRawSocket,
-            255u8 => Self::Null,
+            0i32 => Self::Auto,
+            1i32 => Self::AfPacket,
+            2i32 => Self::Bpf,
+            3i32 => Self::WinRawSocket,
+            255i32 => Self::Null,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1021,7 +1021,7 @@ impl VmValueCodec for PacketBackend {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1059,7 +1059,7 @@ impl VmAbiCodec for PacketBackend {
 }
 
 /// ABI enum for PacketBackendSelectionPolicy.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PacketBackendSelectionPolicy {
     /// Strict.
@@ -1070,10 +1070,10 @@ pub enum PacketBackendSelectionPolicy {
 
 impl VmValueCodec for PacketBackendSelectionPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Strict,
-            2u8 => Self::AllowFallback,
+            1i32 => Self::Strict,
+            2i32 => Self::AllowFallback,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1086,7 +1086,7 @@ impl VmValueCodec for PacketBackendSelectionPolicy {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1124,7 +1124,7 @@ impl VmAbiCodec for PacketBackendSelectionPolicy {
 }
 
 /// ABI enum for PacketFanoutMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PacketFanoutMode {
     /// Hash.
@@ -1143,14 +1143,14 @@ pub enum PacketFanoutMode {
 
 impl VmValueCodec for PacketFanoutMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Hash,
-            1u8 => Self::LoadBalance,
-            2u8 => Self::Cpu,
-            3u8 => Self::RoundRobin,
-            4u8 => Self::Rollover,
-            5u8 => Self::QueueMap,
+            0i32 => Self::Hash,
+            1i32 => Self::LoadBalance,
+            2i32 => Self::Cpu,
+            3i32 => Self::RoundRobin,
+            4i32 => Self::Rollover,
+            5i32 => Self::QueueMap,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1163,7 +1163,7 @@ impl VmValueCodec for PacketFanoutMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1201,7 +1201,7 @@ impl VmAbiCodec for PacketFanoutMode {
 }
 
 /// ABI enum for PacketTimestampClock.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PacketTimestampClock {
     /// None.
@@ -1216,12 +1216,12 @@ pub enum PacketTimestampClock {
 
 impl VmValueCodec for PacketTimestampClock {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::None,
-            1u8 => Self::Wall,
-            2u8 => Self::Monotonic,
-            3u8 => Self::HardwareRaw,
+            0i32 => Self::None,
+            1i32 => Self::Wall,
+            2i32 => Self::Monotonic,
+            3i32 => Self::HardwareRaw,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1234,7 +1234,7 @@ impl VmValueCodec for PacketTimestampClock {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1272,7 +1272,7 @@ impl VmAbiCodec for PacketTimestampClock {
 }
 
 /// ABI enum for PacketTimestampMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PacketTimestampMode {
     /// Disabled.
@@ -1285,11 +1285,11 @@ pub enum PacketTimestampMode {
 
 impl VmValueCodec for PacketTimestampMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Disabled,
-            1u8 => Self::Software,
-            2u8 => Self::Hardware,
+            0i32 => Self::Disabled,
+            1i32 => Self::Software,
+            2i32 => Self::Hardware,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1302,7 +1302,7 @@ impl VmValueCodec for PacketTimestampMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1340,7 +1340,7 @@ impl VmAbiCodec for PacketTimestampMode {
 }
 
 /// ABI enum for RouteKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RouteKind {
     /// Unicast.
@@ -1357,13 +1357,13 @@ pub enum RouteKind {
 
 impl VmValueCodec for RouteKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Unicast,
-            2u8 => Self::Local,
-            3u8 => Self::Broadcast,
-            4u8 => Self::Multicast,
-            5u8 => Self::Blackhole,
+            1i32 => Self::Unicast,
+            2i32 => Self::Local,
+            3i32 => Self::Broadcast,
+            4i32 => Self::Multicast,
+            5i32 => Self::Blackhole,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1376,7 +1376,7 @@ impl VmValueCodec for RouteKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1414,7 +1414,7 @@ impl VmAbiCodec for RouteKind {
 }
 
 /// ABI enum for SocketFamily.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SocketFamily {
     /// Unspecified.
@@ -1427,11 +1427,11 @@ pub enum SocketFamily {
 
 impl VmValueCodec for SocketFamily {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unspecified,
-            4u8 => Self::IPv4,
-            6u8 => Self::IPv6,
+            0i32 => Self::Unspecified,
+            4i32 => Self::IPv4,
+            6i32 => Self::IPv6,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1444,7 +1444,7 @@ impl VmValueCodec for SocketFamily {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1482,7 +1482,7 @@ impl VmAbiCodec for SocketFamily {
 }
 
 /// ABI enum for SocketShutdown.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SocketShutdown {
     /// Read.
@@ -1495,11 +1495,11 @@ pub enum SocketShutdown {
 
 impl VmValueCodec for SocketShutdown {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Read,
-            1u8 => Self::Write,
-            2u8 => Self::ReadWrite,
+            0i32 => Self::Read,
+            1i32 => Self::Write,
+            2i32 => Self::ReadWrite,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1512,7 +1512,7 @@ impl VmValueCodec for SocketShutdown {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1550,7 +1550,7 @@ impl VmAbiCodec for SocketShutdown {
 }
 
 /// ABI enum for SocketTimestampingMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SocketTimestampingMode {
     /// Off.
@@ -1563,11 +1563,11 @@ pub enum SocketTimestampingMode {
 
 impl VmValueCodec for SocketTimestampingMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Off,
-            1u8 => Self::Software,
-            2u8 => Self::Hardware,
+            0i32 => Self::Off,
+            1i32 => Self::Software,
+            2i32 => Self::Hardware,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1580,7 +1580,7 @@ impl VmValueCodec for SocketTimestampingMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1707,9 +1707,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1887,9 +1885,7 @@ impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2037,9 +2033,7 @@ impl VmAggregateCodec for KeepAliveConfig {
             <u32 as VmAggregateCodec>::encode_with_context(self.interval_seconds, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.probe_count, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2125,9 +2119,7 @@ impl VmAggregateCodec for Linger {
             <bool as VmAggregateCodec>::encode_with_context(self.enabled, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.seconds, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2262,9 +2254,7 @@ impl VmAggregateCodec for NetInterfaceAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2432,9 +2422,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2562,9 +2550,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2713,9 +2699,7 @@ impl VmAggregateCodec for PacketBackendDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2877,9 +2861,7 @@ impl VmAggregateCodec for PacketCaptureOptions {
             <i32 as VmAggregateCodec>::encode_with_context(self.timeout_ms, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.promiscuous, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2986,9 +2968,7 @@ impl VmAggregateCodec for PacketCaptureRecord {
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.truncated, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3086,9 +3066,7 @@ impl VmAggregateCodec for PacketCaptureStats {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3181,9 +3159,7 @@ impl VmAggregateCodec for PacketFanoutOptions {
             <PacketFanoutMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3286,9 +3262,7 @@ impl VmAggregateCodec for PacketRingOptions {
             <u32 as VmAggregateCodec>::encode_with_context(self.frame_count, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.retire_timeout_ms, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3415,9 +3389,7 @@ impl VmAggregateCodec for ResolveQueryAbi<VmAbi> {
             <SocketFamily as VmAggregateCodec>::encode_with_context(self.family, context)?,
             <ResolveFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3562,9 +3534,7 @@ impl VmAggregateCodec for ReverseLookupNameAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.host, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3719,9 +3689,7 @@ impl VmAggregateCodec for RouteEntryAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.metric, context)?,
             <RouteKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3885,9 +3853,7 @@ impl VmAggregateCodec for SocketAddressAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4003,9 +3969,7 @@ impl VmAggregateCodec for SocketCredentials {
             <u32 as VmAggregateCodec>::encode_with_context(self.uid, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.gid, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4097,9 +4061,7 @@ impl VmAggregateCodec for SocketPair {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4212,9 +4174,7 @@ impl VmAggregateCodec for SocketRecvBatchRequestAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4355,9 +4315,7 @@ impl VmAggregateCodec for SocketRecvFromAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4549,9 +4507,7 @@ impl VmAggregateCodec for SocketRecvMessageAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4751,9 +4707,7 @@ impl VmAggregateCodec for SocketSendBatchEntryAbi<VmAbi> {
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.payload, context)?,
             <SocketSendMessageVm as VmAggregateCodec>::encode_with_context(self.message, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4914,9 +4868,7 @@ impl VmAggregateCodec for SocketSendMessageAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5083,9 +5035,7 @@ impl VmAggregateCodec for SocketSendToAbi<VmAbi> {
             <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.address, context)?,
             <SocketMessageFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5218,9 +5168,7 @@ impl VmAggregateCodec for UdpReceiveAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
             <UdpMessageFlags as VmAggregateCodec>::encode_with_context(self.recv_flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5365,9 +5313,7 @@ impl VmAggregateCodec for UdpSourceMembershipV4Abi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5518,9 +5464,7 @@ impl VmAggregateCodec for UdpSourceMembershipV6Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.interface_index, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5654,9 +5598,7 @@ impl VmAggregateCodec for UdsAbstractAddressAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.abstract_name, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5789,9 +5731,7 @@ impl VmAggregateCodec for UdsPathAddressAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5911,9 +5851,7 @@ impl VmAggregateCodec for UdsUnnamedAddressAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.kind, context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6215,6 +6153,12 @@ pub enum UdsaddressReplayRecord {
     /// UdsUnnamedAddress variant.
     UdsUnnamedAddress(UdsunnamedaddressReplayRecord),
 }
+
+/// Accept the socket with close-on-exec or non-inheritable semantics.
+pub const ACCEPT_CLOEXEC: AcceptFlags = AcceptFlags(2u32);
+
+/// Accept the socket in nonblocking mode.
+pub const ACCEPT_NONBLOCK: AcceptFlags = AcceptFlags(1u32);
 
 /// Backend capability flag bit for packet capture operations.
 pub const PACKET_BACKEND_CAP_CAPTURE: PacketBackendCapabilityFlags =

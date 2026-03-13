@@ -17,7 +17,7 @@ use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 /// ABI enum for TlsHandshakeStatus.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TlsHandshakeStatus {
     /// Complete.
@@ -30,11 +30,11 @@ pub enum TlsHandshakeStatus {
 
 impl VmValueCodec for TlsHandshakeStatus {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Complete,
-            1u8 => Self::WantRead,
-            2u8 => Self::WantWrite,
+            0i32 => Self::Complete,
+            1i32 => Self::WantRead,
+            2i32 => Self::WantWrite,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -47,7 +47,7 @@ impl VmValueCodec for TlsHandshakeStatus {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -85,7 +85,7 @@ impl VmAbiCodec for TlsHandshakeStatus {
 }
 
 /// ABI enum for TlsHostnameVerificationMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TlsHostnameVerificationMode {
     /// Strict.
@@ -98,11 +98,11 @@ pub enum TlsHostnameVerificationMode {
 
 impl VmValueCodec for TlsHostnameVerificationMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Strict,
-            1u8 => Self::AllowMismatch,
-            2u8 => Self::Disabled,
+            0i32 => Self::Strict,
+            1i32 => Self::AllowMismatch,
+            2i32 => Self::Disabled,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -115,7 +115,7 @@ impl VmValueCodec for TlsHostnameVerificationMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -153,7 +153,7 @@ impl VmAbiCodec for TlsHostnameVerificationMode {
 }
 
 /// ABI enum for TlsRole.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TlsRole {
     /// Client.
@@ -164,10 +164,10 @@ pub enum TlsRole {
 
 impl VmValueCodec for TlsRole {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Client,
-            1u8 => Self::Server,
+            0i32 => Self::Client,
+            1i32 => Self::Server,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -180,7 +180,7 @@ impl VmValueCodec for TlsRole {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -218,7 +218,7 @@ impl VmAbiCodec for TlsRole {
 }
 
 /// ABI enum for TlsSessionResumptionMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TlsSessionResumptionMode {
     /// Disabled.
@@ -233,12 +233,12 @@ pub enum TlsSessionResumptionMode {
 
 impl VmValueCodec for TlsSessionResumptionMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Disabled,
-            1u8 => Self::Stateful,
-            2u8 => Self::Stateless,
-            3u8 => Self::StatefulAndStateless,
+            0i32 => Self::Disabled,
+            1i32 => Self::Stateful,
+            2i32 => Self::Stateless,
+            3i32 => Self::StatefulAndStateless,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -251,7 +251,7 @@ impl VmValueCodec for TlsSessionResumptionMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -289,7 +289,7 @@ impl VmAbiCodec for TlsSessionResumptionMode {
 }
 
 /// ABI enum for TlsSessionResumptionState.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TlsSessionResumptionState {
     /// Fresh.
@@ -300,10 +300,10 @@ pub enum TlsSessionResumptionState {
 
 impl VmValueCodec for TlsSessionResumptionState {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Fresh,
-            1u8 => Self::Resumed,
+            0i32 => Self::Fresh,
+            1i32 => Self::Resumed,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -316,7 +316,7 @@ impl VmValueCodec for TlsSessionResumptionState {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -354,7 +354,7 @@ impl VmAbiCodec for TlsSessionResumptionState {
 }
 
 /// ABI enum for TlsVersion.
-#[repr(u16)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TlsVersion {
     /// Tls12.
@@ -365,10 +365,10 @@ pub enum TlsVersion {
 
 impl VmValueCodec for TlsVersion {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u16 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            771u16 => Self::Tls12,
-            772u16 => Self::Tls13,
+            771i32 => Self::Tls12,
+            772i32 => Self::Tls13,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -381,7 +381,7 @@ impl VmValueCodec for TlsVersion {
     }
 
     fn encode(self) -> vm::Value {
-        <u16 as VmValueCodec>::encode(self as u16)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -510,9 +510,7 @@ impl VmAggregateCodec for TlsContextOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

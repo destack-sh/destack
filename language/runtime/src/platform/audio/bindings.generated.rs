@@ -80,7 +80,7 @@ use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::trace::TraceError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -123,6 +123,26 @@ fn decode_bool(
     })
 }
 
+/// Decode a signed integer argument with an explicit width.
+#[allow(dead_code)]
+fn decode_int(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+    bits: u8,
+) -> RuntimeResult<i64> {
+    let (raw, width) = value.as_int_with_width().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })?;
+    if width != bits {
+        return Err(
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+        );
+    }
+
+    Ok(raw)
+}
+
 /// Decode an unsigned integer argument with an explicit width.
 #[allow(dead_code)]
 fn decode_uint(
@@ -141,6 +161,16 @@ fn decode_uint(
     }
 
     Ok(raw)
+}
+
+/// Decode an i32 argument.
+#[allow(dead_code)]
+fn decode_int32(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<i32> {
+    Ok(decode_int(value, name, expected, 32)? as i32)
 }
 
 /// Decode a u8 argument.
@@ -235,7 +265,7 @@ fn encode_destack_audio_backend_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<AudioBackendDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.audio.clock.now.
@@ -245,10 +275,10 @@ fn decode_destack_audio_clock_now_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(AudioClockDomain,)> {
     let domain_value = arg_value(args, 0, "domain", "AudioClockDomain")?;
-    let domain_raw = decode_uint8(domain_value, "domain_raw", "AudioClockDomain")?;
+    let domain_raw = decode_int32(domain_value, "domain_raw", "AudioClockDomain")?;
     let domain = match domain_raw {
-        1u8 => AudioClockDomain::Monotonic,
-        2u8 => AudioClockDomain::Wall,
+        1i32 => AudioClockDomain::Monotonic,
+        2i32 => AudioClockDomain::Wall,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "domain",
@@ -281,14 +311,14 @@ fn decode_destack_audio_clock_stream_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::AudioStreamHandle(handle_inner);
     let domain_value = arg_value(args, 1, "domain", "AudioStreamClockDomain")?;
-    let domain_raw = decode_uint8(domain_value, "domain_raw", "AudioStreamClockDomain")?;
+    let domain_raw = decode_int32(domain_value, "domain_raw", "AudioStreamClockDomain")?;
     let domain = match domain_raw {
-        1u8 => AudioStreamClockDomain::Monotonic,
-        2u8 => AudioStreamClockDomain::Wall,
-        3u8 => AudioStreamClockDomain::Device,
-        4u8 => AudioStreamClockDomain::Callback,
-        5u8 => AudioStreamClockDomain::InputAdc,
-        6u8 => AudioStreamClockDomain::OutputDac,
+        1i32 => AudioStreamClockDomain::Monotonic,
+        2i32 => AudioStreamClockDomain::Wall,
+        3i32 => AudioStreamClockDomain::Device,
+        4i32 => AudioStreamClockDomain::Callback,
+        5i32 => AudioStreamClockDomain::InputAdc,
+        6i32 => AudioStreamClockDomain::OutputDac,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "domain",
@@ -306,42 +336,35 @@ fn encode_destack_audio_clock_stream_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioClockSnapshotVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.stream_frames, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.clock_ns, 64));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.clock_quality as u8 as u64, 8));
-        let field_3: RuntimeResult<vm::Value> = match value.callback_ns {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.stream_frames, 64);
+        let field_1 = vm::Value::uint(value.clock_ns, 64);
+        let field_2 = vm::Value::int(value.clock_quality as i32 as i64, 32);
+        let field_3 = match value.callback_ns {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        let field_4: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.callback_quality as u8 as u64, 8));
-        let field_5: RuntimeResult<vm::Value> = match value.input_adc_ns {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+        let field_4 = vm::Value::int(value.callback_quality as i32 as i64, 32);
+        let field_5 = match value.input_adc_ns {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        let field_6: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.input_adc_quality as u8 as u64, 8));
-        let field_7: RuntimeResult<vm::Value> = match value.output_dac_ns {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+        let field_6 = vm::Value::int(value.input_adc_quality as i32 as i64, 32);
+        let field_7 = match value.output_dac_ns {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        let field_8: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.output_dac_quality as u8 as u64, 8));
-        let field_9: RuntimeResult<vm::Value> = match value.device_ns {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+        let field_8 = vm::Value::int(value.output_dac_quality as i32 as i64, 32);
+        let field_9 = match value.device_ns {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        let field_10: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.device_quality as u8 as u64, 8));
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.monotonic_ns, 64));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        let field_10 = vm::Value::int(value.device_quality as i32 as i64, 32);
+        let field_11 = vm::Value::uint(value.monotonic_ns, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11,
+        ])
     })
 }
 
@@ -379,12 +402,12 @@ fn decode_destack_audio_device_default_args(
     AudioBackendSelectionPolicy,
 )> {
     let direction_value = arg_value(args, 0, "direction", "AudioDeviceDirection")?;
-    let direction_raw = decode_uint8(direction_value, "direction_raw", "AudioDeviceDirection")?;
+    let direction_raw = decode_int32(direction_value, "direction_raw", "AudioDeviceDirection")?;
     let direction = match direction_raw {
-        1u8 => AudioDeviceDirection::Playback,
-        2u8 => AudioDeviceDirection::Capture,
-        3u8 => AudioDeviceDirection::Duplex,
-        4u8 => AudioDeviceDirection::Loopback,
+        1i32 => AudioDeviceDirection::Playback,
+        2i32 => AudioDeviceDirection::Capture,
+        3i32 => AudioDeviceDirection::Duplex,
+        4i32 => AudioDeviceDirection::Loopback,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "direction",
@@ -394,19 +417,19 @@ fn decode_destack_audio_device_default_args(
         }
     };
     let backend_value = arg_value(args, 1, "backend", "AudioBackend")?;
-    let backend_raw = decode_uint8(backend_value, "backend_raw", "AudioBackend")?;
+    let backend_raw = decode_int32(backend_value, "backend_raw", "AudioBackend")?;
     let backend = match backend_raw {
-        0u8 => AudioBackend::Auto,
-        1u8 => AudioBackend::Alsa,
-        2u8 => AudioBackend::PulseAudio,
-        3u8 => AudioBackend::PipeWire,
-        4u8 => AudioBackend::CoreAudio,
-        5u8 => AudioBackend::Wasapi,
-        6u8 => AudioBackend::AAudio,
-        7u8 => AudioBackend::OpenSLES,
-        8u8 => AudioBackend::Jack,
-        9u8 => AudioBackend::Asio,
-        255u8 => AudioBackend::Null,
+        0i32 => AudioBackend::Auto,
+        1i32 => AudioBackend::Alsa,
+        2i32 => AudioBackend::PulseAudio,
+        3i32 => AudioBackend::PipeWire,
+        4i32 => AudioBackend::CoreAudio,
+        5i32 => AudioBackend::Wasapi,
+        6i32 => AudioBackend::AAudio,
+        7i32 => AudioBackend::OpenSLES,
+        8i32 => AudioBackend::Jack,
+        9i32 => AudioBackend::Asio,
+        255i32 => AudioBackend::Null,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "backend",
@@ -416,14 +439,14 @@ fn decode_destack_audio_device_default_args(
         }
     };
     let backendpolicy_value = arg_value(args, 2, "backendpolicy", "AudioBackendSelectionPolicy")?;
-    let backendpolicy_raw = decode_uint8(
+    let backendpolicy_raw = decode_int32(
         backendpolicy_value,
         "backendpolicy_raw",
         "AudioBackendSelectionPolicy",
     )?;
     let backendpolicy = match backendpolicy_raw {
-        1u8 => AudioBackendSelectionPolicy::Strict,
-        2u8 => AudioBackendSelectionPolicy::AllowFallback,
+        1i32 => AudioBackendSelectionPolicy::Strict,
+        2i32 => AudioBackendSelectionPolicy::AllowFallback,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "backendpolicy",
@@ -464,70 +487,43 @@ fn encode_destack_audio_device_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioDeviceDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_1: RuntimeResult<vm::Value> = Ok(value.group_id.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
-        let field_3: RuntimeResult<vm::Value> = Ok(value.transport.value());
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.backend as u8 as u64, 8));
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.direction as u8 as u64, 8));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connected));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_raw));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_default_playback));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_default_capture));
-        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_default_loopback));
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.capability_flags.0, 64));
-        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.supported_device_open_flags.0 as u64,
-            32,
-        ));
-        let field_13: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.supported_stream_flags.0 as u64, 32));
-        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.supported_stream_requirement_flags.0 as u64,
-            32,
-        ));
-        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.supported_event_subscription_flags.0 as u64,
-            32,
-        ));
-        let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-            value.supported_stream_clock_domains.0 as u64,
-            32,
-        ));
-        let field_17: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.preferred_sample_rate as u64, 32));
-        let field_18: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.min_sample_rate as u64, 32));
-        let field_19: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_sample_rate as u64, 32));
-        let field_20: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.preferred_period_frames as u64, 32));
-        let field_21: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.min_channels as u64, 16));
-        let field_22: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.max_channels as u64, 16));
-        let field_23: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.preferred_layout as u8 as u64, 8));
-        let field_24: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.preferred_channel_mask, 64));
-        let field_25: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.supported_channel_mask, 64));
-        let field_26: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.min_period_frames as u64, 32));
-        let field_27: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_period_frames as u64, 32));
-        let field_28: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format_mask as u64, 32));
-        let field_29: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.share_mode_mask as u64, 32));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
-                field_22?, field_23?, field_24?, field_25?, field_26?, field_27?, field_28?,
-                field_29?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = value.id.value();
+        let field_1 = value.group_id.value();
+        let field_2 = value.name.value();
+        let field_3 = value.transport.value();
+        let field_4 = vm::Value::int(value.backend as i32 as i64, 32);
+        let field_5 = vm::Value::int(value.direction as i32 as i64, 32);
+        let field_6 = vm::Value::bool(value.connected);
+        let field_7 = vm::Value::bool(value.is_raw);
+        let field_8 = vm::Value::bool(value.is_default_playback);
+        let field_9 = vm::Value::bool(value.is_default_capture);
+        let field_10 = vm::Value::bool(value.is_default_loopback);
+        let field_11 = vm::Value::uint(value.capability_flags.0, 64);
+        let field_12 = vm::Value::uint(value.supported_device_open_flags.0 as u64, 32);
+        let field_13 = vm::Value::uint(value.supported_stream_flags.0 as u64, 32);
+        let field_14 = vm::Value::uint(value.supported_stream_requirement_flags.0 as u64, 32);
+        let field_15 = vm::Value::uint(value.supported_event_subscription_flags.0 as u64, 32);
+        let field_16 = vm::Value::uint(value.supported_stream_clock_domains.0 as u64, 32);
+        let field_17 = vm::Value::uint(value.preferred_sample_rate as u64, 32);
+        let field_18 = vm::Value::uint(value.min_sample_rate as u64, 32);
+        let field_19 = vm::Value::uint(value.max_sample_rate as u64, 32);
+        let field_20 = vm::Value::uint(value.preferred_period_frames as u64, 32);
+        let field_21 = vm::Value::uint(value.min_channels as u64, 16);
+        let field_22 = vm::Value::uint(value.max_channels as u64, 16);
+        let field_23 = vm::Value::int(value.preferred_layout as i32 as i64, 32);
+        let field_24 = vm::Value::uint(value.preferred_channel_mask, 64);
+        let field_25 = vm::Value::uint(value.supported_channel_mask, 64);
+        let field_26 = vm::Value::uint(value.min_period_frames as u64, 32);
+        let field_27 = vm::Value::uint(value.max_period_frames as u64, 32);
+        let field_28 = vm::Value::uint(value.format_mask as u64, 32);
+        let field_29 = vm::Value::uint(value.share_mode_mask as u64, 32);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+            field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
+            field_25, field_26, field_27, field_28, field_29,
+        ])
     })
 }
 
@@ -556,12 +552,12 @@ fn decode_destack_audio_device_list_args(
             ))
             .boxed());
         }
-        let request_direction_raw = decode_uint8(slots[0], "request_direction_raw", "direction")?;
+        let request_direction_raw = decode_int32(slots[0], "request_direction_raw", "direction")?;
         let request_direction = match request_direction_raw {
-            1u8 => AudioDeviceDirection::Playback,
-            2u8 => AudioDeviceDirection::Capture,
-            3u8 => AudioDeviceDirection::Duplex,
-            4u8 => AudioDeviceDirection::Loopback,
+            1i32 => AudioDeviceDirection::Playback,
+            2i32 => AudioDeviceDirection::Capture,
+            3i32 => AudioDeviceDirection::Duplex,
+            4i32 => AudioDeviceDirection::Loopback,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "request_direction",
@@ -570,19 +566,19 @@ fn decode_destack_audio_device_list_args(
                 .boxed());
             }
         };
-        let request_backend_raw = decode_uint8(slots[1], "request_backend_raw", "backend")?;
+        let request_backend_raw = decode_int32(slots[1], "request_backend_raw", "backend")?;
         let request_backend = match request_backend_raw {
-            0u8 => AudioBackend::Auto,
-            1u8 => AudioBackend::Alsa,
-            2u8 => AudioBackend::PulseAudio,
-            3u8 => AudioBackend::PipeWire,
-            4u8 => AudioBackend::CoreAudio,
-            5u8 => AudioBackend::Wasapi,
-            6u8 => AudioBackend::AAudio,
-            7u8 => AudioBackend::OpenSLES,
-            8u8 => AudioBackend::Jack,
-            9u8 => AudioBackend::Asio,
-            255u8 => AudioBackend::Null,
+            0i32 => AudioBackend::Auto,
+            1i32 => AudioBackend::Alsa,
+            2i32 => AudioBackend::PulseAudio,
+            3i32 => AudioBackend::PipeWire,
+            4i32 => AudioBackend::CoreAudio,
+            5i32 => AudioBackend::Wasapi,
+            6i32 => AudioBackend::AAudio,
+            7i32 => AudioBackend::OpenSLES,
+            8i32 => AudioBackend::Jack,
+            9i32 => AudioBackend::Asio,
+            255i32 => AudioBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "request_backend",
@@ -592,10 +588,10 @@ fn decode_destack_audio_device_list_args(
             }
         };
         let request_backend_policy_raw =
-            decode_uint8(slots[2], "request_backend_policy_raw", "backendPolicy")?;
+            decode_int32(slots[2], "request_backend_policy_raw", "backendPolicy")?;
         let request_backend_policy = match request_backend_policy_raw {
-            1u8 => AudioBackendSelectionPolicy::Strict,
-            2u8 => AudioBackendSelectionPolicy::AllowFallback,
+            1i32 => AudioBackendSelectionPolicy::Strict,
+            2i32 => AudioBackendSelectionPolicy::AllowFallback,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "request_backend_policy",
@@ -622,7 +618,7 @@ fn encode_destack_audio_device_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<AudioDeviceDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.audio.device.open.
@@ -652,12 +648,12 @@ fn decode_destack_audio_device_open_args(
             ))
             .boxed());
         }
-        let options_direction_raw = decode_uint8(slots[0], "options_direction_raw", "direction")?;
+        let options_direction_raw = decode_int32(slots[0], "options_direction_raw", "direction")?;
         let options_direction = match options_direction_raw {
-            1u8 => AudioDeviceDirection::Playback,
-            2u8 => AudioDeviceDirection::Capture,
-            3u8 => AudioDeviceDirection::Duplex,
-            4u8 => AudioDeviceDirection::Loopback,
+            1i32 => AudioDeviceDirection::Playback,
+            2i32 => AudioDeviceDirection::Capture,
+            3i32 => AudioDeviceDirection::Duplex,
+            4i32 => AudioDeviceDirection::Loopback,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_direction",
@@ -666,19 +662,19 @@ fn decode_destack_audio_device_open_args(
                 .boxed());
             }
         };
-        let options_backend_raw = decode_uint8(slots[1], "options_backend_raw", "backend")?;
+        let options_backend_raw = decode_int32(slots[1], "options_backend_raw", "backend")?;
         let options_backend = match options_backend_raw {
-            0u8 => AudioBackend::Auto,
-            1u8 => AudioBackend::Alsa,
-            2u8 => AudioBackend::PulseAudio,
-            3u8 => AudioBackend::PipeWire,
-            4u8 => AudioBackend::CoreAudio,
-            5u8 => AudioBackend::Wasapi,
-            6u8 => AudioBackend::AAudio,
-            7u8 => AudioBackend::OpenSLES,
-            8u8 => AudioBackend::Jack,
-            9u8 => AudioBackend::Asio,
-            255u8 => AudioBackend::Null,
+            0i32 => AudioBackend::Auto,
+            1i32 => AudioBackend::Alsa,
+            2i32 => AudioBackend::PulseAudio,
+            3i32 => AudioBackend::PipeWire,
+            4i32 => AudioBackend::CoreAudio,
+            5i32 => AudioBackend::Wasapi,
+            6i32 => AudioBackend::AAudio,
+            7i32 => AudioBackend::OpenSLES,
+            8i32 => AudioBackend::Jack,
+            9i32 => AudioBackend::Asio,
+            255i32 => AudioBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_backend",
@@ -688,10 +684,10 @@ fn decode_destack_audio_device_open_args(
             }
         };
         let options_backend_policy_raw =
-            decode_uint8(slots[2], "options_backend_policy_raw", "backendPolicy")?;
+            decode_int32(slots[2], "options_backend_policy_raw", "backendPolicy")?;
         let options_backend_policy = match options_backend_policy_raw {
-            1u8 => AudioBackendSelectionPolicy::Strict,
-            2u8 => AudioBackendSelectionPolicy::AllowFallback,
+            1i32 => AudioBackendSelectionPolicy::Strict,
+            2i32 => AudioBackendSelectionPolicy::AllowFallback,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_backend_policy",
@@ -700,10 +696,10 @@ fn decode_destack_audio_device_open_args(
                 .boxed());
             }
         };
-        let options_share_mode_raw = decode_uint8(slots[3], "options_share_mode_raw", "shareMode")?;
+        let options_share_mode_raw = decode_int32(slots[3], "options_share_mode_raw", "shareMode")?;
         let options_share_mode = match options_share_mode_raw {
-            1u8 => AudioShareMode::Shared,
-            2u8 => AudioShareMode::Exclusive,
+            1i32 => AudioShareMode::Shared,
+            2i32 => AudioShareMode::Exclusive,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_share_mode",
@@ -741,19 +737,19 @@ fn decode_destack_audio_device_rescan_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(AudioBackend, AudioBackendSelectionPolicy)> {
     let backend_value = arg_value(args, 0, "backend", "AudioBackend")?;
-    let backend_raw = decode_uint8(backend_value, "backend_raw", "AudioBackend")?;
+    let backend_raw = decode_int32(backend_value, "backend_raw", "AudioBackend")?;
     let backend = match backend_raw {
-        0u8 => AudioBackend::Auto,
-        1u8 => AudioBackend::Alsa,
-        2u8 => AudioBackend::PulseAudio,
-        3u8 => AudioBackend::PipeWire,
-        4u8 => AudioBackend::CoreAudio,
-        5u8 => AudioBackend::Wasapi,
-        6u8 => AudioBackend::AAudio,
-        7u8 => AudioBackend::OpenSLES,
-        8u8 => AudioBackend::Jack,
-        9u8 => AudioBackend::Asio,
-        255u8 => AudioBackend::Null,
+        0i32 => AudioBackend::Auto,
+        1i32 => AudioBackend::Alsa,
+        2i32 => AudioBackend::PulseAudio,
+        3i32 => AudioBackend::PipeWire,
+        4i32 => AudioBackend::CoreAudio,
+        5i32 => AudioBackend::Wasapi,
+        6i32 => AudioBackend::AAudio,
+        7i32 => AudioBackend::OpenSLES,
+        8i32 => AudioBackend::Jack,
+        9i32 => AudioBackend::Asio,
+        255i32 => AudioBackend::Null,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "backend",
@@ -763,14 +759,14 @@ fn decode_destack_audio_device_rescan_args(
         }
     };
     let backendpolicy_value = arg_value(args, 1, "backendpolicy", "AudioBackendSelectionPolicy")?;
-    let backendpolicy_raw = decode_uint8(
+    let backendpolicy_raw = decode_int32(
         backendpolicy_value,
         "backendpolicy_raw",
         "AudioBackendSelectionPolicy",
     )?;
     let backendpolicy = match backendpolicy_raw {
-        1u8 => AudioBackendSelectionPolicy::Strict,
-        2u8 => AudioBackendSelectionPolicy::AllowFallback,
+        1i32 => AudioBackendSelectionPolicy::Strict,
+        2i32 => AudioBackendSelectionPolicy::AllowFallback,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "backendpolicy",
@@ -838,19 +834,19 @@ fn decode_destack_audio_event_open_args(
             ))
             .boxed());
         }
-        let options_backend_raw = decode_uint8(slots[0], "options_backend_raw", "backend")?;
+        let options_backend_raw = decode_int32(slots[0], "options_backend_raw", "backend")?;
         let options_backend = match options_backend_raw {
-            0u8 => AudioBackend::Auto,
-            1u8 => AudioBackend::Alsa,
-            2u8 => AudioBackend::PulseAudio,
-            3u8 => AudioBackend::PipeWire,
-            4u8 => AudioBackend::CoreAudio,
-            5u8 => AudioBackend::Wasapi,
-            6u8 => AudioBackend::AAudio,
-            7u8 => AudioBackend::OpenSLES,
-            8u8 => AudioBackend::Jack,
-            9u8 => AudioBackend::Asio,
-            255u8 => AudioBackend::Null,
+            0i32 => AudioBackend::Auto,
+            1i32 => AudioBackend::Alsa,
+            2i32 => AudioBackend::PulseAudio,
+            3i32 => AudioBackend::PipeWire,
+            4i32 => AudioBackend::CoreAudio,
+            5i32 => AudioBackend::Wasapi,
+            6i32 => AudioBackend::AAudio,
+            7i32 => AudioBackend::OpenSLES,
+            8i32 => AudioBackend::Jack,
+            9i32 => AudioBackend::Asio,
+            255i32 => AudioBackend::Null,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_backend",
@@ -860,10 +856,10 @@ fn decode_destack_audio_event_open_args(
             }
         };
         let options_backend_policy_raw =
-            decode_uint8(slots[1], "options_backend_policy_raw", "backendPolicy")?;
+            decode_int32(slots[1], "options_backend_policy_raw", "backendPolicy")?;
         let options_backend_policy = match options_backend_policy_raw {
-            1u8 => AudioBackendSelectionPolicy::Strict,
-            2u8 => AudioBackendSelectionPolicy::AllowFallback,
+            1i32 => AudioBackendSelectionPolicy::Strict,
+            2i32 => AudioBackendSelectionPolicy::AllowFallback,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_backend_policy",
@@ -875,11 +871,11 @@ fn decode_destack_audio_event_open_args(
         let options_flags_inner = decode_uint32(slots[2], "options_flags_inner", "flags")?;
         let options_flags = AudioEventSubscriptionFlags(options_flags_inner);
         let options_delivery_mode_raw =
-            decode_uint8(slots[3], "options_delivery_mode_raw", "deliveryMode")?;
+            decode_int32(slots[3], "options_delivery_mode_raw", "deliveryMode")?;
         let options_delivery_mode = match options_delivery_mode_raw {
-            1u8 => AudioEventDeliveryMode::Auto,
-            2u8 => AudioEventDeliveryMode::NativeOnly,
-            3u8 => AudioEventDeliveryMode::PollOnly,
+            1i32 => AudioEventDeliveryMode::Auto,
+            2i32 => AudioEventDeliveryMode::NativeOnly,
+            3i32 => AudioEventDeliveryMode::PollOnly,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_delivery_mode",
@@ -889,11 +885,11 @@ fn decode_destack_audio_event_open_args(
             }
         };
         let options_overflow_policy_raw =
-            decode_uint8(slots[4], "options_overflow_policy_raw", "overflowPolicy")?;
+            decode_int32(slots[4], "options_overflow_policy_raw", "overflowPolicy")?;
         let options_overflow_policy = match options_overflow_policy_raw {
-            1u8 => AudioEventOverflowPolicy::DropOldest,
-            2u8 => AudioEventOverflowPolicy::DropNewest,
-            3u8 => AudioEventOverflowPolicy::Error,
+            1i32 => AudioEventOverflowPolicy::DropOldest,
+            2i32 => AudioEventOverflowPolicy::DropNewest,
+            3i32 => AudioEventOverflowPolicy::Error,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_overflow_policy",
@@ -959,582 +955,382 @@ fn encode_destack_audio_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         AudioEventVm::AudioBackendDisconnectedEvent(value) => {
             let tag_value = vm::Value::uint(2671385442u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioBackendResetEvent(value) => {
             let tag_value = vm::Value::uint(882086390u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDefaultCaptureChangedEvent(value) => {
             let tag_value = vm::Value::uint(3898931457u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => {
             let tag_value = vm::Value::uint(148848279u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => {
             let tag_value = vm::Value::uint(3146923047u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDeviceAddedEvent(value) => {
             let tag_value = vm::Value::uint(4188441349u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDeviceFormatChangedEvent(value) => {
             let tag_value = vm::Value::uint(3233210258u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDeviceRemovedEvent(value) => {
             let tag_value = vm::Value::uint(4161309046u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDeviceReroutedEvent(value) => {
             let tag_value = vm::Value::uint(3459080735u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioInterruptionBeganEvent(value) => {
             let tag_value = vm::Value::uint(1214582496u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioInterruptionEndedEvent(value) => {
             let tag_value = vm::Value::uint(2799812553u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioStreamDeviceChangedEvent(value) => {
             let tag_value = vm::Value::uint(3694639736u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.status_flags.0 as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                    let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32);
+                    let field_2 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioStreamStateChangedEvent(value) => {
             let tag_value = vm::Value::uint(1303591687u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.status_flags.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioStreamXRunEvent(value) => {
             let tag_value = vm::Value::uint(3186589411u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.status_flags.0 as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.xrun_count_delta, 64));
-                    let field_3: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                    let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32);
+                    let field_2 = vm::Value::uint(value.payload.xrun_count_delta, 64);
+                    let field_3 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -1562,7 +1358,7 @@ fn encode_destack_audio_event_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<AudioEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.audio.event.tryRead.
@@ -1584,582 +1380,382 @@ fn encode_destack_audio_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
+    result.map(|value| match value {
         AudioEventVm::AudioBackendDisconnectedEvent(value) => {
             let tag_value = vm::Value::uint(2671385442u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioBackendResetEvent(value) => {
             let tag_value = vm::Value::uint(882086390u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDefaultCaptureChangedEvent(value) => {
             let tag_value = vm::Value::uint(3898931457u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => {
             let tag_value = vm::Value::uint(148848279u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => {
             let tag_value = vm::Value::uint(3146923047u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDeviceAddedEvent(value) => {
             let tag_value = vm::Value::uint(4188441349u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDeviceFormatChangedEvent(value) => {
             let tag_value = vm::Value::uint(3233210258u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDeviceRemovedEvent(value) => {
             let tag_value = vm::Value::uint(4161309046u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioDeviceReroutedEvent(value) => {
             let tag_value = vm::Value::uint(3459080735u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioInterruptionBeganEvent(value) => {
             let tag_value = vm::Value::uint(1214582496u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioInterruptionEndedEvent(value) => {
             let tag_value = vm::Value::uint(2799812553u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioStreamDeviceChangedEvent(value) => {
             let tag_value = vm::Value::uint(3694639736u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.status_flags.0 as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                    let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32);
+                    let field_2 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioStreamStateChangedEvent(value) => {
             let tag_value = vm::Value::uint(1303591687u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.status_flags.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
         AudioEventVm::AudioStreamXRunEvent(value) => {
             let tag_value = vm::Value::uint(3186589411u64, 32);
             let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.source as u8 as u64, 8));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.backend as u8 as u64, 8));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::int(value.metadata.source as i32 as i64, 32);
+                    let field_4 = vm::Value::int(value.metadata.backend as i32 as i64, 32);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
                 };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
                     };
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.status_flags.0 as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.xrun_count_delta, 64));
-                    let field_3: RuntimeResult<vm::Value> = match value.payload.device_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
+                    let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32);
+                    let field_2 = vm::Value::uint(value.payload.xrun_count_delta, 64);
+                    let field_3 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
         }
     })
 }
@@ -2185,7 +1781,7 @@ fn encode_destack_audio_event_try_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<AudioEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.audio.stream.abort.
@@ -2231,17 +1827,13 @@ fn encode_destack_audio_stream_availability_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioStreamAvailabilityVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.readable_frames, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.writable_frames, 64));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.min_transfer_frames as u64, 32));
-        let field_3: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.max_transfer_frames as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.readable_frames, 64);
+        let field_1 = vm::Value::uint(value.writable_frames, 64);
+        let field_2 = vm::Value::uint(value.min_transfer_frames as u64, 32);
+        let field_3 = vm::Value::uint(value.max_transfer_frames as u64, 32);
+        let field_4 = vm::Value::uint(value.timestamp_ns, 64);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
 }
 
@@ -2288,47 +1880,35 @@ fn encode_destack_audio_stream_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioStreamDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.backend as u8 as u64, 8));
-        let field_1: RuntimeResult<vm::Value> = Ok(value.backend_id.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(value.device_id.value());
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sample_rate as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.channels as u64, 16));
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.channel_layout as u8 as u64, 8));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.channel_mask, 64));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u8 as u64, 8));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.period_frames as u64, 32));
-        let field_9: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.transfer_mode as u8 as u64, 8));
-        let field_10: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.share_mode as u8 as u64, 8));
-        let field_11: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.requested_flags.0 as u64, 32));
-        let field_12: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.requested_requirements.0 as u64, 32));
-        let field_13: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.effective_flags.0 as u64, 32));
-        let field_14: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.effective_requirements.0 as u64, 32));
-        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.period_jitter_ns, 64));
-        let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.non_interleaved));
-        let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_write_at));
-        let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_pause));
-        let field_19: RuntimeResult<vm::Value> =
-            Ok(vm::Value::bool(value.supports_non_interleaved));
-        let field_20: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_volume));
-        let field_21: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_mute));
-        let field_22: RuntimeResult<vm::Value> =
-            Ok(vm::Value::bool(value.supports_hardware_timestamps));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
-                field_22?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.backend as i32 as i64, 32);
+        let field_1 = value.backend_id.value();
+        let field_2 = value.device_id.value();
+        let field_3 = vm::Value::uint(value.sample_rate as u64, 32);
+        let field_4 = vm::Value::uint(value.channels as u64, 16);
+        let field_5 = vm::Value::int(value.channel_layout as i32 as i64, 32);
+        let field_6 = vm::Value::uint(value.channel_mask, 64);
+        let field_7 = vm::Value::int(value.format as i32 as i64, 32);
+        let field_8 = vm::Value::uint(value.period_frames as u64, 32);
+        let field_9 = vm::Value::int(value.transfer_mode as i32 as i64, 32);
+        let field_10 = vm::Value::int(value.share_mode as i32 as i64, 32);
+        let field_11 = vm::Value::uint(value.requested_flags.0 as u64, 32);
+        let field_12 = vm::Value::uint(value.requested_requirements.0 as u64, 32);
+        let field_13 = vm::Value::uint(value.effective_flags.0 as u64, 32);
+        let field_14 = vm::Value::uint(value.effective_requirements.0 as u64, 32);
+        let field_15 = vm::Value::uint(value.period_jitter_ns, 64);
+        let field_16 = vm::Value::bool(value.non_interleaved);
+        let field_17 = vm::Value::bool(value.supports_write_at);
+        let field_18 = vm::Value::bool(value.supports_pause);
+        let field_19 = vm::Value::bool(value.supports_non_interleaved);
+        let field_20 = vm::Value::bool(value.supports_volume);
+        let field_21 = vm::Value::bool(value.supports_mute);
+        let field_22 = vm::Value::bool(value.supports_hardware_timestamps);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+            field_17, field_18, field_19, field_20, field_21, field_22,
+        ])
     })
 }
 
@@ -2417,17 +1997,17 @@ fn decode_destack_audio_stream_open_args(
         let config_sample_rate = decode_uint32(slots[0], "config_sample_rate", "sampleRate")?;
         let config_channels = decode_uint16(slots[1], "config_channels", "channels")?;
         let config_channel_layout_raw =
-            decode_uint8(slots[2], "config_channel_layout_raw", "channelLayout")?;
+            decode_int32(slots[2], "config_channel_layout_raw", "channelLayout")?;
         let config_channel_layout = match config_channel_layout_raw {
-            0u8 => AudioChannelLayout::Unknown,
-            1u8 => AudioChannelLayout::Mono,
-            2u8 => AudioChannelLayout::Stereo,
-            3u8 => AudioChannelLayout::Quad,
-            4u8 => AudioChannelLayout::Surround41,
-            5u8 => AudioChannelLayout::Surround51,
-            6u8 => AudioChannelLayout::Surround61,
-            7u8 => AudioChannelLayout::Surround71,
-            255u8 => AudioChannelLayout::Custom,
+            0i32 => AudioChannelLayout::Unknown,
+            1i32 => AudioChannelLayout::Mono,
+            2i32 => AudioChannelLayout::Stereo,
+            3i32 => AudioChannelLayout::Quad,
+            4i32 => AudioChannelLayout::Surround41,
+            5i32 => AudioChannelLayout::Surround51,
+            6i32 => AudioChannelLayout::Surround61,
+            7i32 => AudioChannelLayout::Surround71,
+            255i32 => AudioChannelLayout::Custom,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_channel_layout",
@@ -2437,14 +2017,14 @@ fn decode_destack_audio_stream_open_args(
             }
         };
         let config_channel_mask = decode_uint64(slots[3], "config_channel_mask", "channelMask")?;
-        let config_format_raw = decode_uint8(slots[4], "config_format_raw", "format")?;
+        let config_format_raw = decode_int32(slots[4], "config_format_raw", "format")?;
         let config_format = match config_format_raw {
-            1u8 => AudioSampleFormat::U8,
-            2u8 => AudioSampleFormat::S16,
-            3u8 => AudioSampleFormat::S24,
-            4u8 => AudioSampleFormat::S32,
-            5u8 => AudioSampleFormat::F32,
-            6u8 => AudioSampleFormat::F64,
+            1i32 => AudioSampleFormat::U8,
+            2i32 => AudioSampleFormat::S16,
+            3i32 => AudioSampleFormat::S24,
+            4i32 => AudioSampleFormat::S32,
+            5i32 => AudioSampleFormat::F32,
+            6i32 => AudioSampleFormat::F64,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_format",
@@ -2455,9 +2035,9 @@ fn decode_destack_audio_stream_open_args(
         };
         let config_period_frames = decode_uint32(slots[5], "config_period_frames", "periodFrames")?;
         let config_transfer_mode_raw =
-            decode_uint8(slots[6], "config_transfer_mode_raw", "transferMode")?;
+            decode_int32(slots[6], "config_transfer_mode_raw", "transferMode")?;
         let config_transfer_mode = match config_transfer_mode_raw {
-            1u8 => AudioStreamTransferMode::Push,
+            1i32 => AudioStreamTransferMode::Push,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_transfer_mode",
@@ -2564,7 +2144,7 @@ fn encode_destack_audio_stream_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.audio.stream.readv.
@@ -2711,32 +2291,25 @@ fn encode_destack_audio_stream_state_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioStreamStateVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.state as u8 as u64, 8));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.running));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.paused));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.buffered_frames, 64));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.input_latency_ns, 64));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.output_latency_ns, 64));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.total_latency_ns, 64));
-        let field_7: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.status_flags.0 as u64, 32));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.xrun_count, 64));
-        let field_9: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.input_underflow_count, 64));
-        let field_10: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.input_overflow_count, 64));
-        let field_11: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.output_underflow_count, 64));
-        let field_12: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.output_overflow_count, 64));
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.callback_cpu_load));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.state as i32 as i64, 32);
+        let field_1 = vm::Value::bool(value.running);
+        let field_2 = vm::Value::bool(value.paused);
+        let field_3 = vm::Value::uint(value.buffered_frames, 64);
+        let field_4 = vm::Value::uint(value.input_latency_ns, 64);
+        let field_5 = vm::Value::uint(value.output_latency_ns, 64);
+        let field_6 = vm::Value::uint(value.total_latency_ns, 64);
+        let field_7 = vm::Value::uint(value.status_flags.0 as u64, 32);
+        let field_8 = vm::Value::uint(value.xrun_count, 64);
+        let field_9 = vm::Value::uint(value.input_underflow_count, 64);
+        let field_10 = vm::Value::uint(value.input_overflow_count, 64);
+        let field_11 = vm::Value::uint(value.output_underflow_count, 64);
+        let field_12 = vm::Value::uint(value.output_overflow_count, 64);
+        let field_13 = vm::Value::float64(value.callback_cpu_load);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13,
+        ])
     })
 }
 
@@ -2800,17 +2373,17 @@ fn decode_destack_audio_stream_support_args(
         let config_sample_rate = decode_uint32(slots[0], "config_sample_rate", "sampleRate")?;
         let config_channels = decode_uint16(slots[1], "config_channels", "channels")?;
         let config_channel_layout_raw =
-            decode_uint8(slots[2], "config_channel_layout_raw", "channelLayout")?;
+            decode_int32(slots[2], "config_channel_layout_raw", "channelLayout")?;
         let config_channel_layout = match config_channel_layout_raw {
-            0u8 => AudioChannelLayout::Unknown,
-            1u8 => AudioChannelLayout::Mono,
-            2u8 => AudioChannelLayout::Stereo,
-            3u8 => AudioChannelLayout::Quad,
-            4u8 => AudioChannelLayout::Surround41,
-            5u8 => AudioChannelLayout::Surround51,
-            6u8 => AudioChannelLayout::Surround61,
-            7u8 => AudioChannelLayout::Surround71,
-            255u8 => AudioChannelLayout::Custom,
+            0i32 => AudioChannelLayout::Unknown,
+            1i32 => AudioChannelLayout::Mono,
+            2i32 => AudioChannelLayout::Stereo,
+            3i32 => AudioChannelLayout::Quad,
+            4i32 => AudioChannelLayout::Surround41,
+            5i32 => AudioChannelLayout::Surround51,
+            6i32 => AudioChannelLayout::Surround61,
+            7i32 => AudioChannelLayout::Surround71,
+            255i32 => AudioChannelLayout::Custom,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_channel_layout",
@@ -2820,14 +2393,14 @@ fn decode_destack_audio_stream_support_args(
             }
         };
         let config_channel_mask = decode_uint64(slots[3], "config_channel_mask", "channelMask")?;
-        let config_format_raw = decode_uint8(slots[4], "config_format_raw", "format")?;
+        let config_format_raw = decode_int32(slots[4], "config_format_raw", "format")?;
         let config_format = match config_format_raw {
-            1u8 => AudioSampleFormat::U8,
-            2u8 => AudioSampleFormat::S16,
-            3u8 => AudioSampleFormat::S24,
-            4u8 => AudioSampleFormat::S32,
-            5u8 => AudioSampleFormat::F32,
-            6u8 => AudioSampleFormat::F64,
+            1i32 => AudioSampleFormat::U8,
+            2i32 => AudioSampleFormat::S16,
+            3i32 => AudioSampleFormat::S24,
+            4i32 => AudioSampleFormat::S32,
+            5i32 => AudioSampleFormat::F32,
+            6i32 => AudioSampleFormat::F64,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_format",
@@ -2838,9 +2411,9 @@ fn decode_destack_audio_stream_support_args(
         };
         let config_period_frames = decode_uint32(slots[5], "config_period_frames", "periodFrames")?;
         let config_transfer_mode_raw =
-            decode_uint8(slots[6], "config_transfer_mode_raw", "transferMode")?;
+            decode_int32(slots[6], "config_transfer_mode_raw", "transferMode")?;
         let config_transfer_mode = match config_transfer_mode_raw {
-            1u8 => AudioStreamTransferMode::Push,
+            1i32 => AudioStreamTransferMode::Push,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "config_transfer_mode",
@@ -2897,82 +2470,41 @@ fn encode_destack_audio_stream_support_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioStreamSupportVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supported));
-        let field_1: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.descriptor.backend as u8 as u64, 8));
-            let field_1: RuntimeResult<vm::Value> = Ok(value.descriptor.backend_id.value());
-            let field_2: RuntimeResult<vm::Value> = Ok(value.descriptor.device_id.value());
-            let field_3: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.descriptor.sample_rate as u64, 32));
-            let field_4: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.descriptor.channels as u64, 16));
-            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.descriptor.channel_layout as u8 as u64,
-                8,
-            ));
-            let field_6: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.descriptor.channel_mask, 64));
-            let field_7: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.descriptor.format as u8 as u64, 8));
-            let field_8: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.descriptor.period_frames as u64, 32));
-            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.descriptor.transfer_mode as u8 as u64,
-                8,
-            ));
-            let field_10: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.descriptor.share_mode as u8 as u64, 8));
-            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.descriptor.requested_flags.0 as u64,
-                32,
-            ));
-            let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.descriptor.requested_requirements.0 as u64,
-                32,
-            ));
-            let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.descriptor.effective_flags.0 as u64,
-                32,
-            ));
-            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                value.descriptor.effective_requirements.0 as u64,
-                32,
-            ));
-            let field_15: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.descriptor.period_jitter_ns, 64));
-            let field_16: RuntimeResult<vm::Value> =
-                Ok(vm::Value::bool(value.descriptor.non_interleaved));
-            let field_17: RuntimeResult<vm::Value> =
-                Ok(vm::Value::bool(value.descriptor.supports_write_at));
-            let field_18: RuntimeResult<vm::Value> =
-                Ok(vm::Value::bool(value.descriptor.supports_pause));
-            let field_19: RuntimeResult<vm::Value> =
-                Ok(vm::Value::bool(value.descriptor.supports_non_interleaved));
-            let field_20: RuntimeResult<vm::Value> =
-                Ok(vm::Value::bool(value.descriptor.supports_volume));
-            let field_21: RuntimeResult<vm::Value> =
-                Ok(vm::Value::bool(value.descriptor.supports_mute));
-            let field_22: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
-                value.descriptor.supports_hardware_timestamps,
-            ));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                    field_15?, field_16?, field_17?, field_18?, field_19?, field_20?, field_21?,
-                    field_22?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::bool(value.supported);
+        let field_1 = {
+            let field_0 = vm::Value::int(value.descriptor.backend as i32 as i64, 32);
+            let field_1 = value.descriptor.backend_id.value();
+            let field_2 = value.descriptor.device_id.value();
+            let field_3 = vm::Value::uint(value.descriptor.sample_rate as u64, 32);
+            let field_4 = vm::Value::uint(value.descriptor.channels as u64, 16);
+            let field_5 = vm::Value::int(value.descriptor.channel_layout as i32 as i64, 32);
+            let field_6 = vm::Value::uint(value.descriptor.channel_mask, 64);
+            let field_7 = vm::Value::int(value.descriptor.format as i32 as i64, 32);
+            let field_8 = vm::Value::uint(value.descriptor.period_frames as u64, 32);
+            let field_9 = vm::Value::int(value.descriptor.transfer_mode as i32 as i64, 32);
+            let field_10 = vm::Value::int(value.descriptor.share_mode as i32 as i64, 32);
+            let field_11 = vm::Value::uint(value.descriptor.requested_flags.0 as u64, 32);
+            let field_12 = vm::Value::uint(value.descriptor.requested_requirements.0 as u64, 32);
+            let field_13 = vm::Value::uint(value.descriptor.effective_flags.0 as u64, 32);
+            let field_14 = vm::Value::uint(value.descriptor.effective_requirements.0 as u64, 32);
+            let field_15 = vm::Value::uint(value.descriptor.period_jitter_ns, 64);
+            let field_16 = vm::Value::bool(value.descriptor.non_interleaved);
+            let field_17 = vm::Value::bool(value.descriptor.supports_write_at);
+            let field_18 = vm::Value::bool(value.descriptor.supports_pause);
+            let field_19 = vm::Value::bool(value.descriptor.supports_non_interleaved);
+            let field_20 = vm::Value::bool(value.descriptor.supports_volume);
+            let field_21 = vm::Value::bool(value.descriptor.supports_mute);
+            let field_22 = vm::Value::bool(value.descriptor.supports_hardware_timestamps);
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+                field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+                field_17, field_18, field_19, field_20, field_21, field_22,
+            ])
         };
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.satisfied_requirements.0 as u64, 32));
-        let field_3: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.unsatisfied_requirements.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+        let field_2 = vm::Value::uint(value.satisfied_requirements.0 as u64, 32);
+        let field_3 = vm::Value::uint(value.unsatisfied_requirements.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -2996,34 +2528,31 @@ fn encode_destack_audio_stream_timing_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioStreamTimingVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.stream_frames, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.stream_time_ns, 64));
-        let field_2: RuntimeResult<vm::Value> = match value.input_adc_time_ns {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.stream_frames, 64);
+        let field_1 = vm::Value::uint(value.stream_time_ns, 64);
+        let field_2 = match value.input_adc_time_ns {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = match value.output_dac_time_ns {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+        let field_3 = match value.output_dac_time_ns {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        let field_4: RuntimeResult<vm::Value> = match value.callback_time_ns {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+        let field_4 = match value.callback_time_ns {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        let field_5: RuntimeResult<vm::Value> = match value.device_clock_ns {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+        let field_5 = match value.device_clock_ns {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.monotonic_clock_ns, 64));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.drift_ppm));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.callback_cpu_load));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        let field_6 = vm::Value::uint(value.monotonic_clock_ns, 64);
+        let field_7 = vm::Value::float64(value.drift_ppm);
+        let field_8 = vm::Value::float64(value.callback_cpu_load);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+        ])
     })
 }
 
@@ -3049,7 +2578,7 @@ fn encode_destack_audio_stream_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.audio.stream.tryReadv.
@@ -12088,19 +11617,19 @@ fn destack_audio_backend_list_vm_replay(
                             .boxed());
                         }
                         let result_recorded_item_backend_raw =
-                            decode_uint8(slots[0], "result_recorded_item_backend_raw", "backend")?;
+                            decode_int32(slots[0], "result_recorded_item_backend_raw", "backend")?;
                         let result_recorded_item_backend = match result_recorded_item_backend_raw {
-                            0u8 => AudioBackend::Auto,
-                            1u8 => AudioBackend::Alsa,
-                            2u8 => AudioBackend::PulseAudio,
-                            3u8 => AudioBackend::PipeWire,
-                            4u8 => AudioBackend::CoreAudio,
-                            5u8 => AudioBackend::Wasapi,
-                            6u8 => AudioBackend::AAudio,
-                            7u8 => AudioBackend::OpenSLES,
-                            8u8 => AudioBackend::Jack,
-                            9u8 => AudioBackend::Asio,
-                            255u8 => AudioBackend::Null,
+                            0i32 => AudioBackend::Auto,
+                            1i32 => AudioBackend::Alsa,
+                            2i32 => AudioBackend::PulseAudio,
+                            3i32 => AudioBackend::PipeWire,
+                            4i32 => AudioBackend::CoreAudio,
+                            5i32 => AudioBackend::Wasapi,
+                            6i32 => AudioBackend::AAudio,
+                            7i32 => AudioBackend::OpenSLES,
+                            8i32 => AudioBackend::Jack,
+                            9i32 => AudioBackend::Asio,
+                            255i32 => AudioBackend::Null,
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
@@ -12114,12 +11643,12 @@ fn destack_audio_backend_list_vm_replay(
                         let result_recorded_item_name =
                             decode_string(slots[1], "result_recorded_item_name", "name")?;
                         let result_recorded_item_support_raw =
-                            decode_uint8(slots[2], "result_recorded_item_support_raw", "support")?;
+                            decode_int32(slots[2], "result_recorded_item_support_raw", "support")?;
                         let result_recorded_item_support = match result_recorded_item_support_raw {
-                            0u8 => core::BackendSupport::Available,
-                            1u8 => core::BackendSupport::UnsupportedTarget,
-                            2u8 => core::BackendSupport::DisabledByBuild,
-                            3u8 => core::BackendSupport::HostUnavailable,
+                            0i32 => core::BackendSupport::Available,
+                            1i32 => core::BackendSupport::UnsupportedTarget,
+                            2i32 => core::BackendSupport::DisabledByBuild,
+                            3i32 => core::BackendSupport::HostUnavailable,
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
@@ -12281,9 +11810,10 @@ fn destack_audio_backend_list_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value_backend = vm_result_item.backend;
-                        let vm_result_item_value_name = context
-                            .string_handle(vm_result_item.name.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_name_value =
+                            context.intern_string(vm_result_item.name.as_str());
+                        let vm_result_item_value_name =
+                            vm::StringHandle::new(vm_result_item_value_name_value);
                         let vm_result_item_value_support = vm_result_item.support;
                         let vm_result_item_value_priority = vm_result_item.priority;
                         let vm_result_item_value_capability_flags = vm_result_item.capability_flags;
@@ -12642,9 +12172,8 @@ fn destack_audio_device_default_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = context
-                        .string_handle(value.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_value = context.intern_string(value.as_str());
+                    let vm_result = vm::StringHandle::new(vm_result_value);
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -12787,18 +12316,14 @@ fn destack_audio_device_descriptor_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_id = context
-                        .string_handle(value.id.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_group_id = context
-                        .string_handle(value.group_id.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_name = context
-                        .string_handle(value.name.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_transport = context
-                        .string_handle(value.transport.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_id_value = context.intern_string(value.id.as_str());
+                    let vm_result_id = vm::StringHandle::new(vm_result_id_value);
+                    let vm_result_group_id_value = context.intern_string(value.group_id.as_str());
+                    let vm_result_group_id = vm::StringHandle::new(vm_result_group_id_value);
+                    let vm_result_name_value = context.intern_string(value.name.as_str());
+                    let vm_result_name = vm::StringHandle::new(vm_result_name_value);
+                    let vm_result_transport_value = context.intern_string(value.transport.as_str());
+                    let vm_result_transport = vm::StringHandle::new(vm_result_transport_value);
                     let vm_result_backend = value.backend;
                     let vm_result_direction = value.direction;
                     let vm_result_connected = value.connected;
@@ -12923,19 +12448,19 @@ fn destack_audio_device_list_vm_replay(
                         let result_recorded_item_transport =
                             decode_string(slots[3], "result_recorded_item_transport", "transport")?;
                         let result_recorded_item_backend_raw =
-                            decode_uint8(slots[4], "result_recorded_item_backend_raw", "backend")?;
+                            decode_int32(slots[4], "result_recorded_item_backend_raw", "backend")?;
                         let result_recorded_item_backend = match result_recorded_item_backend_raw {
-                            0u8 => AudioBackend::Auto,
-                            1u8 => AudioBackend::Alsa,
-                            2u8 => AudioBackend::PulseAudio,
-                            3u8 => AudioBackend::PipeWire,
-                            4u8 => AudioBackend::CoreAudio,
-                            5u8 => AudioBackend::Wasapi,
-                            6u8 => AudioBackend::AAudio,
-                            7u8 => AudioBackend::OpenSLES,
-                            8u8 => AudioBackend::Jack,
-                            9u8 => AudioBackend::Asio,
-                            255u8 => AudioBackend::Null,
+                            0i32 => AudioBackend::Auto,
+                            1i32 => AudioBackend::Alsa,
+                            2i32 => AudioBackend::PulseAudio,
+                            3i32 => AudioBackend::PipeWire,
+                            4i32 => AudioBackend::CoreAudio,
+                            5i32 => AudioBackend::Wasapi,
+                            6i32 => AudioBackend::AAudio,
+                            7i32 => AudioBackend::OpenSLES,
+                            8i32 => AudioBackend::Jack,
+                            9i32 => AudioBackend::Asio,
+                            255i32 => AudioBackend::Null,
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
@@ -12946,17 +12471,17 @@ fn destack_audio_device_list_vm_replay(
                                 .boxed());
                             }
                         };
-                        let result_recorded_item_direction_raw = decode_uint8(
+                        let result_recorded_item_direction_raw = decode_int32(
                             slots[5],
                             "result_recorded_item_direction_raw",
                             "direction",
                         )?;
                         let result_recorded_item_direction =
                             match result_recorded_item_direction_raw {
-                                1u8 => AudioDeviceDirection::Playback,
-                                2u8 => AudioDeviceDirection::Capture,
-                                3u8 => AudioDeviceDirection::Duplex,
-                                4u8 => AudioDeviceDirection::Loopback,
+                                1i32 => AudioDeviceDirection::Playback,
+                                2i32 => AudioDeviceDirection::Capture,
+                                3i32 => AudioDeviceDirection::Duplex,
+                                4i32 => AudioDeviceDirection::Loopback,
                                 _ => {
                                     return Err(RuntimeError::from(
                                         PlatformError::invalid_argument_value(
@@ -13069,22 +12594,22 @@ fn destack_audio_device_list_vm_replay(
                             "result_recorded_item_max_channels",
                             "maxChannels",
                         )?;
-                        let result_recorded_item_preferred_layout_raw = decode_uint8(
+                        let result_recorded_item_preferred_layout_raw = decode_int32(
                             slots[23],
                             "result_recorded_item_preferred_layout_raw",
                             "preferredLayout",
                         )?;
                         let result_recorded_item_preferred_layout =
                             match result_recorded_item_preferred_layout_raw {
-                                0u8 => AudioChannelLayout::Unknown,
-                                1u8 => AudioChannelLayout::Mono,
-                                2u8 => AudioChannelLayout::Stereo,
-                                3u8 => AudioChannelLayout::Quad,
-                                4u8 => AudioChannelLayout::Surround41,
-                                5u8 => AudioChannelLayout::Surround51,
-                                6u8 => AudioChannelLayout::Surround61,
-                                7u8 => AudioChannelLayout::Surround71,
-                                255u8 => AudioChannelLayout::Custom,
+                                0i32 => AudioChannelLayout::Unknown,
+                                1i32 => AudioChannelLayout::Mono,
+                                2i32 => AudioChannelLayout::Stereo,
+                                3i32 => AudioChannelLayout::Quad,
+                                4i32 => AudioChannelLayout::Surround41,
+                                5i32 => AudioChannelLayout::Surround51,
+                                6i32 => AudioChannelLayout::Surround61,
+                                7i32 => AudioChannelLayout::Surround71,
+                                255i32 => AudioChannelLayout::Custom,
                                 _ => {
                                     return Err(RuntimeError::from(
                                         PlatformError::invalid_argument_value(
@@ -13303,18 +12828,22 @@ fn destack_audio_device_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_id = context
-                            .string_handle(vm_result_item.id.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_group_id = context
-                            .string_handle(vm_result_item.group_id.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_name = context
-                            .string_handle(vm_result_item.name.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_transport = context
-                            .string_handle(vm_result_item.transport.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_id_value =
+                            context.intern_string(vm_result_item.id.as_str());
+                        let vm_result_item_value_id =
+                            vm::StringHandle::new(vm_result_item_value_id_value);
+                        let vm_result_item_value_group_id_value =
+                            context.intern_string(vm_result_item.group_id.as_str());
+                        let vm_result_item_value_group_id =
+                            vm::StringHandle::new(vm_result_item_value_group_id_value);
+                        let vm_result_item_value_name_value =
+                            context.intern_string(vm_result_item.name.as_str());
+                        let vm_result_item_value_name =
+                            vm::StringHandle::new(vm_result_item_value_name_value);
+                        let vm_result_item_value_transport_value =
+                            context.intern_string(vm_result_item.transport.as_str());
+                        let vm_result_item_value_transport =
+                            vm::StringHandle::new(vm_result_item_value_transport_value);
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_direction = vm_result_item.direction;
                         let vm_result_item_value_connected = vm_result_item.connected;
@@ -14209,7 +13738,8 @@ fn destack_audio_event_read_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
-                            let vm_result_audio_backend_disconnected_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_backend_disconnected_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_backend_disconnected_event_kind = vm::StringHandle::new(vm_result_audio_backend_disconnected_event_kind_value);
                             let vm_result_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14241,7 +13771,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioBackendDisconnectedEvent(vm_result_audio_backend_disconnected_event)
                         }
                         AudioeventReplayRecord::AudioBackendResetEvent(value) => {
-                            let vm_result_audio_backend_reset_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_backend_reset_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_backend_reset_event_kind = vm::StringHandle::new(vm_result_audio_backend_reset_event_kind_value);
                             let vm_result_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14273,7 +13804,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioBackendResetEvent(vm_result_audio_backend_reset_event)
                         }
                         AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
-                            let vm_result_audio_default_capture_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_default_capture_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_default_capture_changed_event_kind = vm::StringHandle::new(vm_result_audio_default_capture_changed_event_kind_value);
                             let vm_result_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14289,7 +13821,8 @@ fn destack_audio_event_read_vm_replay(
                                 flags: vm_result_audio_default_capture_changed_event_metadata_flags,
                             };
                             let vm_result_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_default_capture_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_default_capture_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_default_capture_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_default_capture_changed_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_default_capture_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -14305,7 +13838,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioDefaultCaptureChangedEvent(vm_result_audio_default_capture_changed_event)
                         }
                         AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
-                            let vm_result_audio_default_loopback_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_default_loopback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_default_loopback_changed_event_kind = vm::StringHandle::new(vm_result_audio_default_loopback_changed_event_kind_value);
                             let vm_result_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14321,7 +13855,8 @@ fn destack_audio_event_read_vm_replay(
                                 flags: vm_result_audio_default_loopback_changed_event_metadata_flags,
                             };
                             let vm_result_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_default_loopback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_default_loopback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_default_loopback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_default_loopback_changed_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_default_loopback_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -14337,7 +13872,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioDefaultLoopbackChangedEvent(vm_result_audio_default_loopback_changed_event)
                         }
                         AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
-                            let vm_result_audio_default_playback_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_default_playback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_default_playback_changed_event_kind = vm::StringHandle::new(vm_result_audio_default_playback_changed_event_kind_value);
                             let vm_result_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14353,7 +13889,8 @@ fn destack_audio_event_read_vm_replay(
                                 flags: vm_result_audio_default_playback_changed_event_metadata_flags,
                             };
                             let vm_result_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_default_playback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_default_playback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_default_playback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_default_playback_changed_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_default_playback_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -14369,7 +13906,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioDefaultPlaybackChangedEvent(vm_result_audio_default_playback_changed_event)
                         }
                         AudioeventReplayRecord::AudioDeviceAddedEvent(value) => {
-                            let vm_result_audio_device_added_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_device_added_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_added_event_kind = vm::StringHandle::new(vm_result_audio_device_added_event_kind_value);
                             let vm_result_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_device_added_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14385,7 +13923,8 @@ fn destack_audio_event_read_vm_replay(
                                 flags: vm_result_audio_device_added_event_metadata_flags,
                             };
                             let vm_result_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_added_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_device_added_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_added_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_added_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_device_added_event_payload_device_id_inner)
                             } else {
                                 None
@@ -14401,7 +13940,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioDeviceAddedEvent(vm_result_audio_device_added_event)
                         }
                         AudioeventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
-                            let vm_result_audio_device_format_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_device_format_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_format_changed_event_kind = vm::StringHandle::new(vm_result_audio_device_format_changed_event_kind_value);
                             let vm_result_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14417,7 +13957,8 @@ fn destack_audio_event_read_vm_replay(
                                 flags: vm_result_audio_device_format_changed_event_metadata_flags,
                             };
                             let vm_result_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_format_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_device_format_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_format_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_format_changed_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_device_format_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -14433,7 +13974,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioDeviceFormatChangedEvent(vm_result_audio_device_format_changed_event)
                         }
                         AudioeventReplayRecord::AudioDeviceRemovedEvent(value) => {
-                            let vm_result_audio_device_removed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_device_removed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_removed_event_kind = vm::StringHandle::new(vm_result_audio_device_removed_event_kind_value);
                             let vm_result_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14449,7 +13991,8 @@ fn destack_audio_event_read_vm_replay(
                                 flags: vm_result_audio_device_removed_event_metadata_flags,
                             };
                             let vm_result_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_removed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_device_removed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_removed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_removed_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_device_removed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -14465,7 +14008,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioDeviceRemovedEvent(vm_result_audio_device_removed_event)
                         }
                         AudioeventReplayRecord::AudioDeviceReroutedEvent(value) => {
-                            let vm_result_audio_device_rerouted_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_device_rerouted_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_rerouted_event_kind = vm::StringHandle::new(vm_result_audio_device_rerouted_event_kind_value);
                             let vm_result_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14481,7 +14025,8 @@ fn destack_audio_event_read_vm_replay(
                                 flags: vm_result_audio_device_rerouted_event_metadata_flags,
                             };
                             let vm_result_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_rerouted_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_device_rerouted_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_rerouted_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_rerouted_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_device_rerouted_event_payload_device_id_inner)
                             } else {
                                 None
@@ -14497,7 +14042,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioDeviceReroutedEvent(vm_result_audio_device_rerouted_event)
                         }
                         AudioeventReplayRecord::AudioInterruptionBeganEvent(value) => {
-                            let vm_result_audio_interruption_began_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_interruption_began_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_interruption_began_event_kind = vm::StringHandle::new(vm_result_audio_interruption_began_event_kind_value);
                             let vm_result_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14529,7 +14075,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioInterruptionBeganEvent(vm_result_audio_interruption_began_event)
                         }
                         AudioeventReplayRecord::AudioInterruptionEndedEvent(value) => {
-                            let vm_result_audio_interruption_ended_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_interruption_ended_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_interruption_ended_event_kind = vm::StringHandle::new(vm_result_audio_interruption_ended_event_kind_value);
                             let vm_result_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14561,7 +14108,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioInterruptionEndedEvent(vm_result_audio_interruption_ended_event)
                         }
                         AudioeventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
-                            let vm_result_audio_stream_device_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_stream_device_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_stream_device_changed_event_kind = vm::StringHandle::new(vm_result_audio_stream_device_changed_event_kind_value);
                             let vm_result_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14584,7 +14132,8 @@ fn destack_audio_event_read_vm_replay(
                             };
                             let vm_result_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
                             let vm_result_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_stream_device_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_stream_device_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_stream_device_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_stream_device_changed_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_stream_device_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -14602,7 +14151,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioStreamDeviceChangedEvent(vm_result_audio_stream_device_changed_event)
                         }
                         AudioeventReplayRecord::AudioStreamStateChangedEvent(value) => {
-                            let vm_result_audio_stream_state_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_stream_state_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_stream_state_changed_event_kind = vm::StringHandle::new(vm_result_audio_stream_state_changed_event_kind_value);
                             let vm_result_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14636,7 +14186,8 @@ fn destack_audio_event_read_vm_replay(
                             AudioEventVm::AudioStreamStateChangedEvent(vm_result_audio_stream_state_changed_event)
                         }
                         AudioeventReplayRecord::AudioStreamXRunEvent(value) => {
-                            let vm_result_audio_stream_x_run_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_stream_x_run_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_stream_x_run_event_kind = vm::StringHandle::new(vm_result_audio_stream_x_run_event_kind_value);
                             let vm_result_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -14660,7 +14211,8 @@ fn destack_audio_event_read_vm_replay(
                             let vm_result_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
                             let vm_result_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
                             let vm_result_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_stream_x_run_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_stream_x_run_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_stream_x_run_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_stream_x_run_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_stream_x_run_event_payload_device_id_inner)
                             } else {
                                 None
@@ -15286,7 +14838,8 @@ fn destack_audio_event_read_batch_vm_replay(
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value = match vm_result_item {
                             AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
-                                let vm_result_item_value_audio_backend_disconnected_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_backend_disconnected_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_backend_disconnected_event_kind = vm::StringHandle::new(vm_result_item_value_audio_backend_disconnected_event_kind_value);
                                 let vm_result_item_value_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15318,7 +14871,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioBackendDisconnectedEvent(vm_result_item_value_audio_backend_disconnected_event)
                             }
                             AudioeventReplayRecord::AudioBackendResetEvent(value) => {
-                                let vm_result_item_value_audio_backend_reset_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_backend_reset_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_backend_reset_event_kind = vm::StringHandle::new(vm_result_item_value_audio_backend_reset_event_kind_value);
                                 let vm_result_item_value_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15350,7 +14904,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioBackendResetEvent(vm_result_item_value_audio_backend_reset_event)
                             }
                             AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
-                                let vm_result_item_value_audio_default_capture_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_default_capture_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_default_capture_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_default_capture_changed_event_kind_value);
                                 let vm_result_item_value_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15366,7 +14921,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_default_capture_changed_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -15382,7 +14938,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioDefaultCaptureChangedEvent(vm_result_item_value_audio_default_capture_changed_event)
                             }
                             AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
-                                let vm_result_item_value_audio_default_loopback_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_default_loopback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_default_loopback_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_default_loopback_changed_event_kind_value);
                                 let vm_result_item_value_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15398,7 +14955,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_default_loopback_changed_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -15414,7 +14972,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioDefaultLoopbackChangedEvent(vm_result_item_value_audio_default_loopback_changed_event)
                             }
                             AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
-                                let vm_result_item_value_audio_default_playback_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_default_playback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_default_playback_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_default_playback_changed_event_kind_value);
                                 let vm_result_item_value_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15430,7 +14989,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_default_playback_changed_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -15446,7 +15006,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioDefaultPlaybackChangedEvent(vm_result_item_value_audio_default_playback_changed_event)
                             }
                             AudioeventReplayRecord::AudioDeviceAddedEvent(value) => {
-                                let vm_result_item_value_audio_device_added_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_device_added_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_added_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_added_event_kind_value);
                                 let vm_result_item_value_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_device_added_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15462,7 +15023,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_device_added_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_added_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_device_added_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_added_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_added_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_device_added_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -15478,7 +15040,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioDeviceAddedEvent(vm_result_item_value_audio_device_added_event)
                             }
                             AudioeventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
-                                let vm_result_item_value_audio_device_format_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_device_format_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_format_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_format_changed_event_kind_value);
                                 let vm_result_item_value_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15494,7 +15057,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_device_format_changed_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -15510,7 +15074,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioDeviceFormatChangedEvent(vm_result_item_value_audio_device_format_changed_event)
                             }
                             AudioeventReplayRecord::AudioDeviceRemovedEvent(value) => {
-                                let vm_result_item_value_audio_device_removed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_device_removed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_removed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_removed_event_kind_value);
                                 let vm_result_item_value_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15526,7 +15091,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_device_removed_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_removed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_device_removed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_removed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_removed_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_device_removed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -15542,7 +15108,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioDeviceRemovedEvent(vm_result_item_value_audio_device_removed_event)
                             }
                             AudioeventReplayRecord::AudioDeviceReroutedEvent(value) => {
-                                let vm_result_item_value_audio_device_rerouted_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_device_rerouted_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_rerouted_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_rerouted_event_kind_value);
                                 let vm_result_item_value_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15558,7 +15125,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_device_rerouted_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -15574,7 +15142,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioDeviceReroutedEvent(vm_result_item_value_audio_device_rerouted_event)
                             }
                             AudioeventReplayRecord::AudioInterruptionBeganEvent(value) => {
-                                let vm_result_item_value_audio_interruption_began_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_interruption_began_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_interruption_began_event_kind = vm::StringHandle::new(vm_result_item_value_audio_interruption_began_event_kind_value);
                                 let vm_result_item_value_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15606,7 +15175,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioInterruptionBeganEvent(vm_result_item_value_audio_interruption_began_event)
                             }
                             AudioeventReplayRecord::AudioInterruptionEndedEvent(value) => {
-                                let vm_result_item_value_audio_interruption_ended_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_interruption_ended_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_interruption_ended_event_kind = vm::StringHandle::new(vm_result_item_value_audio_interruption_ended_event_kind_value);
                                 let vm_result_item_value_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15638,7 +15208,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioInterruptionEndedEvent(vm_result_item_value_audio_interruption_ended_event)
                             }
                             AudioeventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
-                                let vm_result_item_value_audio_stream_device_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_stream_device_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_stream_device_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_stream_device_changed_event_kind_value);
                                 let vm_result_item_value_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15661,7 +15232,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 };
                                 let vm_result_item_value_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
                                 let vm_result_item_value_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -15679,7 +15251,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioStreamDeviceChangedEvent(vm_result_item_value_audio_stream_device_changed_event)
                             }
                             AudioeventReplayRecord::AudioStreamStateChangedEvent(value) => {
-                                let vm_result_item_value_audio_stream_state_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_stream_state_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_stream_state_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_stream_state_changed_event_kind_value);
                                 let vm_result_item_value_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15713,7 +15286,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 AudioEventVm::AudioStreamStateChangedEvent(vm_result_item_value_audio_stream_state_changed_event)
                             }
                             AudioeventReplayRecord::AudioStreamXRunEvent(value) => {
-                                let vm_result_item_value_audio_stream_x_run_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_stream_x_run_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_stream_x_run_event_kind = vm::StringHandle::new(vm_result_item_value_audio_stream_x_run_event_kind_value);
                                 let vm_result_item_value_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -15737,7 +15311,8 @@ fn destack_audio_event_read_batch_vm_replay(
                                 let vm_result_item_value_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
                                 let vm_result_item_value_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
                                 let vm_result_item_value_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -16356,7 +15931,8 @@ fn destack_audio_event_try_read_vm_replay(
                 Ok(value) => {
                     let vm_result = match value {
                         AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
-                            let vm_result_audio_backend_disconnected_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_backend_disconnected_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_backend_disconnected_event_kind = vm::StringHandle::new(vm_result_audio_backend_disconnected_event_kind_value);
                             let vm_result_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16388,7 +15964,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioBackendDisconnectedEvent(vm_result_audio_backend_disconnected_event)
                         }
                         AudioeventReplayRecord::AudioBackendResetEvent(value) => {
-                            let vm_result_audio_backend_reset_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_backend_reset_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_backend_reset_event_kind = vm::StringHandle::new(vm_result_audio_backend_reset_event_kind_value);
                             let vm_result_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16420,7 +15997,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioBackendResetEvent(vm_result_audio_backend_reset_event)
                         }
                         AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
-                            let vm_result_audio_default_capture_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_default_capture_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_default_capture_changed_event_kind = vm::StringHandle::new(vm_result_audio_default_capture_changed_event_kind_value);
                             let vm_result_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16436,7 +16014,8 @@ fn destack_audio_event_try_read_vm_replay(
                                 flags: vm_result_audio_default_capture_changed_event_metadata_flags,
                             };
                             let vm_result_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_default_capture_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_default_capture_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_default_capture_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_default_capture_changed_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_default_capture_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -16452,7 +16031,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioDefaultCaptureChangedEvent(vm_result_audio_default_capture_changed_event)
                         }
                         AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
-                            let vm_result_audio_default_loopback_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_default_loopback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_default_loopback_changed_event_kind = vm::StringHandle::new(vm_result_audio_default_loopback_changed_event_kind_value);
                             let vm_result_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16468,7 +16048,8 @@ fn destack_audio_event_try_read_vm_replay(
                                 flags: vm_result_audio_default_loopback_changed_event_metadata_flags,
                             };
                             let vm_result_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_default_loopback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_default_loopback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_default_loopback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_default_loopback_changed_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_default_loopback_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -16484,7 +16065,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioDefaultLoopbackChangedEvent(vm_result_audio_default_loopback_changed_event)
                         }
                         AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
-                            let vm_result_audio_default_playback_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_default_playback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_default_playback_changed_event_kind = vm::StringHandle::new(vm_result_audio_default_playback_changed_event_kind_value);
                             let vm_result_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16500,7 +16082,8 @@ fn destack_audio_event_try_read_vm_replay(
                                 flags: vm_result_audio_default_playback_changed_event_metadata_flags,
                             };
                             let vm_result_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_default_playback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_default_playback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_default_playback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_default_playback_changed_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_default_playback_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -16516,7 +16099,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioDefaultPlaybackChangedEvent(vm_result_audio_default_playback_changed_event)
                         }
                         AudioeventReplayRecord::AudioDeviceAddedEvent(value) => {
-                            let vm_result_audio_device_added_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_device_added_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_added_event_kind = vm::StringHandle::new(vm_result_audio_device_added_event_kind_value);
                             let vm_result_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_device_added_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16532,7 +16116,8 @@ fn destack_audio_event_try_read_vm_replay(
                                 flags: vm_result_audio_device_added_event_metadata_flags,
                             };
                             let vm_result_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_added_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_device_added_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_added_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_added_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_device_added_event_payload_device_id_inner)
                             } else {
                                 None
@@ -16548,7 +16133,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioDeviceAddedEvent(vm_result_audio_device_added_event)
                         }
                         AudioeventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
-                            let vm_result_audio_device_format_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_device_format_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_format_changed_event_kind = vm::StringHandle::new(vm_result_audio_device_format_changed_event_kind_value);
                             let vm_result_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16564,7 +16150,8 @@ fn destack_audio_event_try_read_vm_replay(
                                 flags: vm_result_audio_device_format_changed_event_metadata_flags,
                             };
                             let vm_result_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_format_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_device_format_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_format_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_format_changed_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_device_format_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -16580,7 +16167,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioDeviceFormatChangedEvent(vm_result_audio_device_format_changed_event)
                         }
                         AudioeventReplayRecord::AudioDeviceRemovedEvent(value) => {
-                            let vm_result_audio_device_removed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_device_removed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_removed_event_kind = vm::StringHandle::new(vm_result_audio_device_removed_event_kind_value);
                             let vm_result_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16596,7 +16184,8 @@ fn destack_audio_event_try_read_vm_replay(
                                 flags: vm_result_audio_device_removed_event_metadata_flags,
                             };
                             let vm_result_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_removed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_device_removed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_removed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_removed_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_device_removed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -16612,7 +16201,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioDeviceRemovedEvent(vm_result_audio_device_removed_event)
                         }
                         AudioeventReplayRecord::AudioDeviceReroutedEvent(value) => {
-                            let vm_result_audio_device_rerouted_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_device_rerouted_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_rerouted_event_kind = vm::StringHandle::new(vm_result_audio_device_rerouted_event_kind_value);
                             let vm_result_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16628,7 +16218,8 @@ fn destack_audio_event_try_read_vm_replay(
                                 flags: vm_result_audio_device_rerouted_event_metadata_flags,
                             };
                             let vm_result_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_rerouted_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_device_rerouted_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_rerouted_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_rerouted_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_device_rerouted_event_payload_device_id_inner)
                             } else {
                                 None
@@ -16644,7 +16235,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioDeviceReroutedEvent(vm_result_audio_device_rerouted_event)
                         }
                         AudioeventReplayRecord::AudioInterruptionBeganEvent(value) => {
-                            let vm_result_audio_interruption_began_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_interruption_began_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_interruption_began_event_kind = vm::StringHandle::new(vm_result_audio_interruption_began_event_kind_value);
                             let vm_result_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16676,7 +16268,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioInterruptionBeganEvent(vm_result_audio_interruption_began_event)
                         }
                         AudioeventReplayRecord::AudioInterruptionEndedEvent(value) => {
-                            let vm_result_audio_interruption_ended_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_interruption_ended_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_interruption_ended_event_kind = vm::StringHandle::new(vm_result_audio_interruption_ended_event_kind_value);
                             let vm_result_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16708,7 +16301,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioInterruptionEndedEvent(vm_result_audio_interruption_ended_event)
                         }
                         AudioeventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
-                            let vm_result_audio_stream_device_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_stream_device_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_stream_device_changed_event_kind = vm::StringHandle::new(vm_result_audio_stream_device_changed_event_kind_value);
                             let vm_result_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16731,7 +16325,8 @@ fn destack_audio_event_try_read_vm_replay(
                             };
                             let vm_result_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
                             let vm_result_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_stream_device_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_stream_device_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_stream_device_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_stream_device_changed_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_stream_device_changed_event_payload_device_id_inner)
                             } else {
                                 None
@@ -16749,7 +16344,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioStreamDeviceChangedEvent(vm_result_audio_stream_device_changed_event)
                         }
                         AudioeventReplayRecord::AudioStreamStateChangedEvent(value) => {
-                            let vm_result_audio_stream_state_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_stream_state_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_stream_state_changed_event_kind = vm::StringHandle::new(vm_result_audio_stream_state_changed_event_kind_value);
                             let vm_result_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16783,7 +16379,8 @@ fn destack_audio_event_try_read_vm_replay(
                             AudioEventVm::AudioStreamStateChangedEvent(vm_result_audio_stream_state_changed_event)
                         }
                         AudioeventReplayRecord::AudioStreamXRunEvent(value) => {
-                            let vm_result_audio_stream_x_run_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_audio_stream_x_run_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_stream_x_run_event_kind = vm::StringHandle::new(vm_result_audio_stream_x_run_event_kind_value);
                             let vm_result_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -16807,7 +16404,8 @@ fn destack_audio_event_try_read_vm_replay(
                             let vm_result_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
                             let vm_result_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
                             let vm_result_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_stream_x_run_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_audio_stream_x_run_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_stream_x_run_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_stream_x_run_event_payload_device_id_inner_value);
                                 Some(vm_result_audio_stream_x_run_event_payload_device_id_inner)
                             } else {
                                 None
@@ -17432,7 +17030,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                     for vm_result_item in value.iter().cloned() {
                         let vm_result_item_value = match vm_result_item {
                             AudioeventReplayRecord::AudioBackendDisconnectedEvent(value) => {
-                                let vm_result_item_value_audio_backend_disconnected_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_backend_disconnected_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_backend_disconnected_event_kind = vm::StringHandle::new(vm_result_item_value_audio_backend_disconnected_event_kind_value);
                                 let vm_result_item_value_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17464,7 +17063,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioBackendDisconnectedEvent(vm_result_item_value_audio_backend_disconnected_event)
                             }
                             AudioeventReplayRecord::AudioBackendResetEvent(value) => {
-                                let vm_result_item_value_audio_backend_reset_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_backend_reset_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_backend_reset_event_kind = vm::StringHandle::new(vm_result_item_value_audio_backend_reset_event_kind_value);
                                 let vm_result_item_value_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17496,7 +17096,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioBackendResetEvent(vm_result_item_value_audio_backend_reset_event)
                             }
                             AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
-                                let vm_result_item_value_audio_default_capture_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_default_capture_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_default_capture_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_default_capture_changed_event_kind_value);
                                 let vm_result_item_value_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17512,7 +17113,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_default_capture_changed_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -17528,7 +17130,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioDefaultCaptureChangedEvent(vm_result_item_value_audio_default_capture_changed_event)
                             }
                             AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
-                                let vm_result_item_value_audio_default_loopback_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_default_loopback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_default_loopback_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_default_loopback_changed_event_kind_value);
                                 let vm_result_item_value_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17544,7 +17147,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_default_loopback_changed_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -17560,7 +17164,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioDefaultLoopbackChangedEvent(vm_result_item_value_audio_default_loopback_changed_event)
                             }
                             AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
-                                let vm_result_item_value_audio_default_playback_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_default_playback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_default_playback_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_default_playback_changed_event_kind_value);
                                 let vm_result_item_value_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17576,7 +17181,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_default_playback_changed_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -17592,7 +17198,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioDefaultPlaybackChangedEvent(vm_result_item_value_audio_default_playback_changed_event)
                             }
                             AudioeventReplayRecord::AudioDeviceAddedEvent(value) => {
-                                let vm_result_item_value_audio_device_added_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_device_added_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_added_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_added_event_kind_value);
                                 let vm_result_item_value_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_device_added_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17608,7 +17215,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_device_added_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_added_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_device_added_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_added_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_added_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_device_added_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -17624,7 +17232,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioDeviceAddedEvent(vm_result_item_value_audio_device_added_event)
                             }
                             AudioeventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
-                                let vm_result_item_value_audio_device_format_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_device_format_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_format_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_format_changed_event_kind_value);
                                 let vm_result_item_value_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17640,7 +17249,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_device_format_changed_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -17656,7 +17266,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioDeviceFormatChangedEvent(vm_result_item_value_audio_device_format_changed_event)
                             }
                             AudioeventReplayRecord::AudioDeviceRemovedEvent(value) => {
-                                let vm_result_item_value_audio_device_removed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_device_removed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_removed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_removed_event_kind_value);
                                 let vm_result_item_value_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17672,7 +17283,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_device_removed_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_removed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_device_removed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_removed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_removed_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_device_removed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -17688,7 +17300,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioDeviceRemovedEvent(vm_result_item_value_audio_device_removed_event)
                             }
                             AudioeventReplayRecord::AudioDeviceReroutedEvent(value) => {
-                                let vm_result_item_value_audio_device_rerouted_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_device_rerouted_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_rerouted_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_rerouted_event_kind_value);
                                 let vm_result_item_value_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17704,7 +17317,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     flags: vm_result_item_value_audio_device_rerouted_event_metadata_flags,
                                 };
                                 let vm_result_item_value_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -17720,7 +17334,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioDeviceReroutedEvent(vm_result_item_value_audio_device_rerouted_event)
                             }
                             AudioeventReplayRecord::AudioInterruptionBeganEvent(value) => {
-                                let vm_result_item_value_audio_interruption_began_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_interruption_began_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_interruption_began_event_kind = vm::StringHandle::new(vm_result_item_value_audio_interruption_began_event_kind_value);
                                 let vm_result_item_value_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17752,7 +17367,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioInterruptionBeganEvent(vm_result_item_value_audio_interruption_began_event)
                             }
                             AudioeventReplayRecord::AudioInterruptionEndedEvent(value) => {
-                                let vm_result_item_value_audio_interruption_ended_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_interruption_ended_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_interruption_ended_event_kind = vm::StringHandle::new(vm_result_item_value_audio_interruption_ended_event_kind_value);
                                 let vm_result_item_value_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17784,7 +17400,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioInterruptionEndedEvent(vm_result_item_value_audio_interruption_ended_event)
                             }
                             AudioeventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
-                                let vm_result_item_value_audio_stream_device_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_stream_device_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_stream_device_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_stream_device_changed_event_kind_value);
                                 let vm_result_item_value_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17807,7 +17424,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 };
                                 let vm_result_item_value_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
                                 let vm_result_item_value_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -17825,7 +17443,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioStreamDeviceChangedEvent(vm_result_item_value_audio_stream_device_changed_event)
                             }
                             AudioeventReplayRecord::AudioStreamStateChangedEvent(value) => {
-                                let vm_result_item_value_audio_stream_state_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_stream_state_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_stream_state_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_stream_state_changed_event_kind_value);
                                 let vm_result_item_value_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17859,7 +17478,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 AudioEventVm::AudioStreamStateChangedEvent(vm_result_item_value_audio_stream_state_changed_event)
                             }
                             AudioeventReplayRecord::AudioStreamXRunEvent(value) => {
-                                let vm_result_item_value_audio_stream_x_run_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_audio_stream_x_run_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_stream_x_run_event_kind = vm::StringHandle::new(vm_result_item_value_audio_stream_x_run_event_kind_value);
                                 let vm_result_item_value_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
@@ -17883,7 +17503,8 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 let vm_result_item_value_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
                                 let vm_result_item_value_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
                                 let vm_result_item_value_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    let vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner_value);
                                     Some(vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner)
                                 } else {
                                     None
@@ -18198,12 +17819,11 @@ fn destack_audio_stream_descriptor_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_backend = value.backend;
-                    let vm_result_backend_id = context
-                        .string_handle(value.backend_id.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_device_id = context
-                        .string_handle(value.device_id.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_backend_id_value =
+                        context.intern_string(value.backend_id.as_str());
+                    let vm_result_backend_id = vm::StringHandle::new(vm_result_backend_id_value);
+                    let vm_result_device_id_value = context.intern_string(value.device_id.as_str());
+                    let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
                     let vm_result_sample_rate = value.sample_rate;
                     let vm_result_channels = value.channels;
                     let vm_result_channel_layout = value.channel_layout;
@@ -18519,7 +18139,7 @@ fn destack_audio_stream_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -19094,12 +18714,14 @@ fn destack_audio_stream_support_vm_replay(
                 Ok(value) => {
                     let vm_result_supported = value.supported;
                     let vm_result_descriptor_backend = value.descriptor.backend;
-                    let vm_result_descriptor_backend_id = context
-                        .string_handle(value.descriptor.backend_id.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_descriptor_device_id = context
-                        .string_handle(value.descriptor.device_id.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_descriptor_backend_id_value =
+                        context.intern_string(value.descriptor.backend_id.as_str());
+                    let vm_result_descriptor_backend_id =
+                        vm::StringHandle::new(vm_result_descriptor_backend_id_value);
+                    let vm_result_descriptor_device_id_value =
+                        context.intern_string(value.descriptor.device_id.as_str());
+                    let vm_result_descriptor_device_id =
+                        vm::StringHandle::new(vm_result_descriptor_device_id_value);
                     let vm_result_descriptor_sample_rate = value.descriptor.sample_rate;
                     let vm_result_descriptor_channels = value.descriptor.channels;
                     let vm_result_descriptor_channel_layout = value.descriptor.channel_layout;
@@ -19353,7 +18975,7 @@ fn destack_audio_stream_try_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

@@ -759,7 +759,7 @@ impl VmAbiCodec for ResourceId {
 }
 
 /// ABI enum for GpuAdapterType.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuAdapterType {
     /// Other.
@@ -776,13 +776,13 @@ pub enum GpuAdapterType {
 
 impl VmValueCodec for GpuAdapterType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Other,
-            1u8 => Self::Integrated,
-            2u8 => Self::Discrete,
-            3u8 => Self::Virtual,
-            4u8 => Self::Cpu,
+            0i32 => Self::Other,
+            1i32 => Self::Integrated,
+            2i32 => Self::Discrete,
+            3i32 => Self::Virtual,
+            4i32 => Self::Cpu,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -795,7 +795,7 @@ impl VmValueCodec for GpuAdapterType {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -833,7 +833,7 @@ impl VmAbiCodec for GpuAdapterType {
 }
 
 /// ABI enum for GpuBackend.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuBackend {
     /// Auto.
@@ -856,16 +856,16 @@ pub enum GpuBackend {
 
 impl VmValueCodec for GpuBackend {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Auto,
-            1u8 => Self::Vulkan,
-            2u8 => Self::Metal,
-            3u8 => Self::D3D12,
-            4u8 => Self::OpenGL,
-            5u8 => Self::OpenGles,
-            6u8 => Self::WebGpu,
-            255u8 => Self::Null,
+            0i32 => Self::Auto,
+            1i32 => Self::Vulkan,
+            2i32 => Self::Metal,
+            3i32 => Self::D3D12,
+            4i32 => Self::OpenGL,
+            5i32 => Self::OpenGles,
+            6i32 => Self::WebGpu,
+            255i32 => Self::Null,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -878,7 +878,7 @@ impl VmValueCodec for GpuBackend {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -916,7 +916,7 @@ impl VmAbiCodec for GpuBackend {
 }
 
 /// ABI enum for GpuBlendFactor.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuBlendFactor {
     /// Undefined.
@@ -959,26 +959,26 @@ pub enum GpuBlendFactor {
 
 impl VmValueCodec for GpuBlendFactor {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::Zero,
-            2u8 => Self::One,
-            3u8 => Self::Src,
-            4u8 => Self::OneMinusSrc,
-            5u8 => Self::SrcAlpha,
-            6u8 => Self::OneMinusSrcAlpha,
-            7u8 => Self::Dst,
-            8u8 => Self::OneMinusDst,
-            9u8 => Self::DstAlpha,
-            10u8 => Self::OneMinusDstAlpha,
-            11u8 => Self::SrcAlphaSaturated,
-            12u8 => Self::Constant,
-            13u8 => Self::OneMinusConstant,
-            14u8 => Self::Src1,
-            15u8 => Self::OneMinusSrc1,
-            16u8 => Self::Src1Alpha,
-            17u8 => Self::OneMinusSrc1Alpha,
+            0i32 => Self::Undefined,
+            1i32 => Self::Zero,
+            2i32 => Self::One,
+            3i32 => Self::Src,
+            4i32 => Self::OneMinusSrc,
+            5i32 => Self::SrcAlpha,
+            6i32 => Self::OneMinusSrcAlpha,
+            7i32 => Self::Dst,
+            8i32 => Self::OneMinusDst,
+            9i32 => Self::DstAlpha,
+            10i32 => Self::OneMinusDstAlpha,
+            11i32 => Self::SrcAlphaSaturated,
+            12i32 => Self::Constant,
+            13i32 => Self::OneMinusConstant,
+            14i32 => Self::Src1,
+            15i32 => Self::OneMinusSrc1,
+            16i32 => Self::Src1Alpha,
+            17i32 => Self::OneMinusSrc1Alpha,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -991,7 +991,7 @@ impl VmValueCodec for GpuBlendFactor {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1029,7 +1029,7 @@ impl VmAbiCodec for GpuBlendFactor {
 }
 
 /// ABI enum for GpuBlendOperation.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuBlendOperation {
     /// Undefined.
@@ -1048,14 +1048,14 @@ pub enum GpuBlendOperation {
 
 impl VmValueCodec for GpuBlendOperation {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::Add,
-            2u8 => Self::Subtract,
-            3u8 => Self::ReverseSubtract,
-            4u8 => Self::Min,
-            5u8 => Self::Max,
+            0i32 => Self::Undefined,
+            1i32 => Self::Add,
+            2i32 => Self::Subtract,
+            3i32 => Self::ReverseSubtract,
+            4i32 => Self::Min,
+            5i32 => Self::Max,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1068,7 +1068,7 @@ impl VmValueCodec for GpuBlendOperation {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1106,7 +1106,7 @@ impl VmAbiCodec for GpuBlendOperation {
 }
 
 /// ABI enum for GpuBufferBindingType.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuBufferBindingType {
     /// BindingNotUsed.
@@ -1123,13 +1123,13 @@ pub enum GpuBufferBindingType {
 
 impl VmValueCodec for GpuBufferBindingType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::BindingNotUsed,
-            1u8 => Self::Undefined,
-            2u8 => Self::Uniform,
-            3u8 => Self::Storage,
-            4u8 => Self::ReadOnlyStorage,
+            0i32 => Self::BindingNotUsed,
+            1i32 => Self::Undefined,
+            2i32 => Self::Uniform,
+            3i32 => Self::Storage,
+            4i32 => Self::ReadOnlyStorage,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1142,7 +1142,7 @@ impl VmValueCodec for GpuBufferBindingType {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1180,7 +1180,7 @@ impl VmAbiCodec for GpuBufferBindingType {
 }
 
 /// ABI enum for GpuBufferMapState.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuBufferMapState {
     /// Unmapped.
@@ -1193,11 +1193,11 @@ pub enum GpuBufferMapState {
 
 impl VmValueCodec for GpuBufferMapState {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Unmapped,
-            2u8 => Self::Pending,
-            3u8 => Self::Mapped,
+            1i32 => Self::Unmapped,
+            2i32 => Self::Pending,
+            3i32 => Self::Mapped,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1210,7 +1210,7 @@ impl VmValueCodec for GpuBufferMapState {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1248,7 +1248,7 @@ impl VmAbiCodec for GpuBufferMapState {
 }
 
 /// ABI enum for GpuCompareFunction.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuCompareFunction {
     /// Undefined.
@@ -1273,17 +1273,17 @@ pub enum GpuCompareFunction {
 
 impl VmValueCodec for GpuCompareFunction {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::Never,
-            2u8 => Self::Less,
-            3u8 => Self::Equal,
-            4u8 => Self::LessEqual,
-            5u8 => Self::Greater,
-            6u8 => Self::NotEqual,
-            7u8 => Self::GreaterEqual,
-            8u8 => Self::Always,
+            0i32 => Self::Undefined,
+            1i32 => Self::Never,
+            2i32 => Self::Less,
+            3i32 => Self::Equal,
+            4i32 => Self::LessEqual,
+            5i32 => Self::Greater,
+            6i32 => Self::NotEqual,
+            7i32 => Self::GreaterEqual,
+            8i32 => Self::Always,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1296,7 +1296,7 @@ impl VmValueCodec for GpuCompareFunction {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1334,7 +1334,7 @@ impl VmAbiCodec for GpuCompareFunction {
 }
 
 /// ABI enum for GpuCompilationMessageKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuCompilationMessageKind {
     /// Info.
@@ -1347,11 +1347,11 @@ pub enum GpuCompilationMessageKind {
 
 impl VmValueCodec for GpuCompilationMessageKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Info,
-            2u8 => Self::Warning,
-            3u8 => Self::Error,
+            1i32 => Self::Info,
+            2i32 => Self::Warning,
+            3i32 => Self::Error,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1364,7 +1364,7 @@ impl VmValueCodec for GpuCompilationMessageKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1402,7 +1402,7 @@ impl VmAbiCodec for GpuCompilationMessageKind {
 }
 
 /// ABI enum for GpuCullMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuCullMode {
     /// Undefined.
@@ -1417,12 +1417,12 @@ pub enum GpuCullMode {
 
 impl VmValueCodec for GpuCullMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::None,
-            2u8 => Self::Front,
-            3u8 => Self::Back,
+            0i32 => Self::Undefined,
+            1i32 => Self::None,
+            2i32 => Self::Front,
+            3i32 => Self::Back,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1435,7 +1435,7 @@ impl VmValueCodec for GpuCullMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1473,7 +1473,7 @@ impl VmAbiCodec for GpuCullMode {
 }
 
 /// ABI enum for GpuDeviceLossReason.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuDeviceLossReason {
     /// None.
@@ -1494,15 +1494,15 @@ pub enum GpuDeviceLossReason {
 
 impl VmValueCodec for GpuDeviceLossReason {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::None,
-            1u8 => Self::DriverReset,
-            2u8 => Self::DeviceRemoved,
-            3u8 => Self::OutOfMemory,
-            4u8 => Self::InternalError,
-            5u8 => Self::Destroyed,
-            255u8 => Self::Unknown,
+            0i32 => Self::None,
+            1i32 => Self::DriverReset,
+            2i32 => Self::DeviceRemoved,
+            3i32 => Self::OutOfMemory,
+            4i32 => Self::InternalError,
+            5i32 => Self::Destroyed,
+            255i32 => Self::Unknown,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1515,7 +1515,7 @@ impl VmValueCodec for GpuDeviceLossReason {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1553,7 +1553,7 @@ impl VmAbiCodec for GpuDeviceLossReason {
 }
 
 /// ABI enum for GpuErrorFilter.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuErrorFilter {
     /// Validation.
@@ -1566,11 +1566,11 @@ pub enum GpuErrorFilter {
 
 impl VmValueCodec for GpuErrorFilter {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Validation,
-            2u8 => Self::OutOfMemory,
-            3u8 => Self::Internal,
+            1i32 => Self::Validation,
+            2i32 => Self::OutOfMemory,
+            3i32 => Self::Internal,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1583,7 +1583,7 @@ impl VmValueCodec for GpuErrorFilter {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1621,7 +1621,7 @@ impl VmAbiCodec for GpuErrorFilter {
 }
 
 /// ABI enum for GpuFenceMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuFenceMode {
     /// Binary.
@@ -1632,10 +1632,10 @@ pub enum GpuFenceMode {
 
 impl VmValueCodec for GpuFenceMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Binary,
-            2u8 => Self::Timeline,
+            1i32 => Self::Binary,
+            2i32 => Self::Timeline,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1648,7 +1648,7 @@ impl VmValueCodec for GpuFenceMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1686,7 +1686,7 @@ impl VmAbiCodec for GpuFenceMode {
 }
 
 /// ABI enum for GpuFrontFace.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuFrontFace {
     /// Undefined.
@@ -1699,11 +1699,11 @@ pub enum GpuFrontFace {
 
 impl VmValueCodec for GpuFrontFace {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::Ccw,
-            2u8 => Self::Cw,
+            0i32 => Self::Undefined,
+            1i32 => Self::Ccw,
+            2i32 => Self::Cw,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1716,7 +1716,7 @@ impl VmValueCodec for GpuFrontFace {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1754,7 +1754,7 @@ impl VmAbiCodec for GpuFrontFace {
 }
 
 /// ABI enum for GpuIndexFormat.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuIndexFormat {
     /// Undefined.
@@ -1767,11 +1767,11 @@ pub enum GpuIndexFormat {
 
 impl VmValueCodec for GpuIndexFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::Uint16,
-            2u8 => Self::Uint32,
+            0i32 => Self::Undefined,
+            1i32 => Self::Uint16,
+            2i32 => Self::Uint32,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1784,7 +1784,7 @@ impl VmValueCodec for GpuIndexFormat {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1822,7 +1822,7 @@ impl VmAbiCodec for GpuIndexFormat {
 }
 
 /// ABI enum for GpuLoadOp.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuLoadOp {
     /// Undefined.
@@ -1835,11 +1835,11 @@ pub enum GpuLoadOp {
 
 impl VmValueCodec for GpuLoadOp {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::Load,
-            2u8 => Self::Clear,
+            0i32 => Self::Undefined,
+            1i32 => Self::Load,
+            2i32 => Self::Clear,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1852,7 +1852,7 @@ impl VmValueCodec for GpuLoadOp {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1890,7 +1890,7 @@ impl VmAbiCodec for GpuLoadOp {
 }
 
 /// ABI enum for GpuMapMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuMapMode {
     /// Read.
@@ -1901,10 +1901,10 @@ pub enum GpuMapMode {
 
 impl VmValueCodec for GpuMapMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Read,
-            2u8 => Self::Write,
+            1i32 => Self::Read,
+            2i32 => Self::Write,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1917,7 +1917,7 @@ impl VmValueCodec for GpuMapMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1955,7 +1955,7 @@ impl VmAbiCodec for GpuMapMode {
 }
 
 /// ABI enum for GpuPipelineStatisticsFlag.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuPipelineStatisticsFlag {
     /// VertexShaderInvocations.
@@ -1972,13 +1972,13 @@ pub enum GpuPipelineStatisticsFlag {
 
 impl VmValueCodec for GpuPipelineStatisticsFlag {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::VertexShaderInvocations,
-            2u8 => Self::ClipperInvocations,
-            4u8 => Self::ClipperPrimitivesOut,
-            8u8 => Self::FragmentShaderInvocations,
-            16u8 => Self::ComputeShaderInvocations,
+            1i32 => Self::VertexShaderInvocations,
+            2i32 => Self::ClipperInvocations,
+            4i32 => Self::ClipperPrimitivesOut,
+            8i32 => Self::FragmentShaderInvocations,
+            16i32 => Self::ComputeShaderInvocations,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1991,7 +1991,7 @@ impl VmValueCodec for GpuPipelineStatisticsFlag {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2029,7 +2029,7 @@ impl VmAbiCodec for GpuPipelineStatisticsFlag {
 }
 
 /// ABI enum for GpuPowerPreference.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuPowerPreference {
     /// None.
@@ -2042,11 +2042,11 @@ pub enum GpuPowerPreference {
 
 impl VmValueCodec for GpuPowerPreference {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::None,
-            1u8 => Self::LowPower,
-            2u8 => Self::HighPerformance,
+            0i32 => Self::None,
+            1i32 => Self::LowPower,
+            2i32 => Self::HighPerformance,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2059,7 +2059,7 @@ impl VmValueCodec for GpuPowerPreference {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2097,7 +2097,7 @@ impl VmAbiCodec for GpuPowerPreference {
 }
 
 /// ABI enum for GpuPresentMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuPresentMode {
     /// AutoVsync.
@@ -2116,14 +2116,14 @@ pub enum GpuPresentMode {
 
 impl VmValueCodec for GpuPresentMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::AutoVsync,
-            1u8 => Self::AutoNoVsync,
-            2u8 => Self::Fifo,
-            3u8 => Self::FifoRelaxed,
-            4u8 => Self::Immediate,
-            5u8 => Self::Mailbox,
+            0i32 => Self::AutoVsync,
+            1i32 => Self::AutoNoVsync,
+            2i32 => Self::Fifo,
+            3i32 => Self::FifoRelaxed,
+            4i32 => Self::Immediate,
+            5i32 => Self::Mailbox,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2136,7 +2136,7 @@ impl VmValueCodec for GpuPresentMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2174,7 +2174,7 @@ impl VmAbiCodec for GpuPresentMode {
 }
 
 /// ABI enum for GpuPrimitiveTopology.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuPrimitiveTopology {
     /// Undefined.
@@ -2193,14 +2193,14 @@ pub enum GpuPrimitiveTopology {
 
 impl VmValueCodec for GpuPrimitiveTopology {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::PointList,
-            2u8 => Self::LineList,
-            3u8 => Self::LineStrip,
-            4u8 => Self::TriangleList,
-            5u8 => Self::TriangleStrip,
+            0i32 => Self::Undefined,
+            1i32 => Self::PointList,
+            2i32 => Self::LineList,
+            3i32 => Self::LineStrip,
+            4i32 => Self::TriangleList,
+            5i32 => Self::TriangleStrip,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2213,7 +2213,7 @@ impl VmValueCodec for GpuPrimitiveTopology {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2251,7 +2251,7 @@ impl VmAbiCodec for GpuPrimitiveTopology {
 }
 
 /// ABI enum for GpuQueryType.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuQueryType {
     /// Undefined.
@@ -2266,12 +2266,12 @@ pub enum GpuQueryType {
 
 impl VmValueCodec for GpuQueryType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::Timestamp,
-            2u8 => Self::Occlusion,
-            3u8 => Self::PipelineStatistics,
+            0i32 => Self::Undefined,
+            1i32 => Self::Timestamp,
+            2i32 => Self::Occlusion,
+            3i32 => Self::PipelineStatistics,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2284,7 +2284,7 @@ impl VmValueCodec for GpuQueryType {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2322,7 +2322,7 @@ impl VmAbiCodec for GpuQueryType {
 }
 
 /// ABI enum for GpuSamplerBindingType.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuSamplerBindingType {
     /// BindingNotUsed.
@@ -2339,13 +2339,13 @@ pub enum GpuSamplerBindingType {
 
 impl VmValueCodec for GpuSamplerBindingType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::BindingNotUsed,
-            1u8 => Self::Undefined,
-            2u8 => Self::Filtering,
-            3u8 => Self::NonFiltering,
-            4u8 => Self::Comparison,
+            0i32 => Self::BindingNotUsed,
+            1i32 => Self::Undefined,
+            2i32 => Self::Filtering,
+            3i32 => Self::NonFiltering,
+            4i32 => Self::Comparison,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2358,7 +2358,7 @@ impl VmValueCodec for GpuSamplerBindingType {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2396,7 +2396,7 @@ impl VmAbiCodec for GpuSamplerBindingType {
 }
 
 /// ABI enum for GpuShaderFormat.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuShaderFormat {
     /// Wgsl.
@@ -2413,13 +2413,13 @@ pub enum GpuShaderFormat {
 
 impl VmValueCodec for GpuShaderFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Wgsl,
-            2u8 => Self::SpirV,
-            3u8 => Self::Msl,
-            4u8 => Self::HlslOrDxil,
-            5u8 => Self::Glsl,
+            1i32 => Self::Wgsl,
+            2i32 => Self::SpirV,
+            3i32 => Self::Msl,
+            4i32 => Self::HlslOrDxil,
+            5i32 => Self::Glsl,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2432,7 +2432,7 @@ impl VmValueCodec for GpuShaderFormat {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2470,7 +2470,7 @@ impl VmAbiCodec for GpuShaderFormat {
 }
 
 /// ABI enum for GpuShaderVisibilityFlag.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuShaderVisibilityFlag {
     /// None.
@@ -2485,12 +2485,12 @@ pub enum GpuShaderVisibilityFlag {
 
 impl VmValueCodec for GpuShaderVisibilityFlag {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::None,
-            1u8 => Self::Vertex,
-            2u8 => Self::Fragment,
-            4u8 => Self::Compute,
+            0i32 => Self::None,
+            1i32 => Self::Vertex,
+            2i32 => Self::Fragment,
+            4i32 => Self::Compute,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2503,7 +2503,7 @@ impl VmValueCodec for GpuShaderVisibilityFlag {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2541,7 +2541,7 @@ impl VmAbiCodec for GpuShaderVisibilityFlag {
 }
 
 /// ABI enum for GpuStencilOperation.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuStencilOperation {
     /// Undefined.
@@ -2566,17 +2566,17 @@ pub enum GpuStencilOperation {
 
 impl VmValueCodec for GpuStencilOperation {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::Keep,
-            2u8 => Self::Zero,
-            3u8 => Self::Replace,
-            4u8 => Self::Invert,
-            5u8 => Self::IncrementClamp,
-            6u8 => Self::DecrementClamp,
-            7u8 => Self::IncrementWrap,
-            8u8 => Self::DecrementWrap,
+            0i32 => Self::Undefined,
+            1i32 => Self::Keep,
+            2i32 => Self::Zero,
+            3i32 => Self::Replace,
+            4i32 => Self::Invert,
+            5i32 => Self::IncrementClamp,
+            6i32 => Self::DecrementClamp,
+            7i32 => Self::IncrementWrap,
+            8i32 => Self::DecrementWrap,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2589,7 +2589,7 @@ impl VmValueCodec for GpuStencilOperation {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2627,7 +2627,7 @@ impl VmAbiCodec for GpuStencilOperation {
 }
 
 /// ABI enum for GpuStorageTextureAccess.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuStorageTextureAccess {
     /// BindingNotUsed.
@@ -2644,13 +2644,13 @@ pub enum GpuStorageTextureAccess {
 
 impl VmValueCodec for GpuStorageTextureAccess {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::BindingNotUsed,
-            1u8 => Self::Undefined,
-            2u8 => Self::WriteOnly,
-            3u8 => Self::ReadOnly,
-            4u8 => Self::ReadWrite,
+            0i32 => Self::BindingNotUsed,
+            1i32 => Self::Undefined,
+            2i32 => Self::WriteOnly,
+            3i32 => Self::ReadOnly,
+            4i32 => Self::ReadWrite,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2663,7 +2663,7 @@ impl VmValueCodec for GpuStorageTextureAccess {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2701,7 +2701,7 @@ impl VmAbiCodec for GpuStorageTextureAccess {
 }
 
 /// ABI enum for GpuStoreOp.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuStoreOp {
     /// Undefined.
@@ -2714,11 +2714,11 @@ pub enum GpuStoreOp {
 
 impl VmValueCodec for GpuStoreOp {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::Store,
-            2u8 => Self::Discard,
+            0i32 => Self::Undefined,
+            1i32 => Self::Store,
+            2i32 => Self::Discard,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2731,7 +2731,7 @@ impl VmValueCodec for GpuStoreOp {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2769,7 +2769,7 @@ impl VmAbiCodec for GpuStoreOp {
 }
 
 /// ABI enum for GpuSurfaceAcquireStatus.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuSurfaceAcquireStatus {
     /// Good.
@@ -2788,14 +2788,14 @@ pub enum GpuSurfaceAcquireStatus {
 
 impl VmValueCodec for GpuSurfaceAcquireStatus {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Good,
-            2u8 => Self::Suboptimal,
-            3u8 => Self::Timeout,
-            4u8 => Self::Outdated,
-            5u8 => Self::Lost,
-            6u8 => Self::Unknown,
+            1i32 => Self::Good,
+            2i32 => Self::Suboptimal,
+            3i32 => Self::Timeout,
+            4i32 => Self::Outdated,
+            5i32 => Self::Lost,
+            6i32 => Self::Unknown,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2808,7 +2808,7 @@ impl VmValueCodec for GpuSurfaceAcquireStatus {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2846,7 +2846,7 @@ impl VmAbiCodec for GpuSurfaceAcquireStatus {
 }
 
 /// ABI enum for GpuSurfaceAlphaMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuSurfaceAlphaMode {
     /// Auto.
@@ -2863,13 +2863,13 @@ pub enum GpuSurfaceAlphaMode {
 
 impl VmValueCodec for GpuSurfaceAlphaMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Auto,
-            1u8 => Self::Opaque,
-            2u8 => Self::Premultiplied,
-            3u8 => Self::Unpremultiplied,
-            4u8 => Self::Inherit,
+            0i32 => Self::Auto,
+            1i32 => Self::Opaque,
+            2i32 => Self::Premultiplied,
+            3i32 => Self::Unpremultiplied,
+            4i32 => Self::Inherit,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2882,7 +2882,7 @@ impl VmValueCodec for GpuSurfaceAlphaMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2920,7 +2920,7 @@ impl VmAbiCodec for GpuSurfaceAlphaMode {
 }
 
 /// ABI enum for GpuTextureDimension.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuTextureDimension {
     /// D1.
@@ -2933,11 +2933,11 @@ pub enum GpuTextureDimension {
 
 impl VmValueCodec for GpuTextureDimension {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::D1,
-            2u8 => Self::D2,
-            3u8 => Self::D3,
+            1i32 => Self::D1,
+            2i32 => Self::D2,
+            3i32 => Self::D3,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -2950,7 +2950,7 @@ impl VmValueCodec for GpuTextureDimension {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2988,7 +2988,7 @@ impl VmAbiCodec for GpuTextureDimension {
 }
 
 /// ABI enum for GpuTextureSampleType.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuTextureSampleType {
     /// BindingNotUsed.
@@ -3009,15 +3009,15 @@ pub enum GpuTextureSampleType {
 
 impl VmValueCodec for GpuTextureSampleType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::BindingNotUsed,
-            1u8 => Self::Undefined,
-            2u8 => Self::Float,
-            3u8 => Self::UnfilterableFloat,
-            4u8 => Self::Depth,
-            5u8 => Self::Sint,
-            6u8 => Self::Uint,
+            0i32 => Self::BindingNotUsed,
+            1i32 => Self::Undefined,
+            2i32 => Self::Float,
+            3i32 => Self::UnfilterableFloat,
+            4i32 => Self::Depth,
+            5i32 => Self::Sint,
+            6i32 => Self::Uint,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -3030,7 +3030,7 @@ impl VmValueCodec for GpuTextureSampleType {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -3068,7 +3068,7 @@ impl VmAbiCodec for GpuTextureSampleType {
 }
 
 /// ABI enum for GpuTextureViewDimension.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuTextureViewDimension {
     /// Undefined.
@@ -3089,15 +3089,15 @@ pub enum GpuTextureViewDimension {
 
 impl VmValueCodec for GpuTextureViewDimension {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::D1,
-            2u8 => Self::D2,
-            3u8 => Self::D2Array,
-            4u8 => Self::Cube,
-            5u8 => Self::CubeArray,
-            6u8 => Self::D3,
+            0i32 => Self::Undefined,
+            1i32 => Self::D1,
+            2i32 => Self::D2,
+            3i32 => Self::D2Array,
+            4i32 => Self::Cube,
+            5i32 => Self::CubeArray,
+            6i32 => Self::D3,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -3110,7 +3110,7 @@ impl VmValueCodec for GpuTextureViewDimension {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -3148,7 +3148,7 @@ impl VmAbiCodec for GpuTextureViewDimension {
 }
 
 /// ABI enum for GpuVertexStepMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpuVertexStepMode {
     /// Vertex.
@@ -3159,10 +3159,10 @@ pub enum GpuVertexStepMode {
 
 impl VmValueCodec for GpuVertexStepMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Vertex,
-            2u8 => Self::Instance,
+            1i32 => Self::Vertex,
+            2i32 => Self::Instance,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -3175,7 +3175,7 @@ impl VmValueCodec for GpuVertexStepMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -3321,9 +3321,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3591,9 +3589,7 @@ impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3775,9 +3771,7 @@ impl VmAggregateCodec for GpuAdapterFormatCapabilities {
             <bool as VmAggregateCodec>::encode_with_context(self.multisample, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.sample_count_mask, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3963,9 +3957,7 @@ impl VmAggregateCodec for GpuAdapterInfoAbi<VmAbi> {
             )?,
             <GpuAdapterLimitsVm as VmAggregateCodec>::encode_with_context(self.limits, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4420,9 +4412,7 @@ impl VmAggregateCodec for GpuAdapterLimits {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4536,9 +4526,7 @@ impl VmAggregateCodec for GpuAdapterRequest {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4662,9 +4650,7 @@ impl VmAggregateCodec for GpuBindGroupBufferResourceAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.size, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4817,9 +4803,7 @@ impl VmAggregateCodec for GpuBindGroupEntryAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4981,9 +4965,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.has_dynamic_offset, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.min_binding_size, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5163,9 +5145,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5358,9 +5338,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.multisampled, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5527,9 +5505,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5688,9 +5664,7 @@ impl VmAggregateCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5871,9 +5845,7 @@ impl VmAggregateCodec for GpuBindGroupSamplerResourceAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6014,9 +5986,7 @@ impl VmAggregateCodec for GpuBindGroupTextureResourceAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6140,9 +6110,7 @@ impl VmAggregateCodec for GpuBlendComponent {
             <GpuBlendFactor as VmAggregateCodec>::encode_with_context(self.dst_factor, context)?,
             <GpuBlendOperation as VmAggregateCodec>::encode_with_context(self.operation, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6231,9 +6199,7 @@ impl VmAggregateCodec for GpuBlendState {
             <GpuBlendComponentVm as VmAggregateCodec>::encode_with_context(self.color, context)?,
             <GpuBlendComponentVm as VmAggregateCodec>::encode_with_context(self.alpha, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6326,9 +6292,7 @@ impl VmAggregateCodec for GpuBufferCopy {
             )?,
             <GpuBufferCopyLayoutVm as VmAggregateCodec>::encode_with_context(self.layout, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6422,9 +6386,7 @@ impl VmAggregateCodec for GpuBufferCopyLayout {
             <u32 as VmAggregateCodec>::encode_with_context(self.bytes_per_row, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.rows_per_image, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6517,9 +6479,7 @@ impl VmAggregateCodec for GpuBufferInfo {
             <u64 as VmAggregateCodec>::encode_with_context(self.usage, context)?,
             <GpuBufferMapState as VmAggregateCodec>::encode_with_context(self.map_state, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6617,9 +6577,7 @@ impl VmAggregateCodec for GpuBufferOptions {
             <bool as VmAggregateCodec>::encode_with_context(self.mapped_at_creation, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6732,9 +6690,7 @@ impl VmAggregateCodec for GpuCapturedErrorAbi<VmAbi> {
             )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6855,9 +6811,7 @@ impl VmAggregateCodec for GpuColorTargetState {
             )?,
             <GpuColorWriteMask as VmAggregateCodec>::encode_with_context(self.write_mask, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6937,9 +6891,7 @@ impl VmAggregateCodec for GpuCommandEncoderOptions {
         let slots = vec![<u32 as VmAggregateCodec>::encode_with_context(
             self.flags, context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7048,9 +7000,7 @@ impl VmAggregateCodec for GpuCompilationInfoAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7206,9 +7156,7 @@ impl VmAggregateCodec for GpuCompilationMessageAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.offset, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7343,9 +7291,7 @@ impl VmAggregateCodec for GpuComputePassOptions {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7474,9 +7420,7 @@ impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7648,9 +7592,7 @@ impl VmAggregateCodec for GpuComputeStateAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7834,9 +7776,7 @@ impl VmAggregateCodec for GpuDepthStencilState {
             <f64 as VmAggregateCodec>::encode_with_context(self.depth_bias_slope_scale, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.depth_bias_clamp, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7981,9 +7921,7 @@ impl VmAggregateCodec for GpuDeviceInfoAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.has_timestamp_queries, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.has_push_constants, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8204,9 +8142,7 @@ impl VmAggregateCodec for GpuDeviceOptionsAbi<VmAbi> {
             <GpuBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8381,9 +8317,7 @@ impl VmAggregateCodec for GpuDeviceStatusAbi<VmAbi> {
             <i32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.message, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8517,9 +8451,7 @@ impl VmAggregateCodec for GpuExtent3D {
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.depth_or_array_layers, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8613,9 +8545,7 @@ impl VmAggregateCodec for GpuFenceOptions {
             <u64 as VmAggregateCodec>::encode_with_context(self.initial_value, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8753,9 +8683,7 @@ impl VmAggregateCodec for GpuFragmentStateAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8904,9 +8832,7 @@ impl VmAggregateCodec for GpuMappedBufferRange {
             <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.coherent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9002,9 +8928,7 @@ impl VmAggregateCodec for GpuMultisampleState {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9107,9 +9031,7 @@ impl VmAggregateCodec for GpuPassTimestampWrites {
             )?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.end_write_index, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9218,9 +9140,7 @@ impl VmAggregateCodec for GpuPipelineConstantAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.key, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9358,9 +9278,7 @@ impl VmAggregateCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.immediate_size, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9502,9 +9420,7 @@ impl VmAggregateCodec for GpuPipelineMetadataAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.label, context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9603,9 +9519,7 @@ impl VmAggregateCodec for GpuPresentOptions {
             <u64 as VmAggregateCodec>::encode_with_context(self.frame_id, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9715,9 +9629,7 @@ impl VmAggregateCodec for GpuPrimitiveState {
             <GpuCullMode as VmAggregateCodec>::encode_with_context(self.cull_mode, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.unclipped_depth, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9817,9 +9729,7 @@ impl VmAggregateCodec for GpuQuerySetInfo {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9924,9 +9834,7 @@ impl VmAggregateCodec for GpuQuerySetOptions {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10046,9 +9954,7 @@ impl VmAggregateCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.sample_count, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10227,9 +10133,7 @@ impl VmAggregateCodec for GpuRenderPassColorAttachment {
             <f64 as VmAggregateCodec>::encode_with_context(self.clear_color_b, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.clear_color_a, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10362,9 +10266,7 @@ impl VmAggregateCodec for GpuRenderPassDepthStencilAttachment {
             <u32 as VmAggregateCodec>::encode_with_context(self.clear_stencil, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.stencil_read_only, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10491,9 +10393,7 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
             <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::encode_with_context(self.timestamp_writes, context)?,
             <Option<resource::GpuQuerySetHandle> as VmAggregateCodec>::encode_with_context(self.occlusion_query_set, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10731,9 +10631,7 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10918,9 +10816,7 @@ impl VmAggregateCodec for GpuRenderState {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11055,9 +10951,7 @@ impl VmAggregateCodec for GpuSamplerOptions {
             <u16 as VmAggregateCodec>::encode_with_context(self.max_anisotropy, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11172,9 +11066,7 @@ impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11302,9 +11194,7 @@ impl VmAggregateCodec for GpuStencilFaceState {
             )?,
             <GpuStencilOperation as VmAggregateCodec>::encode_with_context(self.pass_op, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11391,9 +11281,7 @@ impl VmAggregateCodec for GpuSubmitOptions {
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timeout_ns, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11522,9 +11410,7 @@ impl VmAggregateCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11679,9 +11565,7 @@ impl VmAggregateCodec for GpuSurfaceFrame {
             )?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.frame_id, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11834,9 +11718,7 @@ impl VmAggregateCodec for GpuSurfaceOptionsAbi<VmAbi> {
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12034,9 +11916,7 @@ impl VmAggregateCodec for GpuTextureCopy {
             <u32 as VmAggregateCodec>::encode_with_context(self.origin_z, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.aspect, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12158,9 +12038,7 @@ impl VmAggregateCodec for GpuTextureInfo {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12314,9 +12192,7 @@ impl VmAggregateCodec for GpuTextureOptionsAbi<VmAbi> {
             <VmSlice<u32> as VmAggregateCodec>::encode_with_context(self.view_formats, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12513,9 +12389,7 @@ impl VmAggregateCodec for GpuTextureViewOptions {
             <u32 as VmAggregateCodec>::encode_with_context(self.aspect, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12608,9 +12482,7 @@ impl VmAggregateCodec for GpuVertexAttribute {
             <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.shader_location, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12735,9 +12607,7 @@ impl VmAggregateCodec for GpuVertexBufferLayoutAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12918,9 +12788,7 @@ impl VmAggregateCodec for GpuVertexStateAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

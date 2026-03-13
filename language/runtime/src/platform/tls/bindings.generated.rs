@@ -19,7 +19,7 @@ use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::trace::TraceError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -60,6 +60,26 @@ fn decode_bool(
     })
 }
 
+/// Decode a signed integer argument with an explicit width.
+#[allow(dead_code)]
+fn decode_int(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+    bits: u8,
+) -> RuntimeResult<i64> {
+    let (raw, width) = value.as_int_with_width().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })?;
+    if width != bits {
+        return Err(
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+        );
+    }
+
+    Ok(raw)
+}
+
 /// Decode an unsigned integer argument with an explicit width.
 #[allow(dead_code)]
 fn decode_uint(
@@ -80,20 +100,20 @@ fn decode_uint(
     Ok(raw)
 }
 
+/// Decode an i32 argument.
+#[allow(dead_code)]
+fn decode_int32(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<i32> {
+    Ok(decode_int(value, name, expected, 32)? as i32)
+}
+
 /// Decode a u8 argument.
 #[allow(dead_code)]
 fn decode_uint8(value: vm::Value, name: &'static str, expected: &'static str) -> RuntimeResult<u8> {
     Ok(decode_uint(value, name, expected, 8)? as u8)
-}
-
-/// Decode a u16 argument.
-#[allow(dead_code)]
-fn decode_uint16(
-    value: vm::Value,
-    name: &'static str,
-    expected: &'static str,
-) -> RuntimeResult<u16> {
-    Ok(decode_uint(value, name, expected, 16)? as u16)
 }
 
 /// Decode a u32 argument.
@@ -190,10 +210,10 @@ fn decode_destack_tls_context_open_args(
             ))
             .boxed());
         }
-        let options_role_raw = decode_uint8(slots[0], "options_role_raw", "role")?;
+        let options_role_raw = decode_int32(slots[0], "options_role_raw", "role")?;
         let options_role = match options_role_raw {
-            0u8 => TlsRole::Client,
-            1u8 => TlsRole::Server,
+            0i32 => TlsRole::Client,
+            1i32 => TlsRole::Server,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_role",
@@ -203,10 +223,10 @@ fn decode_destack_tls_context_open_args(
             }
         };
         let options_min_version_raw =
-            decode_uint16(slots[1], "options_min_version_raw", "minVersion")?;
+            decode_int32(slots[1], "options_min_version_raw", "minVersion")?;
         let options_min_version = match options_min_version_raw {
-            771u16 => TlsVersion::Tls12,
-            772u16 => TlsVersion::Tls13,
+            771i32 => TlsVersion::Tls12,
+            772i32 => TlsVersion::Tls13,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_min_version",
@@ -216,10 +236,10 @@ fn decode_destack_tls_context_open_args(
             }
         };
         let options_max_version_raw =
-            decode_uint16(slots[2], "options_max_version_raw", "maxVersion")?;
+            decode_int32(slots[2], "options_max_version_raw", "maxVersion")?;
         let options_max_version = match options_max_version_raw {
-            771u16 => TlsVersion::Tls12,
-            772u16 => TlsVersion::Tls13,
+            771i32 => TlsVersion::Tls12,
+            772i32 => TlsVersion::Tls13,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_max_version",
@@ -316,11 +336,11 @@ fn decode_destack_tls_context_set_hostname_verification_mode_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::TlsContextHandle(handle_inner);
     let mode_value = arg_value(args, 1, "mode", "TlsHostnameVerificationMode")?;
-    let mode_raw = decode_uint8(mode_value, "mode_raw", "TlsHostnameVerificationMode")?;
+    let mode_raw = decode_int32(mode_value, "mode_raw", "TlsHostnameVerificationMode")?;
     let mode = match mode_raw {
-        0u8 => TlsHostnameVerificationMode::Strict,
-        1u8 => TlsHostnameVerificationMode::AllowMismatch,
-        2u8 => TlsHostnameVerificationMode::Disabled,
+        0i32 => TlsHostnameVerificationMode::Strict,
+        1i32 => TlsHostnameVerificationMode::AllowMismatch,
+        2i32 => TlsHostnameVerificationMode::Disabled,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "mode",
@@ -388,12 +408,12 @@ fn decode_destack_tls_context_set_session_resumption_args(
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::TlsContextHandle(handle_inner);
     let mode_value = arg_value(args, 1, "mode", "TlsSessionResumptionMode")?;
-    let mode_raw = decode_uint8(mode_value, "mode_raw", "TlsSessionResumptionMode")?;
+    let mode_raw = decode_int32(mode_value, "mode_raw", "TlsSessionResumptionMode")?;
     let mode = match mode_raw {
-        0u8 => TlsSessionResumptionMode::Disabled,
-        1u8 => TlsSessionResumptionMode::Stateful,
-        2u8 => TlsSessionResumptionMode::Stateless,
-        3u8 => TlsSessionResumptionMode::StatefulAndStateless,
+        0i32 => TlsSessionResumptionMode::Disabled,
+        1i32 => TlsSessionResumptionMode::Stateful,
+        2i32 => TlsSessionResumptionMode::Stateless,
+        3i32 => TlsSessionResumptionMode::StatefulAndStateless,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "mode",
@@ -525,7 +545,7 @@ fn encode_destack_tls_session_export_keying_material_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.tls.session.handshake.
@@ -547,7 +567,7 @@ fn encode_destack_tls_session_handshake_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TlsHandshakeStatus>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.map(|value| vm::Value::int(value as i32 as i64, 32))
 }
 
 /// Decode arguments for destack.tls.session.negotiatedAlpn.
@@ -569,7 +589,7 @@ fn encode_destack_tls_session_negotiated_alpn_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.tls.session.open.
@@ -627,7 +647,7 @@ fn encode_destack_tls_session_peer_certificates_pem_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.tls.session.read.
@@ -673,7 +693,7 @@ fn encode_destack_tls_session_resumption_state_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TlsSessionResumptionState>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.map(|value| vm::Value::int(value as i32 as i64, 32))
 }
 
 /// Decode arguments for destack.tls.session.shutdown.
@@ -2336,7 +2356,7 @@ fn destack_tls_session_negotiated_alpn_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref())?;
+                    let vm_result = VmSlice::<u8>::from_bytes(context, value.as_ref());
                     Ok(vm_result)
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),

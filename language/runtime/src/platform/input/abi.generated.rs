@@ -123,7 +123,7 @@ impl VmAbiCodec for WindowHandle {
 }
 
 /// ABI enum for InputCapabilityMetadataFidelity.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputCapabilityMetadataFidelity {
     /// Full.
@@ -136,11 +136,11 @@ pub enum InputCapabilityMetadataFidelity {
 
 impl VmValueCodec for InputCapabilityMetadataFidelity {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Full,
-            2u8 => Self::Partial,
-            3u8 => Self::Minimal,
+            1i32 => Self::Full,
+            2i32 => Self::Partial,
+            3i32 => Self::Minimal,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -153,7 +153,7 @@ impl VmValueCodec for InputCapabilityMetadataFidelity {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -191,7 +191,7 @@ impl VmAbiCodec for InputCapabilityMetadataFidelity {
 }
 
 /// ABI enum for InputCapabilityMetadataOrigin.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputCapabilityMetadataOrigin {
     /// BackendDescriptor.
@@ -206,12 +206,12 @@ pub enum InputCapabilityMetadataOrigin {
 
 impl VmValueCodec for InputCapabilityMetadataOrigin {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::BackendDescriptor,
-            2u8 => Self::DeviceSummary,
-            3u8 => Self::CountDerived,
-            255u8 => Self::Mixed,
+            1i32 => Self::BackendDescriptor,
+            2i32 => Self::DeviceSummary,
+            3i32 => Self::CountDerived,
+            255i32 => Self::Mixed,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -224,7 +224,7 @@ impl VmValueCodec for InputCapabilityMetadataOrigin {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -262,7 +262,7 @@ impl VmAbiCodec for InputCapabilityMetadataOrigin {
 }
 
 /// ABI enum for InputDeviceCapabilityKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputDeviceCapabilityKind {
     /// Keyboard.
@@ -285,16 +285,16 @@ pub enum InputDeviceCapabilityKind {
 
 impl VmValueCodec for InputDeviceCapabilityKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Keyboard,
-            2u8 => Self::Pointer,
-            3u8 => Self::Touch,
-            4u8 => Self::Pen,
-            5u8 => Self::Gamepad,
-            6u8 => Self::Sensor,
-            7u8 => Self::Haptics,
-            8u8 => Self::TextInput,
+            1i32 => Self::Keyboard,
+            2i32 => Self::Pointer,
+            3i32 => Self::Touch,
+            4i32 => Self::Pen,
+            5i32 => Self::Gamepad,
+            6i32 => Self::Sensor,
+            7i32 => Self::Haptics,
+            8i32 => Self::TextInput,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -307,7 +307,7 @@ impl VmValueCodec for InputDeviceCapabilityKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -345,7 +345,7 @@ impl VmAbiCodec for InputDeviceCapabilityKind {
 }
 
 /// ABI enum for InputDeviceKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputDeviceKind {
     /// Keyboard.
@@ -364,14 +364,14 @@ pub enum InputDeviceKind {
 
 impl VmValueCodec for InputDeviceKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Keyboard,
-            2u8 => Self::Mouse,
-            3u8 => Self::Touch,
-            4u8 => Self::Gamepad,
-            5u8 => Self::Pen,
-            255u8 => Self::Raw,
+            1i32 => Self::Keyboard,
+            2i32 => Self::Mouse,
+            3i32 => Self::Touch,
+            4i32 => Self::Gamepad,
+            5i32 => Self::Pen,
+            255i32 => Self::Raw,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -384,7 +384,7 @@ impl VmValueCodec for InputDeviceKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -422,7 +422,7 @@ impl VmAbiCodec for InputDeviceKind {
 }
 
 /// ABI enum for InputEventAction.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputEventAction {
     /// Press.
@@ -457,22 +457,22 @@ pub enum InputEventAction {
 
 impl VmValueCodec for InputEventAction {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Press,
-            2u8 => Self::Release,
-            3u8 => Self::Repeat,
-            4u8 => Self::Move,
-            5u8 => Self::Scroll,
-            6u8 => Self::Axis,
-            7u8 => Self::Text,
-            8u8 => Self::Connect,
-            9u8 => Self::Disconnect,
-            10u8 => Self::Cancel,
-            11u8 => Self::Begin,
-            12u8 => Self::Update,
-            13u8 => Self::Commit,
-            14u8 => Self::End,
+            1i32 => Self::Press,
+            2i32 => Self::Release,
+            3i32 => Self::Repeat,
+            4i32 => Self::Move,
+            5i32 => Self::Scroll,
+            6i32 => Self::Axis,
+            7i32 => Self::Text,
+            8i32 => Self::Connect,
+            9i32 => Self::Disconnect,
+            10i32 => Self::Cancel,
+            11i32 => Self::Begin,
+            12i32 => Self::Update,
+            13i32 => Self::Commit,
+            14i32 => Self::End,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -485,7 +485,7 @@ impl VmValueCodec for InputEventAction {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -523,7 +523,7 @@ impl VmAbiCodec for InputEventAction {
 }
 
 /// ABI enum for InputGamepadBatteryState.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputGamepadBatteryState {
     /// Unknown.
@@ -540,13 +540,13 @@ pub enum InputGamepadBatteryState {
 
 impl VmValueCodec for InputGamepadBatteryState {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Charging,
-            2u8 => Self::Discharging,
-            3u8 => Self::Full,
-            4u8 => Self::NotPresent,
+            0i32 => Self::Unknown,
+            1i32 => Self::Charging,
+            2i32 => Self::Discharging,
+            3i32 => Self::Full,
+            4i32 => Self::NotPresent,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -559,7 +559,7 @@ impl VmValueCodec for InputGamepadBatteryState {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -597,7 +597,7 @@ impl VmAbiCodec for InputGamepadBatteryState {
 }
 
 /// ABI enum for InputGamepadConnectionType.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputGamepadConnectionType {
     /// Unknown.
@@ -612,12 +612,12 @@ pub enum InputGamepadConnectionType {
 
 impl VmValueCodec for InputGamepadConnectionType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Wired,
-            2u8 => Self::Wireless,
-            3u8 => Self::Virtual,
+            0i32 => Self::Unknown,
+            1i32 => Self::Wired,
+            2i32 => Self::Wireless,
+            3i32 => Self::Virtual,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -630,7 +630,7 @@ impl VmValueCodec for InputGamepadConnectionType {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -668,7 +668,7 @@ impl VmAbiCodec for InputGamepadConnectionType {
 }
 
 /// ABI enum for InputGamepadMappingType.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputGamepadMappingType {
     /// None.
@@ -681,11 +681,11 @@ pub enum InputGamepadMappingType {
 
 impl VmValueCodec for InputGamepadMappingType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::None,
-            1u8 => Self::Standard,
-            2u8 => Self::XrStandard,
+            0i32 => Self::None,
+            1i32 => Self::Standard,
+            2i32 => Self::XrStandard,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -698,7 +698,7 @@ impl VmValueCodec for InputGamepadMappingType {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -736,7 +736,7 @@ impl VmAbiCodec for InputGamepadMappingType {
 }
 
 /// ABI enum for InputHapticEffectType.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputHapticEffectType {
     /// DualRumble.
@@ -747,10 +747,10 @@ pub enum InputHapticEffectType {
 
 impl VmValueCodec for InputHapticEffectType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::DualRumble,
-            2u8 => Self::TriggerRumble,
+            1i32 => Self::DualRumble,
+            2i32 => Self::TriggerRumble,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -763,7 +763,7 @@ impl VmValueCodec for InputHapticEffectType {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -801,7 +801,7 @@ impl VmAbiCodec for InputHapticEffectType {
 }
 
 /// ABI enum for InputHapticsResult.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputHapticsResult {
     /// Complete.
@@ -812,10 +812,10 @@ pub enum InputHapticsResult {
 
 impl VmValueCodec for InputHapticsResult {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Complete,
-            2u8 => Self::Preempted,
+            1i32 => Self::Complete,
+            2i32 => Self::Preempted,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -828,7 +828,7 @@ impl VmValueCodec for InputHapticsResult {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -866,7 +866,7 @@ impl VmAbiCodec for InputHapticsResult {
 }
 
 /// ABI enum for InputPointerGrabMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputPointerGrabMode {
     /// None.
@@ -879,11 +879,11 @@ pub enum InputPointerGrabMode {
 
 impl VmValueCodec for InputPointerGrabMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::None,
-            1u8 => Self::Confined,
-            2u8 => Self::Locked,
+            0i32 => Self::None,
+            1i32 => Self::Confined,
+            2i32 => Self::Locked,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -896,7 +896,7 @@ impl VmValueCodec for InputPointerGrabMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -934,7 +934,7 @@ impl VmAbiCodec for InputPointerGrabMode {
 }
 
 /// ABI enum for InputReadMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputReadMode {
     /// Cooked.
@@ -945,10 +945,10 @@ pub enum InputReadMode {
 
 impl VmValueCodec for InputReadMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Cooked,
-            2u8 => Self::Raw,
+            1i32 => Self::Cooked,
+            2i32 => Self::Raw,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -961,7 +961,7 @@ impl VmValueCodec for InputReadMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -999,7 +999,7 @@ impl VmAbiCodec for InputReadMode {
 }
 
 /// ABI enum for InputSensorKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputSensorKind {
     /// Accelerometer.
@@ -1026,18 +1026,18 @@ pub enum InputSensorKind {
 
 impl VmValueCodec for InputSensorKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Accelerometer,
-            2u8 => Self::Gyroscope,
-            3u8 => Self::Magnetometer,
-            4u8 => Self::Gravity,
-            5u8 => Self::LinearAcceleration,
-            6u8 => Self::Orientation,
-            7u8 => Self::Barometer,
-            8u8 => Self::AmbientLight,
-            9u8 => Self::Proximity,
-            10u8 => Self::StepCounter,
+            1i32 => Self::Accelerometer,
+            2i32 => Self::Gyroscope,
+            3i32 => Self::Magnetometer,
+            4i32 => Self::Gravity,
+            5i32 => Self::LinearAcceleration,
+            6i32 => Self::Orientation,
+            7i32 => Self::Barometer,
+            8i32 => Self::AmbientLight,
+            9i32 => Self::Proximity,
+            10i32 => Self::StepCounter,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1050,7 +1050,7 @@ impl VmValueCodec for InputSensorKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1088,7 +1088,7 @@ impl VmAbiCodec for InputSensorKind {
 }
 
 /// ABI enum for InputTextInputType.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputTextInputType {
     /// Text.
@@ -1107,14 +1107,14 @@ pub enum InputTextInputType {
 
 impl VmValueCodec for InputTextInputType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Text,
-            1u8 => Self::Number,
-            2u8 => Self::Email,
-            3u8 => Self::Url,
-            4u8 => Self::Password,
-            5u8 => Self::Phone,
+            0i32 => Self::Text,
+            1i32 => Self::Number,
+            2i32 => Self::Email,
+            3i32 => Self::Url,
+            4i32 => Self::Password,
+            5i32 => Self::Phone,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1127,7 +1127,7 @@ impl VmValueCodec for InputTextInputType {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1165,7 +1165,7 @@ impl VmAbiCodec for InputTextInputType {
 }
 
 /// ABI enum for InputTouchContactPhase.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputTouchContactPhase {
     /// Begin.
@@ -1180,12 +1180,12 @@ pub enum InputTouchContactPhase {
 
 impl VmValueCodec for InputTouchContactPhase {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Begin,
-            2u8 => Self::Move,
-            3u8 => Self::End,
-            4u8 => Self::Cancel,
+            1i32 => Self::Begin,
+            2i32 => Self::Move,
+            3i32 => Self::End,
+            4i32 => Self::Cancel,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1198,7 +1198,7 @@ impl VmValueCodec for InputTouchContactPhase {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1434,9 +1434,7 @@ impl VmAggregateCodec for InputEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1740,9 +1738,7 @@ impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1923,9 +1919,7 @@ impl VmAggregateCodec for InputAxisMetadata {
             <f64 as VmAggregateCodec>::encode_with_context(self.fuzz, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.resolution, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2012,9 +2006,7 @@ impl VmAggregateCodec for InputButtonMetadata {
             <u32 as VmAggregateCodec>::encode_with_context(self.code, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.analog, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2138,9 +2130,7 @@ impl VmAggregateCodec for InputCompositionEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2297,9 +2287,7 @@ impl VmAggregateCodec for InputCompositionEventPayloadAbi<VmAbi> {
             <i32 as VmAggregateCodec>::encode_with_context(self.selection_start, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.selection_end, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2574,9 +2562,7 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.supports_raw_hid, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_player_index, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3094,9 +3080,7 @@ impl VmAggregateCodec for InputDeviceDescriptorAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.is_virtual, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_system, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3381,9 +3365,7 @@ impl VmAggregateCodec for InputDeviceEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3506,9 +3488,7 @@ impl VmAggregateCodec for InputDeviceEventPayload {
             <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
             <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3622,9 +3602,7 @@ impl VmAggregateCodec for InputEventMetadataAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3738,9 +3716,7 @@ impl VmAggregateCodec for InputGamepadBatteryStatus {
             )?,
             <f64 as VmAggregateCodec>::encode_with_context(self.level, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3832,9 +3808,7 @@ impl VmAggregateCodec for InputGamepadButtonState {
             <bool as VmAggregateCodec>::encode_with_context(self.touched, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3957,9 +3931,7 @@ impl VmAggregateCodec for InputGamepadEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4085,9 +4057,7 @@ impl VmAggregateCodec for InputGamepadEventPayload {
             <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
             <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4270,9 +4240,7 @@ impl VmAggregateCodec for InputGamepadStateAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4506,9 +4474,7 @@ impl VmAggregateCodec for InputGamepadTouchState {
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4619,9 +4585,7 @@ impl VmAggregateCodec for InputHapticEffectParameters {
             <f64 as VmAggregateCodec>::encode_with_context(self.left_trigger, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.right_trigger, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4743,9 +4707,7 @@ impl VmAggregateCodec for InputKeyEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4879,9 +4841,7 @@ impl VmAggregateCodec for InputKeyEventPayload {
             <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.repeat, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5015,9 +4975,7 @@ impl VmAggregateCodec for InputKeyboardStateAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5190,9 +5148,7 @@ impl VmAggregateCodec for InputMonitorChangeEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5336,9 +5292,7 @@ impl VmAggregateCodec for InputMonitorConnectEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5482,9 +5436,7 @@ impl VmAggregateCodec for InputMonitorDisconnectEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5638,9 +5590,7 @@ impl VmAggregateCodec for InputMonitorEventMetadataAbi<VmAbi> {
             <InputDeviceKind as VmAggregateCodec>::encode_with_context(self.device_kind, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5794,9 +5744,7 @@ impl VmAggregateCodec for InputPenState {
             <bool as VmAggregateCodec>::encode_with_context(self.in_contact, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.in_range, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5920,9 +5868,7 @@ impl VmAggregateCodec for InputPointerButtonEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6066,9 +6012,7 @@ impl VmAggregateCodec for InputPointerButtonEventPayload {
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6192,9 +6136,7 @@ impl VmAggregateCodec for InputPointerMotionEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6326,9 +6268,7 @@ impl VmAggregateCodec for InputPointerMotionEventPayload {
             <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6431,9 +6371,7 @@ impl VmAggregateCodec for InputPointerState {
             <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
             <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6551,9 +6489,7 @@ impl VmAggregateCodec for InputRawHidReportAbi<VmAbi> {
             <u8 as VmAggregateCodec>::encode_with_context(self.report_id, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6706,9 +6642,7 @@ impl VmAggregateCodec for InputScrollEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6839,9 +6773,7 @@ impl VmAggregateCodec for InputScrollEventPayload {
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6940,9 +6872,7 @@ impl VmAggregateCodec for InputSensorConfig {
             <u32 as VmAggregateCodec>::encode_with_context(self.batch_latency_ms, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7048,9 +6978,7 @@ impl VmAggregateCodec for InputSensorDescriptor {
             <f64 as VmAggregateCodec>::encode_with_context(self.resolution, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_wake, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7149,9 +7077,7 @@ impl VmAggregateCodec for InputSensorEffectiveConfig {
             <u32 as VmAggregateCodec>::encode_with_context(self.batch_latency_ms, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7274,9 +7200,7 @@ impl VmAggregateCodec for InputSensorEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7414,9 +7338,7 @@ impl VmAggregateCodec for InputSensorEventPayload {
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.z, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7529,9 +7451,7 @@ impl VmAggregateCodec for InputSensorSample {
             <f64 as VmAggregateCodec>::encode_with_context(self.w, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7653,9 +7573,7 @@ impl VmAggregateCodec for InputTextEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7783,9 +7701,7 @@ impl VmAggregateCodec for InputTextEventPayloadAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.text, context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7899,9 +7815,7 @@ impl VmAggregateCodec for InputTextInputArea {
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.cursor, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8024,9 +7938,7 @@ impl VmAggregateCodec for InputTouchContactState {
             <f64 as VmAggregateCodec>::encode_with_context(self.tilt_x, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.tilt_y, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8148,9 +8060,7 @@ impl VmAggregateCodec for InputTouchEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8279,9 +8189,7 @@ impl VmAggregateCodec for InputTouchEventPayload {
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8406,9 +8314,7 @@ impl VmAggregateCodec for InputTouchStateAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8538,9 +8444,7 @@ impl VmAggregateCodec for InputWindowTarget {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

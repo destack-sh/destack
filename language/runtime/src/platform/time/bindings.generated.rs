@@ -17,7 +17,7 @@ use crate::runtime::bindings::{
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::trace::{EntropyKind, TraceError};
+use crate::runtime::replay::{EntropyKind, TraceError};
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -136,14 +136,12 @@ fn encode_destack_time_clock_metadata_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ClockMetadataVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id as u8 as u64, 8));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.source as u8 as u64, 8));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.resolution_ns, 64));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_monotonic));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.id as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.source as u8 as u64, 8);
+        let field_2 = vm::Value::uint(value.resolution_ns, 64);
+        let field_3 = vm::Value::bool(value.is_monotonic);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 

@@ -76,6 +76,26 @@ fn decode_bool(
     })
 }
 
+/// Decode a signed integer argument with an explicit width.
+#[allow(dead_code)]
+fn decode_int(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+    bits: u8,
+) -> RuntimeResult<i64> {
+    let (raw, width) = value.as_int_with_width().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })?;
+    if width != bits {
+        return Err(
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+        );
+    }
+
+    Ok(raw)
+}
+
 /// Decode an unsigned integer argument with an explicit width.
 #[allow(dead_code)]
 fn decode_uint(
@@ -96,10 +116,14 @@ fn decode_uint(
     Ok(raw)
 }
 
-/// Decode a u8 argument.
+/// Decode an i32 argument.
 #[allow(dead_code)]
-fn decode_uint8(value: vm::Value, name: &'static str, expected: &'static str) -> RuntimeResult<u8> {
-    Ok(decode_uint(value, name, expected, 8)? as u8)
+fn decode_int32(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<i32> {
+    Ok(decode_int(value, name, expected, 32)? as i32)
 }
 
 /// Decode a u32 argument.
@@ -263,25 +287,20 @@ fn encode_destack_runtime_core_agent_describe_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AgentDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.runtime_id.0, 64));
-        let field_2: RuntimeResult<vm::Value> = match value.name {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.id.0, 64);
+        let field_1 = vm::Value::uint(value.runtime_id.0, 64);
+        let field_2 = match value.name {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_pending_work));
-        let field_4: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.resource_count as u64, 32));
-        let field_5: RuntimeResult<vm::Value> = match value.labels {
+        let field_3 = vm::Value::bool(value.has_pending_work);
+        let field_4 = vm::Value::uint(value.resource_count as u64, 32);
+        let field_5 = match value.labels {
             Some(value) => value.to_value(context),
-            None => Ok(vm::Value::VOID),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
     })
 }
 
@@ -407,21 +426,19 @@ fn encode_destack_runtime_core_runtime_describe_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RuntimeDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.primary_agent_id.0, 64));
-        let field_2: RuntimeResult<vm::Value> = match value.name {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.id.0, 64);
+        let field_1 = vm::Value::uint(value.primary_agent_id.0, 64);
+        let field_2 = match value.name {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.agent_count as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = match value.labels {
+        let field_3 = vm::Value::uint(value.agent_count as u64, 32);
+        let field_4 = match value.labels {
             Some(value) => value.to_value(context),
-            None => Ok(vm::Value::VOID),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
 }
 
@@ -483,10 +500,10 @@ fn decode_destack_runtime_core_world_create_args(
                 None
             } else {
                 let options_inner_engine_inner_raw =
-                    decode_uint8(slots[0], "options_inner_engine_inner_raw", "engine")?;
+                    decode_int32(slots[0], "options_inner_engine_inner_raw", "engine")?;
                 let options_inner_engine_inner = match options_inner_engine_inner_raw {
-                    1u8 => RuntimeEngineKind::Vm,
-                    2u8 => RuntimeEngineKind::Native,
+                    1i32 => RuntimeEngineKind::Vm,
+                    2i32 => RuntimeEngineKind::Native,
                     _ => {
                         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                             "options_inner_engine_inner",
@@ -501,12 +518,12 @@ fn decode_destack_runtime_core_world_create_args(
                 None
             } else {
                 let options_inner_execution_inner_raw =
-                    decode_uint8(slots[1], "options_inner_execution_inner_raw", "execution")?;
+                    decode_int32(slots[1], "options_inner_execution_inner_raw", "execution")?;
                 let options_inner_execution_inner = match options_inner_execution_inner_raw {
-                    1u8 => RuntimeExecutionMode::Fast,
-                    2u8 => RuntimeExecutionMode::Deterministic,
-                    3u8 => RuntimeExecutionMode::Record,
-                    4u8 => RuntimeExecutionMode::Replay,
+                    1i32 => RuntimeExecutionMode::Fast,
+                    2i32 => RuntimeExecutionMode::Deterministic,
+                    3i32 => RuntimeExecutionMode::Record,
+                    4i32 => RuntimeExecutionMode::Replay,
                     _ => {
                         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                             "options_inner_execution_inner",
@@ -521,10 +538,10 @@ fn decode_destack_runtime_core_world_create_args(
                 None
             } else {
                 let options_inner_world_inner_raw =
-                    decode_uint8(slots[2], "options_inner_world_inner_raw", "world")?;
+                    decode_int32(slots[2], "options_inner_world_inner_raw", "world")?;
                 let options_inner_world_inner = match options_inner_world_inner_raw {
-                    1u8 => RuntimeWorldKind::Host,
-                    2u8 => RuntimeWorldKind::Simulation,
+                    1i32 => RuntimeWorldKind::Host,
+                    2i32 => RuntimeWorldKind::Simulation,
                     _ => {
                         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                             "options_inner_world_inner",
@@ -590,23 +607,21 @@ fn encode_destack_runtime_core_world_describe_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WorldDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.handle.0.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.branch_id.0, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.revision_id.0, 64));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.wall_ns, 64));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mono_ns, 64));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.virtual_ns, 64));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.runtime_count as u64, 32));
-        let field_7: RuntimeResult<vm::Value> = match value.labels {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.handle.0.0, 64);
+        let field_1 = vm::Value::uint(value.branch_id.0, 64);
+        let field_2 = vm::Value::uint(value.revision_id.0, 64);
+        let field_3 = vm::Value::uint(value.wall_ns, 64);
+        let field_4 = vm::Value::uint(value.mono_ns, 64);
+        let field_5 = vm::Value::uint(value.virtual_ns, 64);
+        let field_6 = vm::Value::uint(value.runtime_count as u64, 32);
+        let field_7 = match value.labels {
             Some(value) => value.to_value(context),
-            None => Ok(vm::Value::VOID),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+        ])
     })
 }
 
@@ -633,7 +648,7 @@ fn encode_destack_runtime_core_world_tick_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RuntimeTickOutcome>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+    result.map(|value| vm::Value::int(value as i32 as i64, 32))
 }
 
 /// Decode arguments for destack.runtime.inspect.agentList.
@@ -742,7 +757,7 @@ fn encode_destack_runtime_inspect_agent_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<AgentDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.inspect.agentView.
@@ -767,25 +782,20 @@ fn encode_destack_runtime_inspect_agent_view_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AgentDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.runtime_id.0, 64));
-        let field_2: RuntimeResult<vm::Value> = match value.name {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.id.0, 64);
+        let field_1 = vm::Value::uint(value.runtime_id.0, 64);
+        let field_2 = match value.name {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_pending_work));
-        let field_4: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.resource_count as u64, 32));
-        let field_5: RuntimeResult<vm::Value> = match value.labels {
+        let field_3 = vm::Value::bool(value.has_pending_work);
+        let field_4 = vm::Value::uint(value.resource_count as u64, 32);
+        let field_5 = match value.labels {
             Some(value) => value.to_value(context),
-            None => Ok(vm::Value::VOID),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
     })
 }
 
@@ -901,7 +911,7 @@ fn encode_destack_runtime_inspect_edge_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<TopologyEdgeVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.inspect.edgeView.
@@ -926,18 +936,16 @@ fn encode_destack_runtime_inspect_edge_view_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TopologyEdgeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.id.0.value());
-        let field_1: RuntimeResult<vm::Value> = Ok(value.kind.0.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(value.from.0.value());
-        let field_3: RuntimeResult<vm::Value> = Ok(value.to.0.value());
-        let field_4: RuntimeResult<vm::Value> = match value.labels {
+    result.map(|value| {
+        let field_0 = value.id.0.value();
+        let field_1 = value.kind.0.value();
+        let field_2 = value.from.0.value();
+        let field_3 = value.to.0.value();
+        let field_4 = match value.labels {
             Some(value) => value.to_value(context),
-            None => Ok(vm::Value::VOID),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
 }
 
@@ -963,27 +971,25 @@ fn encode_destack_runtime_inspect_engine_view_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<EngineDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.kind as u8 as u64, 8));
-        let field_1: RuntimeResult<vm::Value> = match value.call_stack_depth {
-            Some(value) => Ok(vm::Value::uint(value as u64, 32)),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.kind as i32 as i64, 32);
+        let field_1 = match value.call_stack_depth {
+            Some(value) => vm::Value::uint(value as u64, 32),
+            None => vm::Value::VOID,
         };
-        let field_2: RuntimeResult<vm::Value> = match value.value_stack_depth {
-            Some(value) => Ok(vm::Value::uint(value as u64, 32)),
-            None => Ok(vm::Value::VOID),
+        let field_2 = match value.value_stack_depth {
+            Some(value) => vm::Value::uint(value as u64, 32),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = match value.local_stack_depth {
-            Some(value) => Ok(vm::Value::uint(value as u64, 32)),
-            None => Ok(vm::Value::VOID),
+        let field_3 = match value.local_stack_depth {
+            Some(value) => vm::Value::uint(value as u64, 32),
+            None => vm::Value::VOID,
         };
-        let field_4: RuntimeResult<vm::Value> = match value.image_bytes {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+        let field_4 = match value.image_bytes {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
 }
 
@@ -1078,7 +1084,7 @@ fn encode_destack_runtime_inspect_entity_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<TopologyEntityVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.inspect.entityView.
@@ -1103,16 +1109,14 @@ fn encode_destack_runtime_inspect_entity_view_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TopologyEntityVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.id.0.value());
-        let field_1: RuntimeResult<vm::Value> = Ok(value.kind.0.value());
-        let field_2: RuntimeResult<vm::Value> = match value.labels {
+    result.map(|value| {
+        let field_0 = value.id.0.value();
+        let field_1 = value.kind.0.value();
+        let field_2 = match value.labels {
             Some(value) => value.to_value(context),
-            None => Ok(vm::Value::VOID),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -1138,16 +1142,13 @@ fn encode_destack_runtime_inspect_event_loop_view_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<EventLoopDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.task_count as u64, 32));
-        let field_1: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.microtask_count as u64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timer_count as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.watch_count as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_pending_work));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.task_count as u64, 32);
+        let field_1 = vm::Value::uint(value.microtask_count as u64, 32);
+        let field_2 = vm::Value::uint(value.timer_count as u64, 32);
+        let field_3 = vm::Value::uint(value.watch_count as u64, 32);
+        let field_4 = vm::Value::bool(value.has_pending_work);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
 }
 
@@ -1173,13 +1174,12 @@ fn encode_destack_runtime_inspect_heap_view_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<HeapDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.heap_bytes, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.page_count as u64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.gc_cycles, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.heap_bytes, 64);
+        let field_1 = vm::Value::uint(value.page_count as u64, 32);
+        let field_2 = vm::Value::uint(value.shared_page_count as u64, 32);
+        let field_3 = vm::Value::uint(value.gc_cycles, 64);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -1202,16 +1202,14 @@ fn encode_destack_runtime_inspect_image_view_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ImageDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.revision_id.0, 64));
-        let field_2: RuntimeResult<vm::Value> = match value.shared_bytes {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.id.0, 64);
+        let field_1 = vm::Value::uint(value.revision_id.0, 64);
+        let field_2 = match value.shared_bytes {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -1342,7 +1340,7 @@ fn encode_destack_runtime_inspect_resource_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<ResourceDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.inspect.resourceView.
@@ -1394,23 +1392,19 @@ fn encode_destack_runtime_inspect_resource_view_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ResourceDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.agent_id.0, 64));
-            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.resource_id.0, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = {
+            let field_0 = vm::Value::uint(value.id.agent_id.0, 64);
+            let field_1 = vm::Value::uint(value.id.resource_id.0, 64);
+            context.allocate_aggregate(vec![field_0, field_1])
         };
-        let field_1: RuntimeResult<vm::Value> = Ok(value.entity_id.0.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(value.kind.value());
-        let field_3: RuntimeResult<vm::Value> = match value.label {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+        let field_1 = value.entity_id.0.value();
+        let field_2 = value.kind.value();
+        let field_3 = match value.label {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -1433,23 +1427,21 @@ fn encode_destack_runtime_inspect_revision_view_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RevisionDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.branch_id.0, 64));
-        let field_2: RuntimeResult<vm::Value> = match value.parent_revision {
-            Some(value) => Ok(vm::Value::uint(value.0, 64)),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.id.0, 64);
+        let field_1 = vm::Value::uint(value.branch_id.0, 64);
+        let field_2 = match value.parent_revision {
+            Some(value) => vm::Value::uint(value.0, 64),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence.0, 64));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.wall_ns, 64));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mono_ns, 64));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.virtual_ns, 64));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.image_id.0, 64));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        let field_3 = vm::Value::uint(value.sequence.0, 64);
+        let field_4 = vm::Value::uint(value.wall_ns, 64);
+        let field_5 = vm::Value::uint(value.mono_ns, 64);
+        let field_6 = vm::Value::uint(value.virtual_ns, 64);
+        let field_7 = vm::Value::uint(value.image_id.0, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+        ])
     })
 }
 
@@ -1539,7 +1531,7 @@ fn encode_destack_runtime_inspect_runtime_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<RuntimeDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.inspect.runtimeView.
@@ -1564,21 +1556,19 @@ fn encode_destack_runtime_inspect_runtime_view_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RuntimeDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.primary_agent_id.0, 64));
-        let field_2: RuntimeResult<vm::Value> = match value.name {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.id.0, 64);
+        let field_1 = vm::Value::uint(value.primary_agent_id.0, 64);
+        let field_2 = match value.name {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.agent_count as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = match value.labels {
+        let field_3 = vm::Value::uint(value.agent_count as u64, 32);
+        let field_4 = match value.labels {
             Some(value) => value.to_value(context),
-            None => Ok(vm::Value::VOID),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
 }
 
@@ -1601,12 +1591,10 @@ fn encode_destack_runtime_inspect_trace_view_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TraceDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.branch_id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence.0, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.branch_id.0, 64);
+        let field_1 = vm::Value::uint(value.sequence.0, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -1629,23 +1617,21 @@ fn encode_destack_runtime_inspect_world_view_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WorldDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.handle.0.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.branch_id.0, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.revision_id.0, 64));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.wall_ns, 64));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mono_ns, 64));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.virtual_ns, 64));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.runtime_count as u64, 32));
-        let field_7: RuntimeResult<vm::Value> = match value.labels {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.handle.0.0, 64);
+        let field_1 = vm::Value::uint(value.branch_id.0, 64);
+        let field_2 = vm::Value::uint(value.revision_id.0, 64);
+        let field_3 = vm::Value::uint(value.wall_ns, 64);
+        let field_4 = vm::Value::uint(value.mono_ns, 64);
+        let field_5 = vm::Value::uint(value.virtual_ns, 64);
+        let field_6 = vm::Value::uint(value.runtime_count as u64, 32);
+        let field_7 = match value.labels {
             Some(value) => value.to_value(context),
-            None => Ok(vm::Value::VOID),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+        ])
     })
 }
 
@@ -1763,20 +1749,18 @@ fn encode_destack_runtime_lineage_branch_describe_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BranchDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.head_revision.0, 64));
-        let field_2: RuntimeResult<vm::Value> = match value.name {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.id.0, 64);
+        let field_1 = vm::Value::uint(value.head_revision.0, 64);
+        let field_2 = match value.name {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = match value.labels {
+        let field_3 = match value.labels {
             Some(value) => value.to_value(context),
-            None => Ok(vm::Value::VOID),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -1870,7 +1854,7 @@ fn encode_destack_runtime_lineage_branch_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<BranchDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.lineage.checkpointCreate.
@@ -1898,7 +1882,7 @@ fn decode_destack_runtime_lineage_checkpoint_create_args(
         let name_inner = decode_string(name_value, "name_inner", "string")?;
         Some(name_inner)
     };
-    let labels_value = arg_value(args, 2, "labels", "RuntimeLabel[]")?;
+    let labels_value = arg_value(args, 2, "labels", "Array<RuntimeLabel>")?;
     let labels = if labels_value.tag() == vm::ValueTag::Void {
         None
     } else {
@@ -1906,7 +1890,7 @@ fn decode_destack_runtime_lineage_checkpoint_create_args(
             context,
             labels_value,
             "labels_inner",
-            "RuntimeLabel[]",
+            "Array<RuntimeLabel>",
         )?;
         Some(labels_inner)
     };
@@ -1949,20 +1933,18 @@ fn encode_destack_runtime_lineage_checkpoint_describe_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CheckpointDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.revision_id.0, 64));
-        let field_2: RuntimeResult<vm::Value> = match value.name {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.id.0, 64);
+        let field_1 = vm::Value::uint(value.revision_id.0, 64);
+        let field_2 = match value.name {
+            Some(value) => value.value(),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = match value.labels {
+        let field_3 = match value.labels {
             Some(value) => value.to_value(context),
-            None => Ok(vm::Value::VOID),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -2069,7 +2051,7 @@ fn encode_destack_runtime_lineage_checkpoint_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<CheckpointDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.lineage.imageCapture.
@@ -2124,16 +2106,14 @@ fn encode_destack_runtime_lineage_image_describe_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ImageDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.revision_id.0, 64));
-        let field_2: RuntimeResult<vm::Value> = match value.shared_bytes {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.id.0, 64);
+        let field_1 = vm::Value::uint(value.revision_id.0, 64);
+        let field_2 = match value.shared_bytes {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -2220,7 +2200,7 @@ fn encode_destack_runtime_lineage_image_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<ImageDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.lineage.revisionDescribe.
@@ -2249,23 +2229,21 @@ fn encode_destack_runtime_lineage_revision_describe_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RevisionDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.branch_id.0, 64));
-        let field_2: RuntimeResult<vm::Value> = match value.parent_revision {
-            Some(value) => Ok(vm::Value::uint(value.0, 64)),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.id.0, 64);
+        let field_1 = vm::Value::uint(value.branch_id.0, 64);
+        let field_2 = match value.parent_revision {
+            Some(value) => vm::Value::uint(value.0, 64),
+            None => vm::Value::VOID,
         };
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence.0, 64));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.wall_ns, 64));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.mono_ns, 64));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.virtual_ns, 64));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.image_id.0, 64));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+        let field_3 = vm::Value::uint(value.sequence.0, 64);
+        let field_4 = vm::Value::uint(value.wall_ns, 64);
+        let field_5 = vm::Value::uint(value.mono_ns, 64);
+        let field_6 = vm::Value::uint(value.virtual_ns, 64);
+        let field_7 = vm::Value::uint(value.image_id.0, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+        ])
     })
 }
 
@@ -2348,7 +2326,7 @@ fn encode_destack_runtime_lineage_revision_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<RevisionDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.lineage.worldBranch.
@@ -2406,7 +2384,7 @@ fn decode_destack_runtime_lineage_world_fork_args(
         let name_inner = decode_string(name_value, "name_inner", "string")?;
         Some(name_inner)
     };
-    let labels_value = arg_value(args, 3, "labels", "RuntimeLabel[]")?;
+    let labels_value = arg_value(args, 3, "labels", "Array<RuntimeLabel>")?;
     let labels = if labels_value.tag() == vm::ValueTag::Void {
         None
     } else {
@@ -2414,7 +2392,7 @@ fn decode_destack_runtime_lineage_world_fork_args(
             context,
             labels_value,
             "labels_inner",
-            "RuntimeLabel[]",
+            "Array<RuntimeLabel>",
         )?;
         Some(labels_inner)
     };
@@ -2565,7 +2543,7 @@ fn encode_destack_runtime_observation_next_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<ObservationRecordVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.observation.open.
@@ -2647,13 +2625,12 @@ fn decode_destack_runtime_observation_open_args(
                 Some(options_inner_profiles_inner)
             };
             ObservationOptionsVm {
-                runtime: options_inner_trace,
+                trace: options_inner_trace,
                 topology: options_inner_topology,
-                resource: options_inner_resources,
+                resources: options_inner_resources,
                 scheduler: options_inner_scheduler,
-                diagnostic: options_inner_diagnostics,
-                profile: options_inner_profiles,
-                domain: None,
+                diagnostics: options_inner_diagnostics,
+                profiles: options_inner_profiles,
             }
         };
         Some(options_inner)
@@ -2688,10 +2665,10 @@ fn decode_destack_runtime_snapshot_create_args(
     let imageid_inner = decode_uint64(imageid_value, "imageid_inner", "ImageId")?;
     let imageid = ImageId(imageid_inner);
     let format_value = arg_value(args, 2, "format", "SnapshotFormat")?;
-    let format_raw = decode_uint8(format_value, "format_raw", "SnapshotFormat")?;
+    let format_raw = decode_int32(format_value, "format_raw", "SnapshotFormat")?;
     let format = match format_raw {
-        1u8 => SnapshotFormat::Fast,
-        2u8 => SnapshotFormat::Portable,
+        1i32 => SnapshotFormat::Fast,
+        2i32 => SnapshotFormat::Portable,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "format",
@@ -2738,17 +2715,15 @@ fn encode_destack_runtime_snapshot_describe_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SnapshotDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.image_id.0, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u8 as u64, 8));
-        let field_3: RuntimeResult<vm::Value> = match value.size_bytes {
-            Some(value) => Ok(vm::Value::uint(value, 64)),
-            None => Ok(vm::Value::VOID),
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.id.0, 64);
+        let field_1 = vm::Value::uint(value.image_id.0, 64);
+        let field_2 = vm::Value::int(value.format as i32 as i64, 32);
+        let field_3 = match value.size_bytes {
+            Some(value) => vm::Value::uint(value, 64),
+            None => vm::Value::VOID,
         };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
     })
 }
 
@@ -2766,12 +2741,12 @@ fn decode_destack_runtime_snapshot_import_args(
     )?;
     let argument_world_inner = resource::ResourceId(argument_world_inner_inner);
     let argument_world = WorldHandle(argument_world_inner);
-    let argument_payload_value = arg_value(args, 1, "argument_payload", "uint8[]")?;
+    let argument_payload_value = arg_value(args, 1, "argument_payload", "Array<uint8>")?;
     let argument_payload = decode_array::<u8>(
         context,
         argument_payload_value,
         "argument_payload",
-        "uint8[]",
+        "Array<uint8>",
     )?;
     Ok((argument_world, argument_payload))
 }
@@ -2823,7 +2798,7 @@ fn encode_destack_runtime_snapshot_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<SnapshotDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.snapshot.read.
@@ -2852,7 +2827,7 @@ fn encode_destack_runtime_snapshot_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.snapshot.restoreImage.
@@ -2959,12 +2934,10 @@ fn encode_destack_runtime_trace_describe_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TraceDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.branch_id.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence.0, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.branch_id.0, 64);
+        let field_1 = vm::Value::uint(value.sequence.0, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -3023,7 +2996,7 @@ fn encode_destack_runtime_trace_next_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<TraceRecordVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.runtime.trace.open.
@@ -3407,7 +3380,7 @@ pub(crate) const RUNTIME_CORE_WORLD_TICK: BindingDescriptor =
 /// Binding descriptor for destack.runtime.inspect.agentList.
 pub(crate) const RUNTIME_INSPECT_AGENT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.agentList",
-    "export function agentList(view: WorldViewHandle, filter: AgentFilter, after: AgentId, limit: uint32): Result<AgentDescriptor[], PlatformError>",
+    "export function agentList(view: WorldViewHandle, filter: AgentFilter, after: AgentId, limit: uint32): Result<Array<AgentDescriptor>, PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3431,7 +3404,7 @@ pub(crate) const RUNTIME_INSPECT_AGENT_VIEW: BindingDescriptor = BindingDescript
 /// Binding descriptor for destack.runtime.inspect.edgeList.
 pub(crate) const RUNTIME_INSPECT_EDGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.edgeList",
-    "export function edgeList(view: WorldViewHandle, filter: TopologyEdgeFilter, after: TopologyEdgeId, limit: uint32): Result<TopologyEdge[], PlatformError>",
+    "export function edgeList(view: WorldViewHandle, filter: TopologyEdgeFilter, after: TopologyEdgeId, limit: uint32): Result<Array<TopologyEdge>, PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3467,7 +3440,7 @@ pub(crate) const RUNTIME_INSPECT_ENGINE_VIEW: BindingDescriptor = BindingDescrip
 /// Binding descriptor for destack.runtime.inspect.entityList.
 pub(crate) const RUNTIME_INSPECT_ENTITY_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.entityList",
-    "export function entityList(view: WorldViewHandle, filter: TopologyEntityFilter, after: TopologyEntityId, limit: uint32): Result<TopologyEntity[], PlatformError>",
+    "export function entityList(view: WorldViewHandle, filter: TopologyEntityFilter, after: TopologyEntityId, limit: uint32): Result<Array<TopologyEntity>, PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3542,7 +3515,7 @@ pub(crate) const RUNTIME_INSPECT_IMAGE_VIEW: BindingDescriptor =
 /// Binding descriptor for destack.runtime.inspect.resourceList.
 pub(crate) const RUNTIME_INSPECT_RESOURCE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.resourceList",
-    "export function resourceList(view: WorldViewHandle, filter: ResourceFilter, after: WorldResourceId, limit: uint32): Result<ResourceDescriptor[], PlatformError>",
+    "export function resourceList(view: WorldViewHandle, filter: ResourceFilter, after: WorldResourceId, limit: uint32): Result<Array<ResourceDescriptor>, PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3578,7 +3551,7 @@ pub(crate) const RUNTIME_INSPECT_REVISION_VIEW: BindingDescriptor = BindingDescr
 /// Binding descriptor for destack.runtime.inspect.runtimeList.
 pub(crate) const RUNTIME_INSPECT_RUNTIME_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.inspect.runtimeList",
-    "export function runtimeList(view: WorldViewHandle, filter: RuntimeFilter, after: RuntimeId, limit: uint32): Result<RuntimeDescriptor[], PlatformError>",
+    "export function runtimeList(view: WorldViewHandle, filter: RuntimeFilter, after: RuntimeId, limit: uint32): Result<Array<RuntimeDescriptor>, PlatformError>",
     &["runtime.inspect.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3707,7 +3680,7 @@ pub(crate) const RUNTIME_LINEAGE_BRANCH_DESCRIBE: BindingDescriptor = BindingDes
 /// Binding descriptor for destack.runtime.lineage.branchList.
 pub(crate) const RUNTIME_LINEAGE_BRANCH_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.branchList",
-    "export function branchList(world: WorldHandle, filter: BranchFilter, after: BranchId, limit: uint32): Result<BranchDescriptor[], PlatformError>",
+    "export function branchList(world: WorldHandle, filter: BranchFilter, after: BranchId, limit: uint32): Result<Array<BranchDescriptor>, PlatformError>",
     &["runtime.lineage.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3719,7 +3692,7 @@ pub(crate) const RUNTIME_LINEAGE_BRANCH_LIST: BindingDescriptor = BindingDescrip
 /// Binding descriptor for destack.runtime.lineage.checkpointCreate.
 pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.checkpointCreate",
-    "export function checkpointCreate(world: WorldHandle, name: string, labels: RuntimeLabel[]): Result<CheckpointId, PlatformError>",
+    "export function checkpointCreate(world: WorldHandle, name: string, labels: Array<RuntimeLabel>): Result<CheckpointId, PlatformError>",
     &["runtime.lineage.control"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
@@ -3743,7 +3716,7 @@ pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_DESCRIBE: BindingDescriptor = Bindin
 /// Binding descriptor for destack.runtime.lineage.checkpointList.
 pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.checkpointList",
-    "export function checkpointList(world: WorldHandle, filter: CheckpointFilter, after: CheckpointId, limit: uint32): Result<CheckpointDescriptor[], PlatformError>",
+    "export function checkpointList(world: WorldHandle, filter: CheckpointFilter, after: CheckpointId, limit: uint32): Result<Array<CheckpointDescriptor>, PlatformError>",
     &["runtime.lineage.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3794,7 +3767,7 @@ pub(crate) const RUNTIME_LINEAGE_IMAGE_DESCRIBE: BindingDescriptor = BindingDesc
 /// Binding descriptor for destack.runtime.lineage.imageList.
 pub(crate) const RUNTIME_LINEAGE_IMAGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.imageList",
-    "export function imageList(world: WorldHandle, filter: ImageFilter, after: ImageId, limit: uint32): Result<ImageDescriptor[], PlatformError>",
+    "export function imageList(world: WorldHandle, filter: ImageFilter, after: ImageId, limit: uint32): Result<Array<ImageDescriptor>, PlatformError>",
     &["runtime.snapshot.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3818,7 +3791,7 @@ pub(crate) const RUNTIME_LINEAGE_REVISION_DESCRIBE: BindingDescriptor = BindingD
 /// Binding descriptor for destack.runtime.lineage.revisionList.
 pub(crate) const RUNTIME_LINEAGE_REVISION_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.revisionList",
-    "export function revisionList(world: WorldHandle, filter: RevisionFilter, after: RevisionId, limit: uint32): Result<RevisionDescriptor[], PlatformError>",
+    "export function revisionList(world: WorldHandle, filter: RevisionFilter, after: RevisionId, limit: uint32): Result<Array<RevisionDescriptor>, PlatformError>",
     &["runtime.lineage.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -3857,7 +3830,7 @@ pub(crate) const RUNTIME_LINEAGE_WORLD_BRANCH: BindingDescriptor =
 /// Binding descriptor for destack.runtime.lineage.worldFork.
 pub(crate) const RUNTIME_LINEAGE_WORLD_FORK: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.lineage.worldFork",
-    "export function worldFork(world: WorldHandle, revisionId: RevisionId, name: string, labels: RuntimeLabel[]): Result<WorldHandle, PlatformError>",
+    "export function worldFork(world: WorldHandle, revisionId: RevisionId, name: string, labels: Array<RuntimeLabel>): Result<WorldHandle, PlatformError>",
     &["runtime.world.create"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
@@ -3947,7 +3920,7 @@ pub(crate) const RUNTIME_OBSERVATION_CLOSE: BindingDescriptor =
 /// Binding descriptor for destack.runtime.observation.next.
 pub(crate) const RUNTIME_OBSERVATION_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.observation.next",
-    "export function observationNext(handle: ObservationHandle, limit: uint32): Result<ObservationRecord[], PlatformError>",
+    "export function observationNext(handle: ObservationHandle, limit: uint32): Result<Array<ObservationRecord>, PlatformError>",
     &["runtime.observation.read"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
@@ -3995,7 +3968,7 @@ pub(crate) const RUNTIME_SNAPSHOT_DESCRIBE: BindingDescriptor = BindingDescripto
 /// Binding descriptor for destack.runtime.snapshot.import.
 pub(crate) const RUNTIME_SNAPSHOT_IMPORT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.import",
-    "export function snapshotImport(world: WorldHandle, payload: uint8[]): Result<SnapshotId, PlatformError>",
+    "export function snapshotImport(world: WorldHandle, payload: Array<uint8>): Result<SnapshotId, PlatformError>",
     &["runtime.snapshot.create"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
@@ -4007,7 +3980,7 @@ pub(crate) const RUNTIME_SNAPSHOT_IMPORT: BindingDescriptor = BindingDescriptor:
 /// Binding descriptor for destack.runtime.snapshot.list.
 pub(crate) const RUNTIME_SNAPSHOT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.list",
-    "export function snapshotList(world: WorldHandle, after: SnapshotId, limit: uint32): Result<SnapshotDescriptor[], PlatformError>",
+    "export function snapshotList(world: WorldHandle, after: SnapshotId, limit: uint32): Result<Array<SnapshotDescriptor>, PlatformError>",
     &["runtime.snapshot.read"],
     BindingScope::Runtime,
     BindingBlocking::Never,
@@ -4019,7 +3992,7 @@ pub(crate) const RUNTIME_SNAPSHOT_LIST: BindingDescriptor = BindingDescriptor::d
 /// Binding descriptor for destack.runtime.snapshot.read.
 pub(crate) const RUNTIME_SNAPSHOT_READ: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.snapshot.read",
-    "export function snapshotRead(world: WorldHandle, snapshotId: SnapshotId): Result<uint8[], PlatformError>",
+    "export function snapshotRead(world: WorldHandle, snapshotId: SnapshotId): Result<Array<uint8>, PlatformError>",
     &["runtime.snapshot.read"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
@@ -4121,7 +4094,7 @@ pub(crate) const RUNTIME_TRACE_MARK: BindingDescriptor = BindingDescriptor::dete
 /// Binding descriptor for destack.runtime.trace.next.
 pub(crate) const RUNTIME_TRACE_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
     "destack.runtime.trace.next",
-    "export function traceNext(cursor: TraceCursorHandle, limit: uint32): Result<TraceRecord[], PlatformError>",
+    "export function traceNext(cursor: TraceCursorHandle, limit: uint32): Result<Array<TraceRecord>, PlatformError>",
     &["runtime.trace.read"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,

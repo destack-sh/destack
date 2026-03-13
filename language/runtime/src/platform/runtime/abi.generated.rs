@@ -1112,7 +1112,7 @@ impl VmAbiCodec for WorldViewHandle {
 }
 
 /// ABI enum for EngineDescriptorKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EngineDescriptorKind {
     /// Isolate.
@@ -1123,10 +1123,10 @@ pub enum EngineDescriptorKind {
 
 impl VmValueCodec for EngineDescriptorKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Isolate,
-            2u8 => Self::Native,
+            1i32 => Self::Isolate,
+            2i32 => Self::Native,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1139,7 +1139,7 @@ impl VmValueCodec for EngineDescriptorKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1177,11 +1177,11 @@ impl VmAbiCodec for EngineDescriptorKind {
 }
 
 /// ABI enum for ObservationEventKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ObservationEventKind {
-    /// Runtime.
-    Runtime = 1,
+    /// Trace.
+    Trace = 1,
     /// Topology.
     Topology = 2,
     /// Resource.
@@ -1190,23 +1190,20 @@ pub enum ObservationEventKind {
     Scheduler = 4,
     /// Diagnostic.
     Diagnostic = 5,
-    /// Telemetry.
-    Telemetry = 6,
-    /// Domain.
-    Domain = 7,
+    /// Profile.
+    Profile = 6,
 }
 
 impl VmValueCodec for ObservationEventKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Runtime,
-            2u8 => Self::Topology,
-            3u8 => Self::Resource,
-            4u8 => Self::Scheduler,
-            5u8 => Self::Diagnostic,
-            6u8 => Self::Telemetry,
-            7u8 => Self::Domain,
+            1i32 => Self::Trace,
+            2i32 => Self::Topology,
+            3i32 => Self::Resource,
+            4i32 => Self::Scheduler,
+            5i32 => Self::Diagnostic,
+            6i32 => Self::Profile,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1219,7 +1216,7 @@ impl VmValueCodec for ObservationEventKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1257,7 +1254,7 @@ impl VmAbiCodec for ObservationEventKind {
 }
 
 /// ABI enum for RuntimeEngineKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RuntimeEngineKind {
     /// Vm.
@@ -1268,10 +1265,10 @@ pub enum RuntimeEngineKind {
 
 impl VmValueCodec for RuntimeEngineKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Vm,
-            2u8 => Self::Native,
+            1i32 => Self::Vm,
+            2i32 => Self::Native,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1284,7 +1281,7 @@ impl VmValueCodec for RuntimeEngineKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1322,7 +1319,7 @@ impl VmAbiCodec for RuntimeEngineKind {
 }
 
 /// ABI enum for RuntimeExecutionMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RuntimeExecutionMode {
     /// Fast.
@@ -1337,12 +1334,12 @@ pub enum RuntimeExecutionMode {
 
 impl VmValueCodec for RuntimeExecutionMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Fast,
-            2u8 => Self::Deterministic,
-            3u8 => Self::Record,
-            4u8 => Self::Replay,
+            1i32 => Self::Fast,
+            2i32 => Self::Deterministic,
+            3i32 => Self::Record,
+            4i32 => Self::Replay,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1355,7 +1352,7 @@ impl VmValueCodec for RuntimeExecutionMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1393,7 +1390,7 @@ impl VmAbiCodec for RuntimeExecutionMode {
 }
 
 /// ABI enum for RuntimeTickOutcome.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RuntimeTickOutcome {
     /// Idle.
@@ -1406,11 +1403,11 @@ pub enum RuntimeTickOutcome {
 
 impl VmValueCodec for RuntimeTickOutcome {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Idle,
-            2u8 => Self::Progressed,
-            3u8 => Self::AdvancedTime,
+            1i32 => Self::Idle,
+            2i32 => Self::Progressed,
+            3i32 => Self::AdvancedTime,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1423,7 +1420,7 @@ impl VmValueCodec for RuntimeTickOutcome {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1461,7 +1458,7 @@ impl VmAbiCodec for RuntimeTickOutcome {
 }
 
 /// ABI enum for RuntimeWorldKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RuntimeWorldKind {
     /// Host.
@@ -1472,10 +1469,10 @@ pub enum RuntimeWorldKind {
 
 impl VmValueCodec for RuntimeWorldKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Host,
-            2u8 => Self::Simulation,
+            1i32 => Self::Host,
+            2i32 => Self::Simulation,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1488,7 +1485,7 @@ impl VmValueCodec for RuntimeWorldKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1526,7 +1523,7 @@ impl VmAbiCodec for RuntimeWorldKind {
 }
 
 /// ABI enum for SnapshotFormat.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SnapshotFormat {
     /// Fast.
@@ -1537,10 +1534,10 @@ pub enum SnapshotFormat {
 
 impl VmValueCodec for SnapshotFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Fast,
-            2u8 => Self::Portable,
+            1i32 => Self::Fast,
+            2i32 => Self::Portable,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1553,7 +1550,7 @@ impl VmValueCodec for SnapshotFormat {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1591,7 +1588,7 @@ impl VmAbiCodec for SnapshotFormat {
 }
 
 /// ABI enum for TraceEventKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TraceEventKind {
     /// Entropy.
@@ -1606,12 +1603,12 @@ pub enum TraceEventKind {
 
 impl VmValueCodec for TraceEventKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Entropy,
-            2u8 => Self::BindingCall,
-            3u8 => Self::Control,
-            4u8 => Self::Marker,
+            1i32 => Self::Entropy,
+            2i32 => Self::BindingCall,
+            3i32 => Self::Control,
+            4i32 => Self::Marker,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1624,7 +1621,7 @@ impl VmValueCodec for TraceEventKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1741,9 +1738,7 @@ impl VmAggregateCodec for AgentCreateOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1912,9 +1907,7 @@ impl VmAggregateCodec for AgentDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2101,9 +2094,7 @@ impl VmAggregateCodec for AgentFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2290,9 +2281,7 @@ impl VmAggregateCodec for BranchDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2452,9 +2441,7 @@ impl VmAggregateCodec for BranchFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2613,9 +2600,7 @@ impl VmAggregateCodec for CheckpointDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2782,9 +2767,7 @@ impl VmAggregateCodec for CheckpointFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2942,9 +2925,7 @@ impl VmAggregateCodec for EngineDescriptor {
             )?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.image_bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3048,9 +3029,7 @@ impl VmAggregateCodec for EventLoopDescriptor {
             <u32 as VmAggregateCodec>::encode_with_context(self.watch_count, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.has_pending_work, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3095,6 +3074,8 @@ pub struct HeapDescriptor {
     pub heap_bytes: u64,
     /// Total captured page count.
     pub page_count: u32,
+    /// Shared page count.
+    pub shared_page_count: u32,
     /// Completed GC cycle count.
     pub gc_cycles: u64,
 }
@@ -3116,19 +3097,22 @@ impl VmAggregateCodec for HeapDescriptor {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
         let field_heap_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_page_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_gc_cycles = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_shared_page_count =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_gc_cycles = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             heap_bytes: field_heap_bytes,
             page_count: field_page_count,
+            shared_page_count: field_shared_page_count,
             gc_cycles: field_gc_cycles,
         })
     }
@@ -3140,11 +3124,10 @@ impl VmAggregateCodec for HeapDescriptor {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.heap_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.page_count, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.shared_page_count, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.gc_cycles, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3238,9 +3221,7 @@ impl VmAggregateCodec for ImageDescriptor {
             <RevisionId as VmAggregateCodec>::encode_with_context(self.revision_id, context)?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.shared_bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3326,9 +3307,7 @@ impl VmAggregateCodec for ImageFilter {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3369,20 +3348,18 @@ impl VmAbiCodec for ImageFilter {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ObservationOptions {
-    /// Include runtime lifecycle and engine observations.
-    pub runtime: Option<bool>,
+    /// Include trace-adjacent events.
+    pub trace: Option<bool>,
     /// Include topology change events.
     pub topology: Option<bool>,
     /// Include resource lifecycle events.
-    pub resource: Option<bool>,
+    pub resources: Option<bool>,
     /// Include scheduler events.
     pub scheduler: Option<bool>,
     /// Include diagnostics and policy events.
-    pub diagnostic: Option<bool>,
+    pub diagnostics: Option<bool>,
     /// Include profiler events.
-    pub profile: Option<bool>,
-    /// Include domain observations.
-    pub domain: Option<bool>,
+    pub profiles: Option<bool>,
 }
 
 pub type ObservationOptionsVm = ObservationOptions;
@@ -3402,35 +3379,32 @@ impl VmAggregateCodec for ObservationOptions {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        if slots.len() != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 7 fields",
+                "expected 6 fields",
             ))
             .boxed());
         }
-        let field_runtime =
+        let field_trace =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_topology =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_resource =
+        let field_resources =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_scheduler =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_diagnostic =
+        let field_diagnostics =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_profile =
+        let field_profiles =
             <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_domain =
-            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
-            runtime: field_runtime,
+            trace: field_trace,
             topology: field_topology,
-            resource: field_resource,
+            resources: field_resources,
             scheduler: field_scheduler,
-            diagnostic: field_diagnostic,
-            profile: field_profile,
-            domain: field_domain,
+            diagnostics: field_diagnostics,
+            profiles: field_profiles,
         })
     }
 
@@ -3439,17 +3413,14 @@ impl VmAggregateCodec for ObservationOptions {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <Option<bool> as VmAggregateCodec>::encode_with_context(self.runtime, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.trace, context)?,
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.topology, context)?,
-            <Option<bool> as VmAggregateCodec>::encode_with_context(self.resource, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.resources, context)?,
             <Option<bool> as VmAggregateCodec>::encode_with_context(self.scheduler, context)?,
-            <Option<bool> as VmAggregateCodec>::encode_with_context(self.diagnostic, context)?,
-            <Option<bool> as VmAggregateCodec>::encode_with_context(self.profile, context)?,
-            <Option<bool> as VmAggregateCodec>::encode_with_context(self.domain, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.diagnostics, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.profiles, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3568,9 +3539,7 @@ impl VmAggregateCodec for ObservationRecordAbi<VmAbi> {
             )?,
             <Option<VmArray<u8>> as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3728,9 +3697,7 @@ impl VmAggregateCodec for ResourceDescriptorAbi<VmAbi> {
                 self.label, context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3886,9 +3853,7 @@ impl VmAggregateCodec for ResourceFilterAbi<VmAbi> {
                 self.label, context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4046,9 +4011,7 @@ impl VmAggregateCodec for RevisionDescriptor {
             <u64 as VmAggregateCodec>::encode_with_context(self.virtual_ns, context)?,
             <ImageId as VmAggregateCodec>::encode_with_context(self.image_id, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4132,9 +4095,7 @@ impl VmAggregateCodec for RevisionFilter {
             self.branch_id,
             context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4251,9 +4212,7 @@ impl VmAggregateCodec for RuntimeCreateOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4415,9 +4374,7 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4586,9 +4543,7 @@ impl VmAggregateCodec for RuntimeFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4729,9 +4684,7 @@ impl VmAggregateCodec for RuntimeLabelAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.key, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.value, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4861,9 +4814,7 @@ impl VmAggregateCodec for RuntimeLabelSelectorAbi<VmAbi> {
                 self.value, context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4980,9 +4931,7 @@ impl VmAggregateCodec for SnapshotDescriptor {
             <SnapshotFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5115,9 +5064,7 @@ impl VmAggregateCodec for TopologyEdgeAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5300,9 +5247,7 @@ impl VmAggregateCodec for TopologyEdgeFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5466,9 +5411,7 @@ impl VmAggregateCodec for TopologyEntityAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5621,9 +5564,7 @@ impl VmAggregateCodec for TopologyEntityFilterAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5740,9 +5681,7 @@ impl VmAggregateCodec for TraceCursorOptions {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5831,9 +5770,7 @@ impl VmAggregateCodec for TraceDescriptor {
             <BranchId as VmAggregateCodec>::encode_with_context(self.branch_id, context)?,
             <TraceSequence as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5949,9 +5886,7 @@ impl VmAggregateCodec for TraceRecordAbi<VmAbi> {
             <TraceEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <Option<VmArray<u8>> as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6118,9 +6053,7 @@ impl VmAggregateCodec for WorldCreateOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6325,9 +6258,7 @@ impl VmAggregateCodec for WorldDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6483,9 +6414,7 @@ impl VmAggregateCodec for WorldResourceId {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6571,9 +6500,7 @@ impl VmAggregateCodec for WorldViewOptions {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

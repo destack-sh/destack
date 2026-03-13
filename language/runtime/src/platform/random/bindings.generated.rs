@@ -22,7 +22,7 @@ use crate::runtime::bindings::{
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::trace::{EntropyKind, TraceError};
+use crate::runtime::replay::{EntropyKind, TraceError};
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -205,19 +205,17 @@ fn encode_destack_random_secure_metadata_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SecureRandomMetadataVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.source as u8 as u64, 8));
-        let field_1: RuntimeResult<vm::Value> = Ok(value.backend_name.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.may_block));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_cryptographic));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_seeded));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_fips_approved));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.entropy_bits_per_byte));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.source as u8 as u64, 8);
+        let field_1 = value.backend_name.value();
+        let field_2 = vm::Value::bool(value.may_block);
+        let field_3 = vm::Value::bool(value.is_cryptographic);
+        let field_4 = vm::Value::bool(value.is_seeded);
+        let field_5 = vm::Value::bool(value.is_fips_approved);
+        let field_6 = vm::Value::float64(value.entropy_bits_per_byte);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
     })
 }
 
@@ -248,12 +246,10 @@ fn encode_destack_random_stream_export_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RandomStreamStateVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.version as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.version as u64, 32);
+        let field_1 = value.bytes.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -1536,9 +1532,10 @@ fn destack_random_secure_metadata_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_source = value.source;
-                    let vm_result_backend_name = context
-                        .string_handle(value.backend_name.as_str())
-                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_backend_name_value =
+                        context.intern_string(value.backend_name.as_str());
+                    let vm_result_backend_name =
+                        vm::StringHandle::new(vm_result_backend_name_value);
                     let vm_result_may_block = value.may_block;
                     let vm_result_is_cryptographic = value.is_cryptographic;
                     let vm_result_is_seeded = value.is_seeded;
@@ -1606,7 +1603,7 @@ fn destack_random_stream_export_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_version = value.version;
-                    let vm_result_bytes = VmArray::<u8>::from_bytes(context, value.bytes.as_ref())?;
+                    let vm_result_bytes = VmArray::<u8>::from_bytes(context, value.bytes.as_ref());
                     let vm_result = RandomStreamStateVm {
                         version: vm_result_version,
                         bytes: vm_result_bytes,

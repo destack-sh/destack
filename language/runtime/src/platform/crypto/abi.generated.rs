@@ -229,7 +229,7 @@ impl VmAbiCodec for ResourceId {
 }
 
 /// ABI enum for CryptoAsymmetricEncryptionAlgorithm.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoAsymmetricEncryptionAlgorithm {
     /// Unknown.
@@ -242,11 +242,11 @@ pub enum CryptoAsymmetricEncryptionAlgorithm {
 
 impl VmValueCodec for CryptoAsymmetricEncryptionAlgorithm {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::RsaPkcs1v15,
-            2u8 => Self::RsaOaep,
+            0i32 => Self::Unknown,
+            1i32 => Self::RsaPkcs1v15,
+            2i32 => Self::RsaOaep,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -259,7 +259,7 @@ impl VmValueCodec for CryptoAsymmetricEncryptionAlgorithm {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -297,7 +297,7 @@ impl VmAbiCodec for CryptoAsymmetricEncryptionAlgorithm {
 }
 
 /// ABI enum for CryptoCertificateFormat.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoCertificateFormat {
     /// Pem.
@@ -308,10 +308,10 @@ pub enum CryptoCertificateFormat {
 
 impl VmValueCodec for CryptoCertificateFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Pem,
-            2u8 => Self::Der,
+            1i32 => Self::Pem,
+            2i32 => Self::Der,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -324,7 +324,7 @@ impl VmValueCodec for CryptoCertificateFormat {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -362,7 +362,7 @@ impl VmAbiCodec for CryptoCertificateFormat {
 }
 
 /// ABI enum for CryptoCertificateIdentityKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoCertificateIdentityKind {
     /// DnsName.
@@ -377,12 +377,12 @@ pub enum CryptoCertificateIdentityKind {
 
 impl VmValueCodec for CryptoCertificateIdentityKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::DnsName,
-            2u8 => Self::IpAddress,
-            3u8 => Self::Uri,
-            4u8 => Self::EmailAddress,
+            1i32 => Self::DnsName,
+            2i32 => Self::IpAddress,
+            3i32 => Self::Uri,
+            4i32 => Self::EmailAddress,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -395,7 +395,7 @@ impl VmValueCodec for CryptoCertificateIdentityKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -433,7 +433,7 @@ impl VmAbiCodec for CryptoCertificateIdentityKind {
 }
 
 /// ABI enum for CryptoCertificatePurpose.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoCertificatePurpose {
     /// ServerAuth.
@@ -448,12 +448,12 @@ pub enum CryptoCertificatePurpose {
 
 impl VmValueCodec for CryptoCertificatePurpose {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::ServerAuth,
-            2u8 => Self::ClientAuth,
-            3u8 => Self::CodeSigning,
-            4u8 => Self::EmailProtection,
+            1i32 => Self::ServerAuth,
+            2i32 => Self::ClientAuth,
+            3i32 => Self::CodeSigning,
+            4i32 => Self::EmailProtection,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -466,7 +466,7 @@ impl VmValueCodec for CryptoCertificatePurpose {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -504,7 +504,7 @@ impl VmAbiCodec for CryptoCertificatePurpose {
 }
 
 /// ABI enum for CryptoCertificateRevocationMode.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoCertificateRevocationMode {
     /// Default.
@@ -517,11 +517,11 @@ pub enum CryptoCertificateRevocationMode {
 
 impl VmValueCodec for CryptoCertificateRevocationMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Default,
-            2u8 => Self::Strict,
-            3u8 => Self::Disabled,
+            1i32 => Self::Default,
+            2i32 => Self::Strict,
+            3i32 => Self::Disabled,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -534,7 +534,7 @@ impl VmValueCodec for CryptoCertificateRevocationMode {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -572,7 +572,7 @@ impl VmAbiCodec for CryptoCertificateRevocationMode {
 }
 
 /// ABI enum for CryptoCertificateVerifyError.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoCertificateVerifyError {
     /// None.
@@ -599,18 +599,18 @@ pub enum CryptoCertificateVerifyError {
 
 impl VmValueCodec for CryptoCertificateVerifyError {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::None,
-            1u8 => Self::Unknown,
-            2u8 => Self::Expired,
-            3u8 => Self::NotYetValid,
-            4u8 => Self::UntrustedRoot,
-            5u8 => Self::Revoked,
-            6u8 => Self::NameMismatch,
-            7u8 => Self::InvalidSignature,
-            8u8 => Self::PolicyRejected,
-            9u8 => Self::UnsupportedCriticalExtension,
+            0i32 => Self::None,
+            1i32 => Self::Unknown,
+            2i32 => Self::Expired,
+            3i32 => Self::NotYetValid,
+            4i32 => Self::UntrustedRoot,
+            5i32 => Self::Revoked,
+            6i32 => Self::NameMismatch,
+            7i32 => Self::InvalidSignature,
+            8i32 => Self::PolicyRejected,
+            9i32 => Self::UnsupportedCriticalExtension,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -623,7 +623,7 @@ impl VmValueCodec for CryptoCertificateVerifyError {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -661,7 +661,7 @@ impl VmAbiCodec for CryptoCertificateVerifyError {
 }
 
 /// ABI enum for CryptoCipherAlgorithm.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoCipherAlgorithm {
     /// Unknown.
@@ -678,13 +678,13 @@ pub enum CryptoCipherAlgorithm {
 
 impl VmValueCodec for CryptoCipherAlgorithm {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::AesGcm,
-            2u8 => Self::AesCtr,
-            3u8 => Self::AesCbc,
-            4u8 => Self::ChaCha20Poly1305,
+            0i32 => Self::Unknown,
+            1i32 => Self::AesGcm,
+            2i32 => Self::AesCtr,
+            3i32 => Self::AesCbc,
+            4i32 => Self::ChaCha20Poly1305,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -697,7 +697,7 @@ impl VmValueCodec for CryptoCipherAlgorithm {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -735,7 +735,7 @@ impl VmAbiCodec for CryptoCipherAlgorithm {
 }
 
 /// ABI enum for CryptoCipherDirection.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoCipherDirection {
     /// Encrypt.
@@ -746,10 +746,10 @@ pub enum CryptoCipherDirection {
 
 impl VmValueCodec for CryptoCipherDirection {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Encrypt,
-            2u8 => Self::Decrypt,
+            1i32 => Self::Encrypt,
+            2i32 => Self::Decrypt,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -762,7 +762,7 @@ impl VmValueCodec for CryptoCipherDirection {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -800,7 +800,7 @@ impl VmAbiCodec for CryptoCipherDirection {
 }
 
 /// ABI enum for CryptoDigestAlgorithm.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoDigestAlgorithm {
     /// Unknown.
@@ -829,19 +829,19 @@ pub enum CryptoDigestAlgorithm {
 
 impl VmValueCodec for CryptoDigestAlgorithm {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Sha1,
-            2u8 => Self::Sha224,
-            3u8 => Self::Sha256,
-            4u8 => Self::Sha384,
-            5u8 => Self::Sha512,
-            6u8 => Self::Sha3_256,
-            7u8 => Self::Sha3_384,
-            8u8 => Self::Sha3_512,
-            9u8 => Self::Blake2b512,
-            10u8 => Self::Blake2s256,
+            0i32 => Self::Unknown,
+            1i32 => Self::Sha1,
+            2i32 => Self::Sha224,
+            3i32 => Self::Sha256,
+            4i32 => Self::Sha384,
+            5i32 => Self::Sha512,
+            6i32 => Self::Sha3_256,
+            7i32 => Self::Sha3_384,
+            8i32 => Self::Sha3_512,
+            9i32 => Self::Blake2b512,
+            10i32 => Self::Blake2s256,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -854,7 +854,7 @@ impl VmValueCodec for CryptoDigestAlgorithm {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -892,7 +892,7 @@ impl VmAbiCodec for CryptoDigestAlgorithm {
 }
 
 /// ABI enum for CryptoKdfAlgorithm.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoKdfAlgorithm {
     /// Unknown.
@@ -909,13 +909,13 @@ pub enum CryptoKdfAlgorithm {
 
 impl VmValueCodec for CryptoKdfAlgorithm {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Hkdf,
-            2u8 => Self::Pbkdf2,
-            3u8 => Self::Scrypt,
-            4u8 => Self::Argon2id,
+            0i32 => Self::Unknown,
+            1i32 => Self::Hkdf,
+            2i32 => Self::Pbkdf2,
+            3i32 => Self::Scrypt,
+            4i32 => Self::Argon2id,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -928,7 +928,7 @@ impl VmValueCodec for CryptoKdfAlgorithm {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -966,7 +966,7 @@ impl VmAbiCodec for CryptoKdfAlgorithm {
 }
 
 /// ABI enum for CryptoKeyAgreementAlgorithm.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoKeyAgreementAlgorithm {
     /// Unknown.
@@ -981,12 +981,12 @@ pub enum CryptoKeyAgreementAlgorithm {
 
 impl VmValueCodec for CryptoKeyAgreementAlgorithm {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Ecdh,
-            2u8 => Self::X25519,
-            3u8 => Self::X448,
+            0i32 => Self::Unknown,
+            1i32 => Self::Ecdh,
+            2i32 => Self::X25519,
+            3i32 => Self::X448,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -999,7 +999,7 @@ impl VmValueCodec for CryptoKeyAgreementAlgorithm {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1037,7 +1037,7 @@ impl VmAbiCodec for CryptoKeyAgreementAlgorithm {
 }
 
 /// ABI enum for CryptoKeyAlgorithm.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoKeyAlgorithm {
     /// Unknown.
@@ -1064,18 +1064,18 @@ pub enum CryptoKeyAlgorithm {
 
 impl VmValueCodec for CryptoKeyAlgorithm {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Rsa,
-            2u8 => Self::Ec,
-            3u8 => Self::Ed25519,
-            4u8 => Self::Ed448,
-            5u8 => Self::X25519,
-            6u8 => Self::X448,
-            7u8 => Self::Aes,
-            8u8 => Self::ChaCha20,
-            9u8 => Self::Hmac,
+            0i32 => Self::Unknown,
+            1i32 => Self::Rsa,
+            2i32 => Self::Ec,
+            3i32 => Self::Ed25519,
+            4i32 => Self::Ed448,
+            5i32 => Self::X25519,
+            6i32 => Self::X448,
+            7i32 => Self::Aes,
+            8i32 => Self::ChaCha20,
+            9i32 => Self::Hmac,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1088,7 +1088,7 @@ impl VmValueCodec for CryptoKeyAlgorithm {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1126,7 +1126,7 @@ impl VmAbiCodec for CryptoKeyAlgorithm {
 }
 
 /// ABI enum for CryptoKeyFormat.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoKeyFormat {
     /// Unknown.
@@ -1155,19 +1155,19 @@ pub enum CryptoKeyFormat {
 
 impl VmValueCodec for CryptoKeyFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Pkcs8Pem,
-            2u8 => Self::Pkcs8Der,
-            3u8 => Self::SpkiPem,
-            4u8 => Self::SpkiDer,
-            5u8 => Self::Jwk,
-            6u8 => Self::Raw,
-            7u8 => Self::Sec1Pem,
-            8u8 => Self::Sec1Der,
-            9u8 => Self::Pkcs8EncryptedPem,
-            10u8 => Self::Pkcs8EncryptedDer,
+            0i32 => Self::Unknown,
+            1i32 => Self::Pkcs8Pem,
+            2i32 => Self::Pkcs8Der,
+            3i32 => Self::SpkiPem,
+            4i32 => Self::SpkiDer,
+            5i32 => Self::Jwk,
+            6i32 => Self::Raw,
+            7i32 => Self::Sec1Pem,
+            8i32 => Self::Sec1Der,
+            9i32 => Self::Pkcs8EncryptedPem,
+            10i32 => Self::Pkcs8EncryptedDer,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1180,7 +1180,7 @@ impl VmValueCodec for CryptoKeyFormat {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1218,7 +1218,7 @@ impl VmAbiCodec for CryptoKeyFormat {
 }
 
 /// ABI enum for CryptoKeyKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoKeyKind {
     /// Secret.
@@ -1231,11 +1231,11 @@ pub enum CryptoKeyKind {
 
 impl VmValueCodec for CryptoKeyKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::Secret,
-            2u8 => Self::Public,
-            3u8 => Self::Private,
+            1i32 => Self::Secret,
+            2i32 => Self::Public,
+            3i32 => Self::Private,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1248,7 +1248,7 @@ impl VmValueCodec for CryptoKeyKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1286,7 +1286,7 @@ impl VmAbiCodec for CryptoKeyKind {
 }
 
 /// ABI enum for CryptoKeyResidency.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoKeyResidency {
     /// Unknown.
@@ -1301,12 +1301,12 @@ pub enum CryptoKeyResidency {
 
 impl VmValueCodec for CryptoKeyResidency {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::SoftwareExportable,
-            2u8 => Self::SoftwareNonExportable,
-            3u8 => Self::HardwareOpaque,
+            0i32 => Self::Unknown,
+            1i32 => Self::SoftwareExportable,
+            2i32 => Self::SoftwareNonExportable,
+            3i32 => Self::HardwareOpaque,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1319,7 +1319,7 @@ impl VmValueCodec for CryptoKeyResidency {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1357,7 +1357,7 @@ impl VmAbiCodec for CryptoKeyResidency {
 }
 
 /// ABI enum for CryptoKeyWrapAlgorithm.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoKeyWrapAlgorithm {
     /// Unknown.
@@ -1372,12 +1372,12 @@ pub enum CryptoKeyWrapAlgorithm {
 
 impl VmValueCodec for CryptoKeyWrapAlgorithm {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::RsaOaep,
-            2u8 => Self::AesKw,
-            3u8 => Self::AesKwp,
+            0i32 => Self::Unknown,
+            1i32 => Self::RsaOaep,
+            2i32 => Self::AesKw,
+            3i32 => Self::AesKwp,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1390,7 +1390,7 @@ impl VmValueCodec for CryptoKeyWrapAlgorithm {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1428,7 +1428,7 @@ impl VmAbiCodec for CryptoKeyWrapAlgorithm {
 }
 
 /// ABI enum for CryptoMacAlgorithm.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoMacAlgorithm {
     /// Unknown.
@@ -1439,10 +1439,10 @@ pub enum CryptoMacAlgorithm {
 
 impl VmValueCodec for CryptoMacAlgorithm {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::Hmac,
+            0i32 => Self::Unknown,
+            1i32 => Self::Hmac,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1455,7 +1455,7 @@ impl VmValueCodec for CryptoMacAlgorithm {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1493,7 +1493,7 @@ impl VmAbiCodec for CryptoMacAlgorithm {
 }
 
 /// ABI enum for CryptoNamedCurve.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoNamedCurve {
     /// Unknown.
@@ -1518,17 +1518,17 @@ pub enum CryptoNamedCurve {
 
 impl VmValueCodec for CryptoNamedCurve {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::P256,
-            2u8 => Self::P384,
-            3u8 => Self::P521,
-            4u8 => Self::Secp256k1,
-            5u8 => Self::X25519,
-            6u8 => Self::X448,
-            7u8 => Self::Ed25519,
-            8u8 => Self::Ed448,
+            0i32 => Self::Unknown,
+            1i32 => Self::P256,
+            2i32 => Self::P384,
+            3i32 => Self::P521,
+            4i32 => Self::Secp256k1,
+            5i32 => Self::X25519,
+            6i32 => Self::X448,
+            7i32 => Self::Ed25519,
+            8i32 => Self::Ed448,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1541,7 +1541,7 @@ impl VmValueCodec for CryptoNamedCurve {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1579,7 +1579,7 @@ impl VmAbiCodec for CryptoNamedCurve {
 }
 
 /// ABI enum for CryptoSignatureAlgorithm.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoSignatureAlgorithm {
     /// Unknown.
@@ -1598,14 +1598,14 @@ pub enum CryptoSignatureAlgorithm {
 
 impl VmValueCodec for CryptoSignatureAlgorithm {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
-            1u8 => Self::RsaPkcs1v15,
-            2u8 => Self::RsaPss,
-            3u8 => Self::Ecdsa,
-            4u8 => Self::Ed25519,
-            5u8 => Self::Ed448,
+            0i32 => Self::Unknown,
+            1i32 => Self::RsaPkcs1v15,
+            2i32 => Self::RsaPss,
+            3i32 => Self::Ecdsa,
+            4i32 => Self::Ed25519,
+            5i32 => Self::Ed448,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1618,7 +1618,7 @@ impl VmValueCodec for CryptoSignatureAlgorithm {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1656,7 +1656,7 @@ impl VmAbiCodec for CryptoSignatureAlgorithm {
 }
 
 /// ABI enum for CryptoStoreKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoStoreKind {
     /// System.
@@ -1673,13 +1673,13 @@ pub enum CryptoStoreKind {
 
 impl VmValueCodec for CryptoStoreKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::System,
-            1u8 => Self::User,
-            2u8 => Self::Machine,
-            3u8 => Self::Provider,
-            4u8 => Self::Ephemeral,
+            0i32 => Self::System,
+            1i32 => Self::User,
+            2i32 => Self::Machine,
+            3i32 => Self::Provider,
+            4i32 => Self::Ephemeral,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1692,7 +1692,7 @@ impl VmValueCodec for CryptoStoreKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1730,7 +1730,7 @@ impl VmAbiCodec for CryptoStoreKind {
 }
 
 /// ABI enum for CryptoStoreProvider.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoStoreProvider {
     /// OpenSsl.
@@ -1739,9 +1739,9 @@ pub enum CryptoStoreProvider {
 
 impl VmValueCodec for CryptoStoreProvider {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::OpenSsl,
+            1i32 => Self::OpenSsl,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1754,7 +1754,7 @@ impl VmValueCodec for CryptoStoreProvider {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -2002,9 +2002,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2453,9 +2451,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2923,9 +2919,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3262,9 +3256,7 @@ impl VmAggregateCodec for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.info, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.output_length, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3452,9 +3444,7 @@ impl VmAggregateCodec for CryptoArgon2idRequestAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.parallelism, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3646,9 +3636,7 @@ impl VmAggregateCodec for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {
             )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.label, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3869,9 +3857,7 @@ impl VmAggregateCodec for CryptoCertificateDescriptorAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4129,9 +4115,7 @@ impl VmAggregateCodec for CryptoCertificateListEntryAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4302,9 +4286,7 @@ impl VmAggregateCodec for CryptoCertificateListPageAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4487,9 +4469,7 @@ impl VmAggregateCodec for CryptoCertificateQueryAbi<VmAbi> {
             )?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.limit, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4649,9 +4629,7 @@ impl VmAggregateCodec for CryptoCertificateValidity {
             <u64 as VmAggregateCodec>::encode_with_context(self.not_before_unix_seconds, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.not_after_unix_seconds, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4764,9 +4742,7 @@ impl VmAggregateCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
             )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.value, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4842,6 +4818,7 @@ pub struct CryptoCertificateVerifyRequestAbi<A: BindingAbi> {
     /// Use one omitted value when no identity check is required.
     pub identity: Option<platform_crypto::CryptoCertificateVerifyIdentityAbi<A>>,
     /// Verification time in Unix seconds.
+    /// Use one omitted value, not `0`, to request provider-default verification time behavior.
     pub verification_unix_seconds: Option<u64>,
     /// Revocation policy.
     pub revocation_mode: CryptoCertificateRevocationMode,
@@ -4968,9 +4945,7 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4991,6 +4966,7 @@ pub struct CryptoCertificateVerifyRequestValue {
     /// Use one omitted value when no identity check is required.
     pub identity: Option<CryptoCertificateVerifyIdentityValue>,
     /// Verification time in Unix seconds.
+    /// Use one omitted value, not `0`, to request provider-default verification time behavior.
     pub verification_unix_seconds: Option<u64>,
     /// Revocation policy.
     pub revocation_mode: CryptoCertificateRevocationMode,
@@ -5263,9 +5239,7 @@ impl VmAggregateCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5463,9 +5437,7 @@ impl VmAggregateCodec for CryptoCipherOutputAbi<VmAbi> {
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.tag, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5616,9 +5588,7 @@ impl VmAggregateCodec for CryptoCipherParametersAbi<VmAbi> {
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.tag, context)?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.tag_length_bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5811,9 +5781,7 @@ impl VmAggregateCodec for CryptoHkdfRequestAbi<VmAbi> {
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.info, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6023,9 +5991,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorAesAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6273,9 +6239,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorChaCha20Abi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6526,9 +6490,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorEcAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -6781,9 +6743,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd25519Abi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7019,9 +6979,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd448Abi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7274,9 +7232,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorHmacAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7558,9 +7514,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorRsaAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -7838,9 +7792,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorX25519Abi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8076,9 +8028,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorX448Abi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8309,9 +8259,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAesAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8534,9 +8482,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8760,9 +8706,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEcAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -8985,9 +8929,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9199,9 +9141,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd448Abi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9424,9 +9364,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestHmacAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9672,9 +9610,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestRsaAbi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -9915,9 +9851,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX25519Abi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10129,9 +10063,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX448Abi<VmAbi> {
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10359,9 +10291,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestAesAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10607,9 +10537,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestChaCha20Abi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -10864,9 +10792,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestEcAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11129,9 +11055,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd25519Abi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11377,9 +11301,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd448Abi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11631,9 +11553,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestHmacAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -11896,9 +11816,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestRsaAbi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12161,9 +12079,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestX25519Abi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12409,9 +12325,7 @@ impl VmAggregateCodec for CryptoKeyImportRequestX448Abi<VmAbi> {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12623,9 +12537,7 @@ impl VmAggregateCodec for CryptoKeyListEntryAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12786,9 +12698,7 @@ impl VmAggregateCodec for CryptoKeyListPageAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -12928,9 +12838,7 @@ impl VmAggregateCodec for CryptoKeyPair {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -13074,9 +12982,7 @@ impl VmAggregateCodec for CryptoKeyQueryAbi<VmAbi> {
             )?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.limit, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -13269,9 +13175,7 @@ impl VmAggregateCodec for CryptoKeyWrapParametersAbi<VmAbi> {
             )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.label, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -13411,9 +13315,7 @@ impl VmAggregateCodec for CryptoMacParameters {
             <CryptoDigestAlgorithm as VmAggregateCodec>::encode_with_context(self.digest, context)?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.tag_length_bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -13538,9 +13440,7 @@ impl VmAggregateCodec for CryptoPbkdf2RequestAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.iterations, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -13688,9 +13588,7 @@ impl VmAggregateCodec for CryptoPrivateKeyExportRequestAbi<VmAbi> {
             <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.passphrase, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -13848,9 +13746,7 @@ impl VmAggregateCodec for CryptoScryptRequestAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.max_memory_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14007,9 +13903,7 @@ impl VmAggregateCodec for CryptoSignatureParameters {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14130,9 +14024,7 @@ impl VmAggregateCodec for CryptoStoreAgreementCapability {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.supports_derive_key, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14275,9 +14167,7 @@ impl VmAggregateCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14568,9 +14458,7 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
             <VmArray<CryptoStoreAgreementCapabilityVm> as VmAggregateCodec>::encode_with_context(self.agreement_capabilities, context)?,
             <CryptoStoreCertificateCapabilityVm as VmAggregateCodec>::encode_with_context(self.certificate_capabilities, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -14985,9 +14873,7 @@ impl VmAggregateCodec for CryptoStoreCertificateCapability {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -15121,9 +15007,7 @@ impl VmAggregateCodec for CryptoStoreCipherCapability {
             <u32 as VmAggregateCodec>::encode_with_context(self.min_tag_length_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.max_tag_length_bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -15247,9 +15131,7 @@ impl VmAggregateCodec for CryptoStoreIdentityAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -15473,9 +15355,7 @@ impl VmAggregateCodec for CryptoStoreKeyCapabilityAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -15782,9 +15662,7 @@ impl VmAggregateCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -16000,9 +15878,7 @@ impl VmAggregateCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
             <u32 as VmAggregateCodec>::encode_with_context(self.min_tag_length_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.max_tag_length_bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -16235,9 +16111,7 @@ impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -16390,9 +16264,7 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -16545,9 +16417,7 @@ impl VmAggregateCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -16790,6 +16660,7 @@ pub struct CryptocertificateverifyrequestReplayRecord {
     /// Use one omitted value when no identity check is required.
     pub identity: Option<CryptocertificateverifyidentityReplayRecord>,
     /// Verification time in Unix seconds.
+    /// Use one omitted value, not `0`, to request provider-default verification time behavior.
     pub verification_unix_seconds: Option<u64>,
     /// Revocation policy.
     pub revocation_mode: CryptoCertificateRevocationMode,

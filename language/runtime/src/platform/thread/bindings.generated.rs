@@ -8,7 +8,7 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::thread::{
-    ThreadCpu, ThreadCpuSet, ThreadCpuSetVm, ThreadOptions, ThreadOptionsVm,
+    ThreadCpu, ThreadCpuSet, ThreadCpuSetVm, ThreadCpuVm, ThreadOptions, ThreadOptionsVm,
 };
 use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, abi as platform_abi,
@@ -113,22 +113,6 @@ fn decode_uint64(
     decode_uint(value, name, expected, 64)
 }
 
-/// Decode a string argument.
-#[allow(dead_code)]
-fn decode_string(
-    value: vm::Value,
-    name: &'static str,
-    expected: &'static str,
-) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
-}
-
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
@@ -219,7 +203,7 @@ fn encode_destack_thread_local_set_result(
 
 /// Decode arguments for destack.thread.sched.getAffinity.
 #[inline]
-fn decode_destack_thread_scheduling_get_affinity_args(
+fn decode_destack_thread_sched_get_affinity_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle,)> {
@@ -232,21 +216,19 @@ fn decode_destack_thread_scheduling_get_affinity_args(
 
 /// Encode the result for destack.thread.sched.getAffinity.
 #[inline]
-fn encode_destack_thread_scheduling_get_affinity_result(
+fn encode_destack_thread_sched_get_affinity_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ThreadCpuSetVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0 = value.cpus.to_value(context)?;
-        context
-            .allocate_aggregate(vec![field_0])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = value.cpus.to_value(context);
+        context.allocate_aggregate(vec![field_0])
     })
 }
 
 /// Decode arguments for destack.thread.sched.getPriority.
 #[inline]
-fn decode_destack_thread_scheduling_get_priority_args(
+fn decode_destack_thread_sched_get_priority_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle,)> {
@@ -259,7 +241,7 @@ fn decode_destack_thread_scheduling_get_priority_args(
 
 /// Encode the result for destack.thread.sched.getPriority.
 #[inline]
-fn encode_destack_thread_scheduling_get_priority_result(
+fn encode_destack_thread_sched_get_priority_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<i32>,
 ) -> RuntimeResult<vm::Value> {
@@ -268,7 +250,7 @@ fn encode_destack_thread_scheduling_get_priority_result(
 
 /// Decode arguments for destack.thread.sched.setAffinity.
 #[inline]
-fn decode_destack_thread_scheduling_set_affinity_args(
+fn decode_destack_thread_sched_set_affinity_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle, ThreadCpuSetVm)> {
@@ -295,8 +277,7 @@ fn decode_destack_thread_scheduling_set_affinity_args(
             ))
             .boxed());
         }
-        let cpus_cpus = decode_array::<ThreadCpu>(context, slots[0], "cpus_cpus", "cpus");
-        let cpus_cpus = cpus_cpus?;
+        let cpus_cpus = decode_array::<ThreadCpuVm>(context, slots[0], "cpus_cpus", "cpus")?;
         ThreadCpuSetVm { cpus: cpus_cpus }
     };
     Ok((handle, cpus))
@@ -304,7 +285,7 @@ fn decode_destack_thread_scheduling_set_affinity_args(
 
 /// Encode the result for destack.thread.sched.setAffinity.
 #[inline]
-fn encode_destack_thread_scheduling_set_affinity_result(
+fn encode_destack_thread_sched_set_affinity_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -313,7 +294,7 @@ fn encode_destack_thread_scheduling_set_affinity_result(
 
 /// Decode arguments for destack.thread.sched.setPriority.
 #[inline]
-fn decode_destack_thread_scheduling_set_priority_args(
+fn decode_destack_thread_sched_set_priority_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle, i32)> {
@@ -328,7 +309,7 @@ fn decode_destack_thread_scheduling_set_priority_args(
 
 /// Encode the result for destack.thread.sched.setPriority.
 #[inline]
-fn encode_destack_thread_scheduling_set_priority_result(
+fn encode_destack_thread_sched_set_priority_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -387,7 +368,7 @@ fn decode_destack_thread_spawn_start_args(
 ) -> RuntimeResult<(resource::ThreadEntryHandle, u64, ThreadOptionsVm)> {
     let entry_value = arg_value(args, 0, "entry", "ThreadEntryHandle")?;
     let entry_inner_inner = decode_uint64(entry_value, "entry_inner_inner", "ThreadEntryHandle")?;
-    let entry_inner = platform_resource::ResourceId(entry_inner_inner);
+    let entry_inner = resource::ResourceId(entry_inner_inner);
     let entry = resource::ThreadEntryHandle(entry_inner);
     let argument_value = arg_value(args, 1, "argument", "uint64")?;
     let argument = decode_uint64(argument_value, "argument", "uint64")?;
@@ -606,7 +587,7 @@ pub(crate) const THREAD_LOCAL_SET: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.sched.getAffinity.
-pub(crate) const THREAD_SCHEDULING_GET_AFFINITY: BindingDescriptor =
+pub(crate) const THREAD_SCHED_GET_AFFINITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sched.getAffinity",
         "export function getAffinity(handle: ThreadHandle): Result<ThreadCpuSet, PlatformError>",
@@ -634,7 +615,7 @@ pub(crate) const THREAD_SCHEDULING_GET_AFFINITY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.sched.getPriority.
-pub(crate) const THREAD_SCHEDULING_GET_PRIORITY: BindingDescriptor =
+pub(crate) const THREAD_SCHED_GET_PRIORITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.thread.sched.getPriority",
         "export function getPriority(handle: ThreadHandle): Result<int32, PlatformError>",
@@ -662,7 +643,7 @@ pub(crate) const THREAD_SCHEDULING_GET_PRIORITY: BindingDescriptor =
     ]);
 
 /// Binding descriptor for destack.thread.sched.setAffinity.
-pub(crate) const THREAD_SCHEDULING_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sched.setAffinity",
     "export function setAffinity(handle: ThreadHandle, cpus: ThreadCpuSet): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -676,7 +657,7 @@ pub(crate) const THREAD_SCHEDULING_SET_AFFINITY: BindingDescriptor = BindingDesc
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sched.setPriority.
-pub(crate) const THREAD_SCHEDULING_SET_PRIORITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const THREAD_SCHED_SET_PRIORITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.thread.sched.setPriority",
     "export function setPriority(handle: ThreadHandle, priority: int32): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
@@ -854,24 +835,24 @@ pub(crate) const THREAD_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_thread_local_set as *const (),
         ),
         NativeBinding::new(
-            THREAD_SCHEDULING_GET_AFFINITY,
+            THREAD_SCHED_GET_AFFINITY,
             "destack.thread.sched.getAffinity",
-            destack_thread_scheduling_get_affinity as *const (),
+            destack_thread_sched_get_affinity as *const (),
         ),
         NativeBinding::new(
-            THREAD_SCHEDULING_GET_PRIORITY,
+            THREAD_SCHED_GET_PRIORITY,
             "destack.thread.sched.getPriority",
-            destack_thread_scheduling_get_priority as *const (),
+            destack_thread_sched_get_priority as *const (),
         ),
         NativeBinding::new(
-            THREAD_SCHEDULING_SET_AFFINITY,
+            THREAD_SCHED_SET_AFFINITY,
             "destack.thread.sched.setAffinity",
-            destack_thread_scheduling_set_affinity as *const (),
+            destack_thread_sched_set_affinity as *const (),
         ),
         NativeBinding::new(
-            THREAD_SCHEDULING_SET_PRIORITY,
+            THREAD_SCHED_SET_PRIORITY,
             "destack.thread.sched.setPriority",
-            destack_thread_scheduling_set_priority as *const (),
+            destack_thread_sched_set_priority as *const (),
         ),
         NativeBinding::new(
             THREAD_SPAWN_DETACH,
@@ -1008,7 +989,7 @@ pub(crate) unsafe extern "C" fn destack_thread_local_set(
 }
 
 #[unsafe(export_name = "destack.thread.sched.getAffinity")]
-pub(crate) unsafe extern "C" fn destack_thread_scheduling_get_affinity(
+pub(crate) unsafe extern "C" fn destack_thread_sched_get_affinity(
     out: *mut ThreadCpuSet,
     handle: resource::ThreadHandle,
 ) -> RuntimeStatus {
@@ -1020,7 +1001,7 @@ pub(crate) unsafe extern "C" fn destack_thread_scheduling_get_affinity(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SCHEDULING_GET_AFFINITY)?;
+                context.on_before_binding_resolve_world(THREAD_SCHED_GET_AFFINITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_get_affinity(context, out, handle)
@@ -1034,7 +1015,7 @@ pub(crate) unsafe extern "C" fn destack_thread_scheduling_get_affinity(
 }
 
 #[unsafe(export_name = "destack.thread.sched.getPriority")]
-pub(crate) unsafe extern "C" fn destack_thread_scheduling_get_priority(
+pub(crate) unsafe extern "C" fn destack_thread_sched_get_priority(
     out: *mut i32,
     handle: resource::ThreadHandle,
 ) -> RuntimeStatus {
@@ -1046,7 +1027,7 @@ pub(crate) unsafe extern "C" fn destack_thread_scheduling_get_priority(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SCHEDULING_GET_PRIORITY)?;
+                context.on_before_binding_resolve_world(THREAD_SCHED_GET_PRIORITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_get_priority(context, out, handle)
@@ -1060,7 +1041,7 @@ pub(crate) unsafe extern "C" fn destack_thread_scheduling_get_priority(
 }
 
 #[unsafe(export_name = "destack.thread.sched.setAffinity")]
-pub(crate) unsafe extern "C" fn destack_thread_scheduling_set_affinity(
+pub(crate) unsafe extern "C" fn destack_thread_sched_set_affinity(
     handle: resource::ThreadHandle,
     cpus: ThreadCpuSet,
 ) -> RuntimeStatus {
@@ -1069,7 +1050,7 @@ pub(crate) unsafe extern "C" fn destack_thread_scheduling_set_affinity(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SCHEDULING_SET_AFFINITY)?;
+                context.on_before_binding_resolve_world(THREAD_SCHED_SET_AFFINITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_set_affinity(context, handle, cpus)
@@ -1083,7 +1064,7 @@ pub(crate) unsafe extern "C" fn destack_thread_scheduling_set_affinity(
 }
 
 #[unsafe(export_name = "destack.thread.sched.setPriority")]
-pub(crate) unsafe extern "C" fn destack_thread_scheduling_set_priority(
+pub(crate) unsafe extern "C" fn destack_thread_sched_set_priority(
     handle: resource::ThreadHandle,
     priority: i32,
 ) -> RuntimeStatus {
@@ -1092,7 +1073,7 @@ pub(crate) unsafe extern "C" fn destack_thread_scheduling_set_priority(
 
         {
             let (world, _binding_hook_guard) =
-                context.on_before_binding_resolve_world(THREAD_SCHEDULING_SET_PRIORITY)?;
+                context.on_before_binding_resolve_world(THREAD_SCHED_SET_PRIORITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_set_priority(context, handle, priority)
@@ -1378,17 +1359,16 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            THREAD_SCHEDULING_GET_AFFINITY,
+            THREAD_SCHED_GET_AFFINITY,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle,) =
-                        decode_destack_thread_scheduling_get_affinity_args(context, args)?;
+                    let (handle,) = decode_destack_thread_sched_get_affinity_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_SCHEDULING_GET_AFFINITY)?;
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(THREAD_SCHED_GET_AFFINITY)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_get_affinity(binding, context, handle)
@@ -1400,7 +1380,7 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
                             }
                         }
                     };
-                    encode_destack_thread_scheduling_get_affinity_result(context, result)
+                    encode_destack_thread_sched_get_affinity_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -1410,17 +1390,16 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            THREAD_SCHEDULING_GET_PRIORITY,
+            THREAD_SCHED_GET_PRIORITY,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle,) =
-                        decode_destack_thread_scheduling_get_priority_args(context, args)?;
+                    let (handle,) = decode_destack_thread_sched_get_priority_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_SCHEDULING_GET_PRIORITY)?;
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(THREAD_SCHED_GET_PRIORITY)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_get_priority(binding, context, handle)
@@ -1432,7 +1411,7 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
                             }
                         }
                     };
-                    encode_destack_thread_scheduling_get_priority_result(context, result)
+                    encode_destack_thread_sched_get_priority_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -1442,17 +1421,17 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            THREAD_SCHEDULING_SET_AFFINITY,
+            THREAD_SCHED_SET_AFFINITY,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
                     let (handle, cpus) =
-                        decode_destack_thread_scheduling_set_affinity_args(context, args)?;
+                        decode_destack_thread_sched_set_affinity_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_SCHEDULING_SET_AFFINITY)?;
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(THREAD_SCHED_SET_AFFINITY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_set_affinity(
                                 binding, context, handle, cpus,
@@ -1464,7 +1443,7 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
                             }
                         }
                     };
-                    encode_destack_thread_scheduling_set_affinity_result(context, result)
+                    encode_destack_thread_sched_set_affinity_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -1474,17 +1453,17 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            THREAD_SCHEDULING_SET_PRIORITY,
+            THREAD_SCHED_SET_PRIORITY,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
                     let (handle, priority) =
-                        decode_destack_thread_scheduling_set_priority_args(context, args)?;
+                        decode_destack_thread_sched_set_priority_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let (world, _binding_hook_guard) = binding
-                            .on_before_binding_resolve_world(THREAD_SCHEDULING_SET_PRIORITY)?;
+                        let (world, _binding_hook_guard) =
+                            binding.on_before_binding_resolve_world(THREAD_SCHED_SET_PRIORITY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_set_priority(
                                 binding, context, handle, priority,
@@ -1496,7 +1475,7 @@ pub(crate) fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolat
                             }
                         }
                     };
-                    encode_destack_thread_scheduling_set_priority_result(context, result)
+                    encode_destack_thread_sched_set_priority_result(context, result)
                 })
                 .map_err(Into::into)
             }

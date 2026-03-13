@@ -23,7 +23,7 @@ use crate::runtime::bindings::{
     BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
     BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
-use crate::runtime::trace::TraceError;
+use crate::runtime::replay::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
@@ -314,16 +314,16 @@ fn decode_destack_io_completion_submit_args(
             ))
             .boxed());
         }
-        let operation_kind_raw = decode_uint8(slots[0], "operation_kind_raw", "kind")?;
+        let operation_kind_raw = decode_int32(slots[0], "operation_kind_raw", "kind")?;
         let operation_kind = match operation_kind_raw {
-            1u8 => CompletionOperationKind::Read,
-            2u8 => CompletionOperationKind::Write,
-            3u8 => CompletionOperationKind::Accept,
-            4u8 => CompletionOperationKind::Connect,
-            5u8 => CompletionOperationKind::Timeout,
-            6u8 => CompletionOperationKind::Fsync,
-            7u8 => CompletionOperationKind::Send,
-            8u8 => CompletionOperationKind::Receive,
+            1i32 => CompletionOperationKind::Read,
+            2i32 => CompletionOperationKind::Write,
+            3i32 => CompletionOperationKind::Accept,
+            4i32 => CompletionOperationKind::Connect,
+            5i32 => CompletionOperationKind::Timeout,
+            6i32 => CompletionOperationKind::Fsync,
+            7i32 => CompletionOperationKind::Send,
+            8i32 => CompletionOperationKind::Receive,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "operation_kind",
@@ -420,7 +420,7 @@ fn encode_destack_io_completion_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<CompletionEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.io.control.fcntl.
@@ -505,12 +505,10 @@ fn encode_destack_io_control_ioctl_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DescriptorResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.return_value, 64));
-        let field_1: RuntimeResult<vm::Value> = value.output.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.return_value, 64);
+        let field_1 = value.output.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -585,12 +583,10 @@ fn encode_destack_io_device_control_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DescriptorResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.return_value, 64));
-        let field_1: RuntimeResult<vm::Value> = value.output.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.return_value, 64);
+        let field_1 = value.output.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -810,12 +806,12 @@ fn decode_destack_io_poll_open_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(PollBackend,)> {
     let backend_value = arg_value(args, 0, "backend", "PollBackend")?;
-    let backend_raw = decode_uint8(backend_value, "backend_raw", "PollBackend")?;
+    let backend_raw = decode_int32(backend_value, "backend_raw", "PollBackend")?;
     let backend = match backend_raw {
-        0u8 => PollBackend::Auto,
-        1u8 => PollBackend::Epoll,
-        2u8 => PollBackend::Kqueue,
-        3u8 => PollBackend::Poll,
+        0i32 => PollBackend::Auto,
+        1i32 => PollBackend::Epoll,
+        2i32 => PollBackend::Kqueue,
+        3i32 => PollBackend::Poll,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "backend",
@@ -929,7 +925,7 @@ fn encode_destack_io_poll_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<PollEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.io.timerfd.close.
@@ -973,12 +969,10 @@ fn encode_destack_io_timerfd_get_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TimerFdSpecVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.initial_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.interval_ns, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.initial_ns, 64);
+        let field_1 = vm::Value::uint(value.interval_ns, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
     })
 }
 
@@ -989,11 +983,11 @@ fn decode_destack_io_timerfd_open_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(TimerFdClock, TimerFdFlags)> {
     let clock_value = arg_value(args, 0, "clock", "TimerFdClock")?;
-    let clock_raw = decode_uint8(clock_value, "clock_raw", "TimerFdClock")?;
+    let clock_raw = decode_int32(clock_value, "clock_raw", "TimerFdClock")?;
     let clock = match clock_raw {
-        1u8 => TimerFdClock::Realtime,
-        2u8 => TimerFdClock::Monotonic,
-        3u8 => TimerFdClock::Boottime,
+        1i32 => TimerFdClock::Realtime,
+        2i32 => TimerFdClock::Monotonic,
+        3i32 => TimerFdClock::Boottime,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "clock",
@@ -1131,15 +1125,13 @@ fn encode_destack_io_uring_features_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UringFeaturesVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_submission_polling));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_kernel_polling));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_fixed_files));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_fixed_buffers));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.max_entries as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
+    result.map(|value| {
+        let field_0 = vm::Value::bool(value.has_submission_polling);
+        let field_1 = vm::Value::bool(value.has_kernel_polling);
+        let field_2 = vm::Value::bool(value.has_fixed_files);
+        let field_3 = vm::Value::bool(value.has_fixed_buffers);
+        let field_4 = vm::Value::uint(value.max_entries as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
 }
 
@@ -1652,7 +1644,7 @@ pub(crate) const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor = BindingDescript
 /// Binding descriptor for destack.io.completion.wait.
 pub(crate) const IO_COMPLETION_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.completion.wait",
-    "export function completionWait(handle: CompletionHandle, timeoutNs: uint64, maxEvents: uint32): Result<CompletionEvent[], PlatformError>",
+    "export function completionWait(handle: CompletionHandle, timeoutNs: uint64, maxEvents: uint32): Result<Array<CompletionEvent>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.completion"],
@@ -1960,7 +1952,7 @@ pub(crate) const IO_POLL_UPDATE: BindingDescriptor = BindingDescriptor::external
 /// Binding descriptor for destack.io.poll.wait.
 pub(crate) const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.io.poll.wait",
-    "export function pollWait(handle: PollHandle, timeoutNs: uint64, maxEvents: uint32): Result<PollEvent[], PlatformError>",
+    "export function pollWait(handle: PollHandle, timeoutNs: uint64, maxEvents: uint32): Result<Array<PollEvent>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.poll"],
@@ -5593,7 +5585,7 @@ fn destack_io_control_ioctl_vm_replay(
                 Ok(value) => {
                     let vm_result_return_value = value.return_value;
                     let vm_result_output =
-                        VmSlice::<u8>::from_bytes(context, value.output.as_ref())?;
+                        VmSlice::<u8>::from_bytes(context, value.output.as_ref());
                     let vm_result = DescriptorResultVm {
                         return_value: vm_result_return_value,
                         output: vm_result_output,
@@ -5711,7 +5703,7 @@ fn destack_io_device_control_vm_replay(
                 Ok(value) => {
                     let vm_result_return_value = value.return_value;
                     let vm_result_output =
-                        VmSlice::<u8>::from_bytes(context, value.output.as_ref())?;
+                        VmSlice::<u8>::from_bytes(context, value.output.as_ref());
                     let vm_result = DescriptorResultVm {
                         return_value: vm_result_return_value,
                         output: vm_result_output,

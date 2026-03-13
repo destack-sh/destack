@@ -1492,7 +1492,7 @@ impl VmAbiCodec for XattrFlags {
 }
 
 /// ABI enum for DirentKind.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DirentKind {
     /// File.
@@ -1515,16 +1515,16 @@ pub enum DirentKind {
 
 impl VmValueCodec for DirentKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1u8 => Self::File,
-            2u8 => Self::Directory,
-            3u8 => Self::Symlink,
-            4u8 => Self::BlockDevice,
-            5u8 => Self::CharDevice,
-            6u8 => Self::Fifo,
-            7u8 => Self::Socket,
-            255u8 => Self::Unknown,
+            1i32 => Self::File,
+            2i32 => Self::Directory,
+            3i32 => Self::Symlink,
+            4i32 => Self::BlockDevice,
+            5i32 => Self::CharDevice,
+            6i32 => Self::Fifo,
+            7i32 => Self::Socket,
+            255i32 => Self::Unknown,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1537,7 +1537,7 @@ impl VmValueCodec for DirentKind {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1575,7 +1575,7 @@ impl VmAbiCodec for DirentKind {
 }
 
 /// ABI enum for FileAdvice.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FileAdvice {
     /// Normal.
@@ -1594,14 +1594,14 @@ pub enum FileAdvice {
 
 impl VmValueCodec for FileAdvice {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Normal,
-            1u8 => Self::Sequential,
-            2u8 => Self::Random,
-            3u8 => Self::WillNeed,
-            4u8 => Self::DontNeed,
-            5u8 => Self::NoReuse,
+            0i32 => Self::Normal,
+            1i32 => Self::Sequential,
+            2i32 => Self::Random,
+            3i32 => Self::WillNeed,
+            4i32 => Self::DontNeed,
+            5i32 => Self::NoReuse,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1614,7 +1614,7 @@ impl VmValueCodec for FileAdvice {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1652,7 +1652,7 @@ impl VmAbiCodec for FileAdvice {
 }
 
 /// ABI enum for MmapAdvice.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MmapAdvice {
     /// Normal.
@@ -1669,13 +1669,13 @@ pub enum MmapAdvice {
 
 impl VmValueCodec for MmapAdvice {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Normal,
-            1u8 => Self::Sequential,
-            2u8 => Self::Random,
-            3u8 => Self::WillNeed,
-            4u8 => Self::DontNeed,
+            0i32 => Self::Normal,
+            1i32 => Self::Sequential,
+            2i32 => Self::Random,
+            3i32 => Self::WillNeed,
+            4i32 => Self::DontNeed,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1688,7 +1688,7 @@ impl VmValueCodec for MmapAdvice {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1726,7 +1726,7 @@ impl VmAbiCodec for MmapAdvice {
 }
 
 /// ABI enum for SeekWhence.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SeekWhence {
     /// Set.
@@ -1739,11 +1739,11 @@ pub enum SeekWhence {
 
 impl VmValueCodec for SeekWhence {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Set,
-            1u8 => Self::Cur,
-            2u8 => Self::End,
+            0i32 => Self::Set,
+            1i32 => Self::Cur,
+            2i32 => Self::End,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1756,7 +1756,7 @@ impl VmValueCodec for SeekWhence {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1794,7 +1794,7 @@ impl VmAbiCodec for SeekWhence {
 }
 
 /// ABI enum for SymlinkType.
-#[repr(u8)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SymlinkType {
     /// Auto.
@@ -1807,11 +1807,11 @@ pub enum SymlinkType {
 
 impl VmValueCodec for SymlinkType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Auto,
-            1u8 => Self::File,
-            2u8 => Self::Directory,
+            0i32 => Self::Auto,
+            1i32 => Self::File,
+            2i32 => Self::Directory,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -1824,7 +1824,7 @@ impl VmValueCodec for SymlinkType {
     }
 
     fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+        <i32 as VmValueCodec>::encode(self as i32)
     }
 }
 
@@ -1952,9 +1952,7 @@ impl VmAggregateCodec for DirentNextAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2117,9 +2115,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2335,9 +2331,7 @@ impl VmAggregateCodec for WatchEventAbi<VmAbi> {
                 vec![tag_value, payload_value]
             }
         };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2534,9 +2528,7 @@ impl VmAggregateCodec for DirentAbi<VmAbi> {
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.name, context)?,
             <DirentKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2656,9 +2648,7 @@ impl VmAggregateCodec for DirentNextEndAbi<VmAbi> {
         let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
             self.kind, context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2779,9 +2769,7 @@ impl VmAggregateCodec for DirentNextEntryAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <DirentVm as VmAggregateCodec>::encode_with_context(self.entry, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2892,9 +2880,7 @@ impl VmAggregateCodec for OpenOptions {
             <FileMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
             <OpenResolveFlags as VmAggregateCodec>::encode_with_context(self.resolve, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3004,9 +2990,7 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3134,9 +3118,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3237,9 +3219,7 @@ impl VmAggregateCodec for SpliceCursor {
         let slots = vec![
             <Option<FileOffset> as VmAggregateCodec>::encode_with_context(self.offset, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3386,9 +3366,7 @@ impl VmAggregateCodec for Stat {
             <u64 as VmAggregateCodec>::encode_with_context(self.ctime_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.birthtime_ns, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3515,9 +3493,7 @@ impl VmAggregateCodec for StatFs {
             <StatFsFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.namelen, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3683,9 +3659,7 @@ impl VmAggregateCodec for Statx {
             <u64 as VmAggregateCodec>::encode_with_context(self.ctime_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.mtime_ns, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3794,9 +3768,7 @@ impl VmAggregateCodec for WatchBatchAbi<VmAbi> {
             <VmArray<WatchEventVm> as VmAggregateCodec>::encode_with_context(self.events, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.overflowed, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -3934,9 +3906,7 @@ impl VmAggregateCodec for WatchCreateEventAbi<VmAbi> {
             )?,
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4043,9 +4013,7 @@ impl VmAggregateCodec for WatchEventMetadata {
             self.cookie,
             context,
         )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4163,9 +4131,7 @@ impl VmAggregateCodec for WatchMetadataEventAbi<VmAbi> {
             )?,
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4307,9 +4273,7 @@ impl VmAggregateCodec for WatchModifyEventAbi<VmAbi> {
             )?,
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4375,6 +4339,7 @@ impl VmAbiCodec for WatchModifyEventAbi<VmAbi> {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WatchOptions {
     /// Event mask to subscribe to.
+    /// A value of `WatchMask(0)` or `WATCH_ALL` subscribes to every event class.
     pub mask: WatchMask,
     /// Whether recursive watching is requested.
     pub recursive: bool,
@@ -4426,9 +4391,7 @@ impl VmAggregateCodec for WatchOptions {
             <bool as VmAggregateCodec>::encode_with_context(self.recursive, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.follow_symlinks, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4541,9 +4504,7 @@ impl VmAggregateCodec for WatchOverflowEventAbi<VmAbi> {
                 context,
             )?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4679,9 +4640,7 @@ impl VmAggregateCodec for WatchRemoveEventAbi<VmAbi> {
             )?,
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -4829,9 +4788,7 @@ impl VmAggregateCodec for WatchRenameEventAbi<VmAbi> {
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.related_path, context)?,
         ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -5051,6 +5008,135 @@ pub enum WatcheventReplayRecord {
     WatchRenameEvent(WatchrenameeventReplayRecord),
 }
 
+/// Check for execute permission.
+pub const ACCESS_EXECUTE: AccessMode = AccessMode(1u32);
+
+/// Check only for the existence of the path.
+pub const ACCESS_EXISTS: AccessMode = AccessMode(0u32);
+
+/// Check for read permission.
+pub const ACCESS_READ: AccessMode = AccessMode(4u32);
+
+/// Check for write permission.
+pub const ACCESS_WRITE: AccessMode = AccessMode(2u32);
+
+/// Treat the path target as a directory for removal lanes.
+pub const AT_REMOVEDIR: AtFlags = AtFlags(512u32);
+
+/// Follow a source symlink where the host operation supports it.
+pub const AT_SYMLINK_FOLLOW: AtFlags = AtFlags(1024u32);
+
+/// Do not follow a final symlink component.
+pub const AT_SYMLINK_NOFOLLOW: AtFlags = AtFlags(256u32);
+
+/// Fail when the destination already exists during copyfile.
+pub const COPYFILE_FAIL_IF_EXISTS: CopyFlags = CopyFlags(1u32);
+
+/// Remove the requested range and collapse later data downward.
+pub const FALLOC_COLLAPSE_RANGE: AllocFlags = AllocFlags(8u32);
+
+/// Insert a hole and push later data upward.
+pub const FALLOC_INSERT_RANGE: AllocFlags = AllocFlags(32u32);
+
+/// Allocate blocks without extending apparent file size.
+pub const FALLOC_KEEP_SIZE: AllocFlags = AllocFlags(1u32);
+
+/// Do not hide stale data when the host supports that mode.
+pub const FALLOC_NO_HIDE_STALE: AllocFlags = AllocFlags(4u32);
+
+/// Deallocate blocks in the requested range.
+pub const FALLOC_PUNCH_HOLE: AllocFlags = AllocFlags(2u32);
+
+/// Break shared extents before future writes.
+pub const FALLOC_UNSHARE_RANGE: AllocFlags = AllocFlags(64u32);
+
+/// Convert the requested range into explicit zeroed blocks.
+pub const FALLOC_ZERO_RANGE: AllocFlags = AllocFlags(16u32);
+
+/// Acquire an exclusive file lock.
+pub const LOCK_EXCLUSIVE: FileLockFlags = FileLockFlags(2u32);
+
+/// Fail instead of blocking for the lock.
+pub const LOCK_NONBLOCK: FileLockFlags = FileLockFlags(4u32);
+
+/// Acquire a shared file lock.
+pub const LOCK_SHARED: FileLockFlags = FileLockFlags(1u32);
+
+/// Release an existing file lock.
+pub const LOCK_UNLOCK: FileLockFlags = FileLockFlags(8u32);
+
+/// Create an anonymous mapping with no file backing.
+pub const MAP_ANON: MmapFlags = MmapFlags(32u32);
+
+/// Request a fixed virtual address when the host supports it.
+pub const MAP_FIXED: MmapFlags = MmapFlags(16u32);
+
+/// Keep mapping writes private to the process.
+pub const MAP_PRIVATE: MmapFlags = MmapFlags(2u32);
+
+/// Share mapping writes with the underlying object.
+pub const MAP_SHARED: MmapFlags = MmapFlags(1u32);
+
+/// Schedule asynchronous writeback for dirty mapping pages.
+pub const MS_ASYNC: MmapSyncFlags = MmapSyncFlags(1u32);
+
+/// Invalidate cached mapping pages after synchronization.
+pub const MS_INVALIDATE: MmapSyncFlags = MmapSyncFlags(2u32);
+
+/// Wait for dirty mapping pages to be written back.
+pub const MS_SYNC: MmapSyncFlags = MmapSyncFlags(4u32);
+
+/// Permit instruction fetch through the mapping.
+pub const PROT_EXEC: MmapProt = MmapProt(4u32);
+
+/// Permit reads through the mapping.
+pub const PROT_READ: MmapProt = MmapProt(1u32);
+
+/// Permit writes through the mapping.
+pub const PROT_WRITE: MmapProt = MmapProt(2u32);
+
+/// Exchange the source and destination names atomically when supported.
+pub const RENAME_EXCHANGE: RenameFlags = RenameFlags(2u32);
+
+/// Reject replacing an existing destination.
+pub const RENAME_NOREPLACE: RenameFlags = RenameFlags(1u32);
+
+/// Create a whiteout entry as part of the rename when supported.
+pub const RENAME_WHITEOUT: RenameFlags = RenameFlags(4u32);
+
+/// Require the result to stay beneath the starting directory.
+pub const RESOLVE_BENEATH: OpenResolveFlags = OpenResolveFlags(8u64);
+
+/// Use only already-cached resolution state.
+pub const RESOLVE_CACHED: OpenResolveFlags = OpenResolveFlags(32u64);
+
+/// Treat the starting directory as the logical root.
+pub const RESOLVE_IN_ROOT: OpenResolveFlags = OpenResolveFlags(16u64);
+
+/// Reject magic-link traversal.
+pub const RESOLVE_NO_MAGICLINKS: OpenResolveFlags = OpenResolveFlags(2u64);
+
+/// Reject symlink traversal.
+pub const RESOLVE_NO_SYMLINKS: OpenResolveFlags = OpenResolveFlags(4u64);
+
+/// Reject traversal that crosses into a different mount.
+pub const RESOLVE_NO_XDEV: OpenResolveFlags = OpenResolveFlags(1u64);
+
+/// Force append semantics for the write.
+pub const RWF_APPEND: ReadWriteFlags = ReadWriteFlags(16u32);
+
+/// Apply data-only sync semantics to the write.
+pub const RWF_DSYNC: ReadWriteFlags = ReadWriteFlags(2u32);
+
+/// Prefer high-priority polling I/O when the host supports it.
+pub const RWF_HIPRI: ReadWriteFlags = ReadWriteFlags(1u32);
+
+/// Request nonblocking cache miss behavior when supported.
+pub const RWF_NOWAIT: ReadWriteFlags = ReadWriteFlags(8u32);
+
+/// Apply full sync semantics to the write.
+pub const RWF_SYNC: ReadWriteFlags = ReadWriteFlags(4u32);
+
 /// Request all available fields.
 pub const STATX_ALL: StatxMask = StatxMask(4095u32);
 
@@ -5071,6 +5157,36 @@ pub const STATX_FORCE_SYNC: StatxFlags = StatxFlags(8192u32);
 
 /// Do not follow symlinks for statx.
 pub const STATX_NOFOLLOW: StatxFlags = StatxFlags(1u32);
+
+/// Wait for writeback completion in the requested range.
+pub const SYNC_FILE_RANGE_WAIT_AFTER: SyncFlags = SyncFlags(4u32);
+
+/// Wait for earlier writeback in the requested range.
+pub const SYNC_FILE_RANGE_WAIT_BEFORE: SyncFlags = SyncFlags(1u32);
+
+/// Start writeback for the requested range.
+pub const SYNC_FILE_RANGE_WRITE: SyncFlags = SyncFlags(2u32);
+
+/// Watch-mask value that subscribes to all event classes.
+pub const WATCH_ALL: WatchMask = WatchMask(63u32);
+
+/// Watch-mask bit for create events.
+pub const WATCH_CREATE: WatchMask = WatchMask(1u32);
+
+/// Watch-mask bit for metadata events.
+pub const WATCH_METADATA: WatchMask = WatchMask(16u32);
+
+/// Watch-mask bit for modify events.
+pub const WATCH_MODIFY: WatchMask = WatchMask(4u32);
+
+/// Watch-mask bit for overflow events.
+pub const WATCH_OVERFLOW: WatchMask = WatchMask(32u32);
+
+/// Watch-mask bit for remove events.
+pub const WATCH_REMOVE: WatchMask = WatchMask(2u32);
+
+/// Watch-mask bit for rename events.
+pub const WATCH_RENAME: WatchMask = WatchMask(8u32);
 
 /// Create the attribute, fail if it exists.
 pub const XATTR_CREATE: XattrFlags = XattrFlags(1u32);
