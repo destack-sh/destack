@@ -20,7 +20,7 @@ use crate::platform::midi::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
-use crate::runtime::core::queue::BoundedQueue;
+use crate::runtime::control::queue::BoundedQueue;
 
 use super::abi::{
     K_MIDI_MSG_IO_ERROR, K_MIDI_MSG_OBJECT_ADDED, K_MIDI_MSG_OBJECT_REMOVED,
@@ -506,7 +506,7 @@ mod tests {
         MidiEventOverflowPolicy, MidiEventSource, MidiEventSubscriptionFlags,
         MidiPortDirectionFlags,
     };
-    use crate::runtime::core::queue::BoundedQueue;
+    use crate::runtime::control::queue::BoundedQueue;
 
     use super::super::core::{CoreMidiEventDeliveryKind, CoreMidiEventSession};
 

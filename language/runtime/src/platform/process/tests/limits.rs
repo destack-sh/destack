@@ -16,6 +16,7 @@ use crate::platform::process::{ProcessSchedulerConfig, ProcessSchedulerPolicy};
 use crate::platform::thread::ThreadCpu;
 
 /// Return one `ProcessLimitResource` from the platform libc constant type.
+#[cfg(unix)]
 fn process_limit_resource(raw: u32) -> ProcessLimitResource {
     ProcessLimitResource(raw)
 }
@@ -26,7 +27,7 @@ fn raw_limit_resource(constant: u32) -> u32 {
     constant
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(all(unix, not(target_os = "linux")))]
 /// Return one raw `rlimit` resource constant on targets where libc exposes signed integers.
 fn raw_limit_resource(constant: i32) -> u32 {
     constant

@@ -19,7 +19,7 @@ use crate::platform::midi::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
-use crate::runtime::core::queue::BoundedQueue;
+use crate::runtime::control::queue::BoundedQueue;
 
 use super::core::{
     AlsaEventDeliveryKind, AlsaEventSession, AlsaTopologyState, SnapshotKey, insert_event_resource,
@@ -429,7 +429,7 @@ mod tests {
         MidiEventOverflowPolicy, MidiEventSource, MidiEventSubscriptionFlags,
         MidiPortDirectionFlags,
     };
-    use crate::runtime::core::queue::BoundedQueue;
+    use crate::runtime::control::queue::BoundedQueue;
 
     use super::super::core::{AlsaEventDeliveryKind, AlsaEventSession};
 

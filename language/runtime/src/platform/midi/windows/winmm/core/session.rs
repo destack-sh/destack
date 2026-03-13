@@ -19,7 +19,7 @@ use crate::platform::midi::{
     MidiBackend, MidiDataFormat, MidiEventOverflowPolicy, MidiEventSubscriptionFlags,
     MidiPortDirection, MidiPortDirectionFlags, MidiProtocol,
 };
-use crate::runtime::core::queue::BoundedQueue;
+use crate::runtime::control::queue::BoundedQueue;
 
 use super::super::service::WinMmService;
 use super::native::release_input_callback_context;

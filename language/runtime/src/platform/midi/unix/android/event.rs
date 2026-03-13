@@ -18,7 +18,7 @@ use crate::platform::midi::{
 };
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
-use crate::runtime::core::queue::BoundedQueue;
+use crate::runtime::control::queue::BoundedQueue;
 
 use super::backend::resolve_backend;
 use super::core::{

@@ -6,7 +6,7 @@ pub mod history;
 pub mod memory;
 pub mod policy;
 pub(crate) mod poller;
-mod process;
+pub(crate) mod process;
 pub mod random;
 pub mod scheduler;
 #[cfg(test)]
