@@ -165,7 +165,6 @@ pub(crate) fn backend_capabilities(backend: DisplayBackend) -> DisplayBackendCap
             | display_platform::DISPLAY_BACKEND_CAP_ATTENTION_REQUEST.0
             | display_platform::DISPLAY_BACKEND_CAP_REFRESH_REQUEST.0
             | display_platform::DISPLAY_BACKEND_CAP_THEME.0
-            | display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_ICON.0
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_OPACITY.0
             | display_platform::DISPLAY_BACKEND_CAP_WINDOW_FOCUS.0

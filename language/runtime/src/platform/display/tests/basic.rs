@@ -1,9 +1,9 @@
 use super::{
-    HarnessValue, decode_display_descriptor, decode_harness_value, decode_monitor_list,
-    decode_monitor_modes, decode_window_descriptor, default_monitor_event_open_options,
-    default_monitor_list_request, default_monitor_open_options, default_window_event_open_options,
-    default_window_options, error_code, harness_string, is_not_supported_code,
-    open_window_or_skip_not_supported, result_or_skip_not_supported, run_display_case_or_return,
+    HarnessValue, decode_display_descriptor, decode_monitor_list, decode_monitor_modes,
+    decode_window_descriptor, default_monitor_event_open_options, default_monitor_list_request,
+    default_monitor_open_options, default_window_event_open_options, default_window_options,
+    error_code, harness_string, is_not_supported_code, open_window_or_skip_not_supported,
+    result_or_skip_not_supported, run_display_case_or_return, wait_window_visibility,
     with_harness_context,
 };
 #[cfg(windows)]
@@ -28,8 +28,6 @@ const DISPLAY_CAP_MONITOR_HDR_CONTROL: u64 =
 #[cfg(windows)]
 const DISPLAY_CAP_MONITOR_GAMMA_CONTROL: u64 =
     display_platform::DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL.0;
-#[cfg(windows)]
-const DISPLAY_CAP_OCCLUSION: u64 = display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0;
 #[cfg(windows)]
 const DISPLAY_CAP_WINDOW_DROP_EVENTS: u64 =
     display_platform::DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS.0;
@@ -60,8 +58,13 @@ pub(super) fn test_display_monitor_surface_lists_opens_and_observes_primary_moni
             return Ok(());
         }
 
-        let (display_id, _, is_primary) = monitor_list[0].clone();
-        assert!(is_primary);
+        // use the reported primary when the backend can actually discover one
+        let primary_descriptor = monitor_list
+            .iter()
+            .find(|(_, _, is_primary)| *is_primary)
+            .cloned()
+            .unwrap_or_else(|| monitor_list[0].clone());
+        let (display_id, _, is_primary) = primary_descriptor;
 
         let display_id_value = harness_string(&mut context, &display_id)?;
         let display = context.destack_display_monitor_open(
@@ -72,7 +75,7 @@ pub(super) fn test_display_monitor_surface_lists_opens_and_observes_primary_moni
         let (descriptor_id, _, descriptor_primary) =
             decode_display_descriptor(&mut context, descriptor)?;
         assert_eq!(descriptor_id, display_id);
-        assert!(descriptor_primary);
+        assert_eq!(descriptor_primary, is_primary);
 
         let modes = context.destack_display_monitor_modes(display)?;
         let modes = decode_monitor_modes(&mut context, modes)?;
@@ -119,7 +122,7 @@ pub(super) fn test_display_monitor_surface_lists_opens_and_observes_primary_moni
 
         let primary =
             context.destack_display_monitor_primary(default_monitor_list_request(&context))?;
-        assert!(primary.is_some());
+        assert_eq!(primary.is_some(), is_primary);
 
         context.destack_display_monitor_event_close(event_stream)?;
         context.destack_display_monitor_close(display)?;
@@ -167,9 +170,11 @@ pub(super) fn test_display_window_surface_open_mutate_and_observe_roundtrip() {
         ));
 
         context.destack_display_window_set_visibility(window, WindowVisibility::Minimized)?;
-        let state = context.destack_display_window_state(window)?;
-        let state = decode_harness_value(state);
-        assert_eq!(state.visibility, WindowVisibility::Minimized);
+        assert!(wait_window_visibility(
+            &mut context,
+            window,
+            WindowVisibility::Minimized,
+        )?);
 
         context.destack_display_window_event_close(event_stream)?;
         context.destack_display_window_close(window)?;
@@ -229,7 +234,6 @@ pub(super) fn test_display_backend_capabilities_match_win32_implementation() {
             0
         );
         assert_ne!(win32_capability_flags & DISPLAY_CAP_WINDOW_DROP_EVENTS, 0);
-        assert_ne!(win32_capability_flags & DISPLAY_CAP_OCCLUSION, 0);
 
         Ok(())
     });

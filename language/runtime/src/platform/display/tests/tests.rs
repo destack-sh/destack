@@ -1,6 +1,8 @@
 use destack_vm as vm;
 #[cfg(any(windows, target_os = "macos"))]
 use std::sync::{Mutex, OnceLock};
+use std::thread;
+use std::time::Duration;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{PlatformError, VmSlice, display, resource};
@@ -895,4 +897,27 @@ pub(crate) fn decode_harness_value<T>(value: HarnessValue<T, T>) -> T {
         HarnessValue::Native(value) => value,
         HarnessValue::Vm(value) => value,
     }
+}
+
+/// Wait until one window state confirms the requested visibility lane.
+pub(crate) fn wait_window_visibility(
+    context: &mut DisplayHarnessContext<'_>,
+    window: resource::WindowHandle,
+    expected_visibility: display::WindowVisibility,
+) -> RuntimeResult<bool> {
+    const VISIBILITY_POLL_ATTEMPTS: usize = 32;
+    const VISIBILITY_POLL_INTERVAL_MS: u64 = 10;
+
+    // poll the current snapshot until the backend confirms the requested lane
+    for _ in 0..VISIBILITY_POLL_ATTEMPTS {
+        let state = context.destack_display_window_state(window)?;
+        let state = decode_harness_value(state);
+        if state.visibility == expected_visibility {
+            return Ok(true);
+        }
+
+        thread::sleep(Duration::from_millis(VISIBILITY_POLL_INTERVAL_MS));
+    }
+
+    Ok(false)
 }

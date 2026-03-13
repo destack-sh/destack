@@ -84,7 +84,7 @@ macro_rules! display_affinity_cases {
             #[cfg(windows)]
             display_affinity_case!(
                 backend,
-                test_display_win32_with_occlusion_capability_reports_unknown_visible_state
+                test_display_win32_visible_state_reports_unknown_occlusion
             ),
             #[cfg(windows)]
             display_affinity_case!(

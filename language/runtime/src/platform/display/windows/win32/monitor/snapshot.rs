@@ -8,7 +8,7 @@ use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::{
-    display_is_builtin, display_metrics_for_device, display_mode_from_rect,
+    display_builtin_panel_support, display_metrics_for_device, display_mode_from_rect,
     display_name_for_device, enumerate_monitor_rows,
 };
 use super::gamma::display_hdr_support_map;
@@ -26,7 +26,7 @@ pub(crate) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot
     let mut snapshots = Vec::with_capacity(rows.len());
 
     // build one snapshot per monitor row
-    for (device_id, bounds, work_area, primary) in rows {
+    for (device_id, bounds, work_area, primary, scale_factor_milli) in rows {
         let name = display_name_for_device(&device_id)?.unwrap_or_else(|| device_id.clone());
         let current_mode = query_display_mode(&device_id, ENUM_CURRENT_SETTINGS)?
             .unwrap_or_else(|| display_mode_from_rect(bounds));
@@ -52,18 +52,25 @@ pub(crate) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot
         }
 
         // resolve descriptor support lanes and geometry
-        let (width_mm, height_mm, scale_factor_milli) = display_metrics_for_device(&device_id)?;
-        let is_builtin = display_is_builtin(&device_id)?;
+        let (width_mm, height_mm) = display_metrics_for_device(&device_id)?;
+        let builtin_panel = display_builtin_panel_support(&device_id)?;
         let width_px = (bounds.right - bounds.left).max(1) as u32;
         let height_px = (bounds.bottom - bounds.top).max(1) as u32;
         let work_area_width_px = (work_area.right - work_area.left).max(1) as u32;
         let work_area_height_px = (work_area.bottom - work_area.top).max(1) as u32;
 
         let hdr_key = device_id.to_uppercase();
-        let supports_hdr = supports_hdr_by_device_id
+        let hdr_support = supports_hdr_by_device_id
             .get(&hdr_key)
             .copied()
-            .unwrap_or(false);
+            .map(|supports_hdr| {
+                if supports_hdr {
+                    DisplaySupportStatus::Supported
+                } else {
+                    DisplaySupportStatus::Unsupported
+                }
+            })
+            .unwrap_or(DisplaySupportStatus::Unknown);
         let descriptor = DisplayDescriptorSnapshot {
             backend: DisplayBackend::Win32,
             id: device_id,
@@ -81,17 +88,9 @@ pub(crate) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot
             height_mm,
             scale_factor_milli,
             orientation,
-            builtin_panel: if is_builtin {
-                DisplaySupportStatus::Supported
-            } else {
-                DisplaySupportStatus::Unsupported
-            },
+            builtin_panel,
             variable_refresh_support: DisplaySupportStatus::Unknown,
-            hdr_support: if supports_hdr {
-                DisplaySupportStatus::Supported
-            } else {
-                DisplaySupportStatus::Unsupported
-            },
+            hdr_support,
         };
 
         // append snapshot payload
