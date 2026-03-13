@@ -12,7 +12,7 @@ use crate::platform::midi::{
     MidiBackend, MidiEventOverflowPolicy, MidiEventSubscriptionFlags, MidiPortDirection,
     MidiPortDirectionFlags,
 };
-use crate::runtime::core::queue::BoundedQueue;
+use crate::runtime::control::queue::BoundedQueue;
 
 use super::super::service::{WinRtNativeEventRegistry, WinRtService};
 

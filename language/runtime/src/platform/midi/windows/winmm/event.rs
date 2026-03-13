@@ -18,7 +18,7 @@ use crate::platform::midi::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
-use crate::runtime::core::queue::BoundedQueue;
+use crate::runtime::control::queue::BoundedQueue;
 
 use super::core::{SnapshotKey, WinMmEventSession, insert_event_resource};
 use super::descriptor::filtered_descriptors;

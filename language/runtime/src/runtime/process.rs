@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 mod abi;
 mod agent;
 mod call;
@@ -10,7 +9,7 @@ mod finalizers;
 mod platform_state;
 mod poller;
 mod runtime;
-mod service;
+pub(crate) mod service;
 
 pub use abi::*;
 pub use agent::*;

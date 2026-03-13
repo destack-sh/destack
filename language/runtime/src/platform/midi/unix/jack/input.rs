@@ -14,7 +14,7 @@ use crate::platform::midi::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
-use crate::runtime::core::queue::BoundedQueue;
+use crate::runtime::control::queue::BoundedQueue;
 
 use super::core::{
     JackInputCallbackContext, JackInputSession, JackInputSessionKind, JackInputTerminalError,

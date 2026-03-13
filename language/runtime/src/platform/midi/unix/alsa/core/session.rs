@@ -17,7 +17,7 @@ use crate::platform::midi::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
-use crate::runtime::core::queue::BoundedQueue;
+use crate::runtime::control::queue::BoundedQueue;
 
 use super::super::abi::{AlsaApi, snd_midi_event_t, snd_seq_t};
 use super::super::service::{AlsaNativeEventRegistry, AlsaService};

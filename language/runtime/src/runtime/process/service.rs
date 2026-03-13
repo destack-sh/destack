@@ -2,6 +2,16 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{Arc, Weak};
 
+pub(crate) mod affinity;
+pub(crate) mod executor;
+pub(crate) mod registry;
+#[cfg(target_os = "macos")]
+pub(crate) mod unix;
+#[cfg(windows)]
+pub(crate) mod windows;
+
+pub(crate) use registry::{CachedServiceHandle, global_service};
+
 /// Process-global weak subscriber registry keyed by one stable runtime or agent id.
 #[derive(Debug)]
 pub struct ProcessSubscriberRegistry<K, T> {
@@ -54,3 +64,5 @@ where
         self.subscribers.retain(|_, weak| weak.strong_count() > 0);
     }
 }
+
+// FUGU #Architecture: cleanup

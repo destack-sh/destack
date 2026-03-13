@@ -12,7 +12,7 @@ use crate::platform::midi::{
     MidiEventOverflowPolicy, MidiEventSubscriptionFlags, MidiPortDirection, MidiPortDirectionFlags,
     MidiProtocol, MidiProtocolFlags,
 };
-use crate::runtime::core::queue::BoundedQueue;
+use crate::runtime::control::queue::BoundedQueue;
 
 /// One resolved Android backend description.
 #[derive(Clone, Copy, Debug)]

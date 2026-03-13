@@ -1,10 +1,8 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
 use std::sync::Arc;
 
 use smallvec::SmallVec;
 
-use crate::diagnostic::RuntimeResult;
-use crate::diagnostic::RuntimeError;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::VmSlice;
 use crate::platform::core::BackendSupport;
 use crate::platform::midi::{
@@ -268,7 +266,13 @@ impl MidiInputRecordValue {
             source_id: self
                 .source_id
                 .as_deref()
-                .map(|value| vm::StringHandle::new(context.intern_string(value))),
+                .map(|value| {
+                    context
+                        .intern_string(value)
+                        .map(vm::StringHandle::new)
+                        .map_err(RuntimeError::from)
+                })
+                .transpose()?,
             data_format: self.data_format,
             protocol: self.protocol,
             framing: self.framing,

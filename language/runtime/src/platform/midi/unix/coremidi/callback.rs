@@ -6,7 +6,7 @@ use block2::{Block, RcBlock};
 
 use crate::platform::midi::core::{MidiInputRecordValue, MidiRecordBytes};
 use crate::platform::midi::{MidiDataFormat, MidiProtocol, MidiRecordFraming};
-use crate::runtime::core::queue::BoundedQueue;
+use crate::runtime::control::queue::BoundedQueue;
 
 use super::abi::{
     K_MIDI_PROTOCOL_2_0, MIDIEventList, MIDIPacketList, midi_event_packet_next, midi_packet_next,

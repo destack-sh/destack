@@ -25,7 +25,7 @@ use crate::platform::midi::core::{
 use crate::platform::midi::{
     MidiBackend, MidiEventOverflowPolicy, MidiEventSource, MidiPortDirection,
 };
-use crate::runtime::core::queue::BoundedQueue;
+use crate::runtime::control::queue::BoundedQueue;
 
 use super::{binding_timestamp_now, endpoint_direction_name, push_event_with_overflow_policy};
 

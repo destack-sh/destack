@@ -282,7 +282,7 @@ mod tests {
     use crate::platform::core::{self as core_platform};
     use crate::platform::diagnostic::PlatformErrorCode;
     use crate::platform::midi::MidiEventOverflowPolicy;
-    use crate::runtime::core::queue::BoundedQueue;
+    use crate::runtime::control::queue::BoundedQueue;
 
     use super::{
         push_event_with_overflow_policy, read_queued_batch, read_queued_event,
