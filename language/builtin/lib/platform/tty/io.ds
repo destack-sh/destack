@@ -11,7 +11,7 @@ declare namespace tty {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses read(2) on Unix terminals and ReadConsole or ReadFile on Windows consoles.
+    /// Uses read(2) on Unix terminals and Windows handle I/O on terminal endpoints.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -41,7 +41,7 @@ declare namespace tty {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses write(2) on Unix terminals and WriteConsole or WriteFile on Windows consoles.
+    /// Uses write(2) on Unix terminals and Windows handle I/O on terminal endpoints.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.

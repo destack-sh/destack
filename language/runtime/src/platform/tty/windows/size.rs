@@ -15,6 +15,16 @@ use crate::platform::tty::TtySize;
 use crate::platform::tty::core::ensure_out;
 use crate::runtime::BindingCallContext;
 
+/// Build one console window rectangle from one width and height.
+fn console_window(columns: i16, rows: i16) -> SMALL_RECT {
+    SMALL_RECT {
+        Left: 0,
+        Top: 0,
+        Right: columns - 1,
+        Bottom: rows - 1,
+    }
+}
+
 /// Read terminal size.
 ///
 /// Read one terminal size snapshot for one terminal handle.
@@ -143,6 +153,35 @@ pub(crate) unsafe fn destack_tty_set_size(
     // resolve one console tty handle
     let host_handle = tty_handle(binding, handle, "destack.tty.size.setSize")?;
 
+    // read the current console geometry to order resize operations safely
+    let mut info = MaybeUninit::<CONSOLE_SCREEN_BUFFER_INFO>::zeroed();
+    let info_status = unsafe { GetConsoleScreenBufferInfo(host_handle, info.as_mut_ptr()) };
+    if info_status == 0 {
+        return Err(io_error(
+            "destack.tty.size.setSize",
+            "GetConsoleScreenBufferInfo",
+            "failed to read console size before resize",
+        ));
+    }
+    let info = unsafe { info.assume_init() };
+
+    // shrink the visible window first when the target is smaller in either dimension
+    let current_rows = info.srWindow.Bottom - info.srWindow.Top + 1;
+    let current_columns = info.srWindow.Right - info.srWindow.Left + 1;
+    if rows < current_rows || columns < current_columns {
+        let intermediate_rows = rows.min(current_rows);
+        let intermediate_columns = columns.min(current_columns);
+        let intermediate_window = console_window(intermediate_columns, intermediate_rows);
+        let shrink_status = unsafe { SetConsoleWindowInfo(host_handle, 1, &intermediate_window) };
+        if shrink_status == 0 {
+            return Err(io_error(
+                "destack.tty.size.setSize",
+                "SetConsoleWindowInfo",
+                "failed to shrink console window before resize",
+            ));
+        }
+    }
+
     // set one matching screen-buffer geometry
     let buffer_size = COORD {
         X: columns,
@@ -158,12 +197,7 @@ pub(crate) unsafe fn destack_tty_set_size(
     }
 
     // set one matching visible window rectangle
-    let window = SMALL_RECT {
-        Left: 0,
-        Top: 0,
-        Right: columns - 1,
-        Bottom: rows - 1,
-    };
+    let window = console_window(columns, rows);
     let window_status = unsafe { SetConsoleWindowInfo(host_handle, 1, &window) };
     if window_status == 0 {
         return Err(io_error(

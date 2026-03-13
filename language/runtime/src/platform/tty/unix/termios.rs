@@ -13,18 +13,18 @@ use crate::runtime::BindingCallContext;
 
 /// Build one mapped process-domain error from explicit errno.
 fn process_error_with_errno(
-    operation: &'static str,
+    _operation: &'static str,
     syscall: &'static str,
     errno: i32,
     message: &str,
 ) -> Box<RuntimeError> {
     let code = process_error_code_from_errno(errno).unwrap_or(PlatformErrorCode::Process);
-    RuntimeError::from(PlatformError::io_with(
+    RuntimeError::from(PlatformError::process_with(
         Some(code),
+        Some(errno.to_string()),
         None,
-        Some(errno),
-        Some(operation.to_string()),
         None,
+        Some(syscall.to_string()),
         format!("{syscall} failed: {message}"),
     ))
     .boxed()

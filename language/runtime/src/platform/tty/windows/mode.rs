@@ -10,6 +10,11 @@ use crate::platform::tty::core::ensure_out;
 use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
+/// Return one not-supported error for PTY-backed Windows mode operations.
+fn pty_mode_not_supported(operation: &'static str) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
+}
+
 /// Decode one tty mode payload into one Win32 console mode value.
 fn decode_console_mode(mode: TtyMode) -> RuntimeResult<u32> {
     if mode.input_flags != 0 {
@@ -81,16 +86,10 @@ pub(crate) unsafe fn destack_tty_get_mode(
     // validate the output pointer
     ensure_out(out, "out")?;
 
-    // resolve one pty-backed mode cache when present
+    // ConPTY worker pipes do not expose console mode APIs
     let resolved_binding = tty_binding(binding, handle, "destack.tty.mode.getMode")?;
-    if let Some(resolved_binding) = resolved_binding {
-        let mode = *resolved_binding.mode.read();
-
-        unsafe {
-            out.write(mode);
-        }
-
-        return Ok(());
+    if resolved_binding.is_some() {
+        return Err(pty_mode_not_supported("destack.tty.mode.getMode"));
     }
 
     // resolve one console tty handle
@@ -148,16 +147,10 @@ pub(crate) unsafe fn destack_tty_set_mode(
     // decode supported windows mode bits
     let console_mode = decode_console_mode(mode)?;
 
-    // resolve one pty-backed mode cache when present
+    // ConPTY worker pipes do not expose console mode APIs
     let resolved_binding = tty_binding(binding, handle, "destack.tty.mode.setMode")?;
-    if let Some(resolved_binding) = resolved_binding {
-        *resolved_binding.mode.write() = TtyMode {
-            input_flags: 0,
-            output_flags: 0,
-            control_flags: 0,
-            local_flags: u64::from(console_mode),
-        };
-        return Ok(());
+    if resolved_binding.is_some() {
+        return Err(pty_mode_not_supported("destack.tty.mode.setMode"));
     }
 
     // resolve one console tty handle
@@ -198,18 +191,10 @@ pub(crate) unsafe fn destack_tty_set_raw_mode(
     handle: resource::TtyHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    // resolve one pty-backed mode cache when present
+    // ConPTY worker pipes do not expose console mode APIs
     let resolved_binding = tty_binding(binding, handle, "destack.tty.mode.setRawMode")?;
-    if let Some(resolved_binding) = resolved_binding {
-        let current = decode_console_mode(*resolved_binding.mode.read())?;
-        let next = apply_raw_mode(current, enabled);
-        *resolved_binding.mode.write() = TtyMode {
-            input_flags: 0,
-            output_flags: 0,
-            control_flags: 0,
-            local_flags: u64::from(next),
-        };
-        return Ok(());
+    if resolved_binding.is_some() {
+        return Err(pty_mode_not_supported("destack.tty.mode.setRawMode"));
     }
 
     // resolve one console tty handle
