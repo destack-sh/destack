@@ -11,7 +11,7 @@ use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
     PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
     VmValueCodec, fs, fs as platform_fs, process as platform_process, resource,
-    resource as platform_resource,
+    resource as platform_resource, thread as platform_thread,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -2473,119 +2473,9 @@ impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
     }
 }
 
-/// ABI struct for ProcessCpuSet.
-#[repr(C)]
-pub struct ProcessCpuSetAbi<A: BindingAbi> {
-    /// CPU indices in the affinity set.
-    pub cpus: A::Array<u32>,
-}
-
-pub type ProcessCpuSet = ProcessCpuSetAbi<NativeAbi>;
-pub type ProcessCpuSetVm = ProcessCpuSetAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for ProcessCpuSetAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessCpuSetAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for ProcessCpuSetAbi<NativeAbi> {}
-impl Clone for ProcessCpuSetAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for ProcessCpuSetAbi<VmAbi> {}
-impl Clone for ProcessCpuSetAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for ProcessCpuSetAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProcessCpuSet",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_cpus =
-            <VmArray<u32> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self { cpus: field_cpus })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![<VmArray<u32> as VmAggregateCodec>::encode_with_context(
-            self.cpus, context,
-        )?];
-        Ok(context.allocate_aggregate(slots))
-    }
-}
-
-/// Value type for ProcessCpuSet.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ProcessCpuSetValue {
-    /// CPU indices in the affinity set.
-    pub cpus: Vec<u32>,
-}
-
-impl NativeAbiCodec for ProcessCpuSetAbi<NativeAbi> {
-    type Value = ProcessCpuSetValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(ProcessCpuSetValue {
-            cpus: unsafe { <NativeArray<u32> as NativeAbiCodec>::into_value(self.cpus)? },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            cpus: <NativeArray<u32> as NativeAbiCodec>::from_value(binding, value.cpus),
-        }
-    }
-}
-
-impl VmAbiCodec for ProcessCpuSetAbi<VmAbi> {
-    type Value = ProcessCpuSetValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(ProcessCpuSetValue {
-            cpus: <VmArray<u32> as VmAbiCodec>::into_value(self.cpus, context)?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            cpus: <VmArray<u32> as VmAbiCodec>::from_value(context, value.cpus)?,
-        })
-    }
-}
+pub type ProcessCpuSet = platform_thread::ThreadCpuSet;
+pub type ProcessCpuSetVm = platform_thread::ThreadCpuSetVm;
+pub type ProcessCpuSetValue = platform_thread::ThreadCpuSetValue;
 
 /// ABI struct for ProcessFdActionClose.
 #[repr(C)]
@@ -4936,8 +4826,8 @@ pub struct Ospathutf16ReplayRecord {
 /// Replay struct for ProcessCpuSet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcesscpusetReplayRecord {
-    /// CPU indices in the affinity set.
-    pub cpus: Vec<u32>,
+    /// Logical processors in the affinity set.
+    pub cpus: Vec<platform_thread::ThreadCpuValue>,
 }
 
 /// Replay struct for ProcessFdActionClose.

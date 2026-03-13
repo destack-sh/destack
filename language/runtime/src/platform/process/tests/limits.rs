@@ -1,14 +1,17 @@
 #[cfg(target_os = "linux")]
 use super::assert_platform_error_codes_with_privileged_policy;
-use super::{
-    assert_platform_error_code_with_privileged_policy, syscall_get_limit, syscall_get_priority,
-    with_harness_context,
-};
+use super::{assert_platform_error_code_with_privileged_policy, with_harness_context};
+#[cfg(unix)]
+use super::{syscall_get_limit, syscall_get_priority};
+#[cfg(unix)]
 use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(unix)]
 use crate::platform::process::{ProcessId, ProcessLimit, ProcessLimitResource};
 #[cfg(target_os = "linux")]
 use crate::platform::process::{ProcessSchedulerConfig, ProcessSchedulerPolicy};
+#[cfg(windows)]
+use crate::platform::thread::ThreadCpu;
 
 /// Set and restore one resource limit while preserving original values.
 #[cfg(unix)]
@@ -145,7 +148,7 @@ fn test_process_scheduler_and_affinity_validation() {
         assert!(!affinity.is_empty());
 
         assert_platform_error_codes_with_privileged_policy(
-            context.destack_process_set_affinity(pid, context.cpu_set_value(&[u32::MAX])?),
+            context.destack_process_set_affinity(pid, context.cpu_set_value(&[u16::MAX as u32])?),
             &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
@@ -169,6 +172,43 @@ fn test_process_scheduler_and_affinity_validation() {
         let previous = context.destack_process_umask(0o022)?;
         let restored = context.destack_process_umask(previous)?;
         assert_eq!(restored, 0o022);
+
+        Ok(())
+    });
+}
+
+/// Read and reapply process affinity on Windows hosts.
+#[cfg(windows)]
+#[test]
+fn test_process_affinity_roundtrip_and_validation_windows() {
+    with_harness_context(|mut context| {
+        let pid = context.destack_process_pid()?;
+
+        // affinity reads should return at least one logical processor
+        let affinity = context.destack_process_get_affinity(pid)?;
+        let affinity_entries = context.cpu_entries_from_value(affinity)?;
+        assert!(!affinity_entries.is_empty());
+
+        // reapplying the observed affinity should succeed
+        let affinity = context.cpu_entries_value(&affinity_entries)?;
+        context.destack_process_set_affinity(pid, affinity)?;
+
+        // empty affinity sets should be rejected explicitly
+        let empty_affinity = context.cpu_entries_value(&[])?;
+        assert_platform_error_code_with_privileged_policy(
+            context.destack_process_set_affinity(pid, empty_affinity),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        // out-of-range logical processors should be rejected explicitly
+        let invalid_affinity = context.cpu_entries_value(&[ThreadCpu {
+            group: 0,
+            cpu: u16::MAX,
+        }])?;
+        assert_platform_error_code_with_privileged_policy(
+            context.destack_process_set_affinity(pid, invalid_affinity),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
 
         Ok(())
     });

@@ -8,7 +8,7 @@ mod exit;
 mod identity;
 #[cfg(unix)]
 mod isolation;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod limits;
 #[cfg(unix)]
 mod privileged;
