@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use serde::{Deserialize, Serialize};
 
 use destack_core::StringId;
@@ -82,7 +84,30 @@ impl DataLayout {
 
 /// Opaque identifier for a concrete memory layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct LayoutId(pub u32);
+pub struct LayoutId(NonZeroU32);
+
+impl LayoutId {
+    /// Create a layout identifier from one raw value.
+    #[inline]
+    pub const fn new(raw: u32) -> Self {
+        match NonZeroU32::new(raw) {
+            Some(raw) => Self(raw),
+            None => panic!("layout identifiers must be non-zero"),
+        }
+    }
+
+    /// Return the raw layout identifier value.
+    #[inline]
+    pub const fn raw(self) -> u32 {
+        self.0.get()
+    }
+
+    /// Return the zero based layout-table index.
+    #[inline]
+    pub const fn index(self) -> usize {
+        self.raw() as usize - 1
+    }
+}
 
 /// Shared layout table for all aggregate types.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -99,14 +124,15 @@ impl LayoutTable {
 
     /// Insert a layout entry and return its id.
     pub fn insert(&mut self, layout: Layout) -> LayoutId {
-        let id = LayoutId(self.layouts.len() as u32);
+        let next_index = self.layouts.len() + 1;
+        let id = LayoutId::new(next_index as u32);
         self.layouts.push(layout);
         id
     }
 
     /// Return a layout entry for an id.
     pub fn layout(&self, id: LayoutId) -> &Layout {
-        let index = id.0 as usize;
+        let index = id.index();
         self.layouts
             .get(index)
             .unwrap_or_else(|| panic!("missing layout entry {index}"))

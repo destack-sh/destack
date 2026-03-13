@@ -378,7 +378,7 @@ impl TypeTable {
     /// Return the layout entry for a type id when available.
     pub fn type_layout(&self, ty: LocalNodeId<Type>) -> Option<&Layout> {
         let layout_id = self.layout_by_type.get(&ty)?;
-        self.layout_table.layouts.get(layout_id.0 as usize)
+        self.layout_table.layouts.get(layout_id.index())
     }
 
     /// Return the layout id for a type when present.
