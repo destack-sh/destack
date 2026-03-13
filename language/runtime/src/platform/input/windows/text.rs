@@ -1,4 +1,4 @@
-use super::{core as input_core, event as input_event};
+use super::core as input_core;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
@@ -23,6 +23,18 @@ fn is_text_capable_backend(resolved: &input_core::WindowsInputResolved) -> bool 
     false
 }
 
+/// Reject one explicit window target for backends that only support default focus scope.
+fn validate_default_text_target(
+    target: InputWindowTarget,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    if input_core::has_explicit_window_target(target) {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
+    Ok(())
+}
+
 /// Query text-session active state for one opened Windows input handle.
 pub(super) fn text_is_active(
     binding: &BindingCallContext,
@@ -44,8 +56,8 @@ pub(super) fn text_get_area(
     target: InputWindowTarget,
     operation: &'static str,
 ) -> RuntimeResult<InputTextInputArea> {
-    // resolve one optional explicit target window handle
-    let _ = input_core::resolve_window_target_handle(binding, target, operation)?;
+    // reject explicit window scope until one real host-targeted text path exists
+    validate_default_text_target(target, operation)?;
 
     let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_text_capable_backend(&resolved) {
@@ -63,8 +75,8 @@ pub(super) fn text_set_area(
     area: InputTextInputArea,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    // resolve one optional explicit target window handle
-    let _ = input_core::resolve_window_target_handle(binding, target, operation)?;
+    // reject explicit window scope until one real host-targeted text path exists
+    validate_default_text_target(target, operation)?;
 
     let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_text_capable_backend(&resolved) {
@@ -82,8 +94,8 @@ pub(super) fn text_start(
     input_type: InputTextInputType,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    // resolve one optional explicit target window handle
-    let _ = input_core::resolve_window_target_handle(binding, target, operation)?;
+    // reject explicit window scope until one real host-targeted text path exists
+    validate_default_text_target(target, operation)?;
 
     let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_text_capable_backend(&resolved) {
@@ -100,8 +112,8 @@ pub(super) fn text_stop(
     target: InputWindowTarget,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    // resolve one optional explicit target window handle
-    let _ = input_core::resolve_window_target_handle(binding, target, operation)?;
+    // reject explicit window scope until one real host-targeted text path exists
+    validate_default_text_target(target, operation)?;
 
     let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_text_capable_backend(&resolved) {
@@ -136,27 +148,9 @@ pub(super) fn text_read_composition(
         ));
     }
 
-    // resolve console handle and read one composition event
-    let Some(host_handle) = resolved.host_handle else {
-        return Err(input_core::input_not_found(operation, handle));
-    };
-    let mut event = loop {
-        // consume one already-queued composition event before reading host records
-        if let Some(pending) =
-            input_event::pop_pending_console_composition_event(binding, handle, operation)?
-        {
-            break input_event::build_composition_event_from_pending(binding, pending);
-        }
-
-        // read one host record and demux it into input and composition queues
-        let pending_record =
-            input_event::read_console_record_from_host(host_handle, nonblocking, operation)?;
-        input_event::queue_console_record_for_demux(binding, handle, pending_record, operation)?;
-    };
-
-    // stamp one per-handle sequence number for this composition read
-    event.metadata.sequence = input_core::next_sequence(binding, handle, operation)?;
-    Ok(event)
+    // windows console input exposes committed text, not a real IME composition lifecycle
+    let _ = (binding, handle, nonblocking);
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
 
 /// Get text input area.
@@ -166,7 +160,8 @@ pub(super) fn text_read_composition(
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-/// Uses backend-specific text-area hint state tracking for global or window-scoped paths.
+/// Uses backend-specific text-area hint state tracking.
+/// Windows console backends currently support only the default focus scope.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -281,7 +276,8 @@ pub(crate) unsafe fn destack_input_text_read_composition(
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where text-area hints or one window scope are unavailable.
-/// Uses backend-specific IME candidate window placement hints for global or window-scoped paths.
+/// Uses backend-specific text-area hint state tracking.
+/// Windows console backends currently support only the default focus scope.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -309,7 +305,7 @@ pub(crate) unsafe fn destack_input_text_set_area(
 /// Unix and Windows.
 /// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
 /// Uses backend-specific text input activation primitives.
-/// Uses host IME activation for global or window-scoped paths.
+/// Windows console backends currently support only the default focus scope.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -341,7 +337,8 @@ pub(crate) unsafe fn destack_input_text_start(
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-/// Uses backend-specific text input deactivation primitives for global or window-scoped paths.
+/// Uses backend-specific text input deactivation primitives.
+/// Windows console backends currently support only the default focus scope.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.

@@ -1,4 +1,4 @@
-use super::{core as input_core, event as input_event, raw as raw_input};
+use super::{core as input_core, raw as raw_input};
 
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{ReleaseCapture, SetCapture};
 use windows_sys::Win32::UI::WindowsAndMessaging::SetCursorPos;
@@ -141,6 +141,52 @@ pub(super) fn pointer_set_grab_mode(
     mode: InputPointerGrabMode,
     operation: &'static str,
 ) -> RuntimeResult<()> {
+    // resolve one backend binding and validate pointer capability
+    let resolved = input_core::resolve_input(binding, handle, operation)?;
+    if !is_pointer_capable_backend(&resolved) {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
+    // handle raw-input pointer grabs without routing through capture semantics
+    if resolved.backend == input_core::WindowsInputBackend::RawDevice {
+        match mode {
+            InputPointerGrabMode::None => {
+                pointer_set_relative_mode(binding, handle, false, operation)?;
+                return input_core::release_cursor_confine(operation);
+            }
+            InputPointerGrabMode::Locked => {
+                let Some(target_window) =
+                    input_core::resolve_window_target_handle(binding, target, operation)?
+                else {
+                    return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+                };
+
+                pointer_set_relative_mode(binding, handle, true, operation)?;
+                return input_core::confine_cursor_to_window(target_window, operation);
+            }
+            InputPointerGrabMode::Confined => {
+                let Some(target_window) =
+                    input_core::resolve_window_target_handle(binding, target, operation)?
+                else {
+                    return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+                };
+
+                pointer_set_relative_mode(binding, handle, false, operation)?;
+                return input_core::confine_cursor_to_window(target_window, operation);
+            }
+        }
+    }
+
+    // keep console pointer grabs unsupported: relative mode exists, but console input does not expose real capture or lock semantics
+    if resolved.backend == input_core::WindowsInputBackend::Console {
+        if mode == InputPointerGrabMode::None {
+            pointer_set_relative_mode(binding, handle, false, operation)?;
+            return input_core::release_cursor_confine(operation);
+        }
+
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
     // resolve one optional explicit target window handle
     let target_window = input_core::resolve_window_target_handle(binding, target, operation)?;
 
@@ -176,14 +222,19 @@ pub(super) fn pointer_capture(
     enabled: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    // resolve one optional explicit target window handle
-    let target_window = input_core::resolve_window_target_handle(binding, target, operation)?;
-
     // resolve one backend binding and validate pointer capability
     let resolved = input_core::resolve_input(binding, handle, operation)?;
     if !is_pointer_capable_backend(&resolved) {
         return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
+
+    // keep raw-input pointer capture unsupported even for explicit window targets
+    if resolved.backend == input_core::WindowsInputBackend::RawDevice {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
+    // resolve one optional explicit target window handle
+    let target_window = input_core::resolve_window_target_handle(binding, target, operation)?;
 
     // apply explicit per-window capture when a window target is provided
     if let Some(target_window) = target_window {
@@ -207,16 +258,6 @@ pub(super) fn pointer_capture(
             }
         }
         return Ok(());
-    }
-
-    // console capture maps to exclusive-grab updates
-    if resolved.backend == input_core::WindowsInputBackend::Console {
-        return input_event::set_grab(binding, handle, enabled, operation);
-    }
-
-    // raw-input streams cannot toggle capture state through this binding contract
-    if resolved.backend == input_core::WindowsInputBackend::RawDevice {
-        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
     }
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
@@ -302,13 +343,13 @@ pub(crate) unsafe fn destack_input_pointer_capture(
 /// Read one relative pointer state snapshot.
 ///
 /// Return one relative motion and button state snapshot for one opened pointer-capable device.
-/// Delta units follow backend-native relative motion semantics.
+/// Delta values are projected from the current snapshot and the last stored pointer baseline while relative mode is active.
 /// Pen-capable devices can populate pressure and tilt metadata.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend-specific relative motion streams from evdev or libinput-style backends on Unix.
-/// Uses raw-input relative motion on Windows.
+/// Uses backend pointer snapshots plus runtime-managed relative baselines.
+/// Relative mode must be enabled before this lane becomes readable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

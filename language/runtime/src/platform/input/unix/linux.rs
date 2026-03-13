@@ -2360,9 +2360,6 @@ pub(super) fn query_linux_capabilities(
     if supports_rumble {
         kinds.push(InputDeviceCapabilityKind::Haptics);
     }
-    if has_absolute && device_kind == InputDeviceKind::Raw {
-        kinds.push(InputDeviceCapabilityKind::Sensor);
-    }
     if has_sensors && !kinds.contains(&InputDeviceCapabilityKind::Sensor) {
         kinds.push(InputDeviceCapabilityKind::Sensor);
     }
@@ -2491,11 +2488,11 @@ pub(super) fn query_linux_capabilities(
         button_metadata_fidelity,
         supports_relative_pointer: has_relative
             && matches!(device_kind, InputDeviceKind::Mouse | InputDeviceKind::Pen),
-        supports_pointer_grab: supports_exclusive_grab,
-        supports_pointer_capture: supports_exclusive_grab,
+        supports_pointer_grab: false,
+        supports_pointer_capture: false,
         supports_pointer_warp: false,
         supports_text_input: supports_text,
-        supports_composition: supports_text,
+        supports_composition: false,
         supports_rumble,
         supports_trigger_rumble: false,
         supports_sensors: has_sensors,

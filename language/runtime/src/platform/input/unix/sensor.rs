@@ -107,10 +107,12 @@ fn disabled_sensor_stream(operation: &'static str) -> Box<RuntimeError> {
 ///
 /// Apply one enable and sample-rate configuration for one sensor stream on one opened input device.
 /// Backends can negotiate one effective sample rate and one effective batching latency.
+/// When host sensor stacks expose only fixed-rate delivery, this lane tracks the effective runtime stream configuration.
 ///
 /// # Platform
 /// Unix and Windows, with operation-level `notSupported` where sensor stream configuration is unavailable.
-/// Uses backend-specific sensor configuration APIs on Unix and Windows.
+/// Uses backend-specific sensor configuration APIs where available.
+/// Falls back to runtime-managed effective stream configuration when the host stream is fixed-rate.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -137,7 +139,7 @@ pub(crate) unsafe fn destack_input_sensor_configure(
         resolve_sensor_binding(binding, handle, "destack.input.sensor.configure")?;
 
     // validate stream configuration and requested lane
-    input_validation::validate_sensor_sample_rate_hz(config.sample_rate_hz)?;
+    input_validation::validate_sensor_config(config)?;
     validate_sensor_kind(&resolved_binding, kind)?;
 
     // persist one effective configuration for this sensor lane

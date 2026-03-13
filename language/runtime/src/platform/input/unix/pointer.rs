@@ -214,13 +214,21 @@ fn set_grab_mode(
     input_validation::validate_global_window_target(target, operation)?;
 
     // resolve one pointer-capable resolved_binding
-    let resolved_binding = resolve_pointer_binding(binding, handle, operation)?;
+    let _ = resolve_pointer_binding(binding, handle, operation)?;
 
     // route supported modes to backend grab semantics
     match mode {
         InputPointerGrabMode::None => {
-            set_relative_mode(binding, handle, false, operation)?;
-            input_core::set_unix_grab(resolved_binding.descriptor, resolved_binding.backend, false)
+            #[cfg(target_os = "macos")]
+            {
+                set_relative_mode(binding, handle, false, operation)
+            }
+
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = (binding, handle);
+                Ok(())
+            }
         }
         InputPointerGrabMode::Locked => {
             #[cfg(target_os = "macos")]
@@ -231,11 +239,8 @@ fn set_grab_mode(
 
             #[cfg(not(target_os = "macos"))]
             {
-                input_core::set_unix_grab(
-                    resolved_binding.descriptor,
-                    resolved_binding.backend,
-                    true,
-                )
+                let _ = (binding, handle);
+                Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
             }
         }
         InputPointerGrabMode::Confined => {
@@ -277,18 +282,11 @@ pub(crate) unsafe fn destack_input_pointer_capture(
     // route capture by backend support
     #[cfg(target_os = "linux")]
     {
-        if resolved_binding.backend != input_core::UnixInputBackend::Platform {
-            return Err(RuntimeError::from(PlatformError::not_supported(
-                "destack.input.pointer.capture",
-            ))
-            .boxed());
-        }
-
-        input_core::set_unix_grab(
-            resolved_binding.descriptor,
-            resolved_binding.backend,
-            enabled,
-        )
+        let _ = (resolved_binding, enabled);
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.input.pointer.capture",
+        ))
+        .boxed())
     }
 
     #[cfg(target_os = "macos")]
@@ -320,13 +318,13 @@ pub(crate) unsafe fn destack_input_pointer_capture(
 /// Read one relative pointer state snapshot.
 ///
 /// Return one relative motion and button state snapshot for one opened pointer-capable device.
-/// Delta units follow backend-native relative motion semantics.
+/// Delta values are projected from the current snapshot and the last stored pointer baseline while relative mode is active.
 /// Pen-capable devices can populate pressure and tilt metadata.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend-specific relative motion streams from evdev or libinput-style backends on Unix.
-/// Uses raw-input relative motion on Windows.
+/// Uses backend pointer snapshots plus runtime-managed relative baselines.
+/// Relative mode must be enabled before this lane becomes readable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

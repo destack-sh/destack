@@ -3,9 +3,8 @@ use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputCompositionEvent, InputCompositionEventPayload, InputEvent, InputEventAction,
-    InputEventMetadata, InputReadMode, InputTextInputArea, InputTextInputType, InputWindowTarget,
-    validation as input_validation,
+    InputCompositionEvent, InputReadMode, InputTextInputArea, InputTextInputType,
+    InputWindowTarget, validation as input_validation,
 };
 use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
@@ -124,51 +123,6 @@ fn composition_would_block(operation: &'static str, message: &'static str) -> Bo
     .boxed()
 }
 
-/// Convert one input event into one composition event when one composition lane is present.
-fn composition_event_from_input_event(
-    binding: &BindingCallContext,
-    event: InputEvent,
-) -> RuntimeResult<Option<InputCompositionEvent>> {
-    match event {
-        // map native composition events directly
-        InputEvent::InputCompositionEvent(composition) => {
-            let text = unsafe { composition.payload.text.as_str()? };
-            Ok(Some(InputCompositionEvent {
-                kind: binding.store_string("composition"),
-                metadata: composition.metadata,
-                payload: InputCompositionEventPayload {
-                    action: composition.payload.action,
-                    text: binding.store_string(text),
-                    selection_start: composition.payload.selection_start,
-                    selection_end: composition.payload.selection_end,
-                },
-            }))
-        }
-
-        // map plain text events into commit composition updates
-        InputEvent::InputTextEvent(text) => {
-            let text_value = unsafe { text.payload.text.as_str()? };
-            let selection_end = text_value.chars().count() as i32;
-            Ok(Some(InputCompositionEvent {
-                kind: binding.store_string("composition"),
-                metadata: InputEventMetadata {
-                    timestamp_ns: text.metadata.timestamp_ns,
-                    sequence: text.metadata.sequence,
-                    device_id: text.metadata.device_id,
-                },
-                payload: InputCompositionEventPayload {
-                    action: InputEventAction::Commit,
-                    text: binding.store_string(text_value),
-                    selection_start: 0,
-                    selection_end,
-                },
-            }))
-        }
-
-        _ => Ok(None),
-    }
-}
-
 /// Read one composition event for one opened unix text binding.
 fn read_composition_event(
     binding: &BindingCallContext,
@@ -192,26 +146,9 @@ fn read_composition_event(
         ));
     }
 
-    // read until one composition-compatible event is produced
-    loop {
-        let event = input_core::read_unix_event(
-            binding,
-            &resolved_binding,
-            handle,
-            nonblocking,
-            operation,
-        )?;
-        if let Some(composition) = composition_event_from_input_event(binding, event)? {
-            return Ok(composition);
-        }
-
-        if nonblocking {
-            return Err(composition_would_block(
-                operation,
-                "input queue does not contain composition event",
-            ));
-        }
-    }
+    // terminal-backed unix text currently exposes committed text only, not IME composition
+    let _ = (binding, handle, nonblocking);
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
 
 /// Get text input area.
