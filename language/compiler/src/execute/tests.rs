@@ -1,4 +1,16 @@
 use crate::TestProgram;
+use destack_source::ModuleId;
+
+fn builtin_module_id_with_uri_suffix(test: &TestProgram, suffix: &str) -> ModuleId {
+    test.program
+        .modules
+        .iter()
+        .find_map(|module| {
+            let module = module.read();
+            module.uri.as_ref().ends_with(suffix).then_some(module.id)
+        })
+        .unwrap_or_else(|| panic!("missing builtin module ending with {suffix}"))
+}
 
 /// Execute comptime addition and patch it into DIR.
 #[test]
@@ -44,4 +56,16 @@ const VALUE = comptime "hello";
 const VALUE = "hello";
 "#,
     );
+}
+
+/// Execute the builtin ipc unix module cleanly through the patched DIR boundary.
+#[test]
+fn test_execute_builtin_platform_ipc_unix_module() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs()
+        .with_lib("platform")
+        .with_profile_libs(&["native", "platform"]);
+    let module_id = builtin_module_id_with_uri_suffix(&test, "platform/ipc/unix.ds");
+
+    test.execute_module(module_id);
+    test.compile_check_clean();
 }

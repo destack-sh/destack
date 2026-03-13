@@ -1,6 +1,7 @@
 use crate::{
-    BuildKey, BuildProduct, BuildRequirement, BuildRequirementError, BuildRequirementSet, Compiler,
-    DiagnosticAnchor, DirReadBoundary, ResolveError, ResolveModuleContext, ResolveResult,
+    BuildKey, BuildProduct, BuildRequirement, BuildRequirementCollector, BuildRequirementError,
+    BuildRequirementSet, Compiler, DiagnosticAnchor, DirReadBoundary, ResolveError,
+    ResolveModuleContext, ResolveResult,
 };
 
 use destack_builtin::BuiltinLibKind;
@@ -133,6 +134,26 @@ impl Compiler {
         ) {
             self.require_lib_environment(profile)
                 .map_err(ResolveError::from)?;
+        }
+        // bootstrap selected lib lookups from prepared module surfaces once per resolve task
+        else {
+            let mut collector = BuildRequirementCollector::new();
+            for selected_module_id in self.selected_lib_modules(profile) {
+                if selected_module_id == module_id {
+                    continue;
+                }
+
+                if let Err(error) = self.require_dir_prepared(selected_module_id, profile)
+                    && let Some(error) = collector.try_collect::<(), _>(Err(error))
+                {
+                    let requirement = error.into_requirement();
+                    return Err(ResolveError::UnsatisfiedRequirement { requirement });
+                }
+            }
+
+            if let Some(requirement) = collector.try_into_requirement() {
+                return Err(ResolveError::Yield { requirement });
+            }
         }
 
         let (_, dir) = self.with_shared_transient_artifact_dir(
