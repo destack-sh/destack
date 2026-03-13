@@ -5,8 +5,7 @@ use crate::platform::display::{
     WindowDisplayChangedEvent, WindowDisplayPayload, WindowEvent, WindowFocusChangedEvent,
     WindowFocusPayload, WindowModalChangedEvent, WindowModalPayload, WindowModeChangedEvent,
     WindowModePayload, WindowMousePassthroughChangedEvent, WindowMousePassthroughPayload,
-    WindowOcclusionChangedEvent, WindowOcclusionPayload, WindowOpacityChangedEvent,
-    WindowOpacityPayload, WindowParentChangedEvent, WindowParentPayload,
+    WindowOpacityChangedEvent, WindowOpacityPayload, WindowParentChangedEvent, WindowParentPayload,
     WindowPositionChangedEvent, WindowPositionPayload, WindowRefreshRequestedEvent,
     WindowSafeAreaChangedEvent, WindowSafeAreaPayload, WindowScaleFactorChangedEvent,
     WindowScaleFactorPayload, WindowSizeChangedEvent, WindowSizePayload,
@@ -90,23 +89,6 @@ pub(crate) fn window_state_event_from_record(
             payload: WindowVisibilityPayload {
                 previous_visibility,
                 current_visibility,
-            },
-        }),
-        WindowEventRecordKind::OcclusionChanged {
-            window,
-            previous_occlusion,
-            current_occlusion,
-        } => WindowEvent::WindowOcclusionChangedEvent(WindowOcclusionChangedEvent {
-            kind: binding.store_string("occlusionChanged"),
-            metadata: window_event_metadata(
-                window,
-                value.timestamp_ns,
-                value.sequence,
-                value.dropped_count,
-            ),
-            payload: WindowOcclusionPayload {
-                previous_occlusion,
-                current_occlusion,
             },
         }),
         WindowEventRecordKind::PositionChanged {

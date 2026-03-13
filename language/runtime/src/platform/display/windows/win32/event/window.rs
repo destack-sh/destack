@@ -5,8 +5,8 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::display::windows::win32::core as win32_core;
 use crate::platform::display::{
     DisplayEventOverflowPolicy, WindowAspectRatio, WindowChromeKind, WindowEventKindMask,
-    WindowEventOpenOptions, WindowLogicalSize, WindowModeOptions, WindowOcclusionState,
-    WindowPhysicalSize, WindowPosition, WindowSafeAreaInsets, WindowTheme, WindowVisibility,
+    WindowEventOpenOptions, WindowLogicalSize, WindowModeOptions, WindowPhysicalSize,
+    WindowPosition, WindowSafeAreaInsets, WindowTheme, WindowVisibility,
 };
 use crate::platform::{core as core_platform, resource};
 
@@ -58,15 +58,6 @@ pub(crate) enum WindowEventRecordKind {
         previous_visibility: WindowVisibility,
         /// Visibility state after this event.
         current_visibility: WindowVisibility,
-    },
-    /// Occlusion-changed payload.
-    OcclusionChanged {
-        /// Associated runtime window handle.
-        window: resource::WindowHandle,
-        /// Occlusion state before this event.
-        previous_occlusion: WindowOcclusionState,
-        /// Occlusion state after this event.
-        current_occlusion: WindowOcclusionState,
     },
     /// Position-changed payload.
     PositionChanged {
@@ -281,9 +272,6 @@ impl WindowEventRecordKind {
             WindowEventRecordKind::VisibilityChanged { .. } => {
                 win32_core::WINDOW_EVENT_KIND_VISIBILITY_CHANGED
             }
-            WindowEventRecordKind::OcclusionChanged { .. } => {
-                win32_core::WINDOW_EVENT_KIND_OCCLUSION_CHANGED
-            }
             WindowEventRecordKind::PositionChanged { .. } => {
                 win32_core::WINDOW_EVENT_KIND_POSITION_CHANGED
             }
@@ -353,7 +341,6 @@ impl WindowEventRecordKind {
             | WindowEventRecordKind::Destroyed { window }
             | WindowEventRecordKind::FocusChanged { window, .. }
             | WindowEventRecordKind::VisibilityChanged { window, .. }
-            | WindowEventRecordKind::OcclusionChanged { window, .. }
             | WindowEventRecordKind::PositionChanged { window, .. }
             | WindowEventRecordKind::SizeChanged { window, .. }
             | WindowEventRecordKind::ScaleFactorChanged { window, .. }

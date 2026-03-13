@@ -1,11 +1,11 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core as core_platform;
 use crate::platform::display::{WindowAttentionLevel, WindowResizeEdge, WindowVisibility};
 use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;
-use wayland_protocols::xdg::shell::client::xdg_toplevel;
 
 use super::{require_xdg_toplevel_id, resolve_window_host_state, with_window_host_state};
-use crate::platform::display::unix::wayland::{core as wayland_core, event};
+use crate::platform::display::unix::wayland::core as wayland_core;
 
 /// Request one user-attention pulse for one window.
 pub(crate) unsafe fn window_request_attention(
@@ -87,47 +87,11 @@ pub(crate) unsafe fn window_minimize(
     context: &BindingCallContext,
     window_handle: WindowHandle,
 ) -> RuntimeResult<()> {
-    // resolve target window host state and mutate host state
-    let host_state =
-        resolve_window_host_state(context, window_handle, "destack.display.window.minimize")?;
-    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    resolve_window_host_state(context, window_handle, "destack.display.window.minimize")?;
 
-    let previous_visibility = host_state.visibility;
-    if previous_visibility == WindowVisibility::Minimized {
-        return Ok(());
-    }
-
-    // request compositor minimization
-    let xdg_toplevel_id = require_xdg_toplevel_id(&host_state, "destack.display.window.minimize")?;
-    wayland_core::with_connection_dispatch(
-        context,
+    Err(core_platform::not_supported(
         "destack.display.window.minimize",
-        |connection, event_queue, _dispatch_state| {
-            let toplevel = wayland_core::resolve_xdg_toplevel(
-                connection,
-                xdg_toplevel_id,
-                "destack.display.window.minimize",
-            )?;
-
-            toplevel.set_minimized();
-            wayland_core::flush_queue(event_queue, "destack.display.window.minimize")?;
-
-            Ok(())
-        },
-    )?;
-
-    host_state.visibility = WindowVisibility::Minimized;
-    drop(host_state);
-
-    let runtime_state = wayland_core::runtime_state(context);
-    event::publish_window_visibility_changed(
-        &runtime_state,
-        window_handle,
-        previous_visibility,
-        WindowVisibility::Minimized,
-    );
-
-    Ok(())
+    ))
 }
 
 /// Maximize one window.
@@ -135,13 +99,11 @@ pub(crate) unsafe fn window_maximize(
     context: &BindingCallContext,
     window_handle: WindowHandle,
 ) -> RuntimeResult<()> {
-    // resolve target window host state and mutate host state
+    // resolve target window host state
     let host_state =
         resolve_window_host_state(context, window_handle, "destack.display.window.maximize")?;
-    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
-
-    let previous_visibility = host_state.visibility;
-    if previous_visibility == WindowVisibility::Maximized {
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    if host_state.visibility == WindowVisibility::Maximized {
         return Ok(());
     }
 
@@ -164,16 +126,8 @@ pub(crate) unsafe fn window_maximize(
         },
     )?;
 
-    host_state.visibility = WindowVisibility::Maximized;
     drop(host_state);
-
-    let runtime_state = wayland_core::runtime_state(context);
-    event::publish_window_visibility_changed(
-        &runtime_state,
-        window_handle,
-        previous_visibility,
-        WindowVisibility::Maximized,
-    );
+    wayland_core::dispatch_pending(context, "destack.display.window.maximize")?;
 
     Ok(())
 }
@@ -183,13 +137,11 @@ pub(crate) unsafe fn window_restore(
     context: &BindingCallContext,
     window_handle: WindowHandle,
 ) -> RuntimeResult<()> {
-    // resolve target window host state and mutate host state
+    // resolve target window host state
     let host_state =
         resolve_window_host_state(context, window_handle, "destack.display.window.restore")?;
-    let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
-
-    let previous_visibility = host_state.visibility;
-    if previous_visibility == WindowVisibility::Visible {
+    let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
+    if host_state.visibility == WindowVisibility::Visible {
         return Ok(());
     }
 
@@ -213,16 +165,8 @@ pub(crate) unsafe fn window_restore(
         },
     )?;
 
-    host_state.visibility = WindowVisibility::Visible;
     drop(host_state);
-
-    let runtime_state = wayland_core::runtime_state(context);
-    event::publish_window_visibility_changed(
-        &runtime_state,
-        window_handle,
-        previous_visibility,
-        WindowVisibility::Visible,
-    );
+    wayland_core::dispatch_pending(context, "destack.display.window.restore")?;
 
     Ok(())
 }

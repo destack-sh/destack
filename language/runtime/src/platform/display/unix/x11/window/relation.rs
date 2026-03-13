@@ -70,7 +70,6 @@ pub(crate) unsafe fn window_set_modal(
     let mut resolved_host_state = resolved_host_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
-    let previous = resolved_host_state.clone();
 
     // reject modal state when no owner relationship exists
     if modal && resolved_host_state.parent.is_none() && resolved_host_state.transient_for.is_none()
@@ -88,12 +87,8 @@ pub(crate) unsafe fn window_set_modal(
         connection_state.atoms.net_wm_state_modal,
         modal,
     )?;
-    resolved_host_state.modal = modal;
-    let current = resolved_host_state.clone();
     drop(resolved_host_state);
-
-    // publish all affected state deltas
-    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
+    runtime_state.process_runtime_ingress("destack.display.window.setModal")?;
 
     Ok(())
 }

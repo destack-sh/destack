@@ -466,8 +466,8 @@ pub(crate) unsafe fn window_set_visibility(
         return Ok(());
     }
 
-    // reject hidden visibility transitions: no portable wayland request lane exists
-    if visibility == WindowVisibility::Hidden {
+    // reject visibility transitions without one compositor confirmed state lane
+    if visibility == WindowVisibility::Hidden || visibility == WindowVisibility::Minimized {
         return Err(core_platform::not_supported(
             "destack.display.window.setVisibility",
         ));
@@ -487,9 +487,6 @@ pub(crate) unsafe fn window_set_visibility(
             )?;
 
             match visibility {
-                WindowVisibility::Minimized => {
-                    toplevel.set_minimized();
-                }
                 WindowVisibility::Maximized => {
                     toplevel.set_maximized();
                 }
@@ -497,7 +494,7 @@ pub(crate) unsafe fn window_set_visibility(
                     toplevel.unset_fullscreen();
                     toplevel.unset_maximized();
                 }
-                WindowVisibility::Hidden => {
+                WindowVisibility::Hidden | WindowVisibility::Minimized => {
                     return Err(core_platform::not_supported(
                         "destack.display.window.setVisibility",
                     ));
@@ -510,16 +507,8 @@ pub(crate) unsafe fn window_set_visibility(
         },
     )?;
 
-    host_state.visibility = visibility;
     drop(host_state);
-
-    let runtime_state = wayland_core::runtime_state(context);
-    event::publish_window_visibility_changed(
-        &runtime_state,
-        window_handle,
-        previous_visibility,
-        visibility,
-    );
+    wayland_core::dispatch_pending(context, "destack.display.window.setVisibility")?;
 
     Ok(())
 }

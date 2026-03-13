@@ -544,6 +544,7 @@ pub(crate) unsafe fn window_open(
         title,
         role: options.role,
         mode: options.mode,
+        pending_mode: None,
         display,
         resizable: options.resizable,
         decorated: options.decorated,

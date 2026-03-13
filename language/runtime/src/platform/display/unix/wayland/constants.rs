@@ -12,6 +12,8 @@ pub(crate) const WINDOW_EVENT_RESOURCE_LABEL: &str = "display.window.event";
 pub(crate) const DISPLAY_ID_PREFIX: &str = "wayland-output-";
 /// xdg_toplevel state value for maximized.
 pub(crate) const XDG_TOPLEVEL_STATE_MAXIMIZED: u32 = 1;
+/// xdg_toplevel state value for fullscreen.
+pub(crate) const XDG_TOPLEVEL_STATE_FULLSCREEN: u32 = 2;
 /// xdg_toplevel state value for activated.
 pub(crate) const XDG_TOPLEVEL_STATE_ACTIVATED: u32 = 4;
 /// Fallback refresh-rate used when compositor mode metadata is unavailable.
@@ -69,9 +71,6 @@ pub(crate) const WINDOW_EVENT_KIND_FOCUS_CHANGED: u64 =
 /// Window-event kind bit for `visibilityChanged`.
 pub(crate) const WINDOW_EVENT_KIND_VISIBILITY_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_VISIBILITY_CHANGED.0;
-/// Window-event kind bit for `occlusionChanged`.
-pub(crate) const WINDOW_EVENT_KIND_OCCLUSION_CHANGED: u64 =
-    display_platform::WINDOW_EVENT_KIND_OCCLUSION_CHANGED.0;
 /// Window-event kind bit for `positionChanged`.
 pub(crate) const WINDOW_EVENT_KIND_POSITION_CHANGED: u64 =
     display_platform::WINDOW_EVENT_KIND_POSITION_CHANGED.0;
@@ -147,7 +146,6 @@ pub(crate) const WINDOW_EVENT_KIND_MASK_ALL: u64 = WINDOW_EVENT_KIND_CREATED
     | WINDOW_EVENT_KIND_DESTROYED
     | WINDOW_EVENT_KIND_FOCUS_CHANGED
     | WINDOW_EVENT_KIND_VISIBILITY_CHANGED
-    | WINDOW_EVENT_KIND_OCCLUSION_CHANGED
     | WINDOW_EVENT_KIND_POSITION_CHANGED
     | WINDOW_EVENT_KIND_SIZE_CHANGED
     | WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED

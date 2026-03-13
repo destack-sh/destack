@@ -2,23 +2,12 @@ use std::sync::Arc;
 
 use crate::platform::display::unix::wayland::core as wayland_core;
 use crate::platform::display::{
-    WindowLogicalSize, WindowModeOptions, WindowOcclusionState, WindowPhysicalSize,
-    WindowVisibility,
+    WindowLogicalSize, WindowModeOptions, WindowPhysicalSize, WindowVisibility,
 };
 use crate::platform::resource;
 
 use crate::platform::display::unix::wayland::event::queue::publish_window_event;
 use crate::platform::display::unix::wayland::event::{WindowEventRecordKind, window_event_record};
-
-/// Resolve one occlusion state from one visibility value.
-pub(crate) fn occlusion_from_visibility(visibility: WindowVisibility) -> WindowOcclusionState {
-    // hidden and minimized windows are treated as occluded
-    if visibility == WindowVisibility::Hidden || visibility == WindowVisibility::Minimized {
-        return WindowOcclusionState::Occluded;
-    }
-
-    WindowOcclusionState::Unknown
-}
 
 /// Publish one created window event.
 pub(crate) fn publish_window_created(
@@ -71,9 +60,6 @@ pub(crate) fn publish_window_visibility_changed(
     previous_visibility: WindowVisibility,
     current_visibility: WindowVisibility,
 ) {
-    let previous_occlusion = occlusion_from_visibility(previous_visibility);
-    let current_occlusion = occlusion_from_visibility(current_visibility);
-
     publish_window_event(
         runtime_state,
         window_event_record(WindowEventRecordKind::VisibilityChanged {
@@ -82,18 +68,6 @@ pub(crate) fn publish_window_visibility_changed(
             current_visibility,
         }),
     );
-
-    // publish one occlusion transition when visibility implies one state change
-    if previous_occlusion != current_occlusion {
-        publish_window_event(
-            runtime_state,
-            window_event_record(WindowEventRecordKind::OcclusionChanged {
-                window,
-                previous_occlusion,
-                current_occlusion,
-            }),
-        );
-    }
 }
 
 /// Publish one size-changed window event.

@@ -4,7 +4,7 @@ use x11rb::protocol::Event;
 use x11rb::protocol::xproto::Visibility;
 
 use crate::platform::display::{
-    WindowLogicalSize, WindowPhysicalSize, WindowPosition, WindowVisibility,
+    WindowLogicalSize, WindowOcclusionState, WindowPhysicalSize, WindowPosition, WindowVisibility,
 };
 
 use super::connection::X11ConnectionState;
@@ -13,7 +13,7 @@ use crate::platform::display::unix::x11::event;
 use crate::platform::display::unix::x11::window::{
     WINDOW_WM_STATE_ICONIC, WINDOW_WM_STATE_WITHDRAWN, clear_xdnd_state, handle_xdnd_drop,
     handle_xdnd_enter, handle_xdnd_leave, handle_xdnd_position, handle_xdnd_selection_notify,
-    query_window_wm_state,
+    query_window_wm_state, refresh_net_wm_state,
 };
 
 /// Return whether one x11 event changes published monitor topology.
@@ -42,6 +42,7 @@ pub(crate) fn handle_x11_event(
         Event::Expose(value) => Some(value.window),
         Event::VisibilityNotify(value) => Some(value.window),
         Event::SelectionNotify(value) => Some(value.requestor),
+        Event::PropertyNotify(value) => Some(value.window),
         _ => None,
     };
 
@@ -143,6 +144,30 @@ pub(crate) fn handle_x11_event(
         return;
     }
 
+    // process one property-notify update for wm-managed state
+    if let Event::PropertyNotify(value) = event_value {
+        if value.atom == connection_state.atoms.net_wm_state {
+            let previous = host_state.clone();
+            if let Err(error) = refresh_net_wm_state(
+                connection_state,
+                &mut host_state,
+                "destack.display.window.eventRead",
+            ) {
+                runtime_state.diagnostics.warn(
+                    "display",
+                    "destack.display.window.eventRead",
+                    format!("net wm state query failed: {error}"),
+                    None,
+                );
+                return;
+            }
+            let current = host_state.clone();
+            drop(host_state);
+            event::publish_state_deltas(runtime_state, window_handle, &previous, &current);
+        }
+        return;
+    }
+
     // process one window-destroy event
     if let Event::DestroyNotify(_) = event_value {
         if !host_state.destroyed_emitted {
@@ -234,15 +259,15 @@ pub(crate) fn handle_x11_event(
 
     // process one visibility-notify event
     if let Event::VisibilityNotify(value) = event_value {
-        let next_visibility = if value.state == Visibility::FULLY_OBSCURED {
-            WindowVisibility::Hidden
+        let next_occlusion = if value.state == Visibility::UNOBSCURED {
+            WindowOcclusionState::Unoccluded
         } else {
-            WindowVisibility::Visible
+            WindowOcclusionState::Occluded
         };
 
-        if host_state.visibility != next_visibility {
+        if host_state.occlusion != next_occlusion {
             let previous = host_state.clone();
-            host_state.visibility = next_visibility;
+            host_state.occlusion = next_occlusion;
             let current = host_state.clone();
             drop(host_state);
             event::publish_state_deltas(runtime_state, window_handle, &previous, &current);

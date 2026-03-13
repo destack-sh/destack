@@ -222,7 +222,6 @@ pub(crate) unsafe fn window_set_mode(
     let host_state =
         resolve_window_host_state(context, window_handle, "destack.display.window.setMode")?;
     let mut host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());
-    let previous = host_state.clone();
 
     // skip no-op mode transitions
     let previous_mode = host_state.mode;
@@ -240,13 +239,9 @@ pub(crate) unsafe fn window_set_mode(
         "destack.display.window.setMode",
     )?;
 
-    host_state.mode = mode;
-    host_state.display = display;
-    let current = host_state.clone();
+    host_state.pending_mode = Some(mode);
     drop(host_state);
-
-    let runtime_state = wayland_core::runtime_state(context);
-    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
+    wayland_core::dispatch_pending(context, "destack.display.window.setMode")?;
 
     Ok(())
 }

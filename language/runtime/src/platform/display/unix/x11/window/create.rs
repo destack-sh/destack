@@ -9,8 +9,9 @@ use x11rb::wrapper::ConnectionExt as X11WrapperConnectionExt;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
-    WindowCursorIcon, WindowCursorMode, WindowLogicalSize, WindowOptions, WindowPhysicalSize,
-    WindowPosition, WindowRole, WindowTheme, WindowVisibility,
+    WindowCursorIcon, WindowCursorMode, WindowLogicalSize, WindowModeOptions, WindowOcclusionState,
+    WindowOptions, WindowPhysicalSize, WindowPosition, WindowRole, WindowTheme, WindowVisibility,
+    WindowWindowedModeOptions,
 };
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
@@ -22,7 +23,7 @@ use super::{
     resolve_role_open_defaults, set_net_wm_state, set_window_title,
 };
 use crate::platform::display::unix::x11::model::X11WindowHostState;
-use crate::platform::display::unix::x11::{core, event, resource as display_resource};
+use crate::platform::display::unix::x11::{core, event, monitor, resource as display_resource};
 
 pub(crate) unsafe fn window_open(
     context: &BindingCallContext,
@@ -359,15 +360,73 @@ pub(crate) unsafe fn window_open(
         x: i32::from(x),
         y: i32::from(y),
     };
+
+    // resolve one stable content scale for this window
+    let scale_factor_milli = if let Some(display) = preferred_display {
+        monitor::monitor_snapshot_for_handle(context, display, "destack.display.window.open")?
+            .descriptor
+            .scale_factor_milli
+            .max(1)
+    } else {
+        let snapshots = monitor::enumerate_monitor_snapshots(context)?;
+
+        if snapshots.len() == 1 {
+            snapshots[0].descriptor.scale_factor_milli.max(1)
+        } else if let Some(snapshot) = snapshots
+            .iter()
+            .find(|snapshot| snapshot.descriptor.primary)
+        {
+            snapshot.descriptor.scale_factor_milli.max(1)
+        } else {
+            monitor::global_scale_factor_milli(
+                connection_state.as_ref(),
+                "destack.display.window.open",
+            )?
+            .unwrap_or(1000)
+        }
+    };
+
     let host_state = Arc::new(Mutex::new(X11WindowHostState {
+        // x11 fullscreen requests are wm mediated: start from honest current state
         id: format!("{}-window-{window}", core::selected_backend_name()),
         window,
         cursor_handle: None,
         title: title.to_string(),
         role: options.role,
-        mode: options.mode,
+        mode: if matches!(
+            options.mode,
+            WindowModeOptions::WindowBorderlessModeOptions(_)
+                | WindowModeOptions::WindowExclusiveFullscreenModeOptions(_)
+        ) {
+            WindowModeOptions::WindowWindowedModeOptions(WindowWindowedModeOptions {
+                kind: match options.mode {
+                    WindowModeOptions::WindowBorderlessModeOptions(value) => value.kind,
+                    WindowModeOptions::WindowExclusiveFullscreenModeOptions(value) => value.kind,
+                    WindowModeOptions::WindowWindowedModeOptions(value) => value,
+                },
+            })
+        } else {
+            options.mode
+        },
+        pending_mode: if matches!(
+            options.mode,
+            WindowModeOptions::WindowBorderlessModeOptions(_)
+                | WindowModeOptions::WindowExclusiveFullscreenModeOptions(_)
+        ) {
+            Some(options.mode)
+        } else {
+            None
+        },
         exclusive_restore,
-        display: preferred_display,
+        display: if matches!(
+            options.mode,
+            WindowModeOptions::WindowBorderlessModeOptions(_)
+                | WindowModeOptions::WindowExclusiveFullscreenModeOptions(_)
+        ) {
+            None
+        } else {
+            preferred_display
+        },
         resizable: options.resizable,
         decorated: resolved_decorated,
         chrome: resolved_chrome,
@@ -380,7 +439,7 @@ pub(crate) unsafe fn window_open(
         modal: options.modal.unwrap_or(false),
         mouse_passthrough: options.mouse_passthrough.unwrap_or(false),
         aspect_ratio: options.aspect_ratio,
-        visibility: options.visibility,
+        visibility: WindowVisibility::Hidden,
         constraints: options.constraints,
         cursor_visible: true,
         cursor_mode: WindowCursorMode::Normal,
@@ -388,10 +447,9 @@ pub(crate) unsafe fn window_open(
         position,
         size_logical,
         size_physical,
-        scale_factor_milli: 1000,
-        focused: options.focus_on_show
-            && options.visibility != WindowVisibility::Hidden
-            && options.visibility != WindowVisibility::Minimized,
+        scale_factor_milli,
+        focused: false,
+        occlusion: WindowOcclusionState::Occluded,
         safe_area_insets: None,
         theme: WindowTheme::Unknown,
         close_requested_emitted: false,
@@ -419,6 +477,7 @@ pub(crate) unsafe fn window_open(
     let handle = resource::WindowHandle(resource_id);
     runtime_state.register_xid(window, handle, Arc::downgrade(&host_state));
     event::publish_window_created(&runtime_state, handle);
+    runtime_state.process_runtime_ingress("destack.display.window.open")?;
 
     unsafe {
         *out = handle;

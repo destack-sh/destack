@@ -25,8 +25,9 @@ use super::cursor::{
 };
 use super::drop::{register_window_drop_target, unregister_window_drop_target};
 use super::geometry::{
-    clamp_logical_size, logical_to_physical, normalize_logical_size, outer_size_from_client_size,
-    refresh_window_snapshot, window_class_name, window_scale_factor_milli,
+    clamp_logical_size, dpi_from_scale_factor_milli, logical_to_physical, normalize_logical_size,
+    outer_size_from_client_size_for_dpi, refresh_window_snapshot, window_class_name,
+    window_scale_factor_milli,
 };
 use super::message::ensure_window_class_registered;
 use super::mode::{apply_mode_options, restore_exclusive_mode};
@@ -37,7 +38,9 @@ use super::relation::{
 };
 use crate::platform::display::windows::win32::core::Win32WindowDispatchEntry;
 use crate::platform::display::windows::win32::model::Win32WindowHostState;
-use crate::platform::display::windows::win32::{core, event, resource as display_resource};
+use crate::platform::display::windows::win32::{
+    core, event, monitor, resource as display_resource,
+};
 
 /// Destroy one host window during error unwind and publish diagnostics on failure.
 fn destroy_window_best_effort(context: &BindingCallContext, hwnd: HWND, operation: &'static str) {
@@ -126,7 +129,18 @@ pub(crate) unsafe fn window_open(
             options.always_on_top,
         );
 
-    let scale_factor_milli = 1000u32;
+    let scale_factor_milli = if let Some(display) = options.display {
+        monitor::monitor_snapshot_for_handle(context, display, "destack.display.window.open")?
+            .descriptor
+            .scale_factor_milli
+            .max(1)
+    } else {
+        monitor::enumerate_monitor_snapshots()?
+            .into_iter()
+            .find(|snapshot| snapshot.descriptor.primary)
+            .map(|snapshot| snapshot.descriptor.scale_factor_milli.max(1))
+            .unwrap_or(1000)
+    };
     let constrained_logical_size = clamp_logical_size(requested_size_logical, options.constraints);
     let size_physical = logical_to_physical(constrained_logical_size, scale_factor_milli);
 
@@ -205,11 +219,12 @@ pub(crate) unsafe fn window_open(
     // resolve host styles and outer size from requested client size
     let style = window_style_for_host_state(&provisional_host_state);
     let ex_style = window_ex_style_for_host_state(&provisional_host_state);
-    let (outer_width, outer_height) = outer_size_from_client_size(
-        0,
+    let initial_dpi = dpi_from_scale_factor_milli(scale_factor_milli);
+    let (outer_width, outer_height) = outer_size_from_client_size_for_dpi(
         provisional_host_state.size_physical,
         style,
         ex_style,
+        initial_dpi,
         "destack.display.window.open",
     )?;
 

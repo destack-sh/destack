@@ -1,5 +1,7 @@
 use windows_sys::Win32::Foundation::{HWND, LPARAM, RECT, WPARAM};
-use windows_sys::Win32::Graphics::Gdi::{GetDeviceCaps, LOGPIXELSX, ReleaseDC, UpdateWindow};
+use windows_sys::Win32::Graphics::Gdi::{
+    GetDC, GetDeviceCaps, LOGPIXELSX, ReleaseDC, UpdateWindow,
+};
 use windows_sys::Win32::UI::HiDpi::{AdjustWindowRectExForDpi, GetDpiForWindow};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AdjustWindowRectEx, GetClientRect, GetForegroundWindow, GetWindowRect, HTBOTTOM, HTBOTTOMLEFT,
@@ -89,13 +91,18 @@ pub(crate) fn clamp_logical_size(
 
 /// Resolve one win32 scale factor for one window handle.
 pub(crate) fn window_scale_factor_milli(hwnd: HWND) -> u32 {
-    // open one device context for dpi query
-    let hdc = unsafe { windows_sys::Win32::Graphics::Gdi::GetDC(hwnd) };
+    // prefer the per window dpi query on modern windows
+    let dpi = unsafe { GetDpiForWindow(hwnd) };
+    if dpi > 0 {
+        return dpi.saturating_mul(1000).saturating_add(48) / 96;
+    }
+
+    // fall back to one device context query when the dpi lane is unavailable
+    let hdc = unsafe { GetDC(hwnd) };
     if hdc == 0 {
         return 1000;
     }
 
-    // query and release dpi lane
     let dpi_x = unsafe { GetDeviceCaps(hdc, LOGPIXELSX as i32) };
     unsafe {
         ReleaseDC(hwnd, hdc);
@@ -107,6 +114,12 @@ pub(crate) fn window_scale_factor_milli(hwnd: HWND) -> u32 {
     }
 
     ((dpi_x as u32).saturating_mul(1000) / 96).max(1)
+}
+
+/// Convert one milli-scale factor into one Win32 DPI value.
+pub(crate) fn dpi_from_scale_factor_milli(scale_factor_milli: u32) -> u32 {
+    let scale_factor_milli = scale_factor_milli.max(1);
+    scale_factor_milli.saturating_mul(96).saturating_add(500) / 1000
 }
 
 /// Convert one logical-size payload into one physical-size payload.
@@ -166,6 +179,19 @@ pub(crate) fn outer_size_from_client_size(
     ex_style: WINDOW_EX_STYLE,
     operation: &'static str,
 ) -> RuntimeResult<(i32, i32)> {
+    let dpi = unsafe { GetDpiForWindow(hwnd) };
+
+    outer_size_from_client_size_for_dpi(client_size, style, ex_style, dpi, operation)
+}
+
+/// Resolve one non-client outer size from one requested client size and one explicit dpi value.
+pub(crate) fn outer_size_from_client_size_for_dpi(
+    client_size: WindowPhysicalSize,
+    style: WINDOW_STYLE,
+    ex_style: WINDOW_EX_STYLE,
+    dpi: u32,
+    operation: &'static str,
+) -> RuntimeResult<(i32, i32)> {
     let width = dimension_to_i32(client_size.width, "size.width")?;
     let height = dimension_to_i32(client_size.height, "size.height")?;
     let mut rectangle = RECT {
@@ -175,7 +201,6 @@ pub(crate) fn outer_size_from_client_size(
         bottom: height,
     };
 
-    let dpi = unsafe { GetDpiForWindow(hwnd) };
     let status = if dpi > 0 {
         unsafe { AdjustWindowRectExForDpi(&mut rectangle, style, 0, ex_style, dpi) }
     } else {

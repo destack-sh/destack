@@ -110,10 +110,10 @@ pub(crate) unsafe fn window_set_mode(
     )?;
     let previous_mode = resolved_host_state.mode;
     let previous_display = resolved_host_state.display;
+    let previous_pending_mode = resolved_host_state.pending_mode;
     let previous_exclusive_restore = resolved_host_state.exclusive_restore.clone();
     resolved_host_state.exclusive_restore = next_restore;
-    resolved_host_state.mode = mode;
-    resolved_host_state.display = display;
+    resolved_host_state.pending_mode = Some(mode);
     if let Err(error) =
         apply_fullscreen_state(connection_state.as_ref(), resolved_host_state.window, mode)
     {
@@ -129,14 +129,12 @@ pub(crate) unsafe fn window_set_mode(
 
         resolved_host_state.mode = previous_mode;
         resolved_host_state.display = previous_display;
+        resolved_host_state.pending_mode = previous_pending_mode;
         resolved_host_state.exclusive_restore = previous_exclusive_restore;
         return Err(error);
     }
-    let current = resolved_host_state.clone();
     drop(resolved_host_state);
-
-    // publish all affected state deltas
-    event::publish_state_deltas(&runtime_state, window_handle, &previous, &current);
+    runtime_state.process_runtime_ingress("destack.display.window.setMode")?;
 
     Ok(())
 }
@@ -160,8 +158,7 @@ pub(crate) unsafe fn window_set_position(
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
-    // apply host configure request and publish state delta
-    let previous_position = resolved_host_state.position;
+    // apply one host configure request and let ingress confirm the result
     connection_state
         .connection
         .configure_window(
@@ -180,15 +177,8 @@ pub(crate) unsafe fn window_set_position(
             format!("flush failed: {error}"),
         )
     })?;
-    resolved_host_state.position = position;
     drop(resolved_host_state);
-
-    event::publish_window_position_changed(
-        &runtime_state,
-        window_handle,
-        previous_position,
-        position,
-    );
+    runtime_state.process_runtime_ingress("destack.display.window.setPosition")?;
 
     Ok(())
 }
@@ -257,9 +247,7 @@ pub(crate) unsafe fn window_set_size_logical(
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
-    // apply host configure request and publish state delta
-    let previous_size_logical = resolved_host_state.size_logical;
-    let previous_size_physical = resolved_host_state.size_physical;
+    // apply one host configure request and let ingress confirm the result
     let size_physical = WindowPhysicalSize {
         width: size.width.round().max(1.0) as u32,
         height: size.height.round().max(1.0) as u32,
@@ -284,8 +272,6 @@ pub(crate) unsafe fn window_set_size_logical(
             format!("flush failed: {error}"),
         )
     })?;
-    resolved_host_state.size_logical = size;
-    resolved_host_state.size_physical = size_physical;
 
     // refresh host normal hints for size-locked windows
     apply_window_size_hints(
@@ -298,15 +284,7 @@ pub(crate) unsafe fn window_set_size_logical(
         "destack.display.window.setSizeLogical",
     )?;
     drop(resolved_host_state);
-
-    event::publish_window_size_changed(
-        &runtime_state,
-        window_handle,
-        previous_size_logical,
-        previous_size_physical,
-        size,
-        size_physical,
-    );
+    runtime_state.process_runtime_ingress("destack.display.window.setSizeLogical")?;
 
     Ok(())
 }
@@ -338,9 +316,7 @@ pub(crate) unsafe fn window_set_size_physical(
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
-    // apply host configure request and publish state delta
-    let previous_size_logical = resolved_host_state.size_logical;
-    let previous_size_physical = resolved_host_state.size_physical;
+    // apply one host configure request and let ingress confirm the result
     connection_state
         .connection
         .configure_window(
@@ -361,11 +337,6 @@ pub(crate) unsafe fn window_set_size_physical(
             format!("flush failed: {error}"),
         )
     })?;
-    resolved_host_state.size_physical = size;
-    resolved_host_state.size_logical = WindowLogicalSize {
-        width: size.width as f64,
-        height: size.height as f64,
-    };
 
     // refresh host normal hints for size-locked windows
     apply_window_size_hints(
@@ -374,20 +345,11 @@ pub(crate) unsafe fn window_set_size_physical(
         resolved_host_state.resizable,
         resolved_host_state.constraints,
         resolved_host_state.aspect_ratio,
-        resolved_host_state.size_physical,
+        size,
         "destack.display.window.setSizePhysical",
     )?;
-    let current_size_logical = resolved_host_state.size_logical;
     drop(resolved_host_state);
-
-    event::publish_window_size_changed(
-        &runtime_state,
-        window_handle,
-        previous_size_logical,
-        previous_size_physical,
-        current_size_logical,
-        size,
-    );
+    runtime_state.process_runtime_ingress("destack.display.window.setSizePhysical")?;
 
     Ok(())
 }

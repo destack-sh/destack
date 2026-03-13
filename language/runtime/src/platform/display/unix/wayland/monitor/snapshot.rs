@@ -37,10 +37,14 @@ pub(crate) fn enumerate_monitor_snapshots_for_operation(
         },
     )?;
 
-    // mark one primary display for deterministic behavior
-    if let Some(first) = snapshots.first_mut() {
-        first.descriptor.primary = true;
-    }
+    // keep the returned list deterministic even though wayland does not expose a primary output
+    snapshots.sort_by(|left, right| {
+        left.descriptor
+            .y
+            .cmp(&right.descriptor.y)
+            .then(left.descriptor.x.cmp(&right.descriptor.x))
+            .then(left.descriptor.id.cmp(&right.descriptor.id))
+    });
 
     Ok(snapshots)
 }
@@ -82,10 +86,14 @@ pub(crate) fn enumerate_monitor_snapshots_for_runtime(
         },
     )?;
 
-    // mark one primary display for deterministic behavior
-    if let Some(first) = snapshots.first_mut() {
-        first.descriptor.primary = true;
-    }
+    // keep the returned list deterministic even though wayland does not expose a primary output
+    snapshots.sort_by(|left, right| {
+        left.descriptor
+            .y
+            .cmp(&right.descriptor.y)
+            .then(left.descriptor.x.cmp(&right.descriptor.x))
+            .then(left.descriptor.id.cmp(&right.descriptor.id))
+    });
 
     Ok(snapshots)
 }

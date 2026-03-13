@@ -6,9 +6,8 @@ use crate::platform::display::unix::x11::window;
 use crate::platform::resource;
 
 use super::core::{
-    occlusion_from_visibility, publish_window_focus_changed, publish_window_mode_changed,
-    publish_window_position_changed, publish_window_size_changed,
-    publish_window_visibility_changed,
+    publish_window_focus_changed, publish_window_mode_changed, publish_window_position_changed,
+    publish_window_size_changed, publish_window_visibility_changed,
 };
 use crate::platform::display::unix::x11::event::queue::publish_window_event;
 use crate::platform::display::unix::x11::event::{WindowEventRecordKind, window_event_record};
@@ -30,17 +29,14 @@ pub(crate) fn publish_state_deltas(
         );
     }
 
-    let previous_occlusion = occlusion_from_visibility(previous.visibility);
-    let current_occlusion = occlusion_from_visibility(next.visibility);
-
     // explicit occlusion transitions
-    if previous_occlusion != current_occlusion {
+    if previous.occlusion != next.occlusion {
         publish_window_event(
             runtime_state,
             window_event_record(WindowEventRecordKind::OcclusionChanged {
                 window,
-                previous_occlusion,
-                current_occlusion,
+                previous_occlusion: previous.occlusion,
+                current_occlusion: next.occlusion,
             }),
         );
     }

@@ -4,8 +4,7 @@ use crate::platform::display::windows::win32::core::Win32RuntimeState;
 use crate::platform::display::windows::win32::event::queue::publish_window_event;
 use crate::platform::display::windows::win32::event::{WindowEventRecordKind, window_event_record};
 use crate::platform::display::{
-    WindowLogicalSize, WindowModeOptions, WindowOcclusionState, WindowPhysicalSize, WindowPosition,
-    WindowVisibility,
+    WindowLogicalSize, WindowModeOptions, WindowPhysicalSize, WindowPosition, WindowVisibility,
 };
 use crate::platform::resource;
 
@@ -66,23 +65,6 @@ pub(crate) fn publish_window_visibility_changed(
             window,
             previous_visibility,
             current_visibility,
-        }),
-    );
-}
-
-/// Publish one occlusion-changed window event.
-pub(crate) fn publish_window_occlusion_changed(
-    runtime_state: &Arc<Win32RuntimeState>,
-    window: resource::WindowHandle,
-    previous_occlusion: WindowOcclusionState,
-    current_occlusion: WindowOcclusionState,
-) {
-    publish_window_event(
-        runtime_state,
-        window_event_record(WindowEventRecordKind::OcclusionChanged {
-            window,
-            previous_occlusion,
-            current_occlusion,
         }),
     );
 }

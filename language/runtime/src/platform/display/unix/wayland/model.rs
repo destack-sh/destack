@@ -113,6 +113,8 @@ pub(crate) struct WaylandWindowHostState {
     pub(crate) role: WindowRole,
     /// Current mode configuration.
     pub(crate) mode: WindowModeOptions,
+    /// Pending mode request awaiting compositor confirmation.
+    pub(crate) pending_mode: Option<WindowModeOptions>,
     /// Current display association.
     pub(crate) display: Option<resource::DisplayHandle>,
     /// Whether this window is resizable.
