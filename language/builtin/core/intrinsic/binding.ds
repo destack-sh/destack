@@ -199,7 +199,7 @@ export type PlatformCapability =
     | "security.restrict"
     | "security.sandbox"
     | "thread.local"
-    | "thread.scheduling"
+    | "thread.sched"
     | "thread.spawn"
     | "thread.wait"
     | "time.monotonic.read"

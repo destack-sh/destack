@@ -853,10 +853,10 @@ builtin_lib_sources_targeted!(
             "local.ds"
         ),
         (
-            LIB_PLATFORM_THREAD_SCHEDULING_DS,
+            LIB_PLATFORM_THREAD_SCHED_DS,
             "lib",
             "platform/thread",
-            "scheduling.ds"
+            "sched.ds"
         ),
         (
             LIB_PLATFORM_THREAD_SPAWN_DS,
@@ -1103,7 +1103,7 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_SECURITY_SANDBOX_DS,
         LIB_PLATFORM_THREAD_INDEX_DS,
         LIB_PLATFORM_THREAD_LOCAL_DS,
-        LIB_PLATFORM_THREAD_SCHEDULING_DS,
+        LIB_PLATFORM_THREAD_SCHED_DS,
         LIB_PLATFORM_THREAD_SPAWN_DS,
         LIB_PLATFORM_THREAD_WAIT_DS,
         LIB_PLATFORM_TIME_CLOCK_DS,

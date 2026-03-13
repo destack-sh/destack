@@ -4,7 +4,9 @@ use std::mem;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::resource::ThreadHandle;
-use crate::platform::thread::{core as core_thread, resource as resource_thread};
+#[cfg(target_os = "linux")]
+use crate::platform::thread::ThreadCpu;
+use crate::platform::thread::{ThreadCpuSet, core as core_thread, resource as resource_thread};
 
 use crate::runtime::BindingCallContext;
 
@@ -21,10 +23,11 @@ fn pthread_error(syscall: &str, code: libc::c_int) -> Box<RuntimeError> {
     .boxed()
 }
 
-/// Read thread affinity mask.
+/// Read thread CPU affinity.
 ///
-/// Read one thread CPU affinity mask.
-/// Affinity mask width and normalization are host-architecture dependent.
+/// Read one thread logical-processor affinity set.
+/// Unix targets always report group `0`.
+/// Windows reports group-local logical processors for the active thread affinity.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -34,13 +37,13 @@ fn pthread_error(syscall: &str, code: libc::c_int) -> Box<RuntimeError> {
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
 ///
 /// # Security
-/// Requires `thread.priority`.
+/// Requires `thread.sched`.
 ///
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_affinity(
     binding: &BindingCallContext,
-    out: *mut u64,
+    out: *mut ThreadCpuSet,
     handle: ThreadHandle,
 ) -> RuntimeResult<()> {
     // validate output pointer
@@ -71,16 +74,31 @@ pub(crate) unsafe fn destack_thread_get_affinity(
             return Err(pthread_error("pthread_getaffinity_np", rc));
         }
 
-        let mut mask = 0_u64;
-        for cpu in 0..64 {
+        let mut cpus = Vec::new();
+        let cpu_set_size = std::mem::size_of::<libc::cpu_set_t>() * 8;
+        for cpu in 0..cpu_set_size {
             let is_set = unsafe { libc::CPU_ISSET(cpu, &cpu_set) };
             if is_set {
-                mask |= 1_u64 << cpu;
+                let cpu = u16::try_from(cpu).map_err(|_| {
+                    RuntimeError::from(PlatformError::io_with(
+                        None,
+                        None,
+                        None,
+                        Some("pthread_getaffinity_np".to_string()),
+                        None,
+                        "host cpu index exceeds thread affinity ABI range",
+                    ))
+                    .boxed()
+                })?;
+                cpus.push(ThreadCpu { group: 0, cpu });
             }
         }
 
+        let value = ThreadCpuSet {
+            cpus: binding.store_array(cpus),
+        };
         unsafe {
-            *out = mask;
+            *out = value;
         }
         Ok(())
     }
@@ -90,7 +108,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
     {
         let _ = resource;
         Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.thread.priority.getAffinity",
+            "destack.thread.sched.getAffinity",
         ))
         .boxed())
     }
@@ -100,7 +118,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
     {
         let _ = resource;
         Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.thread.priority.getAffinity",
+            "destack.thread.sched.getAffinity",
         ))
         .boxed())
     }
@@ -119,7 +137,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
 ///
 /// # Security
-/// Requires `thread.priority`.
+/// Requires `thread.sched`.
 ///
 /// # Replay
 /// External, nonrecordable.
@@ -158,33 +176,36 @@ pub(crate) unsafe fn destack_thread_get_priority(
     Ok(())
 }
 
-/// Set thread affinity mask.
+/// Set thread CPU affinity.
 ///
-/// Bind one thread to a CPU affinity mask.
-/// Affinity mask semantics are host scheduler-defined.
+/// Bind one thread to one set of logical processors.
+/// Unix targets interpret every entry with group `0`.
+/// Windows maps entries to processor groups and group-local logical processors.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses sched affinity APIs on Unix and SetThreadAffinityMask on Windows.
+/// Uses pthread affinity APIs on Unix and SetThreadGroupAffinity on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
 ///
 /// # Security
-/// Requires `thread.priority`.
+/// Requires `thread.sched`.
 ///
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_affinity(
     binding: &BindingCallContext,
     handle: ThreadHandle,
-    mask: u64,
+    cpus: ThreadCpuSet,
 ) -> RuntimeResult<()> {
-    // validate the affinity mask
-    if mask == 0 {
+    let cpus = unsafe { cpus.cpus.as_slice()? };
+
+    // validate the affinity set
+    if cpus.is_empty() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "mask",
-            "affinity mask must not be zero",
+            "cpus",
+            "thread affinity set must not be empty",
         ))
         .boxed());
     }
@@ -201,11 +222,30 @@ pub(crate) unsafe fn destack_thread_set_affinity(
     #[cfg(target_os = "linux")]
     {
         let mut cpu_set: libc::cpu_set_t = unsafe { mem::zeroed() };
-        for cpu in 0..64 {
-            if (mask & (1_u64 << cpu)) != 0 {
-                unsafe {
-                    libc::CPU_SET(cpu, &mut cpu_set);
-                }
+        unsafe {
+            libc::CPU_ZERO(&mut cpu_set);
+        }
+        let cpu_set_size = std::mem::size_of::<libc::cpu_set_t>() * 8;
+        for cpu in cpus {
+            if cpu.group != 0 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "cpus",
+                    format!("unix thread affinity requires group 0, found {}", cpu.group),
+                ))
+                .boxed());
+            }
+
+            let index = cpu.cpu as usize;
+            if index >= cpu_set_size {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "cpus",
+                    format!("cpu index {} is out of range", cpu.cpu),
+                ))
+                .boxed());
+            }
+
+            unsafe {
+                libc::CPU_SET(index, &mut cpu_set);
             }
         }
 
@@ -226,9 +266,9 @@ pub(crate) unsafe fn destack_thread_set_affinity(
     // report unsupported affinity writes on android pthread targets
     #[cfg(target_os = "android")]
     {
-        let _ = resource;
+        let _ = (resource, cpus);
         Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.thread.priority.setAffinity",
+            "destack.thread.sched.setAffinity",
         ))
         .boxed())
     }
@@ -236,9 +276,9 @@ pub(crate) unsafe fn destack_thread_set_affinity(
     // report unsupported affinity writes on targets without pthread affinity APIs
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
-        let _ = resource;
+        let _ = (resource, cpus);
         Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.thread.priority.setAffinity",
+            "destack.thread.sched.setAffinity",
         ))
         .boxed())
     }
@@ -257,7 +297,7 @@ pub(crate) unsafe fn destack_thread_set_affinity(
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
 ///
 /// # Security
-/// Requires `thread.priority`.
+/// Requires `thread.sched`.
 ///
 /// # Replay
 /// External, nonrecordable.

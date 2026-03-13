@@ -1,13 +1,25 @@
 use std::sync::Arc;
+#[cfg(any(target_os = "linux", target_os = "android", windows))]
 use std::time::Duration;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceEntry, ResourceId, ResourceKind};
+use crate::platform::thread::resource::{ThreadLifecycleState, ThreadResource};
 use crate::runtime::BindingCallContext;
 
+/// Canonical owner identifier for one host thread.
+#[cfg(any(unix, windows))]
+#[allow(dead_code)]
+pub(crate) type ThreadOwnerId = u64;
+/// Canonical owner identifier for one host thread.
+#[cfg(not(any(unix, windows)))]
+#[allow(dead_code)]
+pub(crate) type ThreadOwnerId = std::thread::ThreadId;
+
 /// Sentinel timeout that means wait indefinitely.
+#[cfg(any(target_os = "linux", target_os = "android", windows))]
 pub(crate) const WAIT_FOREVER: u64 = u64::MAX;
 
 /// Produce one invalid-handle error.
@@ -19,25 +31,13 @@ pub(crate) fn invalid_handle_error(field: &str, kind: &str) -> Box<RuntimeError>
     .boxed()
 }
 
-/// Produce one unsupported-flags error.
-pub(crate) fn unsupported_flags_error(field: &str, flags: u32) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::invalid_argument_value(
-        field,
-        format!("unsupported flag bits: 0x{flags:x}"),
-    ))
-    .boxed()
-}
-
-/// Produce one thread-deadlock error.
-pub(crate) fn thread_deadlock_error(message: impl Into<String>) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::generic(
-        Some(PlatformErrorCode::ThreadDeadlock),
-        message,
-    ))
-    .boxed()
+/// Produce one invalid thread lifecycle-state error.
+pub(crate) fn invalid_thread_state_error(message: impl Into<String>) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::invalid_argument_value("handle", message)).boxed()
 }
 
 /// Produce one would-block error.
+#[cfg(any(target_os = "linux", target_os = "android", windows))]
 pub(crate) fn io_would_block_error(
     operation: &str,
     message: impl Into<String>,
@@ -54,6 +54,7 @@ pub(crate) fn io_would_block_error(
 }
 
 /// Produce one timeout error.
+#[cfg(any(target_os = "linux", target_os = "android", windows))]
 pub(crate) fn io_timed_out_error(operation: &str, message: impl Into<String>) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::io_with(
         Some(PlatformErrorCode::IoTimedOut),
@@ -66,23 +67,63 @@ pub(crate) fn io_timed_out_error(operation: &str, message: impl Into<String>) ->
     .boxed()
 }
 
-/// Produce one permission-denied error.
-pub(crate) fn io_permission_denied_error(
-    operation: &str,
-    message: impl Into<String>,
-) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoPermissionDenied),
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        message,
-    ))
-    .boxed()
+/// Produce one parked thread-spawn error.
+pub(crate) fn thread_spawn_unavailable_error() -> Box<RuntimeError> {
+    // FUGU #Incomplete: implement runtime installed entry handles for thread.spawn and related exported call entrypoints
+    RuntimeError::from(PlatformError::not_supported("destack.thread.spawn.start")).boxed()
+}
+
+/// Mark one thread handle as being consumed by join or detach.
+pub(crate) fn begin_thread_consume(
+    resource: &ThreadResource,
+    next_state: ThreadLifecycleState,
+) -> RuntimeResult<()> {
+    let mut lifecycle = resource.lifecycle.lock().map_err(|_| {
+        RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::IoInvalidData),
+            None,
+            None,
+            None,
+            None,
+            "thread lifecycle state lock was poisoned",
+        ))
+        .boxed()
+    })?;
+
+    match *lifecycle {
+        ThreadLifecycleState::Joinable => {
+            *lifecycle = next_state;
+            Ok(())
+        }
+        ThreadLifecycleState::Joining => Err(invalid_thread_state_error(
+            "thread handle is already being joined",
+        )),
+        ThreadLifecycleState::Detaching => Err(invalid_thread_state_error(
+            "thread handle is already being detached",
+        )),
+    }
+}
+
+/// Restore one thread handle to the joinable state after a failed consume attempt.
+pub(crate) fn reset_thread_consume(resource: &ThreadResource) -> RuntimeResult<()> {
+    let mut lifecycle = resource.lifecycle.lock().map_err(|_| {
+        RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::IoInvalidData),
+            None,
+            None,
+            None,
+            None,
+            "thread lifecycle state lock was poisoned",
+        ))
+        .boxed()
+    })?;
+
+    *lifecycle = ThreadLifecycleState::Joinable;
+    Ok(())
 }
 
 /// Convert binding timeout nanoseconds into an optional duration.
+#[cfg(any(target_os = "linux", target_os = "android", windows))]
 pub(crate) fn timeout_from_ns(timeoutns: u64) -> Option<Duration> {
     if timeoutns == WAIT_FOREVER {
         return None;
@@ -123,15 +164,6 @@ pub(crate) fn checked_u32_word_pointer(address: u64, field: &str) -> RuntimeResu
 
     Ok(address as *const u32)
 }
-
-/// Canonical owner identifier for one host thread.
-#[cfg(any(unix, windows))]
-#[allow(dead_code)]
-pub(crate) type ThreadOwnerId = u64;
-/// Canonical owner identifier for one host thread.
-#[cfg(not(any(unix, windows)))]
-#[allow(dead_code)]
-pub(crate) type ThreadOwnerId = std::thread::ThreadId;
 
 /// Return the current host thread owner identifier.
 #[cfg(unix)]
