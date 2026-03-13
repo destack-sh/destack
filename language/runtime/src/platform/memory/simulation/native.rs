@@ -5,8 +5,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core::not_supported;
 use crate::platform::memory::{
-    MemoryAdvice, MemoryNumaPolicy, MemoryProtection, MemoryRange, MemoryRemapFlags,
-    MemoryReserveFlags, ProtectedMemoryRange,
+    MemoryAdvice, MemoryProtection, MemoryRange, MemoryRemapFlags, MemoryReserveFlags,
+    ProtectedMemoryRange,
 };
 use crate::runtime::BindingCallContext;
 
@@ -29,17 +29,6 @@ pub(crate) unsafe fn destack_memory_discard(
 ) -> RuntimeResult<()> {
     let _ = (address, length);
     Err(not_supported("destack.memory.advise.discard"))
-}
-
-/// Toggle huge-page preference for one range.
-pub(crate) unsafe fn destack_memory_huge_page(
-    _binding: &BindingCallContext,
-    address: u64,
-    length: u64,
-    enabled: bool,
-) -> RuntimeResult<()> {
-    let _ = (address, length, enabled);
-    Err(not_supported("destack.memory.advise.hugePage"))
 }
 
 /// Lock one memory range into physical memory.
@@ -83,18 +72,6 @@ pub(crate) unsafe fn destack_memory_decommit(
     Err(not_supported("destack.memory.map.decommit"))
 }
 
-/// Bind one range to a NUMA policy.
-pub(crate) unsafe fn destack_memory_numa_bind(
-    _binding: &BindingCallContext,
-    address: u64,
-    length: u64,
-    policy: MemoryNumaPolicy,
-    nodemask: u64,
-) -> RuntimeResult<()> {
-    let _ = (address, length, policy, nodemask);
-    Err(not_supported("destack.memory.map.numaBind"))
-}
-
 /// Release one reserved range.
 pub(crate) unsafe fn destack_memory_release(
     _binding: &BindingCallContext,
@@ -103,6 +80,19 @@ pub(crate) unsafe fn destack_memory_release(
 ) -> RuntimeResult<()> {
     let _ = (address, length);
     Err(not_supported("destack.memory.map.release"))
+}
+
+/// Allocate one mapped range.
+pub(crate) unsafe fn destack_memory_allocate(
+    _binding: &BindingCallContext,
+    out: *mut ProtectedMemoryRange,
+    length: u64,
+    addresshint: u64,
+    protection: MemoryProtection,
+    flags: MemoryReserveFlags,
+) -> RuntimeResult<()> {
+    let _ = (out, length, addresshint, protection, flags);
+    Err(not_supported("destack.memory.map.allocate"))
 }
 
 /// Reserve one virtual memory range.

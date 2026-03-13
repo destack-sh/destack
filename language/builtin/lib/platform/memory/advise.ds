@@ -67,37 +67,4 @@ declare namespace memory {
     })
     export function discard(address: uint64, length: uint64): Result<void, PlatformError>;
 
-    /// Toggle huge-page preference for one range.
-    ///
-    /// Enable or disable huge-page preference for one memory range.
-    /// Huge-page allocation remains host-policy and availability dependent.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses huge-page advice flags on Unix and large-page APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.huge.page`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.memory.advise.hugePage", {
-        effect: "external",
-        replay: "recordable",
-        capabilities: ["memory.huge.page"],
-        platforms: ["windows", "unix"],
-        simulation: "model",
-        scope: "host",
-        blocking: "sometimes",
-
-        affinity: "any",
-    })
-    export function hugePage(
-        address: uint64,
-        length: uint64,
-        enabled: boolean,
-    ): Result<void, PlatformError>;
 }

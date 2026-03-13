@@ -1,25 +1,11 @@
 /// Bitmask of virtual-memory protection permissions.
 export newtype MemoryProtection = uint32;
 
-/// Flags for virtual-memory reserve operations.
+/// Flags for virtual-memory reserve and allocate operations.
 export newtype MemoryReserveFlags = uint32;
 
 /// Flags for virtual-memory remap operations.
 export newtype MemoryRemapFlags = uint32;
-
-/// NUMA policy selector for memory placement.
-export enum MemoryNumaPolicy {
-    /// Use host default NUMA policy.
-    Default = 0,
-    /// Bind memory to one explicit node mask.
-    Bind = 1,
-    /// Interleave pages across node mask.
-    Interleave = 2,
-    /// Prefer one node while allowing fallback.
-    Preferred = 3,
-    /// Prefer local node of current thread.
-    Local = 4,
-}
 
 /// Memory access-pattern advice selector.
 export enum MemoryAdvice {
@@ -48,7 +34,7 @@ export const MEMORY_PROTECTION_EXECUTE: MemoryProtection = MemoryProtection(0x4)
 export const MEMORY_RESERVE_NONE: MemoryReserveFlags = MemoryReserveFlags(0x0);
 /// Prefer high virtual addresses where supported.
 export const MEMORY_RESERVE_TOP_DOWN: MemoryReserveFlags = MemoryReserveFlags(0x1);
-/// Request large-page backing where supported.
+/// Request large-page backing for allocation-time mappings where supported.
 export const MEMORY_RESERVE_LARGE_PAGES: MemoryReserveFlags = MemoryReserveFlags(0x2);
 /// Reserve address space without guaranteed swap reservation where supported.
 export const MEMORY_RESERVE_NO_RESERVE: MemoryReserveFlags = MemoryReserveFlags(0x4);

@@ -8,7 +8,7 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::memory::{
-    MemoryAdvice, MemoryNumaPolicy, MemoryProtection, MemoryRange, MemoryRangeVm, MemoryRemapFlags,
+    MemoryAdvice, MemoryProtection, MemoryRange, MemoryRangeVm, MemoryRemapFlags,
     MemoryReserveFlags, ProtectedMemoryRange, ProtectedMemoryRangeVm,
 };
 use crate::platform::{PlatformError, RuntimeStatus, VmAggregateCodec, abi as platform_abi};
@@ -163,30 +163,6 @@ fn encode_destack_memory_advise_discard_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.memory.advise.hugePage.
-#[inline]
-fn decode_destack_memory_advise_huge_page_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(u64, u64, bool)> {
-    let address_value = arg_value(args, 0, "address", "uint64")?;
-    let address = decode_uint64(address_value, "address", "uint64")?;
-    let length_value = arg_value(args, 1, "length", "uint64")?;
-    let length = decode_uint64(length_value, "length", "uint64")?;
-    let enabled_value = arg_value(args, 2, "enabled", "boolean")?;
-    let enabled = decode_bool(enabled_value, "enabled", "boolean")?;
-    Ok((address, length, enabled))
-}
-
-/// Encode the result for destack.memory.advise.hugePage.
-#[inline]
-fn encode_destack_memory_advise_huge_page_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
 /// Decode arguments for destack.memory.lock.lockRange.
 #[inline]
 fn decode_destack_memory_lock_lock_range_args(
@@ -278,44 +254,36 @@ fn encode_destack_memory_map_decommit_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.memory.map.numaBind.
+/// Decode arguments for destack.memory.map.allocate.
 #[inline]
-fn decode_destack_memory_map_numa_bind_args(
+fn decode_destack_memory_map_allocate_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(u64, u64, MemoryNumaPolicy, u64)> {
-    let address_value = arg_value(args, 0, "address", "uint64")?;
-    let address = decode_uint64(address_value, "address", "uint64")?;
-    let length_value = arg_value(args, 1, "length", "uint64")?;
+) -> RuntimeResult<(u64, u64, MemoryProtection, MemoryReserveFlags)> {
+    let length_value = arg_value(args, 0, "length", "uint64")?;
     let length = decode_uint64(length_value, "length", "uint64")?;
-    let policy_value = arg_value(args, 2, "policy", "MemoryNumaPolicy")?;
-    let policy_raw = decode_uint8(policy_value, "policy_raw", "MemoryNumaPolicy")?;
-    let policy = match policy_raw {
-        0u8 => MemoryNumaPolicy::Default,
-        1u8 => MemoryNumaPolicy::Bind,
-        2u8 => MemoryNumaPolicy::Interleave,
-        3u8 => MemoryNumaPolicy::Preferred,
-        4u8 => MemoryNumaPolicy::Local,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "policy",
-                "unknown MemoryNumaPolicy value",
-            ))
-            .boxed());
-        }
-    };
-    let nodemask_value = arg_value(args, 3, "nodemask", "uint64")?;
-    let nodemask = decode_uint64(nodemask_value, "nodemask", "uint64")?;
-    Ok((address, length, policy, nodemask))
+    let addresshint_value = arg_value(args, 1, "addresshint", "uint64")?;
+    let addresshint = decode_uint64(addresshint_value, "addresshint", "uint64")?;
+    let protection_value = arg_value(args, 2, "protection", "MemoryProtection")?;
+    let protection_inner = decode_uint32(protection_value, "protection_inner", "MemoryProtection")?;
+    let protection = MemoryProtection(protection_inner);
+    let flags_value = arg_value(args, 3, "flags", "MemoryReserveFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "MemoryReserveFlags")?;
+    let flags = MemoryReserveFlags(flags_inner);
+    Ok((length, addresshint, protection, flags))
 }
 
-/// Encode the result for destack.memory.map.numaBind.
+/// Encode the result for destack.memory.map.allocate.
 #[inline]
-fn encode_destack_memory_map_numa_bind_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
+fn encode_destack_memory_map_allocate_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<ProtectedMemoryRangeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.address, 64);
+        let field_1 = vm::Value::uint(value.length, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
 }
 
 /// Decode arguments for destack.memory.map.release.
@@ -491,13 +459,6 @@ struct MemoryAdviseDiscardReplayRecord {
     pub result: Result<(), TraceError>,
 }
 
-/// Replay payload for destack.memory.advise.hugePage.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MemoryAdviseHugePageReplayRecord {
-    /// Replay result payload.
-    pub result: Result<(), TraceError>,
-}
-
 /// Replay payload for destack.memory.lock.lockRange.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct MemoryLockLockRangeReplayRecord {
@@ -526,11 +487,11 @@ struct MemoryMapDecommitReplayRecord {
     pub result: Result<(), TraceError>,
 }
 
-/// Replay payload for destack.memory.map.numaBind.
+/// Replay payload for destack.memory.map.allocate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MemoryMapNumaBindReplayRecord {
+struct MemoryMapAllocateReplayRecord {
     /// Replay result payload.
-    pub result: Result<(), TraceError>,
+    pub result: Result<ProtectedMemoryRange, TraceError>,
 }
 
 /// Replay payload for destack.memory.map.release.
@@ -631,20 +592,6 @@ pub(crate) const MEMORY_ADVISE_DISCARD: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.memory.advise.hugePage.
-pub(crate) const MEMORY_ADVISE_HUGE_PAGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.memory.advise.hugePage",
-    "export function hugePage(address: uint64, length: uint64, enabled: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["memory.huge.page"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("memory")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
 /// Binding descriptor for destack.memory.lock.lockRange.
 pub(crate) const MEMORY_LOCK_LOCK_RANGE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
@@ -743,13 +690,13 @@ pub(crate) const MEMORY_MAP_DECOMMIT: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.memory.map.numaBind.
-pub(crate) const MEMORY_MAP_NUMA_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.memory.map.numaBind",
-    "export function numaBind(address: uint64, length: uint64, policy: MemoryNumaPolicy, nodeMask: uint64): Result<void, PlatformError>",
+/// Binding descriptor for destack.memory.map.allocate.
+pub(crate) const MEMORY_MAP_ALLOCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.memory.map.allocate",
+    "export function allocate(length: uint64, addressHint: uint64, protection: MemoryProtection, flags: MemoryReserveFlags): Result<ProtectedMemoryRange, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
-    &["memory.numa"],
+    &["memory.map"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
     BindingAffinity::Any,
@@ -940,11 +887,6 @@ pub(crate) const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_memory_advise_discard as *const (),
         ),
         NativeBinding::new(
-            MEMORY_ADVISE_HUGE_PAGE,
-            "destack.memory.advise.hugePage",
-            destack_memory_advise_huge_page as *const (),
-        ),
-        NativeBinding::new(
             MEMORY_LOCK_LOCK_RANGE,
             "destack.memory.lock.lockRange",
             destack_memory_lock_lock_range as *const (),
@@ -955,6 +897,11 @@ pub(crate) const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_memory_lock_unlock as *const (),
         ),
         NativeBinding::new(
+            MEMORY_MAP_ALLOCATE,
+            "destack.memory.map.allocate",
+            destack_memory_map_allocate as *const (),
+        ),
+        NativeBinding::new(
             MEMORY_MAP_COMMIT,
             "destack.memory.map.commit",
             destack_memory_map_commit as *const (),
@@ -963,11 +910,6 @@ pub(crate) const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             MEMORY_MAP_DECOMMIT,
             "destack.memory.map.decommit",
             destack_memory_map_decommit as *const (),
-        ),
-        NativeBinding::new(
-            MEMORY_MAP_NUMA_BIND,
-            "destack.memory.map.numaBind",
-            destack_memory_map_numa_bind as *const (),
         ),
         NativeBinding::new(
             MEMORY_MAP_RELEASE,
@@ -1096,58 +1038,6 @@ fn destack_memory_advise_discard_replay(
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
                     MemoryAdviseDiscardReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_memory_advise_huge_page_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    address: u64,
-    length: u64,
-    enabled: bool,
-) -> RuntimeResult<()> {
-    let _ = (&address, &length, &enabled);
-
-    binding.trace().run_binding_without_context(
-        MEMORY_ADVISE_HUGE_PAGE,
-        binding.replay_payload_for(MEMORY_ADVISE_HUGE_PAGE)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_memory_huge_page(binding, address, length, enabled)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_memory_huge_page(
-                    binding, address, length, enabled,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = MemoryAdviseHugePageReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    MemoryAdviseHugePageReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1364,35 +1254,50 @@ fn destack_memory_map_decommit_replay(
 }
 
 #[inline]
-fn destack_memory_map_numa_bind_replay(
+fn destack_memory_map_allocate_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
-    address: u64,
+    out: *mut ProtectedMemoryRange,
     length: u64,
-    policy: MemoryNumaPolicy,
-    nodemask: u64,
+    addresshint: u64,
+    protection: MemoryProtection,
+    flags: MemoryReserveFlags,
 ) -> RuntimeResult<()> {
-    let _ = (&address, &length, &policy, &nodemask);
+    let _ = (&length, &addresshint, &protection, &flags);
 
     binding.trace().run_binding_without_context(
-        MEMORY_MAP_NUMA_BIND,
-        binding.replay_payload_for(MEMORY_MAP_NUMA_BIND)?,
+        MEMORY_MAP_ALLOCATE,
+        binding.replay_payload_for(MEMORY_MAP_ALLOCATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_memory_numa_bind(
-                    binding, address, length, policy, nodemask,
+                platform_native::destack_memory_allocate(
+                    binding,
+                    out,
+                    length,
+                    addresshint,
+                    protection,
+                    flags,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_memory_numa_bind(
-                    binding, address, length, policy, nodemask,
+                platform_simulation_native::destack_memory_allocate(
+                    binding,
+                    out,
+                    length,
+                    addresshint,
+                    protection,
+                    flags,
                 )
             },
         },
         |result| {
             if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = MemoryMapNumaBindReplayRecord {
+                let result_value: ProtectedMemoryRange = unsafe { out.read() };
+                let result_recorded = ProtectedMemoryRange {
+                    address: result_value.address,
+                    length: result_value.length,
+                };
+                let payload = MemoryMapAllocateReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -1401,19 +1306,22 @@ fn destack_memory_map_numa_bind_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    MemoryMapNumaBindReplayRecord { result }
+                    MemoryMapAllocateReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
 
             Ok(None)
         },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
+        |payload| match payload.result {
+            Ok(value) => unsafe {
+                out.write(ProtectedMemoryRange {
+                    address: value.address,
+                    length: value.length,
+                });
+                Ok(())
+            },
+            Err(error) => Err(Box::<RuntimeError>::from(error)),
         },
     )
 }
@@ -1898,21 +1806,6 @@ pub(crate) unsafe extern "C" fn destack_memory_advise_discard(
     })
 }
 
-#[unsafe(export_name = "destack.memory.advise.hugePage")]
-pub(crate) unsafe extern "C" fn destack_memory_advise_huge_page(
-    address: u64,
-    length: u64,
-    enabled: bool,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&address, &length, &enabled);
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(MEMORY_ADVISE_HUGE_PAGE)?;
-        destack_memory_advise_huge_page_replay(context, world, address, length, enabled)
-    })
-}
-
 #[unsafe(export_name = "destack.memory.lock.lockRange")]
 pub(crate) unsafe extern "C" fn destack_memory_lock_lock_range(
     address: u64,
@@ -1970,19 +1863,31 @@ pub(crate) unsafe extern "C" fn destack_memory_map_decommit(
     })
 }
 
-#[unsafe(export_name = "destack.memory.map.numaBind")]
-pub(crate) unsafe extern "C" fn destack_memory_map_numa_bind(
-    address: u64,
+#[unsafe(export_name = "destack.memory.map.allocate")]
+pub(crate) unsafe extern "C" fn destack_memory_map_allocate(
+    out: *mut ProtectedMemoryRange,
     length: u64,
-    policy: MemoryNumaPolicy,
-    nodemask: u64,
+    addresshint: u64,
+    protection: MemoryProtection,
+    flags: MemoryReserveFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&address, &length, &policy, &nodemask);
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &length, &addresshint, &protection, &flags);
 
         let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(MEMORY_MAP_NUMA_BIND)?;
-        destack_memory_map_numa_bind_replay(context, world, address, length, policy, nodemask)
+            context.on_before_binding_resolve_world(MEMORY_MAP_ALLOCATE)?;
+        destack_memory_map_allocate_replay(
+            context,
+            world,
+            out,
+            length,
+            addresshint,
+            protection,
+            flags,
+        )
     })
 }
 
@@ -2225,60 +2130,6 @@ fn destack_memory_advise_discard_vm_replay(
 }
 
 #[inline]
-fn destack_memory_advise_huge_page_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    address: u64,
-    length: u64,
-    enabled: bool,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        MEMORY_ADVISE_HUGE_PAGE,
-        binding.replay_payload_for(MEMORY_ADVISE_HUGE_PAGE)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_memory_huge_page(binding, context, address, length, enabled)
-            }
-            RuntimeWorld::Simulation => platform_simulation_vm::destack_memory_huge_page(
-                binding, context, address, length, enabled,
-            ),
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = MemoryAdviseHugePageReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    MemoryAdviseHugePageReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_memory_advise_huge_page_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
 fn destack_memory_lock_lock_range_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -2492,32 +2343,46 @@ fn destack_memory_map_decommit_vm_replay(
 }
 
 #[inline]
-fn destack_memory_map_numa_bind_vm_replay(
+fn destack_memory_map_allocate_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    address: u64,
     length: u64,
-    policy: MemoryNumaPolicy,
-    nodemask: u64,
+    addresshint: u64,
+    protection: MemoryProtection,
+    flags: MemoryReserveFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
-        MEMORY_MAP_NUMA_BIND,
-        binding.replay_payload_for(MEMORY_MAP_NUMA_BIND)?,
+        MEMORY_MAP_ALLOCATE,
+        binding.replay_payload_for(MEMORY_MAP_ALLOCATE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_memory_numa_bind(
-                binding, context, address, length, policy, nodemask,
+            RuntimeWorld::Host => platform_vm::destack_memory_allocate(
+                binding,
+                context,
+                length,
+                addresshint,
+                protection,
+                flags,
             ),
-            RuntimeWorld::Simulation => platform_simulation_vm::destack_memory_numa_bind(
-                binding, context, address, length, policy, nodemask,
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_memory_allocate(
+                binding,
+                context,
+                length,
+                addresshint,
+                protection,
+                flags,
             ),
         },
         |context, result| {
             let _ = &context;
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = MemoryMapNumaBindReplayRecord {
+            if let Ok(value) = result {
+                let result_value: ProtectedMemoryRangeVm = value.clone();
+                let result_recorded = ProtectedMemoryRange {
+                    address: result_value.address,
+                    length: result_value.length,
+                };
+                let payload = MemoryMapAllocateReplayRecord {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -2526,7 +2391,7 @@ fn destack_memory_map_numa_bind_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    MemoryMapNumaBindReplayRecord { result }
+                    MemoryMapAllocateReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2535,14 +2400,19 @@ fn destack_memory_map_numa_bind_vm_replay(
         },
         |context, payload| {
             let _ = &context;
-            // replay result
             match payload.result {
-                Ok(()) => Ok(()),
+                Ok(value) => {
+                    let vm_result = ProtectedMemoryRange {
+                        address: value.address,
+                        length: value.length,
+                    };
+                    Ok(vm_result)
+                }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
     );
-    let result = encode_destack_memory_map_numa_bind_result(context, result)?;
+    let result = encode_destack_memory_map_allocate_result(context, result)?;
     Ok(result)
 }
 
@@ -3070,28 +2940,6 @@ pub(crate) fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            MEMORY_ADVISE_HUGE_PAGE,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (address, length, enabled) =
-                        decode_destack_memory_advise_huge_page_args(context, args)?;
-
-                    // execute binding
-                    let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(MEMORY_ADVISE_HUGE_PAGE)?;
-                    destack_memory_advise_huge_page_vm_replay(
-                        binding, context, world, address, length, enabled,
-                    )
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
             MEMORY_LOCK_LOCK_RANGE,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -3174,18 +3022,24 @@ pub(crate) fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
-            MEMORY_MAP_NUMA_BIND,
+            MEMORY_MAP_ALLOCATE,
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (address, length, policy, nodemask) =
-                        decode_destack_memory_map_numa_bind_args(context, args)?;
+                    let (length, addresshint, protection, flags) =
+                        decode_destack_memory_map_allocate_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) =
-                        binding.on_before_binding_resolve_world(MEMORY_MAP_NUMA_BIND)?;
-                    destack_memory_map_numa_bind_vm_replay(
-                        binding, context, world, address, length, policy, nodemask,
+                        binding.on_before_binding_resolve_world(MEMORY_MAP_ALLOCATE)?;
+                    destack_memory_map_allocate_vm_replay(
+                        binding,
+                        context,
+                        world,
+                        length,
+                        addresshint,
+                        protection,
+                        flags,
                     )
                 })
                 .map_err(Into::into)
