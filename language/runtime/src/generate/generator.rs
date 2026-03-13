@@ -59,6 +59,7 @@ impl RuntimeGenerator {
         platform_modules: &[destack_source::ModuleId],
     ) -> ConstantCatalog {
         collect_platform_constants(
+            &self.compiler,
             &self.program,
             self.session.strings.as_ref(),
             profile_id,
@@ -149,15 +150,15 @@ impl RuntimeGenerator {
                 })));
         self.assert_task_complete(resolve_outcome, "ResolveLibs");
 
-        // analyze module declarations sequentially
+        // build the full platform surface sequentially
         for module_id in platform_modules {
             let outcome =
                 self.compiler
-                    .run_task(Task::new(BuildKey::Artifact(ArtifactKey::DirDeclared {
+                    .run_task(Task::new(BuildKey::Artifact(ArtifactKey::DirPatched {
                         module: *module_id,
                         profile: profile_id,
                     })));
-            let task_name = format!("AnalyzeModuleDeclare({module_id:?})");
+            let task_name = format!("BuildDirPatched({module_id:?})");
             self.assert_task_complete(outcome, &task_name);
         }
     }
@@ -206,8 +207,6 @@ impl RuntimeGenerator {
             let requested = domains.iter().cloned().collect::<Vec<_>>().join(", ");
             panic!("no platform modules matched requested domains: {requested}");
         }
-
-        let requested = domains.iter().cloned().collect::<Vec<_>>().join(", ");
 
         selected
     }
@@ -290,7 +289,7 @@ impl RuntimeGenerator {
     /// Assert that one compiler task completed successfully.
     fn assert_task_complete(&self, outcome: TaskOutcome, task_name: &str) {
         match outcome {
-            TaskOutcome::Complete => {}
+            TaskOutcome::Complete { product: _ } => {}
             TaskOutcome::Skipped { reason } => {
                 panic!("binding generation task {task_name} was skipped: {reason:?}");
             }
@@ -318,6 +317,7 @@ impl RuntimeGenerator {
         let catalog = self.collect_catalog(profile_id, platform_modules);
         let constants = self.collect_constants(profile_id, platform_modules);
         let exported_types = collect_platform_types(
+            &self.compiler,
             &self.program,
             self.session.strings.as_ref(),
             profile_id,
@@ -337,6 +337,12 @@ impl RuntimeGenerator {
 }
 
 impl RuntimeGenerator {
+    /// Normalize generated file contents to one trailing newline.
+    fn normalize_generated_output(&self, contents: &str) -> String {
+        let contents = contents.trim_end_matches('\n');
+        format!("{contents}\n")
+    }
+
     /// Write one generated file to disk.
     fn write_file(&self, path: &Path, contents: &str) {
         // parent directory
@@ -344,6 +350,7 @@ impl RuntimeGenerator {
             fs::create_dir_all(parent).expect("failed to create output directory");
         }
 
+        let contents = self.normalize_generated_output(contents);
         fs::write(path, contents).expect("failed to write generated file");
     }
 
@@ -370,8 +377,9 @@ impl RuntimeGenerator {
             return;
         }
 
+        let generated = self.normalize_generated_output(generated);
         if existing != generated {
-            self.write_file(path, generated);
+            self.write_file(path, &generated);
         }
     }
 
@@ -391,8 +399,9 @@ impl RuntimeGenerator {
             return;
         }
 
+        let generated = self.normalize_generated_output(generated);
         if existing != generated {
-            self.write_file(path, generated);
+            self.write_file(path, &generated);
         }
     }
 
@@ -657,8 +666,9 @@ impl RuntimeGenerator {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
+    use std::path::PathBuf;
 
-    use super::RuntimeGenerator;
+    use super::{BindingType, RuntimeGenerator, collect_platform_types};
 
     /// Match platform module uris by requested domains.
     #[test]
@@ -677,5 +687,110 @@ mod tests {
             "builtin://lib/platform/net/socket.ds",
             &domains
         ));
+    }
+
+    /// Keep runtime binding catalog extraction live for one representative platform domain.
+    #[test]
+    fn test_collect_catalog_keeps_time_domain_bindings_non_empty() {
+        let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let generator = RuntimeGenerator::new(workspace_root);
+        let profile_key = generator.profile_key();
+        let profile_id = generator
+            .program
+            .profiles
+            .get_or_create(profile_key.clone());
+        let platform_modules = generator.load_platform_modules(&profile_key);
+        let selected_modules = generator.select_modules(
+            &platform_modules,
+            Some(&BTreeSet::from(["time".to_string()])),
+        );
+
+        generator.analyze_platform_modules(profile_id, &selected_modules);
+
+        let catalog = generator.collect_catalog(profile_id, &selected_modules);
+        assert!(
+            !catalog.is_empty(),
+            "expected time-domain binding catalog to stay non-empty"
+        );
+        assert!(catalog.contains_key("time"));
+    }
+
+    /// Keep string arrays in binding signatures as arrays, not slices.
+    #[test]
+    fn test_collect_catalog_keeps_string_arrays_distinct_from_string_slices() {
+        let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let generator = RuntimeGenerator::new(workspace_root);
+        let profile_key = generator.profile_key();
+        let profile_id = generator
+            .program
+            .profiles
+            .get_or_create(profile_key.clone());
+        let platform_modules = generator.load_platform_modules(&profile_key);
+        let selected_modules = generator.select_modules(
+            &platform_modules,
+            Some(&BTreeSet::from(["fs".to_string(), "os".to_string()])),
+        );
+
+        generator.analyze_platform_modules(profile_id, &selected_modules);
+
+        let catalog = generator.collect_catalog(profile_id, &selected_modules);
+        let fs_binding = &catalog["fs"]["destack.fs.xattr.listxattr"];
+        let os_binding = &catalog["os"]["destack.os.media.delete"];
+
+        assert_eq!(
+            fs_binding.return_binding,
+            BindingType::Array(Box::new(BindingType::String))
+        );
+        assert_eq!(
+            os_binding.parameters[0].binding_type,
+            BindingType::Array(Box::new(BindingType::String))
+        );
+    }
+
+    /// Keep exported string array fields as arrays in generated ABI types.
+    #[test]
+    fn test_collect_platform_types_keeps_string_array_fields_as_arrays() {
+        let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let generator = RuntimeGenerator::new(workspace_root);
+        let profile_key = generator.profile_key();
+        let profile_id = generator
+            .program
+            .profiles
+            .get_or_create(profile_key.clone());
+        let platform_modules = generator.load_platform_modules(&profile_key);
+        let selected_modules = generator.select_modules(
+            &platform_modules,
+            Some(&BTreeSet::from(["crypto".to_string()])),
+        );
+
+        generator.analyze_platform_modules(profile_id, &selected_modules);
+
+        let exported_types = collect_platform_types(
+            &generator.compiler,
+            &generator.program,
+            generator.session.strings.as_ref(),
+            profile_id,
+            &selected_modules,
+        );
+        let descriptor = exported_types
+            .iter()
+            .find_map(|binding_type| match binding_type {
+                BindingType::Struct { name, fields, .. }
+                    if name == "CryptoCertificateDescriptor" =>
+                {
+                    Some(fields)
+                }
+                _ => None,
+            })
+            .expect("missing CryptoCertificateDescriptor export");
+        let subject_alternative_names = descriptor
+            .iter()
+            .find(|field| field.name == "subjectAlternativeNames")
+            .expect("missing subjectAlternativeNames field");
+
+        assert_eq!(
+            subject_alternative_names.binding_type,
+            BindingType::Array(Box::new(BindingType::String))
+        );
     }
 }

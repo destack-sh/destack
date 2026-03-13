@@ -12,12 +12,11 @@ use destack_source::ModuleId;
 use destack_workspace::{Platform, ProfileId, Program};
 
 use super::{
-    BindingCatalog, BindingEntry, BindingParameter, BindingReturn, BindingType,
+    BindingCatalog, BindingEntry, BindingParameter, BindingReturn, BindingType, BindingTypeContext,
     CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
     CatalogBindingSimulation, CatalogEffectClass, CatalogEntropyKind, CatalogReplayPayload,
-    CatalogReplayPolicy, ConstantCatalog, ConstantEntry, ConstantValue, binding_type_from_symbol,
-    binding_type_from_type_id, binding_type_symbols, collect_binding_params,
-    collect_binding_return, format_declared_signature,
+    CatalogReplayPolicy, ConstantCatalog, ConstantEntry, ConstantValue, binding_type_symbols,
+    collect_binding_params, collect_binding_return, format_declared_signature,
 };
 
 /// Binding metadata extracted from a declaration node.
@@ -111,8 +110,7 @@ pub(crate) fn collect_platform_bindings(
     profile_id: ProfileId,
     platform_modules: &[ModuleId],
 ) -> BindingCatalog {
-    // resolve the canonical binding decorator symbol
-    let binding_decorator_symbol = binding_decorator_symbol_id(compiler, profile_id);
+    let binding_decorator_symbol = compiler.language_symbol(profile_id, LanguageSymbol::Binding);
 
     // collect binding type symbols
     let binding_symbols = binding_type_symbols(program, profile_id);
@@ -125,11 +123,15 @@ pub(crate) fn collect_platform_bindings(
         // load module metadata
         let module = program.modules.get(*module_id);
         let module = module.read();
+        let resolved_dir = program
+            .artifacts
+            .dir_resolved(module.id, profile_id)
+            .unwrap_or_else(|| panic!("missing resolved dir artifact for module {:?}", module.id));
         let dir = program
             .artifacts
-            .dir_snapshot(module.id, profile_id)
-            .unwrap_or_else(|| panic!("missing dir snapshot for module {:?}", module.id));
-        let tree = &dir.tree;
+            .dir_patched(module.id, profile_id)
+            .unwrap_or_else(|| panic!("missing patched dir artifact for module {:?}", module.id));
+        let tree = &resolved_dir.tree;
         let types = &dir.types;
         let symbols = &dir.symbols;
         let mut seen_declarations = HashSet::new();
@@ -145,25 +147,6 @@ pub(crate) fn collect_platform_bindings(
                 continue;
             }
 
-            // load binding decorator payload from expression or declaration annotations
-            let binding = binding_decorator_value(
-                &tree,
-                expression_id.into_any(),
-                strings,
-                binding_decorator_symbol,
-            )
-            .or_else(|| {
-                binding_decorator_value(
-                    &tree,
-                    declaration_id.into_any(),
-                    strings,
-                    binding_decorator_symbol,
-                )
-            });
-            let Some(binding) = binding else {
-                continue;
-            };
-
             // filter to function declarations
             let declaration = tree.get::<Declaration>(declaration_id);
             let Declaration::Function { signature, .. } = declaration else {
@@ -174,8 +157,31 @@ pub(crate) fn collect_platform_bindings(
             let documentation =
                 binding_documentation(&tree, expression_id, declaration_id, strings);
 
-            // resolve the extern binding name
             let symbol = symbols.get_symbol(declaration.symbol());
+            if symbol.decorators.binding.is_none() {
+                continue;
+            }
+
+            // resolve the extern binding name and payload
+            let binding = binding_decorator_value(
+                compiler,
+                profile_id,
+                binding_decorator_symbol,
+                &tree,
+                expression_id.into_any(),
+                strings,
+            )
+            .or_else(|| {
+                binding_decorator_value(
+                    compiler,
+                    profile_id,
+                    binding_decorator_symbol,
+                    &tree,
+                    declaration_id.into_any(),
+                    strings,
+                )
+            })
+            .unwrap_or_else(|| panic!("binding-decorated symbol is missing @binding payload"));
             let implementation_name = symbol.name().map(|name| strings.get(name).to_string());
             let extern_name = binding
                 .extern_name
@@ -198,30 +204,23 @@ pub(crate) fn collect_platform_bindings(
                 .map(binding_domain)
                 .unwrap_or_else(|| "global".to_string());
 
-            let params = collect_binding_params(
+            // binding analysis context
+            let binding_context = BindingTypeContext::new(
+                compiler,
                 program,
-                signature,
-                module.id,
-                &tree,
-                &types,
+                tree,
+                types,
+                symbols,
                 &program.modules,
                 strings,
                 profile_id,
                 &binding_symbols,
                 &domain,
             );
-            let return_binding = collect_binding_return(
-                program,
-                declaration_id,
-                signature,
-                module.id,
-                &types,
-                &program.modules,
-                strings,
-                profile_id,
-                &binding_symbols,
-                &domain,
-            );
+
+            let params = collect_binding_params(&binding_context, signature);
+            let return_binding =
+                collect_binding_return(&binding_context, declaration_id, signature);
 
             // insert parsed binding metadata into the catalog
             if let Some(entry) = binding_from_node(
@@ -250,6 +249,7 @@ pub(crate) fn collect_platform_bindings(
 
 /// Collect exported platform constants from builtin modules.
 pub(crate) fn collect_platform_constants(
+    compiler: &Compiler,
     program: &Program,
     strings: &StringPool,
     profile_id: ProfileId,
@@ -272,10 +272,11 @@ pub(crate) fn collect_platform_constants(
 
         let dir = program
             .artifacts
-            .dir_snapshot(module.id, profile_id)
-            .unwrap_or_else(|| panic!("missing dir snapshot for module {:?}", module.id));
+            .dir_patched(module.id, profile_id)
+            .unwrap_or_else(|| panic!("missing patched dir artifact for module {:?}", module.id));
         let tree = &dir.tree;
         let types = &dir.types;
+        let symbols = &dir.symbols;
         let mut known_values: BTreeMap<String, i128> = BTreeMap::new();
 
         for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
@@ -307,16 +308,19 @@ pub(crate) fn collect_platform_constants(
                 let Some(type_id) = types.get_declared_or_inferred_type_id(type_node) else {
                     panic!("failed to resolve type for exported const {constant_name}");
                 };
-                let binding_type = binding_type_from_type_id(
+                let binding_context = BindingTypeContext::new(
+                    compiler,
                     program,
-                    type_id,
-                    &types,
+                    tree,
+                    types,
+                    symbols,
                     &program.modules,
                     strings,
                     profile_id,
                     &binding_symbols,
                     &domain,
                 );
+                let binding_type = binding_context.binding_type_from_type_id(type_id);
                 if !binding_type_supports_integer_constants(&binding_type) {
                     panic!("unsupported exported const type for {constant_name}: {binding_type:?}");
                 }
@@ -358,6 +362,7 @@ pub(crate) fn collect_platform_constants(
 
 /// Collect exported platform type declarations from builtin modules.
 pub(crate) fn collect_platform_types(
+    compiler: &Compiler,
     program: &Program,
     strings: &StringPool,
     profile_id: ProfileId,
@@ -376,9 +381,13 @@ pub(crate) fn collect_platform_types(
 
         let dir = program
             .artifacts
-            .dir_snapshot(module.id, profile_id)
-            .unwrap_or_else(|| panic!("missing dir snapshot for module {:?}", module.id));
+            .dir_patched(module.id, profile_id)
+            .unwrap_or_else(|| panic!("missing patched dir artifact for module {:?}", module.id));
         let tree = &dir.tree;
+        let types = &dir.types;
+        let symbols = &dir.symbols;
+        let domain =
+            module_platform_domain(module.uri.as_ref()).unwrap_or_else(|| "global".to_string());
 
         // collect exported type-like declarations
         for (_declaration_id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
@@ -393,14 +402,19 @@ pub(crate) fn collect_platform_types(
                 | Declaration::Struct { .. }
                 | Declaration::Enum { .. } => {
                     let symbol_id = declaration.symbol().into_global(module.id);
-                    binding_type_from_symbol(
+                    let binding_context = BindingTypeContext::new(
+                        compiler,
                         program,
-                        symbol_id,
+                        tree,
+                        types,
+                        symbols,
                         &program.modules,
                         strings,
                         profile_id,
                         &binding_symbols,
-                    )
+                        &domain,
+                    );
+                    binding_context.binding_type_from_symbol(symbol_id)
                 }
 
                 _ => continue,
@@ -592,11 +606,6 @@ fn evaluate_integer_binary_expression(
     }
 }
 
-/// Resolve the canonical binding decorator symbol for the profile.
-fn binding_decorator_symbol_id(compiler: &Compiler, profile_id: ProfileId) -> GlobalSymbolId {
-    compiler.language_symbol(profile_id, LanguageSymbol::Binding)
-}
-
 /// Return the domain portion of a binding name.
 fn binding_domain(extern_name: &str) -> String {
     let mut parts = extern_name.split('.');
@@ -742,10 +751,12 @@ fn annotation_docs(tree: &dir::NodeTree, node_id: u32, strings: &StringPool) -> 
 
 /// Extract the binding decorator value from a declaration expression.
 fn binding_decorator_value(
+    compiler: &Compiler,
+    profile_id: ProfileId,
+    binding_decorator_symbol: GlobalSymbolId,
     tree: &dir::NodeTree,
     node_id: dir::LocalNodeIdAny,
     strings: &StringPool,
-    binding_decorator_symbol: GlobalSymbolId,
 ) -> Option<BindingDecorator> {
     // scan annotations for the binding decorator
     let annotations = tree.get_annotations(node_id.id);
@@ -767,8 +778,13 @@ fn binding_decorator_value(
             _ => (decorator_expression, None),
         };
 
-        let decorator_symbol = decorator_symbol_from_expression(tree, decorator_expression)?;
-        if decorator_symbol != binding_decorator_symbol {
+        if !expression_is_binding_decorator(
+            compiler,
+            profile_id,
+            binding_decorator_symbol,
+            tree,
+            decorator_expression,
+        ) {
             continue;
         }
 
@@ -778,13 +794,19 @@ fn binding_decorator_value(
     None
 }
 
-/// Resolve the decorator symbol from an expression node.
-fn decorator_symbol_from_expression(
+/// Return true when one decorator expression names `binding`.
+fn expression_is_binding_decorator(
+    compiler: &Compiler,
+    profile_id: ProfileId,
+    binding_decorator_symbol: GlobalSymbolId,
     tree: &dir::NodeTree,
     expr_id: dir::LocalNodeId<Expression>,
-) -> Option<GlobalSymbolId> {
+) -> bool {
     let expression = tree.get::<Expression>(expr_id);
-    expression.target_symbol()
+    expression.target_symbol().is_some_and(|target_symbol| {
+        compiler.canonical_declared_artifact_symbol(profile_id, target_symbol)
+            == binding_decorator_symbol
+    })
 }
 
 /// Resolve a declaration node from a binding expression.

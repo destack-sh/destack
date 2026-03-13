@@ -682,8 +682,9 @@ fn platform_context_vm(
 fn map_platform_error_code(code: DiagnosticPlatformErrorCode) -> PlatformErrorCode {
     // map numeric discriminants across parallel enums generated from one source
     //
-    // safety: both enums are repr(u16) and derive from `platform/error/error.ds`
-    unsafe { std::mem::transmute::<DiagnosticPlatformErrorCode, PlatformErrorCode>(code) }
+    // safety: `code` comes from the parallel diagnostic enum derived from the same
+    // source declaration, so its discriminant is valid for the generated ABI enum
+    unsafe { std::mem::transmute::<i32, PlatformErrorCode>(code.number() as i32) }
 }
 
 #[cfg(test)]
