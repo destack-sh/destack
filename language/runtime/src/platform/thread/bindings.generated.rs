@@ -236,9 +236,11 @@ fn encode_destack_thread_scheduling_get_affinity_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ThreadCpuSetVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.cpus.to_value(context);
-        context.allocate_aggregate(vec![field_0])
+    result.and_then(|value| {
+        let field_0 = value.cpus.to_value(context)?;
+        context
+            .allocate_aggregate(vec![field_0])
+            .map_err(Box::<RuntimeError>::from)
     })
 }
 

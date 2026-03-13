@@ -360,7 +360,7 @@ fn encode_destack_input_device_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::InputDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.input.event.monitorClose.
@@ -392,7 +392,7 @@ fn encode_destack_input_event_monitor_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::InputMonitorHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.input.event.monitorRead.
@@ -1634,7 +1634,7 @@ fn encode_destack_input_haptics_play_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputHapticsResult>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.input.haptics.stop.
@@ -2153,7 +2153,7 @@ fn encode_destack_input_rawhid_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.input.sensor.configure.
@@ -2466,7 +2466,7 @@ fn encode_destack_input_text_is_active_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.input.text.readComposition.

@@ -241,7 +241,7 @@ fn encode_destack_runtime_core_agent_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AgentHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.runtime.core.agentDescribe.
@@ -381,7 +381,7 @@ fn encode_destack_runtime_core_runtime_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RuntimeHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.runtime.core.runtimeDescribe.
@@ -564,7 +564,7 @@ fn encode_destack_runtime_core_world_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WorldHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.runtime.core.worldDescribe.
@@ -633,7 +633,7 @@ fn encode_destack_runtime_core_world_tick_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RuntimeTickOutcome>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u8 as u64, 8)))
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.runtime.inspect.agentList.
@@ -1734,7 +1734,7 @@ fn encode_destack_runtime_inspect_world_view_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WorldViewHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.runtime.lineage.branchDescribe.
@@ -1919,7 +1919,7 @@ fn encode_destack_runtime_lineage_checkpoint_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CheckpointId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Decode arguments for destack.runtime.lineage.checkpointDescribe.
@@ -2095,7 +2095,7 @@ fn encode_destack_runtime_lineage_image_capture_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ImageId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Decode arguments for destack.runtime.lineage.imageDescribe.
@@ -2374,7 +2374,7 @@ fn encode_destack_runtime_lineage_world_branch_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BranchId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Decode arguments for destack.runtime.lineage.worldFork.
@@ -2427,7 +2427,7 @@ fn encode_destack_runtime_lineage_world_fork_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WorldHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.runtime.lineage.worldRevision.
@@ -2453,7 +2453,7 @@ fn encode_destack_runtime_lineage_world_revision_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RevisionId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Decode arguments for destack.runtime.lineage.worldRewindCheckpoint.
@@ -2667,7 +2667,7 @@ fn encode_destack_runtime_observation_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ObservationHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.runtime.snapshot.create.
@@ -2709,7 +2709,7 @@ fn encode_destack_runtime_snapshot_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SnapshotId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Decode arguments for destack.runtime.snapshot.describe.
@@ -2782,7 +2782,7 @@ fn encode_destack_runtime_snapshot_import_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SnapshotId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Decode arguments for destack.runtime.snapshot.list.
@@ -2993,7 +2993,7 @@ fn encode_destack_runtime_trace_mark_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TraceSequence>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Decode arguments for destack.runtime.trace.next.
@@ -3089,7 +3089,7 @@ fn encode_destack_runtime_trace_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TraceCursorHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.runtime.trace.seekCheckpoint.
@@ -3191,7 +3191,7 @@ fn encode_destack_runtime_trace_tell_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TraceSequence>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Binding descriptor for destack.runtime.core.agentClose.

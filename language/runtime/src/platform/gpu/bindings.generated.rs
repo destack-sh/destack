@@ -345,7 +345,7 @@ fn encode_destack_gpu_adapter_has_feature_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.gpu.adapter.info.
@@ -773,7 +773,7 @@ fn encode_destack_gpu_adapter_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuAdapterHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.bind.groupCreate.
@@ -817,7 +817,7 @@ fn encode_destack_gpu_bind_group_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuBindGroupHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.bind.groupDestroy.
@@ -875,7 +875,7 @@ fn encode_destack_gpu_bind_group_layout_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuBindGroupLayoutHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.bind.groupLayoutDestroy.
@@ -957,7 +957,7 @@ fn encode_destack_gpu_bind_pipeline_layout_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuPipelineLayoutHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.bind.pipelineLayoutDestroy.
@@ -1184,7 +1184,7 @@ fn encode_destack_gpu_command_compute_pass_begin_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuComputePassHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.command.computePassEnd.
@@ -2070,7 +2070,7 @@ fn encode_destack_gpu_command_encoder_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuCommandListHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.command.executeBundles.
@@ -2870,7 +2870,7 @@ fn encode_destack_gpu_command_render_bundle_encoder_finish_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuRenderBundleHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.command.renderBundleEncoderOpen.
@@ -2927,7 +2927,7 @@ fn encode_destack_gpu_command_render_bundle_encoder_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuRenderBundleEncoderHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.command.renderBundleInsertDebugMarker.
@@ -3453,7 +3453,7 @@ fn encode_destack_gpu_command_render_pass_begin_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuRenderPassHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.command.renderPassEnd.
@@ -3943,7 +3943,7 @@ fn encode_destack_gpu_device_has_feature_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.gpu.device.info.
@@ -4557,7 +4557,7 @@ fn encode_destack_gpu_device_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.device.poll.
@@ -4583,7 +4583,7 @@ fn encode_destack_gpu_device_poll_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.gpu.device.popErrorScope.
@@ -4677,7 +4677,7 @@ fn encode_destack_gpu_device_queue_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuQueueHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.device.status.
@@ -4733,7 +4733,7 @@ fn encode_destack_gpu_pipeline_bind_group_layout_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuBindGroupLayoutHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.pipeline.computeCreate.
@@ -4858,7 +4858,7 @@ fn encode_destack_gpu_pipeline_compute_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuPipelineHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.pipeline.destroy.
@@ -5546,7 +5546,7 @@ fn encode_destack_gpu_pipeline_render_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuPipelineHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.pipeline.shaderCompilationInfo.
@@ -5646,7 +5646,7 @@ fn encode_destack_gpu_pipeline_shader_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuShaderHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.pipeline.shaderDestroy.
@@ -5893,7 +5893,7 @@ fn encode_destack_gpu_present_surface_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuSurfaceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.present.surfacePresent.
@@ -6018,7 +6018,7 @@ fn encode_destack_gpu_resource_buffer_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuBufferHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.resource.bufferDestroy.
@@ -6264,7 +6264,7 @@ fn encode_destack_gpu_resource_sampler_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuSamplerHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.resource.samplerDestroy.
@@ -6364,7 +6364,7 @@ fn encode_destack_gpu_resource_texture_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuTextureHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.resource.textureDestroy.
@@ -6489,7 +6489,7 @@ fn encode_destack_gpu_resource_texture_view_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuTextureViewHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.resource.textureViewDestroy.
@@ -6859,7 +6859,7 @@ fn encode_destack_gpu_sync_fence_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuFenceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.sync.fenceDestroy.
@@ -6952,7 +6952,7 @@ fn encode_destack_gpu_sync_query_set_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::GpuQuerySetHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.gpu.sync.querySetDestroy.
@@ -7057,7 +7057,7 @@ fn encode_destack_gpu_sync_queue_timestamp_period_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<f64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::float64(value)))
+    result.map(vm::Value::float64)
 }
 
 /// Decode arguments for destack.gpu.sync.queueWait.

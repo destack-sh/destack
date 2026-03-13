@@ -207,7 +207,7 @@ fn encode_destack_debug_inspector_start_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::InspectorHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.debug.inspector.stop.
@@ -283,7 +283,7 @@ fn encode_destack_debug_profile_start_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProfileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.debug.profile.stop.
@@ -364,7 +364,7 @@ fn encode_destack_debug_trace_start_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TraceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.debug.trace.stop.

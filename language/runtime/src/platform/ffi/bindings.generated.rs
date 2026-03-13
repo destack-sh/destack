@@ -199,7 +199,7 @@ fn encode_destack_ffi_library_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::LibraryHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.ffi.pointer.address.
@@ -220,7 +220,7 @@ fn encode_destack_ffi_pointer_address_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.ffi.pointer.fromAddress.
@@ -240,7 +240,7 @@ fn encode_destack_ffi_pointer_from_address_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<FfiPointer>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Decode arguments for destack.ffi.symbol.address.
@@ -262,7 +262,7 @@ fn encode_destack_ffi_symbol_address_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.ffi.symbol.lookup.
@@ -286,7 +286,7 @@ fn encode_destack_ffi_symbol_lookup_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SymbolHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Binding descriptor for destack.ffi.call.invoke.
