@@ -2,6 +2,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::process::core as core_process;
+#[cfg(target_os = "linux")]
+use crate::platform::thread::ThreadCpu;
 
 use crate::runtime::BindingCallContext;
 
@@ -58,7 +60,18 @@ pub(crate) unsafe fn destack_process_get_affinity(
         for cpu in 0..cpu_set_size {
             let is_member = unsafe { libc::CPU_ISSET(cpu, &cpu_set) };
             if is_member {
-                cpus.push(cpu as u32);
+                let cpu = u16::try_from(cpu).map_err(|_| {
+                    RuntimeError::from(PlatformError::io_with(
+                        None,
+                        None,
+                        None,
+                        Some("sched_getaffinity".to_string()),
+                        None,
+                        "host cpu index exceeds process affinity ABI range",
+                    ))
+                    .boxed()
+                })?;
+                cpus.push(ThreadCpu { group: 0, cpu });
             }
         }
 
@@ -234,11 +247,22 @@ pub(crate) unsafe fn destack_process_set_affinity(
 
         let cpu_set_size = std::mem::size_of::<libc::cpu_set_t>() * 8;
         for cpu in cpus {
-            let index = *cpu as usize;
+            if cpu.group != 0 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "cpus",
+                    format!(
+                        "unix process affinity requires group 0, found {}",
+                        cpu.group
+                    ),
+                ))
+                .boxed());
+            }
+
+            let index = usize::from(cpu.cpu);
             if index >= cpu_set_size {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "cpus",
-                    format!("cpu index {cpu} is out of range"),
+                    format!("cpu index {} is out of range", cpu.cpu),
                 ))
                 .boxed());
             }

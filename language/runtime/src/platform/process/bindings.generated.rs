@@ -29,6 +29,7 @@ use crate::platform::process::{
     ProcesswaitstatusReplayRecord, ProcesswaitstoppedstatusReplayRecord, Signal, SignalEvent,
     SignalEventVm, SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
 };
+use crate::platform::thread::ThreadCpu;
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, RuntimeStatus,
     VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
@@ -1649,12 +1650,12 @@ fn decode_destack_process_sched_set_affinity_args(
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
-    let cpus_value = arg_value(args, 1, "cpus", "ProcessCpuSet")?;
+    let cpus_value = arg_value(args, 1, "cpus", "ThreadCpuSet")?;
     let cpus = {
         if cpus_value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
                 "cpus",
-                "ProcessCpuSet",
+                "ThreadCpuSet",
             ))
             .boxed());
         }
@@ -1668,7 +1669,7 @@ fn decode_destack_process_sched_set_affinity_args(
             ))
             .boxed());
         }
-        let cpus_cpus = decode_array::<u32>(context, slots[0], "cpus_cpus", "cpus")?;
+        let cpus_cpus = decode_array::<ThreadCpu>(context, slots[0], "cpus_cpus", "cpus")?;
         ProcessCpuSetVm { cpus: cpus_cpus }
     };
     Ok((pid, cpus))
@@ -4151,7 +4152,7 @@ pub(crate) const PROCESS_LIMITS_SET_LIMIT: BindingDescriptor = BindingDescriptor
 pub(crate) const PROCESS_SCHED_GET_AFFINITY: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.process.sched.getAffinity",
-        "export function getAffinity(pid: ProcessId): Result<ProcessCpuSet, PlatformError>",
+        "export function getAffinity(pid: ProcessId): Result<ThreadCpuSet, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["process.affinity"],
@@ -4220,7 +4221,7 @@ pub(crate) const PROCESS_SCHED_GET_SCHEDULER: BindingDescriptor = BindingDescrip
 /// Binding descriptor for destack.process.sched.setAffinity.
 pub(crate) const PROCESS_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.process.sched.setAffinity",
-    "export function setAffinity(pid: ProcessId, cpus: ProcessCpuSet): Result<void, PlatformError>",
+    "export function setAffinity(pid: ProcessId, cpus: ThreadCpuSet): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["process.affinity"],
@@ -14035,11 +14036,11 @@ fn destack_process_sched_get_affinity_vm_replay(
                 let result_recorded_cpus_raw = result_value.cpus.raw_values(context)?;
                 let mut result_recorded_cpus = Vec::with_capacity(result_recorded_cpus_raw.len());
                 for result_recorded_cpus_item_value in result_recorded_cpus_raw {
-                    let result_recorded_cpus_item = decode_uint32(
-                        result_recorded_cpus_item_value,
-                        "result_recorded_cpus_item",
-                        "item",
-                    )?;
+                    let result_recorded_cpus_item =
+                        <ThreadCpu as VmAggregateCodec>::decode_with_context(
+                            context,
+                            result_recorded_cpus_item_value,
+                        )?;
                     let result_recorded_cpus_item_recorded = result_recorded_cpus_item;
                     result_recorded_cpus.push(result_recorded_cpus_item_recorded);
                 }

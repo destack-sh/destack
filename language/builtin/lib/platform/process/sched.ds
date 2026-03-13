@@ -1,5 +1,5 @@
 import type { PlatformError } from "../error/index.ds";
-import { ThreadCpuSet } from "../thread/scheduling.ds";
+import { ThreadCpuSet } from "../thread/sched.ds";
 import { ProcessId } from "./ids.ds";
 
 /// Process scheduler policy.

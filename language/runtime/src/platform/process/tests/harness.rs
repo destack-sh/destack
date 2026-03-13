@@ -12,9 +12,11 @@ use crate::platform::process::{
     GroupId, ProcessFdAction, ProcessFdActionVm, ProcessSpawnOptions, ProcessSpawnOptionsVm,
     ProcessStdio, ProcessStdioVm, ProcessWaitStatus, ProcessWaitStatusVm, Signal,
 };
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 use crate::platform::process::{ProcessCpuSet, ProcessCpuSetVm};
 use crate::platform::resource::ResourceId;
+#[cfg(any(target_os = "linux", windows))]
+use crate::platform::thread::ThreadCpu;
 use crate::platform::{NativeArray, VmArray, VmSlice, fs, process as process_platform, resource};
 use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 
@@ -307,11 +309,11 @@ impl<'call> ProcessHarnessContext<'call> {
         }
     }
 
-    /// Build one backend-specific CPU-set value.
-    #[cfg(target_os = "linux")]
-    pub(crate) fn cpu_set_value(
+    /// Build one backend-specific group-aware CPU-set value.
+    #[cfg(any(target_os = "linux", windows))]
+    pub(crate) fn cpu_entries_value(
         &self,
-        cpus: &[u32],
+        cpus: &[ThreadCpu],
     ) -> RuntimeResult<HarnessValue<ProcessCpuSet, ProcessCpuSetVm>> {
         match self.vm_context_mut() {
             Some(context) => {
@@ -327,6 +329,33 @@ impl<'call> ProcessHarnessContext<'call> {
                 Ok(self.harness_value(cpus))
             }
         }
+    }
+
+    /// Build one backend-specific CPU-set value.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn cpu_set_value(
+        &self,
+        cpus: &[u32],
+    ) -> RuntimeResult<HarnessValue<ProcessCpuSet, ProcessCpuSetVm>> {
+        let cpus = cpus
+            .iter()
+            .map(|cpu| {
+                Ok(ThreadCpu {
+                    group: 0,
+                    cpu: u16::try_from(*cpu).map_err(|_| {
+                        crate::diagnostic::RuntimeError::from(
+                            crate::platform::PlatformError::invalid_argument_value(
+                                "cpus",
+                                format!("cpu index {cpu} exceeds thread affinity ABI range"),
+                            ),
+                        )
+                        .boxed()
+                    })?,
+                })
+            })
+            .collect::<RuntimeResult<Vec<_>>>()?;
+
+        self.cpu_entries_value(&cpus)
     }
 
     /// Build one backend-specific shared native or VM value.
@@ -450,12 +479,12 @@ impl<'call> ProcessHarnessContext<'call> {
         }
     }
 
-    /// Decode one backend-specific CPU-set value into CPU index values.
-    #[cfg(target_os = "linux")]
-    pub(crate) fn cpu_list_from_value(
+    /// Decode one backend-specific CPU-set value into CPU entries.
+    #[cfg(any(target_os = "linux", windows))]
+    pub(crate) fn cpu_entries_from_value(
         &self,
         value: HarnessValue<ProcessCpuSet, ProcessCpuSetVm>,
-    ) -> RuntimeResult<Vec<u32>> {
+    ) -> RuntimeResult<Vec<ThreadCpu>> {
         match value {
             HarnessValue::Native(value) => {
                 let cpus = unsafe { value.cpus.as_slice()? };
@@ -468,6 +497,16 @@ impl<'call> ProcessHarnessContext<'call> {
                 value.cpus.read_values(context)
             }
         }
+    }
+
+    /// Decode one backend-specific CPU-set value into CPU index values.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn cpu_list_from_value(
+        &self,
+        value: HarnessValue<ProcessCpuSet, ProcessCpuSetVm>,
+    ) -> RuntimeResult<Vec<u32>> {
+        let cpus = self.cpu_entries_from_value(value)?;
+        Ok(cpus.into_iter().map(|cpu| u32::from(cpu.cpu)).collect())
     }
 
     /// Decode one wait-status payload into one normalized record.
