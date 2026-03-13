@@ -1,16 +1,9 @@
-# Destack Guidelines
-
-Destack is a full-stack software stack powered by our custom "TypeScript++" language (`.ds`).
-The Destack language, library, and platform ecosystem are fully integrated for fantastic software development.
-We aim to be a first-class citizen in the web and specifically the TypeScript ecosystem (with full bi-directional interoperability).
-
 ## Code Style
 
 ### READMEs
 
-We have README.md for every substantial crate/package and even many modules/folders within those crates.
-That's where significant documentation and context should be written.
-We don't like writing information that is redundant and easily out of date (like folder structures or paths).
+We have README.md for every substantial crate/package and even many modules/folders within those projects.
+We don't like writing information that is redundant and easily out of date into the READMEs or specifications (so, avoid folder structures, paths, or "current status").
 
 ### Comments
 

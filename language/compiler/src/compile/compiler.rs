@@ -5,9 +5,7 @@ use dashmap::DashMap;
 use destack_core::ImmutableStringPool;
 use destack_resolver::Resolver;
 use destack_source::{DiagnosticCollector, DiagnosticSeverity, ModuleId, Uri};
-use destack_workspace::{
-    Builtins, Program, Session, Target,
-};
+use destack_workspace::{Builtins, Program, Session, Target};
 use parking_lot::Mutex;
 
 use crate::{

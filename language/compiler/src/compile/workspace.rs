@@ -3,8 +3,8 @@ use std::sync::Arc;
 use destack_dir::InferTable;
 use destack_source::ModuleId;
 use destack_workspace::{
-    ArtifactKey, ModuleAst, ModuleDir, ModuleDirData, ModuleMir, ModuleMirData, ProfileId,
-    Program, TargetId,
+    ArtifactKey, ModuleAst, ModuleDir, ModuleDirData, ModuleMir, ModuleMirData, ProfileId, Program,
+    TargetId,
 };
 
 use crate::{BuildDependency, BuildKey, Compiler};
