@@ -1,5 +1,3 @@
-#![cfg(target_os = "linux")]
-
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{VmSlice, resource};
 use crate::runtime::NativeSlice;
@@ -65,8 +63,7 @@ fn test_message_queue_open_rejects_unsupported_flags() {
 
         let error = context
             .destack_ipc_message_queue_open(name_value, u32::MAX, 0o600, 8, 256)
-            .err()
-            .expect("expected queueOpen to reject unsupported flags");
+            .expect_err("expected queueOpen to reject unsupported flags");
         assert_runtime_error_code(&error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())
@@ -83,8 +80,7 @@ fn test_message_queue_rejects_unknown_handle() {
         // close should fail with invalid-argument for unknown handle
         let close_error = context
             .destack_ipc_message_queue_close(unknown)
-            .err()
-            .expect("expected queueClose to fail for unknown handle");
+            .expect_err("expected queueClose to fail for unknown handle");
         assert_runtime_error_code(&close_error, PlatformErrorCode::InvalidArgumentValue);
 
         Ok(())

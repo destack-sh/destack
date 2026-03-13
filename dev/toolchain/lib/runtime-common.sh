@@ -111,23 +111,32 @@ runtime_run_linux_container_runtime_lane() {
 	toolchain_channel="$3"
 
 	container_image="${DESTACK_RUNTIME_LINUX_CONTAINER_IMAGE:-rust:bookworm}"
+	container_rustflags="${DESTACK_RUNTIME_LINUX_CONTAINER_RUSTFLAGS:--C force-frame-pointers=yes -Z threads=1}"
 
 	"${container_engine}" run --rm \
 		-v "${repo_root}:/work" \
 		-v destack-runtime-linux-cargo-registry:/usr/local/cargo/registry \
 		-v destack-runtime-linux-cargo-git:/usr/local/cargo/git \
 		-v destack-runtime-linux-rustup:/usr/local/rustup \
-		-w /work/language \
+		-w /tmp \
 		"${container_image}" \
 		bash -lc "
 			set -euo pipefail
+			export PATH=/usr/local/cargo/bin:\$PATH
 			apt-get update >/dev/null
 			apt-get install -y pkg-config python3 >/dev/null
 			rustup toolchain install '${toolchain_channel}' --profile minimal --component clippy >/dev/null
 			rustup default '${toolchain_channel}' >/dev/null
 			source /work/dev/toolchain/lib/runtime-common.sh
 			runtime_set_standard_environment
-			runtime_run_full_runtime_crate_lane cargo
+			export CARGO_BUILD_JOBS=1
+			export CARGO_PROFILE_DEV_DEBUG=0
+			export CARGO_PROFILE_TEST_DEBUG=0
+			export RUSTFLAGS='${container_rustflags}'
+			export CARGO_TARGET_DIR=/work/target/runtime-linux-container
+			LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo check --manifest-path /work/Cargo.toml -p destack_runtime
+			LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo clippy --manifest-path /work/Cargo.toml -p destack_runtime --all-targets --no-deps -- -D warnings
+			LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo test --manifest-path /work/Cargo.toml -p destack_runtime -- --nocapture
 		"
 }
 

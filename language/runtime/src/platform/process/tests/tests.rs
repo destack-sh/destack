@@ -490,11 +490,11 @@ pub(crate) fn syscall_group_ids() -> RuntimeResult<ProcessGroupIds> {
             return Err(unix_io_error("failed to read group ids"));
         }
 
-        return Ok(ProcessGroupIds {
+        Ok(ProcessGroupIds {
             real: GroupId(real as u32),
             effective: GroupId(effective as u32),
             saved: GroupId(saved as u32),
-        });
+        })
     }
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -551,11 +551,11 @@ pub(crate) fn syscall_user_ids() -> RuntimeResult<ProcessUserIds> {
             return Err(unix_io_error("failed to read user ids"));
         }
 
-        return Ok(ProcessUserIds {
+        Ok(ProcessUserIds {
             real: UserId(real as u32),
             effective: UserId(effective as u32),
             saved: UserId(saved as u32),
-        });
+        })
     }
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]

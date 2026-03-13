@@ -15,11 +15,30 @@ use crate::platform::process::{ProcessSchedulerConfig, ProcessSchedulerPolicy};
 #[cfg(windows)]
 use crate::platform::thread::ThreadCpu;
 
+/// Return one `ProcessLimitResource` from the platform libc constant type.
+fn process_limit_resource(raw: u32) -> ProcessLimitResource {
+    ProcessLimitResource(raw)
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+/// Return one raw `rlimit` resource constant on targets where libc exposes `u32`.
+fn raw_limit_resource(constant: u32) -> u32 {
+    constant
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+/// Return one raw `rlimit` resource constant on targets where libc exposes signed integers.
+fn raw_limit_resource(constant: i32) -> u32 {
+    constant
+        .try_into()
+        .expect("rlimit constants should fit in ProcessLimitResource")
+}
+
 /// Set and restore one resource limit while preserving original values.
 #[cfg(unix)]
 #[test]
 fn test_process_limits_set_get_restore_roundtrip() {
-    let resource = ProcessLimitResource(libc::RLIMIT_NOFILE as u32);
+    let resource = process_limit_resource(raw_limit_resource(libc::RLIMIT_NOFILE));
     let expected = syscall_get_limit(resource).expect("getrlimit should succeed");
 
     with_harness_context(|mut context| {
@@ -68,7 +87,7 @@ fn test_process_limits_set_get_restore_roundtrip() {
 #[cfg(unix)]
 #[test]
 fn test_process_limits_reject_invalid_soft_greater_than_hard() {
-    let resource = ProcessLimitResource(libc::RLIMIT_NOFILE as u32);
+    let resource = process_limit_resource(raw_limit_resource(libc::RLIMIT_NOFILE));
     let invalid_limit = ProcessLimit { soft: 2, hard: 1 };
 
     with_harness_context(|mut context| {
@@ -101,7 +120,7 @@ fn test_process_priority_get_set_roundtrip() {
 fn test_process_cgroup_bindings_report_expected_errors() {
     with_harness_context(|mut context| {
         let missing_path = "/definitely/missing/destack-process-cgroup";
-        let cgroup_resource = ProcessLimitResource(libc::RLIMIT_AS as u32);
+        let cgroup_resource = process_limit_resource(raw_limit_resource(libc::RLIMIT_AS));
 
         // missing cgroup paths should map to not-found or not-supported errors
         assert_platform_error_codes_with_privileged_policy(
