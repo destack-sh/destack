@@ -2172,3 +2172,42 @@ value.socket;
     assert_type_references_symbol(view.types(), socket_type_id, socket_handle_symbol);
     assert_type_references_symbol(view.types(), item_type_id, transferred_handle_symbol);
 }
+
+/// Expose core promise and symbol globals through the injected prelude.
+#[test]
+fn test_prelude_exposes_core_promise_and_symbol_globals() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+const iterator = Symbol.iterator;
+const promise: Promise<number> = Promise.resolve(1);
+
+promise;
+iterator;
+"#,
+    );
+
+    test.analyze_module_and_check_clean(module_id);
+}
+
+/// Prefer selected-lib Promise globals over prelude shims for await typing.
+#[test]
+fn test_selected_lib_promise_globals_override_prelude_shims() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs()
+        .with_profile_libs(&["es5", "es2015.promise"]);
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+declare const value: Promise<number>;
+
+async function read(): Promise<number> {
+    const inner = await value;
+    inner satisfies number;
+    return inner;
+}
+"#,
+    );
+
+    test.analyze_module_and_check_clean(module_id);
+}
