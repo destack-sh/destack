@@ -1617,6 +1617,12 @@ impl Compiler {
                         ctx.types.insert_type_from_any(ty, (*member_id).into_any())
                     };
 
+                    // publish the declared member symbol type when the field has an explicit type
+                    if value.is_some() {
+                        let member_symbol = member.symbol().into_global(ctx.module.id);
+                        ctx.types.set_value_type(member_symbol, value_ty_id);
+                    }
+
                     // collect field flags
                     let (is_optional, is_readonly) = Self::field_flags(modifiers.as_ref());
 
@@ -1671,6 +1677,8 @@ impl Compiler {
                         );
                         let signature_ty_id =
                             ctx.types.insert_type_from_any(ty, (*member_id).into_any());
+                        let member_symbol = member.symbol().into_global(ctx.module.id);
+                        ctx.types.set_value_type(member_symbol, signature_ty_id);
 
                         // override constructor returns when needed
                         let construct_signature_id =
@@ -1926,6 +1934,12 @@ impl Compiler {
                     ctx.types.insert_type_from_any(ty, member_id.into_any())
                 };
 
+                // publish the declared member symbol type when the field has an explicit type
+                if value.is_some() {
+                    let member_symbol = member.symbol().into_global(ctx.module.id);
+                    ctx.types.set_value_type(member_symbol, value_ty_id);
+                }
+
                 // collect field modifiers
                 let is_optional = modifiers
                     .as_ref()
@@ -1979,6 +1993,8 @@ impl Compiler {
                         ty,
                     );
                     let ty_id = ctx.types.insert_type_from_any(ty, member_id.into_any());
+                    let member_symbol = member.symbol().into_global(ctx.module.id);
+                    ctx.types.set_value_type(member_symbol, ty_id);
 
                     // record the declared signature for inference
                     ctx.types.set_signature_type_for_node(
@@ -2023,6 +2039,8 @@ impl Compiler {
                     ty,
                 );
                 let ty_id = ctx.types.insert_type_from_any(ty, member_id.into_any());
+                let member_symbol = member.symbol().into_global(ctx.module.id);
+                ctx.types.set_value_type(member_symbol, ty_id);
 
                 // record the declared signature for inference
                 ctx.types

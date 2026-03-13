@@ -1,12 +1,9 @@
-use std::collections::HashSet;
-
 use crate::analyze::common::{InferContext, TypeContext};
 use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferState};
 use destack_dir::{
     Constraint, Declaration, Declarator, Export, Expression, GlobalNodeIdAny, GlobalSymbolId,
     InferOrigin, InferScope, InferTable, LocalNodeId, LocalTypeId, Mutability, NodeTree, NodeType,
-    StaticKey, SymbolSpace, SymbolTable, Type, TypeLiteral, TypeTable, TypeVisitor,
-    TypeVisitorOptions, walk_type,
+    StaticKey, SymbolSpace, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 use indexmap::IndexMap;
@@ -31,50 +28,6 @@ struct InterfaceValueInference {
 struct InterfaceDeclarationInference {
     /// The declaration id to infer.
     declaration_id: LocalNodeId<Declaration>,
-}
-
-/// Collect unevaluated type ids reachable from one value type.
-struct InterfaceUnevaluatedTypeCollector {
-    /// The visited type ids.
-    visited: HashSet<LocalTypeId>,
-    /// The reachable unevaluated type ids.
-    unevaluated: Vec<LocalTypeId>,
-    /// The visitor options.
-    options: TypeVisitorOptions,
-}
-
-impl InterfaceUnevaluatedTypeCollector {
-    /// Create an empty collector.
-    fn new() -> Self {
-        Self {
-            visited: HashSet::new(),
-            unevaluated: Vec::new(),
-            options: TypeVisitorOptions::default(),
-        }
-    }
-}
-
-impl TypeVisitor for InterfaceUnevaluatedTypeCollector {
-    fn options(&self) -> &TypeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_type_id(&mut self, types: &TypeTable, id: LocalTypeId) {
-        if !self.visited.insert(id) {
-            return;
-        }
-
-        if matches!(types.get_type(id), Type::Unevaluated(_)) {
-            self.unevaluated.push(id);
-        }
-
-        let ty = types.get_type(id);
-        self.visit_type(types, id, ty);
-    }
-
-    fn visit_type(&mut self, types: &TypeTable, id: LocalTypeId, ty: &Type) {
-        walk_type(self, types, id, ty);
-    }
 }
 
 impl Compiler {
@@ -511,10 +464,11 @@ impl Compiler {
         value_type_id: LocalTypeId,
     ) -> AnalyzeResult<LocalTypeId> {
         loop {
-            let mut collector = InterfaceUnevaluatedTypeCollector::new();
-            collector.visit_type_id(ctx.types, value_type_id);
-
-            let Some(unevaluated_id) = collector.unevaluated.into_iter().next() else {
+            let Some(unevaluated_id) = self
+                .collect_unevaluated_type_ids(value_type_id, ctx.types)
+                .into_iter()
+                .next()
+            else {
                 return Ok(value_type_id);
             };
 

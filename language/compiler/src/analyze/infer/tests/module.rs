@@ -66,6 +66,53 @@ fn value_kind_for_symbol(view: &TestModuleView<'_>, symbol: GlobalSymbolId) -> P
     }
 }
 
+fn expect_array_element_type(types: &TypeTable, type_id: LocalTypeId) -> LocalTypeId {
+    match types.get_type(type_id) {
+        Type::Array {
+            element: Some(element),
+            ..
+        } => *element,
+        other => panic!("expected array type, found {other:?}"),
+    }
+}
+
+fn assert_type_references_symbol(
+    types: &TypeTable,
+    type_id: LocalTypeId,
+    expected_symbol: GlobalSymbolId,
+) {
+    assert_type!(types, type_id, Type::Reference { symbol, .. } => {
+        assert_eq!(*symbol, expected_symbol);
+    });
+}
+
+fn assert_struct_field_type_matches_instance_field(
+    test: &TestProgram,
+    view: &TestModuleView<'_>,
+    module_uri: &str,
+    struct_name_text: &str,
+    field_name_text: &str,
+) -> LocalTypeId {
+    let strings = &test.program.strings;
+    let struct_name = strings.intern(struct_name_text);
+    let field_name = strings.intern(field_name_text);
+    let struct_symbol = test
+        .resolve_to_symbol(module_uri, struct_name_text)
+        .unwrap_or_else(|| panic!("expected symbol for {module_uri}:{struct_name_text}"));
+    let instance_type_id = view.expect_instance_type_id(struct_symbol);
+    let instance_field_type_id = view.expect_object_field_type(instance_type_id, field_name);
+    let field_symbol = view.expect_struct_field_symbol(struct_name, field_name);
+    let field_type_id = view.expect_value_type_id(field_symbol);
+
+    assert_eq!(
+        view.types().get_type(field_type_id),
+        view.types().get_type(instance_field_type_id),
+        "expected field symbol type to match instance field type for {module_uri}:{field_name_text}",
+    );
+
+    field_type_id
+}
+
 /// Keep parallel analyze runs live and diagnostic clean for repeated module-graph work.
 #[test]
 fn test_parallel_analyze_repeated_runs_stay_live_and_clean() {
@@ -1805,4 +1852,323 @@ project(counter) satisfies Counter.Item;
     );
 
     test.analyze_module_and_check_clean(module_id);
+}
+
+/// Preserve exported struct field semantics through star reexports.
+#[test]
+fn test_exported_struct_field_types_preserve_star_reexported_newtypes() {
+    for skip_lib_check in [false, true] {
+        let test = TestProgram::memory_sequential_with_prelude_and_libs();
+        if skip_lib_check {
+            test.add_dsconfig(
+                r#"
+{ "compilerOptions": { "skipLibCheck": true } }
+"#,
+            );
+        }
+        test.add_module(
+            "handles.ds",
+            r#"
+export newtype Handle = uint32;
+"#,
+        );
+        test.add_module(
+            "index.ds",
+            r#"
+export * from "./handles.ds";
+"#,
+        );
+        let module_id = test.add_module(
+            "types.ds",
+            r#"
+import { Handle } from "./index.ds";
+
+export struct Container {
+    items: Array<Handle>;
+}
+"#,
+        );
+        let consumer_id = test.add_module(
+            "consumer.ds",
+            r#"
+import { Container } from "./types.ds";
+import { Handle } from "./handles.ds";
+
+declare let handle: Handle;
+
+let value = Container { items: [handle] };
+value.items;
+"#,
+        );
+
+        test.analyze_module_and_check_clean(consumer_id);
+
+        let view = test.view(module_id);
+        let container_symbol = test
+            .resolve_to_symbol("types.ds", "Container")
+            .expect("expected Container symbol");
+        view.expect_value_type_id(container_symbol);
+        let items_type_id = assert_struct_field_type_matches_instance_field(
+            &test,
+            &view,
+            "types.ds",
+            "Container",
+            "items",
+        );
+        let handle_symbol = test.canonical_symbol_for_path("handles.ds", "Handle");
+        let element_type_id = expect_array_element_type(view.types(), items_type_id);
+
+        assert_type_references_symbol(view.types(), element_type_id, handle_symbol);
+    }
+}
+
+/// Publish exported rest-tuple newtype value surfaces without leaving unevaluated state behind.
+#[test]
+fn test_exported_rest_tuple_newtype_values_publish_cleanly() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "policy.ds",
+        r#"
+export type Capability = "fs.read" | "net.listen";
+
+export newtype Require = (...Capability[]);
+"#,
+    );
+    let consumer_id = test.add_module(
+        "consumer.ds",
+        r#"
+import { Require } from "./policy.ds";
+
+let ctor = Require;
+"#,
+    );
+
+    test.analyze_module_and_check_clean(consumer_id);
+
+    let view = test.view(module_id);
+    let require_symbol = test
+        .resolve_to_symbol("policy.ds", "Require")
+        .expect("expected Require symbol");
+    view.expect_value_type_id(require_symbol);
+}
+
+/// Preserve declaration struct field semantics for local newtypes.
+#[test]
+fn test_declaration_struct_field_types_preserve_local_newtypes() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "types.d.ds",
+        r#"
+export newtype Handle = uint32;
+
+export struct Container {
+    items: Array<Handle>;
+}
+"#,
+    );
+    let consumer_id = test.add_module(
+        "consumer.ds",
+        r#"
+import { Container, Handle } from "./types.d.ds";
+
+declare let handle: Handle;
+
+let value = Container { items: [handle] };
+value.items;
+"#,
+    );
+
+    test.analyze_module_and_check_clean(consumer_id);
+
+    let view = test.view(module_id);
+    let container_symbol = test
+        .resolve_to_symbol("types.d.ds", "Container")
+        .expect("expected Container symbol");
+    view.expect_value_type_id(container_symbol);
+    let items_type_id = assert_struct_field_type_matches_instance_field(
+        &test,
+        &view,
+        "types.d.ds",
+        "Container",
+        "items",
+    );
+    let handle_symbol = test.canonical_symbol_for_path("types.d.ds", "Handle");
+    let element_type_id = expect_array_element_type(view.types(), items_type_id);
+
+    assert_type_references_symbol(view.types(), element_type_id, handle_symbol);
+}
+
+/// Preserve declaration struct field semantics across import forms.
+#[test]
+fn test_declaration_struct_field_types_preserve_imported_newtypes() {
+    let cases = [
+        (
+            "direct",
+            r#"import type { Handle } from "./handles.d.ds";"#,
+            None,
+        ),
+        (
+            "reexport",
+            r#"import type { Handle } from "./index.d.ds";"#,
+            Some(
+                r#"
+export type { Handle } from "./handles.d.ds";
+"#,
+            ),
+        ),
+        ("value", r#"import { Handle } from "./handles.d.ds";"#, None),
+    ];
+
+    for (suffix, import_statement, index_source) in cases {
+        let test = TestProgram::memory_sequential_with_prelude_and_libs();
+        test.add_module(
+            "handles.d.ds",
+            r#"
+export newtype Handle = uint32;
+"#,
+        );
+        if let Some(index_source) = index_source {
+            test.add_module("index.d.ds", index_source);
+        }
+        let module_id = test.add_module(
+            &format!("types-{suffix}.d.ds"),
+            &format!(
+                r#"
+{import_statement}
+
+export struct Container {{
+    items: Array<Handle>;
+}}
+"#,
+            ),
+        );
+        let module_uri = format!("types-{suffix}.d.ds");
+        let consumer_id = test.add_module(
+            &format!("consumer-{suffix}.ds"),
+            &format!(
+                r#"
+import {{ Container }} from "./types-{suffix}.d.ds";
+import {{ Handle }} from "./handles.d.ds";
+
+declare let handle: Handle;
+
+let value = Container {{ items: [handle] }};
+value.items;
+"#,
+            ),
+        );
+
+        test.analyze_module_and_check_clean(consumer_id);
+
+        let view = test.view(module_id);
+        let container_symbol = test
+            .resolve_to_symbol(&module_uri, "Container")
+            .expect("expected Container symbol");
+        view.expect_value_type_id(container_symbol);
+        let items_type_id = assert_struct_field_type_matches_instance_field(
+            &test,
+            &view,
+            &module_uri,
+            "Container",
+            "items",
+        );
+        let handle_symbol = test.canonical_symbol_for_path("handles.d.ds", "Handle");
+        let element_type_id = expect_array_element_type(view.types(), items_type_id);
+
+        assert_type_references_symbol(view.types(), element_type_id, handle_symbol);
+    }
+}
+
+/// Preserve exported struct field semantics through imported newtypes and star reexports.
+#[test]
+fn test_exported_struct_field_types_preserve_imported_newtypes_through_star_reexports() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    test.add_dsconfig(
+        r#"
+{ "compilerOptions": { "skipLibCheck": true } }
+"#,
+    );
+    test.add_module(
+        "id.ds",
+        r#"
+export newtype ResourceId = uint64;
+
+export declare namespace resource {}
+"#,
+    );
+    test.add_module(
+        "handles.ds",
+        r#"
+import { ResourceId } from "./id.ds";
+
+export newtype SocketHandle = ResourceId;
+export newtype TransferredHandle = ResourceId;
+"#,
+    );
+    test.add_module(
+        "index.ds",
+        r#"
+export { resource } from "./id.ds";
+export * from "./handles.ds";
+export * from "./id.ds";
+"#,
+    );
+    let module_id = test.add_module(
+        "types.ds",
+        r#"
+import { SocketHandle, TransferredHandle } from "./index.ds";
+
+export struct Container {
+    socket: SocketHandle;
+    items: Array<TransferredHandle>;
+}
+"#,
+    );
+    let consumer_id = test.add_module(
+        "consumer.ds",
+        r#"
+import { Container } from "./types.ds";
+import { SocketHandle, TransferredHandle } from "./index.ds";
+
+declare let socket: SocketHandle;
+declare let transferred: TransferredHandle;
+
+let value = Container {
+    socket,
+    items: [transferred],
+};
+
+value.items;
+value.socket;
+"#,
+    );
+
+    test.analyze_module_and_check_clean(consumer_id);
+
+    let view = test.view(module_id);
+    let container_symbol = test
+        .resolve_to_symbol("types.ds", "Container")
+        .expect("expected Container symbol");
+    view.expect_value_type_id(container_symbol);
+    let socket_type_id = assert_struct_field_type_matches_instance_field(
+        &test,
+        &view,
+        "types.ds",
+        "Container",
+        "socket",
+    );
+    let items_type_id = assert_struct_field_type_matches_instance_field(
+        &test,
+        &view,
+        "types.ds",
+        "Container",
+        "items",
+    );
+    let socket_handle_symbol = test.canonical_symbol_for_path("handles.ds", "SocketHandle");
+    let transferred_handle_symbol =
+        test.canonical_symbol_for_path("handles.ds", "TransferredHandle");
+    let item_type_id = expect_array_element_type(view.types(), items_type_id);
+
+    assert_type_references_symbol(view.types(), socket_type_id, socket_handle_symbol);
+    assert_type_references_symbol(view.types(), item_type_id, transferred_handle_symbol);
 }

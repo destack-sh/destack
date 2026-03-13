@@ -41,6 +41,8 @@ enum VisitedMode {
 enum TypeContainmentKind<'a> {
     /// Detect error types.
     ErrorType,
+    /// Detect unevaluated type slots, static arguments, or static expressions.
+    UnevaluatedTypeState,
     /// Detect unevaluated static arguments or expressions.
     UnevaluatedStaticArgument,
     /// Detect unevaluated value static arguments.
@@ -170,6 +172,50 @@ impl TypeVisitor for TypeFreshnessCollector {
     }
 }
 
+/// Collect unevaluated type ids reachable from one root.
+struct TypeUnevaluatedCollector {
+    /// The visited type ids.
+    visited: HashSet<LocalTypeId>,
+    /// The reachable unevaluated type ids.
+    type_ids: Vec<LocalTypeId>,
+    /// The visitor options.
+    options: TypeVisitorOptions,
+}
+
+impl TypeUnevaluatedCollector {
+    /// Create an empty unevaluated collector.
+    fn new() -> Self {
+        Self {
+            visited: HashSet::new(),
+            type_ids: Vec::new(),
+            options: base_visitor_options(),
+        }
+    }
+}
+
+impl TypeVisitor for TypeUnevaluatedCollector {
+    fn options(&self) -> &TypeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_type_id(&mut self, types: &TypeTable, id: LocalTypeId) {
+        if !self.visited.insert(id) {
+            return;
+        }
+
+        if matches!(types.get_type(id), Type::Unevaluated(_)) {
+            self.type_ids.push(id);
+        }
+
+        let ty = types.get_type(id);
+        self.visit_type(types, id, ty);
+    }
+
+    fn visit_type(&mut self, types: &TypeTable, id: LocalTypeId, ty: &Type) {
+        walk_type(self, types, id, ty);
+    }
+}
+
 impl<'a> TypeContainmentVisitor<'a> {
     /// Create a visitor for error type detection.
     fn new_error(visited: &'a mut HashSet<LocalTypeId>) -> Self {
@@ -183,6 +229,11 @@ impl<'a> TypeContainmentVisitor<'a> {
             visited,
             None,
         )
+    }
+
+    /// Create a visitor for unevaluated type-state detection.
+    fn new_unevaluated_type_state(visited: &'a mut HashSet<LocalTypeId>) -> Self {
+        Self::new(TypeContainmentKind::UnevaluatedTypeState, visited, None)
     }
 
     /// Create a visitor for unevaluated value static arguments.
@@ -333,6 +384,7 @@ impl<'a> TypeContainmentVisitor<'a> {
     fn visited_mode(&self) -> VisitedMode {
         match self.kind {
             TypeContainmentKind::ErrorType => VisitedMode::Stack,
+            TypeContainmentKind::UnevaluatedTypeState => VisitedMode::Stack,
             TypeContainmentKind::UnevaluatedStaticArgument => VisitedMode::Stack,
             TypeContainmentKind::UnevaluatedValueStaticArgument { .. } => VisitedMode::Stack,
             TypeContainmentKind::StaticParameter { .. } => VisitedMode::Set,
@@ -411,6 +463,12 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
         match &self.kind {
             TypeContainmentKind::ErrorType => {
                 if matches!(ty, Type::Error) {
+                    self.found = true;
+                    return;
+                }
+            }
+            TypeContainmentKind::UnevaluatedTypeState => {
+                if matches!(ty, Type::Unevaluated(_)) {
                     self.found = true;
                     return;
                 }
@@ -654,6 +712,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                 }
             },
             TypeContainmentKind::FreeStaticParameter { .. }
+            | TypeContainmentKind::UnevaluatedTypeState
             | TypeContainmentKind::UnevaluatedStaticArgument
             | TypeContainmentKind::UnevaluatedValueStaticArgument { .. } => {
                 self.visit_unevaluated_static_argument(types, argument);
@@ -673,6 +732,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
             TypeContainmentKind::ErrorType => {}
             TypeContainmentKind::FreeStaticParameter { .. }
             | TypeContainmentKind::StaticParameter { .. }
+            | TypeContainmentKind::UnevaluatedTypeState
             | TypeContainmentKind::UnevaluatedStaticArgument
             | TypeContainmentKind::UnevaluatedValueStaticArgument { .. } => {
                 if matches!(expression, StaticExpression::Unevaluated { .. }) {
@@ -2225,6 +2285,17 @@ impl Compiler {
         visitor.found
     }
 
+    /// Collect the reachable unevaluated type ids from one root type.
+    pub(crate) fn collect_unevaluated_type_ids(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Vec<LocalTypeId> {
+        let mut collector = TypeUnevaluatedCollector::new();
+        collector.visit_type_id(types, ty_id);
+        collector.type_ids
+    }
+
     pub(crate) fn type_has_unevaluated_static_arguments(
         &self,
         ty_id: LocalTypeId,
@@ -2232,6 +2303,18 @@ impl Compiler {
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         let mut visitor = TypeContainmentVisitor::new_unevaluated_static(visited);
+        visitor.visit_type_id(types, ty_id);
+        visitor.found
+    }
+
+    /// Check whether a type contains unevaluated type slots or static state.
+    pub(crate) fn type_has_unevaluated_state(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        let mut visitor = TypeContainmentVisitor::new_unevaluated_type_state(visited);
         visitor.visit_type_id(types, ty_id);
         visitor.found
     }

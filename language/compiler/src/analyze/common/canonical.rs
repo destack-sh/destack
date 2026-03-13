@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeType, StaticArgument, StaticExpression,
-    SymbolKind, SymbolSpace, SymbolType, Type, TypeLiteral, TypeTable, WellKnownSymbol,
+    DependencyItem, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeType, StaticArgument,
+    StaticExpression, SymbolKind, SymbolSpace, SymbolType, Type, TypeLiteral, TypeTable,
+    WellKnownSymbol,
 };
 use destack_workspace::ProfileId;
 
@@ -20,6 +21,67 @@ pub(crate) enum CanonicalSymbolMode {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve the canonical symbol from committed declared artifact state.
+    pub fn canonical_declared_artifact_symbol(
+        &self,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+    ) -> GlobalSymbolId {
+        let mut current_symbol = symbol;
+        let mut visited = HashSet::new();
+
+        // follow the committed declared artifact chain
+        loop {
+            if !visited.insert(current_symbol) {
+                return current_symbol;
+            }
+
+            let Some(dir) = self
+                .program
+                .artifacts
+                .dir_declared(current_symbol.module_id, profile)
+            else {
+                return current_symbol;
+            };
+
+            let symbol_entry = dir.symbols.get_symbol(current_symbol.local_id);
+            let normalized_symbol = GlobalSymbolId::new(
+                current_symbol.module_id,
+                current_symbol.local_id.with_type(symbol_entry.ty),
+            );
+            if let Some(canonical_symbol) = symbol_entry.canonical_symbol
+                && canonical_symbol != normalized_symbol
+            {
+                current_symbol = canonical_symbol;
+                continue;
+            }
+
+            if let Some(target_symbol) = symbol_entry.target_symbol
+                && target_symbol != normalized_symbol
+            {
+                current_symbol = target_symbol;
+                continue;
+            }
+
+            if let Some(primary_declaration) = symbol_entry.primary_declaration
+                && primary_declaration.local_id.ty == NodeType::DependencyItem
+            {
+                let dependency_id = primary_declaration
+                    .try_into_typed::<DependencyItem>()
+                    .unwrap_or_else(|_| panic!("dependency item conversion failed"));
+                let dependency = dir.tree.get::<DependencyItem>(dependency_id.local_id);
+                if let Some(target_symbol) = dependency.target_symbol()
+                    && target_symbol != normalized_symbol
+                {
+                    current_symbol = target_symbol;
+                    continue;
+                }
+            }
+
+            return normalized_symbol;
+        }
+    }
+
     /// Resolve the canonical symbol for a reference with an explicit boundary contract.
     pub(crate) fn canonical_symbol_id_at_boundary(
         &self,
