@@ -5,8 +5,18 @@
 
 export { type Try, type TryBranch } from "./try.ds";
 export { type Error } from "./error.ds";
-export { Ok, Err, Result, AsyncResult } from "./result.ds";
 export {
+    type Promise,
+    type PromiseConstructor,
+    Promise,
+    Ok,
+    Err,
+    Result,
+    AsyncResult,
+} from "./result.ds";
+export {
+    type SymbolConstructor,
+    Symbol,
     type IteratorYieldResult,
     type IteratorReturnResult,
     type IteratorResult,

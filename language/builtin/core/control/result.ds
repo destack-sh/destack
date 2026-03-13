@@ -34,7 +34,7 @@ import { type Display, type Debug } from "../operator/format.ds";
 /// FUGU: remove Promise/PromiseConstructor from result.ds once we have a proper Promise type
 
 /// Minimal Promise type used by core async helpers.
-declare interface Promise<T> {
+export declare interface Promise<T> {
     /// Chain a success callback and return a new Promise.
     then<U>(f: (T) => U): Promise<U>;
 
@@ -43,7 +43,7 @@ declare interface Promise<T> {
 }
 
 /// Constructor for Promise values.
-declare interface PromiseConstructor {
+export declare interface PromiseConstructor {
     /// Resolve a value into a Promise.
     resolve<T>(value: T): Promise<T>;
 
@@ -55,7 +55,7 @@ declare interface PromiseConstructor {
 }
 
 /// Global Promise constructor.
-declare var Promise: PromiseConstructor;
+export declare const Promise: PromiseConstructor;
 
 /// Success variant of Result.
 export struct Ok<T> {

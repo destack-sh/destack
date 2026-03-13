@@ -14,8 +14,18 @@ export {
 // control flow
 export { type Try, type TryBranch } from "./control/try.ds";
 export { type Error } from "./control/error.ds";
-export { Ok, Err, Result, AsyncResult } from "./control/result.ds";
 export {
+    type Promise,
+    type PromiseConstructor,
+    Promise,
+    Ok,
+    Err,
+    Result,
+    AsyncResult,
+} from "./control/result.ds";
+export {
+    type SymbolConstructor,
+    Symbol,
     type IteratorYieldResult,
     type IteratorReturnResult,
     type IteratorResult,
