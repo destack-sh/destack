@@ -112,7 +112,7 @@ impl<'a> RenderSpec<'a> {
 mod tests {
     use crate::analyze::{BindingTaggedUnionVariant, BindingType};
 
-    use super::{render_encode_expr, tagged_union_variant_tag};
+    use super::ModuleCodegen;
 
     /// Encode tagged unions with stable 32-bit tag values.
     #[test]
@@ -132,9 +132,10 @@ mod tests {
             ],
         };
 
-        let rendered = render_encode_expr("example", &binding_type, "value");
-        let closed_tag = tagged_union_variant_tag("ExampleEvent", "ExampleClosed");
-        let opened_tag = tagged_union_variant_tag("ExampleEvent", "ExampleOpened");
+        let codegen = ModuleCodegen::new("example");
+        let rendered = codegen.render_encode_expr(&binding_type, "value");
+        let closed_tag = ModuleCodegen::tagged_union_variant_tag("ExampleEvent", "ExampleClosed");
+        let opened_tag = ModuleCodegen::tagged_union_variant_tag("ExampleEvent", "ExampleOpened");
 
         // stable 32 bit tags
         assert!(rendered.contains(format!("vm::Value::uint({closed_tag}u64, 32)").as_str()));
