@@ -3,18 +3,21 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
+
 #![allow(clippy::enum_variant_names)]
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, debug as platform_debug,
-};
+use crate::diagnostic::RuntimeError;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::PlatformError as AbiPlatformError;
+use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
 use crate::runtime::BindingCallContext;
+use crate::platform::VmValueCodec;
+use crate::platform::VmAggregateCodec;
+use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::debug as platform_debug;
 
 /// ABI enum for ProfileKind.
 #[repr(i32)]
@@ -32,16 +35,8 @@ impl VmValueCodec for ProfileKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Cpu,
-            2i32 => Self::Heap,
-            3i32 => Self::Event,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown ProfileKind value",
-                ))
-                .boxed());
-            }
+            1i32 => Self::Cpu, 2i32 => Self::Heap, 3i32 => Self::Event,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown ProfileKind value")).boxed()),
         };
         Ok(decoded)
     }
@@ -69,17 +64,11 @@ impl NativeAbiCodec for ProfileKind {
 impl VmAbiCodec for ProfileKind {
     type Value = ProfileKindValue;
 
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -102,17 +91,8 @@ impl VmValueCodec for TraceLevel {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Error,
-            2i32 => Self::Warn,
-            3i32 => Self::Info,
-            4i32 => Self::Debug,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown TraceLevel value",
-                ))
-                .boxed());
-            }
+            1i32 => Self::Error, 2i32 => Self::Warn, 3i32 => Self::Info, 4i32 => Self::Debug,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown TraceLevel value")).boxed()),
         };
         Ok(decoded)
     }
@@ -140,17 +120,11 @@ impl NativeAbiCodec for TraceLevel {
 impl VmAbiCodec for TraceLevel {
     type Value = TraceLevelValue;
 
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -169,49 +143,29 @@ pub type InspectorEndpointVm = InspectorEndpointAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for InspectorEndpointAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("InspectorEndpointAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("InspectorEndpointAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for InspectorEndpointAbi<NativeAbi> {}
 impl Clone for InspectorEndpointAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for InspectorEndpointAbi<VmAbi> {}
 impl Clone for InspectorEndpointAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl VmAggregateCodec for InspectorEndpointAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InspectorEndpoint",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "InspectorEndpoint")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
-        let field_url =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_url = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_process_id = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             url: field_url,
@@ -219,15 +173,12 @@ impl VmAggregateCodec for InspectorEndpointAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.url, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.process_id, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -261,20 +212,14 @@ impl NativeAbiCodec for InspectorEndpointAbi<NativeAbi> {
 impl VmAbiCodec for InspectorEndpointAbi<VmAbi> {
     type Value = InspectorEndpointValue;
 
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InspectorEndpointValue {
             url: <vm::StringHandle as VmAbiCodec>::into_value(self.url, context)?,
             process_id: <u32 as VmAbiCodec>::into_value(self.process_id, context)?,
         })
     }
 
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
+    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
         Ok(Self {
             url: <vm::StringHandle as VmAbiCodec>::from_value(context, value.url)?,
             process_id: <u32 as VmAbiCodec>::from_value(context, value.process_id)?,

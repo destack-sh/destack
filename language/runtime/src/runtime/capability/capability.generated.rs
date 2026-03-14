@@ -229,14 +229,10 @@ pub enum PlatformCapability {
     MemoryAdvise,
     /// `memory.execute`.
     MemoryExecute,
-    /// `memory.huge.page`.
-    MemoryHugePage,
     /// `memory.lock`.
     MemoryLock,
     /// `memory.map`.
     MemoryMap,
-    /// `memory.numa`.
-    MemoryNuma,
     /// `memory.protect`.
     MemoryProtect,
     /// `midi.port`.
@@ -570,10 +566,8 @@ impl PlatformCapability {
         Self::IoZeroCopy,
         Self::MemoryAdvise,
         Self::MemoryExecute,
-        Self::MemoryHugePage,
         Self::MemoryLock,
         Self::MemoryMap,
-        Self::MemoryNuma,
         Self::MemoryProtect,
         Self::MidiPort,
         Self::MidiObserve,
@@ -799,10 +793,8 @@ impl PlatformCapability {
             Self::IoZeroCopy => "io.zero.copy",
             Self::MemoryAdvise => "memory.advise",
             Self::MemoryExecute => "memory.execute",
-            Self::MemoryHugePage => "memory.huge.page",
             Self::MemoryLock => "memory.lock",
             Self::MemoryMap => "memory.map",
-            Self::MemoryNuma => "memory.numa",
             Self::MemoryProtect => "memory.protect",
             Self::MidiPort => "midi.port",
             Self::MidiObserve => "midi.observe",
@@ -1034,10 +1026,8 @@ impl PlatformCapability {
             "io.zero.copy" => Some(Self::IoZeroCopy),
             "memory.advise" => Some(Self::MemoryAdvise),
             "memory.execute" => Some(Self::MemoryExecute),
-            "memory.huge.page" => Some(Self::MemoryHugePage),
             "memory.lock" => Some(Self::MemoryLock),
             "memory.map" => Some(Self::MemoryMap),
-            "memory.numa" => Some(Self::MemoryNuma),
             "memory.protect" => Some(Self::MemoryProtect),
             "midi.port" => Some(Self::MidiPort),
             "midi.observe" => Some(Self::MidiObserve),

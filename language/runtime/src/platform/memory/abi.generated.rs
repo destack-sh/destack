@@ -3,17 +3,20 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
+
 #![allow(clippy::enum_variant_names)]
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, memory as platform_memory,
-};
+use crate::diagnostic::RuntimeError;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::PlatformError as AbiPlatformError;
+use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
 use crate::runtime::BindingCallContext;
+use crate::platform::VmValueCodec;
+use crate::platform::VmAggregateCodec;
+use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::memory as platform_memory;
 
 /// ABI newtype for MemoryProtection.
 #[repr(transparent)]
@@ -53,17 +56,11 @@ impl NativeAbiCodec for MemoryProtection {
 impl VmAbiCodec for MemoryProtection {
     type Value = MemoryProtectionValue;
 
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -106,17 +103,11 @@ impl NativeAbiCodec for MemoryRemapFlags {
 impl VmAbiCodec for MemoryRemapFlags {
     type Value = MemoryRemapFlagsValue;
 
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -159,17 +150,11 @@ impl NativeAbiCodec for MemoryReserveFlags {
 impl VmAbiCodec for MemoryReserveFlags {
     type Value = MemoryReserveFlagsValue;
 
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -194,18 +179,8 @@ impl VmValueCodec for MemoryAdvice {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Normal,
-            1i32 => Self::Sequential,
-            2i32 => Self::Random,
-            3i32 => Self::WillNeed,
-            4i32 => Self::DontNeed,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown MemoryAdvice value",
-                ))
-                .boxed());
-            }
+            0i32 => Self::Normal, 1i32 => Self::Sequential, 2i32 => Self::Random, 3i32 => Self::WillNeed, 4i32 => Self::DontNeed,
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown MemoryAdvice value")).boxed()),
         };
         Ok(decoded)
     }
@@ -233,91 +208,11 @@ impl NativeAbiCodec for MemoryAdvice {
 impl VmAbiCodec for MemoryAdvice {
     type Value = MemoryAdviceValue;
 
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
-/// ABI enum for MemoryNumaPolicy.
-#[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum MemoryNumaPolicy {
-    /// Default.
-    Default = 0,
-    /// Bind.
-    Bind = 1,
-    /// Interleave.
-    Interleave = 2,
-    /// Preferred.
-    Preferred = 3,
-    /// Local.
-    Local = 4,
-}
-
-impl VmValueCodec for MemoryNumaPolicy {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <i32 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            0i32 => Self::Default,
-            1i32 => Self::Bind,
-            2i32 => Self::Interleave,
-            3i32 => Self::Preferred,
-            4i32 => Self::Local,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown MemoryNumaPolicy value",
-                ))
-                .boxed());
-            }
-        };
-        Ok(decoded)
-    }
-
-    fn encode(self) -> vm::Value {
-        <i32 as VmValueCodec>::encode(self as i32)
-    }
-}
-
-/// Value type for MemoryNumaPolicy.
-pub type MemoryNumaPolicyValue = MemoryNumaPolicy;
-
-impl NativeAbiCodec for MemoryNumaPolicy {
-    type Value = MemoryNumaPolicyValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for MemoryNumaPolicy {
-    type Value = MemoryNumaPolicyValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -335,26 +230,13 @@ pub struct MemoryRange {
 pub type MemoryRangeVm = MemoryRange;
 
 impl VmAggregateCodec for MemoryRange {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "MemoryRange",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "MemoryRange")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
         let field_address = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_length = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -364,15 +246,12 @@ impl VmAggregateCodec for MemoryRange {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -394,17 +273,11 @@ impl NativeAbiCodec for MemoryRange {
 impl VmAbiCodec for MemoryRange {
     type Value = MemoryRangeValue;
 
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -422,26 +295,13 @@ pub struct ProtectedMemoryRange {
 pub type ProtectedMemoryRangeVm = ProtectedMemoryRange;
 
 impl VmAggregateCodec for ProtectedMemoryRange {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
+    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ProtectedMemoryRange",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "ProtectedMemoryRange")).boxed());
         }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
         }
         let field_address = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_length = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -451,15 +311,12 @@ impl VmAggregateCodec for ProtectedMemoryRange {
         })
     }
 
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        Ok(context.allocate_aggregate(slots))
+        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -481,17 +338,11 @@ impl NativeAbiCodec for ProtectedMemoryRange {
 impl VmAbiCodec for ProtectedMemoryRange {
     type Value = ProtectedMemoryRangeValue;
 
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -514,7 +365,7 @@ pub const MEMORY_REMAP_MAY_MOVE: MemoryRemapFlags = MemoryRemapFlags(1u32);
 /// No remap flags.
 pub const MEMORY_REMAP_NONE: MemoryRemapFlags = MemoryRemapFlags(0u32);
 
-/// Request large-page backing where supported.
+/// Request large-page backing for allocation-time mappings where supported.
 pub const MEMORY_RESERVE_LARGE_PAGES: MemoryReserveFlags = MemoryReserveFlags(2u32);
 
 /// No reserve flags.

@@ -3,16 +3,18 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
+
 #![allow(clippy::enum_variant_names)]
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{
-    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmValueCodec, ffi as platform_ffi,
-};
+use crate::diagnostic::RuntimeError;
+use crate::diagnostic::RuntimeResult;
+use crate::platform::PlatformError as AbiPlatformError;
+use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
 use crate::runtime::BindingCallContext;
+use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::ffi as platform_ffi;
 
 /// ABI newtype for FfiPointer.
 #[repr(transparent)]
@@ -52,17 +54,11 @@ impl NativeAbiCodec for FfiPointer {
 impl VmAbiCodec for FfiPointer {
     type Value = FfiPointerValue;
 
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
+    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
