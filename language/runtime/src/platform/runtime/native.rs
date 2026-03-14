@@ -1336,25 +1336,23 @@ pub(crate) unsafe fn destack_runtime_observation_open(
     let table = control_table().read();
     let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
     let options = options.unwrap_or(ObservationOptions {
-        runtime: None,
+        trace: None,
         topology: None,
-        resource: None,
+        resources: None,
         scheduler: None,
-        diagnostic: None,
-        profile: None,
-        domain: None,
+        diagnostics: None,
+        profiles: None,
     });
     let subscription_id =
         world
             .observations()
             .open(RuntimeRequestCodec::observation_options_from_flags(
-                options.runtime,
+                options.trace,
                 options.topology,
-                options.resource,
+                options.resources,
                 options.scheduler,
-                options.diagnostic,
-                options.profile,
-                options.domain,
+                options.diagnostics,
+                options.profiles,
             ));
 
     drop(table);

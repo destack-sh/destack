@@ -321,10 +321,18 @@ impl RuntimeDescriptorCodec {
             ))
             .boxed()
         })?;
+        let shared_page_count = u32::try_from(agent.heap_image.raw_leaf_count()).map_err(|_| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "sharedPageCount",
+                "shared heap page count exceeds uint32",
+            ))
+            .boxed()
+        })?;
 
         Ok(HeapDescriptor {
             heap_bytes: agent.heap_image.heap_bytes(),
             page_count,
+            shared_page_count,
             gc_cycles: agent.heap_image.managed_gc_state().cycles,
         })
     }
@@ -503,13 +511,13 @@ impl RuntimeDescriptorCodec {
     /// Encode one observation category into the low-level observation enum.
     pub(crate) fn observation_kind(category: ObservationCategory) -> ObservationEventKind {
         match category {
-            ObservationCategory::Runtime => ObservationEventKind::Runtime,
+            ObservationCategory::Runtime => ObservationEventKind::Trace,
             ObservationCategory::Topology => ObservationEventKind::Topology,
             ObservationCategory::Resource => ObservationEventKind::Resource,
             ObservationCategory::Scheduler => ObservationEventKind::Scheduler,
             ObservationCategory::Diagnostic => ObservationEventKind::Diagnostic,
-            ObservationCategory::Telemetry => ObservationEventKind::Telemetry,
-            ObservationCategory::Domain => ObservationEventKind::Domain,
+            ObservationCategory::Telemetry => ObservationEventKind::Profile,
+            ObservationCategory::Domain => ObservationEventKind::Trace,
         }
     }
 

@@ -1654,7 +1654,7 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
                 if needs_gc {
                     let gc = isolate.collect_garbage(&mut heap);
                     gc_collections += 1;
-                    gc_freed_cells += gc.freed_cells as u64;
+                    gc_freed_cells += gc.freed_allocations as u64;
                 }
                 let _ = entry
                     .program

@@ -673,11 +673,11 @@ impl<'a> ModuleCodegen<'a> {
         if is_bytes {
             if is_array {
                 lines.push(format!(
-                    "let {name} = VmArray::<u8>::from_bytes(context, {value_expr}.as_ref());"
+                    "let {name} = VmArray::<u8>::from_bytes(context, {value_expr}.as_ref())?;"
                 ));
             } else {
                 lines.push(format!(
-                    "let {name} = VmSlice::<u8>::from_bytes(context, {value_expr}.as_ref());"
+                    "let {name} = VmSlice::<u8>::from_bytes(context, {value_expr}.as_ref())?;"
                 ));
             }
 
