@@ -57,7 +57,10 @@ mod windows;
 
 pub(crate) use core::HostBackend;
 pub use core::{
-    Host, HostEvent, HostEventKind, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
+    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,
+    HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
+    HOST_STATUS_PERMISSION_DENIED, Host, HostEvent, HostEventKind, HostIntentEvent,
+    HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
     HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPollOutcome,
     HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
@@ -87,9 +90,9 @@ pub use android::{
     AndroidHostMidiOutputRecordHeader, AndroidHostMidiOutputVirtualCreateCallback,
     AndroidHostMidiOutputWriteCallback, AndroidHostMidiPortDescriptorHeader,
     AndroidHostSignHardwareKeyCallback, AndroidHostSupportsHardwareKeyCallback,
-    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,
-    HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
-    HOST_STATUS_PERMISSION_DENIED, android_notify_activity_lifecycle,
+    android_notify_activity_lifecycle, android_notify_intent_custom_action,
+    android_notify_intent_open_file, android_notify_intent_open_url,
+    android_notify_intent_share_files, android_notify_intent_share_text,
     android_notify_interruption_changed, android_notify_memory_pressure_changed,
     android_notify_permission_result, android_notify_power_mode_changed,
     android_notify_thermal_state_changed, android_notify_wake, android_notify_wall_clock_changed,
@@ -118,6 +121,9 @@ pub use android::{
     destack_host_android_midi_output_port_list, destack_host_android_midi_output_port_open,
     destack_host_android_midi_output_virtual_create, destack_host_android_midi_output_write,
     destack_host_android_notify_activity_lifecycle,
+    destack_host_android_notify_intent_custom_action, destack_host_android_notify_intent_open_file,
+    destack_host_android_notify_intent_open_url, destack_host_android_notify_intent_share_files,
+    destack_host_android_notify_intent_share_text,
     destack_host_android_notify_interruption_changed,
     destack_host_android_notify_memory_pressure_changed,
     destack_host_android_notify_permission_result, destack_host_android_notify_power_mode_changed,
@@ -128,11 +134,15 @@ pub use android::{
 #[cfg(any(test, target_os = "macos"))]
 pub use macos::{
     MacosApplicationLifecycle, destack_host_macos_notify_application_lifecycle,
-    destack_host_macos_notify_interruption_changed,
+    destack_host_macos_notify_intent_custom_action, destack_host_macos_notify_intent_open_file,
+    destack_host_macos_notify_intent_open_url, destack_host_macos_notify_intent_share_files,
+    destack_host_macos_notify_intent_share_text, destack_host_macos_notify_interruption_changed,
     destack_host_macos_notify_memory_pressure_changed, destack_host_macos_notify_permission_result,
     destack_host_macos_notify_power_mode_changed, destack_host_macos_notify_thermal_state_changed,
     destack_host_macos_notify_wake, destack_host_macos_notify_wall_clock_changed,
-    macos_notify_application_lifecycle, macos_notify_interruption_changed,
+    macos_notify_application_lifecycle, macos_notify_intent_custom_action,
+    macos_notify_intent_open_file, macos_notify_intent_open_url, macos_notify_intent_share_files,
+    macos_notify_intent_share_text, macos_notify_interruption_changed,
     macos_notify_memory_pressure_changed, macos_notify_permission_result,
     macos_notify_power_mode_changed, macos_notify_thermal_state_changed, macos_notify_wake,
     macos_notify_wall_clock_changed,
@@ -141,10 +151,14 @@ pub use macos::{
 #[cfg(any(test, target_os = "ios"))]
 pub use ios::{
     IosApplicationLifecycle, destack_host_ios_notify_application_lifecycle,
-    destack_host_ios_notify_interruption_changed, destack_host_ios_notify_memory_pressure_changed,
-    destack_host_ios_notify_permission_result, destack_host_ios_notify_power_mode_changed,
-    destack_host_ios_notify_thermal_state_changed, destack_host_ios_notify_wake,
-    destack_host_ios_notify_wall_clock_changed, ios_notify_application_lifecycle,
+    destack_host_ios_notify_intent_custom_action, destack_host_ios_notify_intent_open_file,
+    destack_host_ios_notify_intent_open_url, destack_host_ios_notify_intent_share_files,
+    destack_host_ios_notify_intent_share_text, destack_host_ios_notify_interruption_changed,
+    destack_host_ios_notify_memory_pressure_changed, destack_host_ios_notify_permission_result,
+    destack_host_ios_notify_power_mode_changed, destack_host_ios_notify_thermal_state_changed,
+    destack_host_ios_notify_wake, destack_host_ios_notify_wall_clock_changed,
+    ios_notify_application_lifecycle, ios_notify_intent_custom_action, ios_notify_intent_open_file,
+    ios_notify_intent_open_url, ios_notify_intent_share_files, ios_notify_intent_share_text,
     ios_notify_interruption_changed, ios_notify_memory_pressure_changed,
     ios_notify_permission_result, ios_notify_power_mode_changed, ios_notify_thermal_state_changed,
     ios_notify_wake, ios_notify_wall_clock_changed,
@@ -153,14 +167,20 @@ pub use ios::{
 #[cfg(any(test, windows))]
 pub use windows::{
     WindowsApplicationLifecycle, destack_host_windows_notify_application_lifecycle,
+    destack_host_windows_notify_intent_custom_action, destack_host_windows_notify_intent_open_file,
+    destack_host_windows_notify_intent_open_url, destack_host_windows_notify_intent_share_files,
+    destack_host_windows_notify_intent_share_text,
     destack_host_windows_notify_interruption_changed,
     destack_host_windows_notify_memory_pressure_changed,
     destack_host_windows_notify_permission_result, destack_host_windows_notify_power_mode_changed,
     destack_host_windows_notify_thermal_state_changed, destack_host_windows_notify_wake,
     destack_host_windows_notify_wall_clock_changed, windows_notify_application_lifecycle,
-    windows_notify_interruption_changed, windows_notify_memory_pressure_changed,
-    windows_notify_permission_result, windows_notify_power_mode_changed,
-    windows_notify_thermal_state_changed, windows_notify_wake, windows_notify_wall_clock_changed,
+    windows_notify_intent_custom_action, windows_notify_intent_open_file,
+    windows_notify_intent_open_url, windows_notify_intent_share_files,
+    windows_notify_intent_share_text, windows_notify_interruption_changed,
+    windows_notify_memory_pressure_changed, windows_notify_permission_result,
+    windows_notify_power_mode_changed, windows_notify_thermal_state_changed, windows_notify_wake,
+    windows_notify_wall_clock_changed,
 };
 
 #[cfg(any(test, target_os = "linux"))]

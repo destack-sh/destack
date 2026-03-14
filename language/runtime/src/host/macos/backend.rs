@@ -1,6 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::apple::message as apple_message;
 use crate::host::{HostBackend, Platform};
+use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
 /// macOS host implementation.
 #[derive(Debug, Default)]
@@ -16,6 +17,18 @@ impl MacosHost {
 impl HostBackend for MacosHost {
     fn platform(&self) -> Platform {
         Platform::MacOS
+    }
+
+    fn host_capabilities(&self) -> PlatformCapabilitySet {
+        let mut host_capabilities = PlatformCapabilitySet::new();
+
+        // macos exposes runtime host intent ingress callbacks
+        host_capabilities.insert_capability(PlatformCapability::OsLifecycleRead);
+        host_capabilities.insert_capability(PlatformCapability::OsIntentRead);
+        host_capabilities.insert_capability(PlatformCapability::OsPower);
+        host_capabilities.insert_capability(PlatformCapability::OsPermissionRead);
+
+        host_capabilities
     }
 
     fn is_process_main_context(&self) -> bool {

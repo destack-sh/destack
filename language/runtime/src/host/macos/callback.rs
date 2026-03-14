@@ -5,9 +5,9 @@ use destack_workspace::Platform;
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::{HostQueue, HostQueueRegistry};
 use crate::host::{
-    HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
-    HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode,
-    HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent,
+    HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent,
+    HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 use crate::runtime::world::RuntimeId;
 
@@ -53,6 +53,105 @@ pub fn macos_notify_permission_result(
     bridge.enqueue(HostEvent::Permission(HostPermissionEvent {
         permission: permission.to_string(),
         granted,
+    }));
+
+    Ok(())
+}
+
+/// Submit one macOS open-url intent callback.
+pub fn macos_notify_intent_open_url(
+    runtime_id: u64,
+    source: Option<&str>,
+    url: &str,
+) -> RuntimeResult<()> {
+    let bridge = macos_host_bridge(runtime_id)?;
+    bridge.enqueue(HostEvent::Intent(HostIntentEvent {
+        source: source.map(str::to_string),
+        payload: HostIntentPayload::OpenUrl {
+            url: url.to_string(),
+        },
+    }));
+
+    Ok(())
+}
+
+/// Submit one macOS open-file intent callback.
+pub fn macos_notify_intent_open_file(
+    runtime_id: u64,
+    source: Option<&str>,
+    path: &str,
+    mime_type: Option<&str>,
+) -> RuntimeResult<()> {
+    let bridge = macos_host_bridge(runtime_id)?;
+    bridge.enqueue(HostEvent::Intent(HostIntentEvent {
+        source: source.map(str::to_string),
+        payload: HostIntentPayload::OpenFile {
+            path: path.to_string(),
+            mime_type: mime_type.map(str::to_string),
+        },
+    }));
+
+    Ok(())
+}
+
+/// Submit one macOS shared-text intent callback.
+pub fn macos_notify_intent_share_text(
+    runtime_id: u64,
+    source: Option<&str>,
+    text: &str,
+    mime_type: Option<&str>,
+) -> RuntimeResult<()> {
+    let bridge = macos_host_bridge(runtime_id)?;
+    bridge.enqueue(HostEvent::Intent(HostIntentEvent {
+        source: source.map(str::to_string),
+        payload: HostIntentPayload::ShareText {
+            text: text.to_string(),
+            mime_type: mime_type.map(str::to_string),
+        },
+    }));
+
+    Ok(())
+}
+
+/// Submit one macOS shared-file intent callback.
+pub fn macos_notify_intent_share_files(
+    runtime_id: u64,
+    source: Option<&str>,
+    paths: &[String],
+    mime_type: Option<&str>,
+) -> RuntimeResult<()> {
+    let bridge = macos_host_bridge(runtime_id)?;
+    bridge.enqueue(HostEvent::Intent(HostIntentEvent {
+        source: source.map(str::to_string),
+        payload: HostIntentPayload::ShareFiles {
+            paths: paths.to_vec(),
+            mime_type: mime_type.map(str::to_string),
+        },
+    }));
+
+    Ok(())
+}
+
+/// Submit one macOS custom-action intent callback.
+pub fn macos_notify_intent_custom_action(
+    runtime_id: u64,
+    source: Option<&str>,
+    action: &str,
+    url: Option<&str>,
+    paths: &[String],
+    text: Option<&str>,
+    mime_type: Option<&str>,
+) -> RuntimeResult<()> {
+    let bridge = macos_host_bridge(runtime_id)?;
+    bridge.enqueue(HostEvent::Intent(HostIntentEvent {
+        source: source.map(str::to_string),
+        payload: HostIntentPayload::CustomAction {
+            action: action.to_string(),
+            url: url.map(str::to_string),
+            paths: paths.to_vec(),
+            text: text.map(str::to_string),
+            mime_type: mime_type.map(str::to_string),
+        },
     }));
 
     Ok(())
