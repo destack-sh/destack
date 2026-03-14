@@ -1,13 +1,14 @@
-mod allocation;
-mod gc;
+mod collect;
+mod extent;
 mod heap;
 mod image;
-mod span;
-mod usage;
-mod values;
+mod reference;
+mod run;
+mod state;
 
-pub(crate) use allocation::*;
-pub use allocation::{ManagedAllocation, ManagedSpan};
-pub use gc::*;
+pub(crate) use extent::*;
 pub use heap::*;
-pub(crate) use image::*;
+pub use image::*;
+pub use reference::*;
+pub(crate) use run::*;
+pub use state::*;

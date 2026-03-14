@@ -34,6 +34,24 @@ impl ManagedReference {
         self.0 & POINTER_BASE_MASK
     }
 
+    /// Return the raw bits for this reference.
+    #[inline]
+    pub const fn bits(self) -> u64 {
+        self.0
+    }
+
+    /// Restore a managed reference from raw bits.
+    #[inline]
+    pub const fn from_bits(bits: u64) -> Self {
+        Self(bits)
+    }
+
+    /// Return the byte offset stored in this reference.
+    #[inline]
+    pub fn byte_offset(&self) -> usize {
+        self.slot_offset()
+    }
+
     /// Return the aggregate slot offset stored in this reference.
     #[inline]
     pub fn slot_offset(&self) -> usize {
@@ -46,6 +64,12 @@ impl ManagedReference {
         let base = id & POINTER_BASE_MASK;
         let slot = (slot_offset as u64) << POINTER_SLOT_SHIFT;
         ManagedReference(base | slot)
+    }
+
+    /// Create a new reference with a byte offset.
+    #[inline]
+    pub fn with_byte_offset(id: u64, byte_offset: u32) -> Self {
+        Self::with_slot_offset(id, byte_offset)
     }
 }
 
@@ -75,6 +99,24 @@ impl RawPointer {
         self.0 & POINTER_BASE_MASK
     }
 
+    /// Return the raw bits for this pointer.
+    #[inline]
+    pub const fn bits(self) -> u64 {
+        self.0
+    }
+
+    /// Restore a raw pointer from raw bits.
+    #[inline]
+    pub const fn from_bits(bits: u64) -> Self {
+        Self(bits)
+    }
+
+    /// Return the byte offset stored in this pointer.
+    #[inline]
+    pub fn byte_offset(&self) -> usize {
+        self.slot_offset()
+    }
+
     /// Return the aggregate slot offset stored in this pointer.
     #[inline]
     pub fn slot_offset(&self) -> usize {
@@ -87,6 +129,65 @@ impl RawPointer {
         let base = id & POINTER_BASE_MASK;
         let slot = (slot_offset as u64) << POINTER_SLOT_SHIFT;
         RawPointer(base | slot)
+    }
+
+    /// Create a new raw pointer with a byte offset.
+    #[inline]
+    pub fn with_byte_offset(id: u64, byte_offset: u32) -> Self {
+        Self::with_slot_offset(id, byte_offset)
+    }
+}
+
+/// Pointer to one shared-memory region.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct SharedPointer(pub(crate) u64);
+
+impl SharedPointer {
+    /// The null shared pointer.
+    pub const NULL: Self = SharedPointer(0);
+
+    /// Create a new shared pointer from one id.
+    #[inline]
+    pub fn new(id: u64) -> Self {
+        Self::with_byte_offset(id, 0)
+    }
+
+    /// Check if this pointer is null.
+    #[inline]
+    pub fn is_null(&self) -> bool {
+        self.id() == 0
+    }
+
+    /// Return the shared region id.
+    #[inline]
+    pub fn id(&self) -> u64 {
+        self.0 & POINTER_BASE_MASK
+    }
+
+    /// Return the raw bits for this pointer.
+    #[inline]
+    pub const fn bits(self) -> u64 {
+        self.0
+    }
+
+    /// Restore a shared pointer from raw bits.
+    #[inline]
+    pub const fn from_bits(bits: u64) -> Self {
+        Self(bits)
+    }
+
+    /// Return the byte offset stored in this pointer.
+    #[inline]
+    pub fn byte_offset(&self) -> usize {
+        (self.0 >> POINTER_SLOT_SHIFT) as usize
+    }
+
+    /// Create a new shared pointer with a byte offset.
+    #[inline]
+    pub fn with_byte_offset(id: u64, byte_offset: u32) -> Self {
+        let base = id & POINTER_BASE_MASK;
+        let offset = (byte_offset as u64) << POINTER_SLOT_SHIFT;
+        SharedPointer(base | offset)
     }
 }
 

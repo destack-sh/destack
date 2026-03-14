@@ -1,18 +1,22 @@
 mod bitmap;
-mod defaults;
+mod budget;
+mod class;
 mod heap;
 mod image;
 mod limits;
+mod options;
+mod tree;
 mod usage;
-mod vector;
 
 pub use bitmap::*;
-pub(crate) use defaults::*;
+pub use budget::*;
+pub use class::*;
 pub use heap::*;
 pub use image::*;
 pub use limits::*;
+pub use options::*;
+pub(crate) use tree::*;
 pub use usage::*;
-pub(crate) use vector::*;
 
 #[cfg(test)]
 #[path = "tests.rs"]

@@ -1,202 +1,208 @@
 use destack_core::SnapshotCodec;
-use std::sync::Arc;
 
 use crate::{
-    Heap, HeapCaptureError, HeapLimits, LayoutId, MANAGED_PAGE_CAPACITY, ManagedHeap,
-    ManagedReference, RAW_PAGE_CAPACITY, RawAllocationStorage, RawHeap, RawPointer, Value,
+    Heap, HeapCaptureError, HeapLayoutOptions, HeapLimits, LayoutId, ManagedReference,
+    ManagedSpace, RawPointer, RawSpace, ReferenceMap, SharedBudget, SharedLimits, SharedSpace,
+    Value,
 };
 
-const CELL_PAGE_SPILL_ALLOCATIONS: usize = MANAGED_PAGE_CAPACITY + 8;
-const RAW_PAGE_SPILL_ALLOCATIONS: usize = RAW_PAGE_CAPACITY + 8;
-
-/// Allocate managed references across page boundaries while preserving stable ids.
+/// Preserve stable managed ids across run growth and id reuse.
 #[test]
-fn test_allocate_managed_allocations_across_pages() {
-    let mut heap = ManagedHeap::new();
-    let mut last_handle = ManagedReference::NULL;
+fn test_allocate_managed_across_runs() {
+    let layout = HeapLayoutOptions::default();
+    let slot_count = layout.managed_run_bytes / layout.size_classes.classes[0].bytes;
+    let mut managed = ManagedSpace::with_layout(&layout);
+    let mut last = ManagedReference::NULL;
 
-    // cross the first managed-page boundary
-    for index in 0..(MANAGED_PAGE_CAPACITY + 4) {
-        last_handle = heap
-            .allocate_single_checked(Value::int64(index as i64), |_| Ok(()))
-            .expect("managed allocation should succeed");
+    // cross the first managed run boundary
+    for index in 0..(slot_count + 4) {
+        last = managed.allocate_bytes(&[index as u8], ReferenceMap::empty(), None);
     }
 
-    // ensure ids continue monotonically across pages
-    assert_eq!(last_handle.id(), (MANAGED_PAGE_CAPACITY + 4) as u64);
-    assert!(heap.get(last_handle).is_some());
+    // ensure stable ids grow monotonically
+    assert_eq!(last.id(), (slot_count + 4) as u64);
+
+    // free and reuse one id
+    let reused = ManagedReference::new(7);
+    assert!(managed.free(reused));
+    let handle = managed.allocate_bytes(&[0xAB], ReferenceMap::empty(), None);
+
+    assert_eq!(handle.id(), reused.id());
 }
 
-/// Allocate raw allocations across page boundaries while preserving stable ids.
+/// Preserve stable raw ids across run growth and id reuse.
 #[test]
-fn test_allocate_raw_allocations_across_pages() {
-    let mut heap = RawHeap::new();
-    let mut last_pointer = RawPointer::NULL;
+fn test_allocate_raw_across_runs() {
+    let layout = HeapLayoutOptions::default();
+    let slot_count = layout.raw_run_bytes / layout.size_classes.classes[0].bytes;
+    let mut raw = RawSpace::with_layout(&layout);
+    let mut last = RawPointer::NULL;
 
-    // cross the first raw-page boundary
-    for index in 0..(RAW_PAGE_CAPACITY + 4) {
-        last_pointer = heap
-            .allocate_with_bytes_checked(&[index as u8], |_| Ok(()))
-            .expect("raw allocation should succeed");
+    // cross the first raw run boundary
+    for index in 0..(slot_count + 4) {
+        last = raw.allocate_bytes(&[index as u8]);
     }
 
-    // ensure ids continue monotonically across pages
-    assert_eq!(last_pointer.id(), (RAW_PAGE_CAPACITY + 4) as u64);
-    assert!(heap.get(last_pointer).is_some());
+    // ensure stable ids grow monotonically
+    assert_eq!(last.id(), (slot_count + 4) as u64);
+
+    // free and reuse one id
+    let reused = RawPointer::new(11);
+    assert!(raw.free(reused));
+    let pointer = raw.allocate_bytes(&[0xCD]);
+
+    assert_eq!(pointer.id(), reused.id());
 }
 
-/// Capture and restore managed heap state across managed-page boundaries.
+/// Share unchanged managed run leaves across image roundtrips and detach on mutation.
 #[test]
-fn test_roundtrip_managed_heap_image() {
-    let mut heap = ManagedHeap::new();
+fn test_roundtrip_managed_space_image() {
+    let layout = HeapLayoutOptions::default();
+    let slot_count = layout.managed_run_bytes / layout.size_classes.classes[0].bytes;
+    let mut managed = ManagedSpace::with_layout(&layout);
     let mut handles = Vec::new();
 
-    // spill into a second managed page
-    for index in 0..CELL_PAGE_SPILL_ALLOCATIONS {
-        let handle = heap
-            .allocate_single_checked(Value::int64(index as i64), |_| Ok(()))
-            .expect("managed allocation should succeed");
+    // spill into a second managed run
+    for index in 0..(slot_count + 4) {
+        let handle = managed.allocate_bytes(&[index as u8], ReferenceMap::empty(), None);
         handles.push(handle);
     }
 
-    // free and reuse one slot to preserve allocator state
-    let freed_handle = handles[10];
-    heap.free(freed_handle);
-    let reused_handle = heap
-        .allocate_single_checked(Value::int64(999), |_| Ok(()))
-        .expect("managed allocation should succeed");
-    assert_eq!(reused_handle.id(), freed_handle.id());
+    // preserve layout metadata across image roundtrip
+    assert!(managed.set_layout_id(handles[0], LayoutId::new(41)));
 
-    let image = heap.image(None).expect("heap image should capture");
-    let mut restored = ManagedHeap::from_image(&image);
+    let image = managed.image(None).expect("managed image should capture");
+    let mut restored = ManagedSpace::from_image(&image);
+    let restored_image = restored.image(None).expect("managed image should capture");
 
-    // verify preserved live allocations and allocator state
-    assert_eq!(restored.allocation_count(), heap.allocation_count());
-    assert_eq!(restored.heap_bytes(), heap.heap_bytes());
-    assert_eq!(restored.gc_state().cycles, heap.gc_state().cycles);
-    assert_eq!(
-        restored.get_slot(reused_handle, 0),
-        Some(&Value::int64(999))
+    assert_eq!(restored.layout_id(handles[0]), Some(LayoutId::new(41)));
+    assert!(
+        image
+            .runs
+            .get(0)
+            .unwrap()
+            .shares_storage_with(restored_image.runs.get(0).unwrap())
     );
-    assert_eq!(restored.get_slot(handles[0], 0), Some(&Value::int64(0)));
 
-    // images and restored heaps share managed-page images until mutation
-    let restored_image = restored.image(None).expect("heap image should capture");
-    assert!(Arc::ptr_eq(
-        &image.pages.get(0).unwrap().page,
-        &restored_image.pages.get(0).unwrap().page
-    ));
-    assert!(Arc::ptr_eq(
-        &image.pages.get(0).unwrap().layout_ids,
-        &restored_image.pages.get(0).unwrap().layout_ids
-    ));
+    // mutating one run should detach only that run
+    assert!(restored.set_byte(handles[0], 0, 0xFE));
+    let mutated_image = restored.image(None).expect("managed image should capture");
 
-    // marking a restored reference should not detach shared managed-page contents
-    restored.mark_reference(handles[0]);
-    let restored_page_image = restored.page_mut(0).image();
-    assert!(Arc::ptr_eq(
-        &image.pages.get(0).unwrap().page,
-        &restored_page_image.page
-    ));
-    assert!(Arc::ptr_eq(
-        &image.pages.get(0).unwrap().layout_ids,
-        &restored_page_image.layout_ids
-    ));
-
-    // clear the synthetic mark work before the next image capture
-    restored.clear_mark_queue();
-
-    // mutating a restored managed page should detach only that page
-    let _ = restored.set_slot(handles[0], 0, Value::int64(-1));
-    let restored_image = restored.image(None).expect("heap image should capture");
-    assert!(!Arc::ptr_eq(
-        &image.pages.get(0).unwrap().page,
-        &restored_image.pages.get(0).unwrap().page
-    ));
+    assert!(
+        !image
+            .runs
+            .get(0)
+            .unwrap()
+            .shares_storage_with(mutated_image.runs.get(0).unwrap())
+    );
+    assert!(
+        image
+            .runs
+            .get(1)
+            .unwrap()
+            .shares_storage_with(mutated_image.runs.get(1).unwrap())
+    );
 }
 
-/// Capture and restore raw heap state across raw-page boundaries.
+/// Share unchanged raw run leaves across image roundtrips and detach on mutation.
 #[test]
-fn test_roundtrip_raw_heap_image() {
-    let mut heap = RawHeap::new();
+fn test_roundtrip_raw_space_image() {
+    let layout = HeapLayoutOptions::default();
+    let slot_count = layout.raw_run_bytes / layout.size_classes.classes[0].bytes;
+    let mut raw = RawSpace::with_layout(&layout);
     let mut pointers = Vec::new();
 
-    // spill into a second raw page
-    for index in 0..RAW_PAGE_SPILL_ALLOCATIONS {
-        let pointer = heap
-            .allocate_with_bytes_checked(&[index as u8, 0xAA], |_| Ok(()))
-            .expect("raw allocation should succeed");
+    // spill into a second raw run
+    for index in 0..(slot_count + 4) {
+        let pointer = raw.allocate_bytes(&[index as u8, 0xAA]);
         pointers.push(pointer);
     }
 
-    // free and reuse one slot to preserve allocator state
-    let freed_pointer = pointers[17];
-    assert!(heap.free(freed_pointer));
-    let reused_pointer = heap
-        .allocate_with_bytes_checked(&[0xFE, 0xED], |_| Ok(()))
-        .expect("raw allocation should succeed");
-    assert_eq!(reused_pointer.id(), freed_pointer.id());
+    let image = raw.image(None);
+    let mut restored = RawSpace::from_image(&image);
+    let restored_image = restored.image(None);
 
-    let image = heap.image(None);
-    let restored = RawHeap::from_image(&image);
+    assert!(
+        image
+            .runs
+            .get(0)
+            .unwrap()
+            .shares_storage_with(restored_image.runs.get(0).unwrap())
+    );
 
-    // verify preserved live allocations and allocator state
-    assert_eq!(restored.allocation_count(), heap.allocation_count());
-    let storage = &restored.get(reused_pointer).unwrap().storage;
-    match storage {
-        RawAllocationStorage::Bytes(_) => {
-            assert_eq!(restored.bytes(reused_pointer), Some(&[0xFE, 0xED][..]))
-        }
-        _ => panic!("expected raw byte storage"),
-    }
+    // mutating one run should detach only that run
+    assert!(restored.set_byte(pointers[0], 1, 0xFE));
+    let mutated_image = restored.image(None);
+
+    assert!(
+        !image
+            .runs
+            .get(0)
+            .unwrap()
+            .shares_storage_with(mutated_image.runs.get(0).unwrap())
+    );
+    assert!(
+        image
+            .runs
+            .get(1)
+            .unwrap()
+            .shares_storage_with(mutated_image.runs.get(1).unwrap())
+    );
 }
 
-/// Preserve managed layouts across heap image roundtrips.
+/// Share unchanged shared chunks across image roundtrips and detach on mutation.
 #[test]
-fn test_roundtrip_layout_ids() {
-    let mut heap = ManagedHeap::new();
-    let handle = heap
-        .allocate_single_checked(Value::int64(7), |_| Ok(()))
-        .expect("managed allocation should succeed");
+fn test_roundtrip_shared_space_image() {
+    let mut shared = SharedSpace::with_chunk_bytes(4);
+    let mut budget = SharedBudget::new(SharedLimits::default(), 0);
+    let pointer = shared
+        .allocate_bytes(&[1, 2, 3, 4, 5, 6], &mut budget)
+        .unwrap();
 
-    // attach one durable managed layout before capture
-    assert!(heap.set_layout_id(handle, LayoutId::new(41)));
+    let image = shared.image(None);
+    let mut restored = SharedSpace::from_image(&image);
+    let restored_image = restored.image(None);
 
-    let image = heap.image(None).expect("heap image should capture");
-    let restored = ManagedHeap::from_image(&image);
+    assert!(
+        image
+            .region(0)
+            .unwrap()
+            .shares_storage_with(restored_image.region(0).unwrap())
+    );
 
-    // managed layout metadata should survive the image roundtrip
-    assert_eq!(restored.layout_id(handle), Some(LayoutId::new(41)));
+    assert!(restored.set_byte(pointer, 1, 9));
+    let mutated_image = restored.image(None);
+
+    assert!(
+        !image
+            .region(0)
+            .unwrap()
+            .shares_storage_with(mutated_image.region(0).unwrap())
+    );
 }
 
-/// Reject heap capture while managed pins are active.
+/// Reject managed-space capture while one pin is still active.
 #[test]
-fn test_reject_managed_heap_image_with_active_pins() {
-    let mut heap = ManagedHeap::new();
-    let handle = heap
-        .allocate_single_checked(Value::int64(1), |_| Ok(()))
-        .expect("managed allocation should succeed");
+fn test_reject_managed_image_with_active_pins() {
+    let mut managed = ManagedSpace::new();
+    let handle = managed.allocate_bytes(&[1], ReferenceMap::empty(), None);
 
-    // active pins should block durable heap capture
-    assert!(heap.pin(handle));
+    assert!(managed.pin(handle));
     assert_eq!(
-        heap.image(None).unwrap_err(),
+        managed.image(None).unwrap_err(),
         HeapCaptureError::PinnedManagedReferences
     );
 
-    // releasing the pin should allow capture again
-    assert!(heap.unpin(handle));
-    assert!(heap.image(None).is_ok());
+    assert!(managed.unpin(handle));
+    assert!(managed.image(None).is_ok());
 }
 
-/// Share unchanged heap leaves across full heap image captures and snapshots.
+/// Preserve heap images and snapshots across the full heap wrapper.
 #[test]
-fn test_roundtrip_heap_image_and_snapshot_shares_leaves() {
+fn test_roundtrip_heap_image_and_snapshot() {
     let mut heap = Heap::default();
-
-    // populate both managed and raw leaves
     let managed = heap
-        .allocate_managed_single(Value::int64(7))
+        .allocate_packed_single(Value::int64(7))
         .expect("managed allocation should succeed");
     let raw = heap
         .allocate_raw_bytes(&[0xCA, 0xFE, 0xBA, 0xBE])
@@ -205,179 +211,38 @@ fn test_roundtrip_heap_image_and_snapshot_shares_leaves() {
     let image = heap.image().expect("heap image should capture");
     let snapshot = Heap::encode_snapshot(&image).expect("heap snapshot should encode");
     let decoded = Heap::decode_snapshot(&snapshot).expect("heap snapshot should decode");
-    let restored = Heap::from_image(&image);
+    let restored = Heap::from_snapshot(&snapshot);
 
-    // decoded snapshots preserve durable payload accounting
-    assert_eq!(decoded.heap_bytes(), image.heap_bytes());
-    assert_eq!(decoded.leaf_count(), image.leaf_count());
-
-    // restored images still share the same immutable leaves
-    let mut restored = restored;
-    let restored_image = restored.image().expect("heap image should capture");
-    assert!(
-        image
-            .managed_page(0)
-            .unwrap()
-            .shares_storage_with(restored_image.managed_page(0).unwrap())
-    );
-
-    // raw spans survive the full image and snapshot roundtrip
-    let from_snapshot = Heap::from_snapshot(&snapshot);
     assert_eq!(
-        from_snapshot.raw_bytes(raw),
+        decoded.local_allocation_bytes(),
+        image.local_allocation_bytes()
+    );
+    assert_eq!(decoded.leaf_count(), image.leaf_count());
+    assert_eq!(restored.packed_value_at(managed, 0), Some(Value::int64(7)));
+    assert_eq!(
+        restored.raw_bytes(raw).as_deref(),
         Some(&[0xCA, 0xFE, 0xBA, 0xBE][..])
     );
-    assert_eq!(
-        from_snapshot.managed_slot(managed, 0),
-        Some(&Value::int64(7))
-    );
 }
 
-/// Detach only the touched raw span on mutation after capture.
+/// Reject one managed allocation when the retained-byte limit would be exceeded.
 #[test]
-fn test_detach_only_mutated_raw_byte_span() {
-    let mut heap = Heap::default();
-    let first = heap
-        .allocate_raw_bytes(&[1, 2, 3])
-        .expect("raw allocation should succeed");
-    let second = heap
-        .allocate_raw_bytes(&[4, 5, 6])
-        .expect("raw allocation should succeed");
-
-    let image = heap.image().expect("heap image should capture");
-
-    // mutate one raw span after the image is shared
-    assert!(heap.set_raw_byte(first, 1, 9));
-    let mutated = heap.image().expect("heap image should capture");
-
-    // only the touched byte span should detach
-    assert!(!image.raw_span_shares_with(&mutated, 0));
-    assert!(image.raw_span_shares_with(&mutated, 1));
-
-    assert_eq!(heap.raw_bytes(first), Some(&[1, 9, 3][..]));
-    assert_eq!(heap.raw_bytes(second), Some(&[4, 5, 6][..]));
-}
-
-/// Use a dedicated large managed span for larger managed payloads.
-#[test]
-fn test_capture_large_managed_span_as_dedicated_leaf() {
-    let mut heap = ManagedHeap::with_large_span_values(5);
-    let values = vec![
-        Value::int64(1),
-        Value::int64(2),
-        Value::int64(3),
-        Value::int64(4),
-        Value::int64(5),
-        Value::int64(6),
-    ];
-    let handle = heap
-        .allocate_with_values_checked(values, |_| Ok(()))
-        .expect("managed allocation should succeed");
-
-    let image = heap.image(None).expect("heap image should capture");
-    assert_eq!(image.large_spans.len(), 1);
-    assert_eq!(image.free_large_span_ids.len(), 0);
-
-    // restored images should share the same large managed span leaf
-    let mut restored = ManagedHeap::from_image(&image);
-    let restored_image = restored.image(None).expect("heap image should capture");
-    assert!(Arc::ptr_eq(
-        image.large_spans.get(0).unwrap(),
-        restored_image.large_spans.get(0).unwrap()
-    ));
-
-    // mutating the large managed span should detach only that leaf
-    assert!(restored.set_slot(handle, 2, Value::int64(99)));
-    let mutated_image = restored.image(None).expect("heap image should capture");
-    assert!(!Arc::ptr_eq(
-        image.large_spans.get(0).unwrap(),
-        mutated_image.large_spans.get(0).unwrap()
-    ));
-}
-
-/// Use a dedicated large raw span for larger byte payloads.
-#[test]
-fn test_capture_large_raw_span_as_dedicated_leaf() {
-    let mut heap = RawHeap::with_large_span_bytes(4);
-    let pointer = heap
-        .allocate_with_bytes_checked(&[1, 2, 3, 4, 5], |_| Ok(()))
-        .expect("raw allocation should succeed");
-
-    let image = heap.image(None);
-    assert_eq!(image.large_spans.len(), 1);
-    assert_eq!(image.free_large_span_ids.len(), 0);
-
-    // restored images should share the same large raw span leaf
-    let mut restored = RawHeap::from_image(&image);
-    let restored_image = restored.image(None);
-    assert!(Arc::ptr_eq(
-        image.large_spans.get(0).unwrap(),
-        restored_image.large_spans.get(0).unwrap()
-    ));
-
-    // mutating the large raw span should detach only that leaf
-    assert!(restored.set_byte(pointer, 1, 9));
-    let mutated_image = restored.image(None);
-    assert!(!Arc::ptr_eq(
-        image.large_spans.get(0).unwrap(),
-        mutated_image.large_spans.get(0).unwrap()
-    ));
-}
-
-/// Preserve explicit heap span thresholds across image capture and restore.
-#[test]
-fn test_roundtrip_heap_span_thresholds() {
-    let mut heap = Heap::with_limits_and_large_span_thresholds(HeapLimits::default(), 9, 33);
-
-    let image = heap.image().expect("heap image should capture");
-    let restored = Heap::from_image(&image);
-
-    assert_eq!(restored.managed_large_span_value_threshold(), 9);
-    assert_eq!(restored.raw_large_span_byte_threshold(), 33);
-}
-
-/// Reject one managed external allocation when combined retained-byte admission exceeds the limit.
-#[test]
-fn test_reject_managed_external_allocation_when_combined_delta_exceeds_limit() {
-    let managed = ManagedHeap::new();
-    let span_delta = managed.span_allocate_delta(8);
+fn test_reject_managed_allocation_when_limit_exceeded() {
     let mut heap = Heap::new();
-    let baseline_usage = heap.usage();
-    let max_managed_bytes = baseline_usage
-        .managed
-        .retained_bytes
-        .saturating_add(span_delta as u64);
-
+    let baseline = heap.usage().managed.retained_bytes;
     heap.set_limits(HeapLimits {
         max_bytes: None,
-        max_managed_bytes: Some(max_managed_bytes),
-        max_raw_bytes: None,
+        managed: crate::ManagedLimits {
+            max_bytes: Some(baseline),
+        },
+        raw: crate::RawLimits { max_bytes: None },
     })
-    .expect("baseline heap usage should fit configured limits");
+    .expect("baseline managed heap should fit its current retained-byte limit");
 
     let error = heap
-        .allocate_managed_slots(8)
-        .expect_err("combined span and location admission should fail");
+        .allocate_managed_bytes(&[1], ReferenceMap::empty(), None)
+        .expect_err("managed allocation should be rejected");
 
     assert_eq!(error.scope, crate::HeapLimitScope::Managed);
-}
-
-/// Reject one invalid limit update without mutating the current heap limits.
-#[test]
-fn test_reject_invalid_limit_update_without_mutating_heap_limits() {
-    let mut heap = Heap::new();
-
-    heap.allocate_raw_bytes(b"baseline")
-        .expect("baseline raw allocation should succeed");
-
-    let result = heap.set_limits(HeapLimits {
-        max_bytes: Some(1),
-        max_managed_bytes: None,
-        max_raw_bytes: None,
-    });
-
-    assert!(result.is_err(), "invalid limit update should be rejected");
-
-    heap.allocate_raw_bytes(&[0xAB; 256])
-        .expect("rejected limit update should not replace existing limits");
+    assert_eq!(heap.managed_allocation_count(), 0);
 }
