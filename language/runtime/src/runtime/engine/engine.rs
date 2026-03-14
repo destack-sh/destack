@@ -15,10 +15,10 @@ pub struct EngineOutput {
     pub value: heap::Value,
     /// Execution statistics payload.
     pub stats: EngineStats,
-    /// Number of managed heap cells at end of execution.
-    pub heap_cells: usize,
-    /// Number of raw heap cells at end of execution.
-    pub raw_heap_cells: usize,
+    /// Number of managed allocations at end of execution.
+    pub managed_allocation_count: usize,
+    /// Number of raw allocations at end of execution.
+    pub raw_allocation_count: usize,
 }
 
 /// Execution outcome produced by one engine.
@@ -38,7 +38,7 @@ pub trait Engine: Any {
     /// Run the entrypoint function.
     fn run(
         &mut self,
-        heap: &mut heap::Heap,
+        memory: &mut heap::AgentMemory<'_>,
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome>;
@@ -46,7 +46,7 @@ pub trait Engine: Any {
     /// Run one replayable entrypoint descriptor.
     fn run_replayable_entry(
         &mut self,
-        heap: &mut heap::Heap,
+        memory: &mut heap::AgentMemory<'_>,
         entry: &EntryReference,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome>;
@@ -54,7 +54,7 @@ pub trait Engine: Any {
     /// Resume execution from a continuation.
     fn resume(
         &mut self,
-        heap: &mut heap::Heap,
+        memory: &mut heap::AgentMemory<'_>,
         continuation: EngineContinuation,
         value: heap::Value,
     ) -> RuntimeResult<EngineOutcome>;

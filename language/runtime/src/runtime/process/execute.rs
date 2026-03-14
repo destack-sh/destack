@@ -52,7 +52,10 @@ impl Agent {
 
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
-        let outcome = self.engine.run(&mut self.heap, entry, args)?;
+        let mut shared = world.shared.borrow_mut();
+        let mut memory =
+            heap::AgentMemory::with_shared_limits(&mut self.heap, &mut shared, world.shared_limits);
+        let outcome = self.engine.run(&mut memory, entry, args)?;
 
         // handle the entry outcome
         let output = match outcome {
@@ -101,9 +104,10 @@ impl Agent {
 
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
-        let outcome = self
-            .engine
-            .run_replayable_entry(&mut self.heap, entry, args)?;
+        let mut shared = world.shared.borrow_mut();
+        let mut memory =
+            heap::AgentMemory::with_shared_limits(&mut self.heap, &mut shared, world.shared_limits);
+        let outcome = self.engine.run_replayable_entry(&mut memory, entry, args)?;
 
         // handle the entry outcome
         let output = match outcome {
@@ -429,7 +433,7 @@ impl Agent {
         // run the task runnable
         task.status = TaskStatus::Waiting;
         let _guard = enter_event_loop_scope(EventLoopScope::for_task(task.id));
-        let outcome = self.execute_runnable(task.runnable, task.resume_value)?;
+        let outcome = self.execute_runnable(world, task.runnable, task.resume_value)?;
 
         // handle the task outcome
         match outcome {
@@ -465,7 +469,7 @@ impl Agent {
     /// Execute one microtask to completion.
     fn execute_microtask(
         &mut self,
-        _world: &World,
+        world: &World,
         microtask: Microtask,
         max_microtask_depth: usize,
     ) -> RuntimeResult<()> {
@@ -482,7 +486,8 @@ impl Agent {
         // run the microtask runnable
         let _guard =
             enter_event_loop_scope(EventLoopScope::for_microtask(microtask.id, next_depth));
-        let outcome = self.execute_runnable(microtask.continuation, microtask.resume_value)?;
+        let outcome =
+            self.execute_runnable(world, microtask.continuation, microtask.resume_value)?;
 
         // ensure microtasks run to completion
         match outcome {
@@ -534,10 +539,14 @@ impl Agent {
     /// Resume one engine continuation with one runtime value.
     fn execute_runnable(
         &mut self,
+        world: &World,
         runnable: EngineContinuation,
         resume_value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
-        self.engine.resume(&mut self.heap, runnable, resume_value)
+        let mut shared = world.shared.borrow_mut();
+        let mut memory =
+            heap::AgentMemory::with_shared_limits(&mut self.heap, &mut shared, world.shared_limits);
+        self.engine.resume(&mut memory, runnable, resume_value)
     }
 
     /// Wait for one scheduler wakeup when the loop has pending but not-ready work.

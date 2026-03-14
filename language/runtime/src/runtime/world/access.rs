@@ -14,40 +14,51 @@ pub(crate) enum AccessState {
 }
 
 /// One temporary guard that releases one active world operation on drop.
-pub(crate) struct ActivityGuard<'a> {
+pub(crate) struct WorldActivityGuard<'a> {
     /// The world whose active operation count is currently borrowed.
     world: &'a World,
 }
 
-impl Drop for ActivityGuard<'_> {
+impl Drop for WorldActivityGuard<'_> {
     fn drop(&mut self) {
         self.world.finish_activity();
     }
 }
 
 /// One temporary guard that releases exclusive access when dropped.
-pub(crate) struct ExclusiveAccessGuard<'a> {
+pub(crate) struct WorldExclusiveGuard<'a> {
     /// The world under exclusive access.
     world: &'a World,
 }
 
-impl Drop for ExclusiveAccessGuard<'_> {
+impl Drop for WorldExclusiveGuard<'_> {
     fn drop(&mut self) {
         self.world.release_exclusive_access();
     }
 }
 
+/// One temporary guard that clears structural-mutation reentrancy on drop.
+pub(crate) struct WorldMutationGuard<'a> {
+    /// The world whose mutation state is currently active.
+    world: &'a World,
+}
+
+impl Drop for WorldMutationGuard<'_> {
+    fn drop(&mut self) {
+        self.world.finish_mutation();
+    }
+}
+
 impl World {
     /// Enter one world activity that must not overlap with exclusive world access.
-    pub(crate) fn enter_activity(&self) -> RuntimeResult<ActivityGuard<'_>> {
-        let mut access_state = self.access_state.write();
-        match *access_state {
+    pub(crate) fn enter_activity(&self) -> RuntimeResult<WorldActivityGuard<'_>> {
+        match self.access_state.get() {
             AccessState::Shared { active_operations } => {
-                *access_state = AccessState::Shared {
+                self.access_state.set(AccessState::Shared {
                     active_operations: active_operations.saturating_add(1),
-                };
+                });
 
-                Ok(ActivityGuard { world: self })
+                Ok(WorldActivityGuard { world: self })
             }
             AccessState::Exclusive => Err(RuntimeError::ExclusiveAccessConflict.boxed()),
         }
@@ -55,11 +66,11 @@ impl World {
 
     /// Finish one previously started world activity.
     fn finish_activity(&self) {
-        let mut access_state = self.access_state.write();
-        match *access_state {
+        match self.access_state.get() {
             AccessState::Shared { active_operations } => {
                 let active_operations = active_operations.saturating_sub(1);
-                *access_state = AccessState::Shared { active_operations };
+                self.access_state
+                    .set(AccessState::Shared { active_operations });
             }
             AccessState::Exclusive => {
                 panic!("world activity finished under exclusive access");
@@ -68,14 +79,13 @@ impl World {
     }
 
     /// Acquire one exclusive-access lease for capture or restore operations.
-    pub(crate) fn acquire_exclusive_access(&self) -> RuntimeResult<ExclusiveAccessGuard<'_>> {
-        let mut access_state = self.access_state.write();
-        match *access_state {
+    pub(crate) fn acquire_exclusive_access(&self) -> RuntimeResult<WorldExclusiveGuard<'_>> {
+        match self.access_state.get() {
             AccessState::Shared {
                 active_operations: 0,
             } => {
-                *access_state = AccessState::Exclusive;
-                Ok(ExclusiveAccessGuard { world: self })
+                self.access_state.set(AccessState::Exclusive);
+                Ok(WorldExclusiveGuard { world: self })
             }
             AccessState::Shared { active_operations } => {
                 Err(RuntimeError::ExclusiveAccessActive { active_operations }.boxed())
@@ -86,8 +96,25 @@ impl World {
 
     /// Release one previously acquired exclusive-access lease.
     fn release_exclusive_access(&self) {
-        *self.access_state.write() = AccessState::Shared {
+        self.access_state.set(AccessState::Shared {
             active_operations: 0,
-        };
+        });
+    }
+
+    /// Enter one structural mutation section.
+    pub(crate) fn enter_mutation(&self) -> RuntimeResult<WorldMutationGuard<'_>> {
+        if self.mutation_active.replace(true) {
+            return Err(RuntimeError::Internal {
+                message: "world mutation reentered".to_string(),
+            }
+            .boxed());
+        }
+
+        Ok(WorldMutationGuard { world: self })
+    }
+
+    /// Finish one previously entered structural mutation section.
+    fn finish_mutation(&self) {
+        self.mutation_active.set(false);
     }
 }

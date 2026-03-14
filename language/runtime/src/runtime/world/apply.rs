@@ -73,12 +73,12 @@ impl World {
     pub(crate) fn apply_mutation(&self, mutation: Mutation) -> RuntimeResult<()> {
         // keep structural mutation serialized
         let _activity = self.enter_activity()?;
-        let _mutation_guard = self.mutation_lock.lock();
+        let _mutation = self.enter_mutation()?;
 
         // mutate the topology, policy, and resource state together
-        let mut topology = self.topology.write();
-        let mut policy_state = self.policy.write();
-        let mut resources = self.resources.write();
+        let mut topology = self.topology.borrow_mut();
+        let mut policy_state = self.policy.borrow_mut();
+        let mut resources = self.resources.borrow_mut();
         commit_mutation(&mut topology, &mut policy_state, &mut resources, mutation)
     }
 

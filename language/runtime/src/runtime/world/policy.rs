@@ -19,11 +19,11 @@ impl World {
         default_world: RuntimeWorld,
         default_replay_payload: BindingReplayPayload,
     ) -> RuntimeResult<BindingDispatchDecision> {
-        let topology = self.topology.read();
+        let topology = self.topology.borrow();
         let subject = Self::resolve_rule_subject(&topology, runtime_id, agent_id, mode)?;
 
         // evaluate dispatch decision against active policy
-        let decision = self.policy.read().resolve_binding_dispatch_for_subject(
+        let decision = self.policy.borrow().resolve_binding_dispatch_for_subject(
             subject,
             descriptor,
             engine,
@@ -43,11 +43,11 @@ impl World {
         agent_id: AgentId,
         event: &HookEvent,
     ) -> RuntimeResult<Vec<PolicyDecision>> {
-        let topology = self.topology.read();
+        let topology = self.topology.borrow();
         let subject = Self::resolve_rule_subject(&topology, runtime_id, agent_id, mode)?;
 
         // evaluate one policy event with world-randomness context
-        let mut policy = self.policy.write();
+        let mut policy = self.policy.borrow_mut();
         let decisions = policy.on_event_for_subject(event, subject, &self.random);
 
         Ok(decisions)

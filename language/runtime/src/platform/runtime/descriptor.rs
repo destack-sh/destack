@@ -330,7 +330,7 @@ impl RuntimeDescriptorCodec {
         })?;
 
         Ok(HeapDescriptor {
-            heap_bytes: agent.heap_image.heap_bytes(),
+            heap_bytes: agent.heap_image.local_allocation_bytes(),
             page_count,
             shared_page_count,
             gc_cycles: agent.heap_image.managed_gc_state().cycles,

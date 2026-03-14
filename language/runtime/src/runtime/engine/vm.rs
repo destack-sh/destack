@@ -12,7 +12,7 @@ impl Engine for Isolate {
     /// Run a VM entrypoint by name.
     fn run(
         &mut self,
-        heap: &mut heap::Heap,
+        memory: &mut heap::AgentMemory<'_>,
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -24,7 +24,7 @@ impl Engine for Isolate {
             .boxed());
         };
         let outcome = self
-            .run_function_by_name_yielding(heap, name, args)
+            .run_function_by_name_yielding(memory, name, args)
             .map_err(Box::<RuntimeError>::from)?;
         Ok(map_vm_outcome(outcome))
     }
@@ -32,7 +32,7 @@ impl Engine for Isolate {
     /// Run one replayable VM entrypoint by name.
     fn run_replayable_entry(
         &mut self,
-        heap: &mut heap::Heap,
+        memory: &mut heap::AgentMemory<'_>,
         entry: &EntryReference,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -46,7 +46,7 @@ impl Engine for Isolate {
             .boxed());
         };
         let outcome = self
-            .run_function_by_name_yielding(heap, name, args)
+            .run_function_by_name_yielding(memory, name, args)
             .map_err(Box::<RuntimeError>::from)?;
         Ok(map_vm_outcome(outcome))
     }
@@ -54,7 +54,7 @@ impl Engine for Isolate {
     /// Resume a VM continuation.
     fn resume(
         &mut self,
-        heap: &mut heap::Heap,
+        memory: &mut heap::AgentMemory<'_>,
         continuation: EngineContinuation,
         value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
@@ -66,7 +66,7 @@ impl Engine for Isolate {
             .boxed());
         };
         let outcome = self
-            .resume(heap, continuation, value)
+            .resume(memory, continuation, value)
             .map_err(Box::<RuntimeError>::from)?;
         Ok(map_vm_outcome(outcome))
     }
@@ -169,7 +169,7 @@ fn map_vm_output(output: vm::ExecutionOutput) -> EngineOutput {
             loads: output.statistics.loads(),
             stores: output.statistics.stores(),
         },
-        heap_cells: output.heap_cells,
-        raw_heap_cells: output.raw_heap_cells,
+        managed_allocation_count: output.managed_allocation_count,
+        raw_allocation_count: output.raw_allocation_count,
     }
 }

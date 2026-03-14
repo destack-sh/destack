@@ -34,6 +34,8 @@ pub(crate) struct TestRuntime {
     vm_isolate: std::cell::RefCell<vm::Isolate>,
     /// Heap backing the VM isolate in tests.
     vm_heap: std::cell::RefCell<vm::Heap>,
+    /// Shared memory backing the VM isolate in tests.
+    vm_shared: std::cell::RefCell<vm::SharedSpace>,
 }
 
 impl TestRuntime {
@@ -97,6 +99,7 @@ impl TestRuntime {
         let strings = LocalStringPool::new().into_immutable();
         let vm_isolate = vm::Isolate::build(tree, strings).expect("test vm isolate should build");
         let vm_heap = vm::Heap::default();
+        let vm_shared = vm::SharedSpace::default();
 
         Self {
             world,
@@ -104,6 +107,7 @@ impl TestRuntime {
             host,
             vm_isolate: std::cell::RefCell::new(vm_isolate),
             vm_heap: std::cell::RefCell::new(vm_heap),
+            vm_shared: std::cell::RefCell::new(vm_shared),
         }
     }
 
@@ -165,7 +169,9 @@ impl TestRuntime {
         // run the VM call with a fresh runtime call context
         let mut isolate = self.vm_isolate.borrow_mut();
         let mut heap = self.vm_heap.borrow_mut();
-        isolate.with_runtime_context(&mut heap, |context| {
+        let mut shared = self.vm_shared.borrow_mut();
+        let mut memory = vm::MemoryContext::new(&mut heap, &mut shared);
+        isolate.with_runtime_context(&mut memory, |context| {
             let call_context = BindingCallContext::new(
                 &self.agent,
                 self.agent.event_loop.as_ref(),

@@ -522,6 +522,18 @@ impl From<heap::HeapLimitError> for Box<RuntimeError> {
     }
 }
 
+impl From<heap::SharedLimitError> for Box<RuntimeError> {
+    /// Convert one shared-memory limit violation into one runtime error.
+    fn from(error: heap::SharedLimitError) -> Self {
+        RuntimeError::HeapLimitExceeded {
+            scope: "shared".to_string(),
+            used_bytes: error.used_bytes,
+            max_bytes: error.max_bytes,
+        }
+        .boxed()
+    }
+}
+
 impl From<PlatformError> for RuntimeError {
     fn from(error: PlatformError) -> Self {
         RuntimeError::Platform(Box::new(error))

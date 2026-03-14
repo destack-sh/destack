@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use destack_core::{Capture, CaptureMode};
 use destack_workspace::RandomOptions;
 
@@ -229,7 +229,7 @@ impl Random {
                 &snapshot.scoped_streams,
             )
             .map_err(|error| {
-                crate::diagnostic::RuntimeError::Internal {
+                RuntimeError::Internal {
                     message: format!("random snapshot restore failed: {error:?}"),
                 }
                 .boxed()
@@ -241,7 +241,7 @@ impl Random {
 
 impl Capture for Random {
     type Image = RandomImage;
-    type Error = Box<crate::diagnostic::RuntimeError>;
+    type Error = Box<RuntimeError>;
     type CaptureContext<'a> = ();
     type RestoreContext<'a> = ();
 

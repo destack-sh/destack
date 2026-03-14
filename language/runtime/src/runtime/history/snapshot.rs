@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 use destack_core::{CaptureMode, fnv1a_128};
+use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -103,6 +103,8 @@ pub struct Image {
     pub(crate) clock: ClockImage,
     /// Captured world random state.
     pub(crate) random: RandomImage,
+    /// Captured world shared-memory state.
+    pub(crate) shared: heap::SharedImage,
     /// Captured runtime metadata keyed by runtime id.
     pub(crate) runtimes: BTreeMap<RuntimeId, RuntimeImage>,
     /// Captured agent metadata keyed by agent id.
@@ -371,7 +373,7 @@ impl World {
 
     /// Return metadata for one stored image.
     pub fn image_info(&self, image_id: ImageId) -> RuntimeResult<Image> {
-        let lineage = self.lineage.read();
+        let lineage = self.lineage.borrow();
         let image = lineage.images.get(&image_id).ok_or_else(|| {
             RuntimeError::ImageNotFound {
                 image_id: image_id.get(),
@@ -384,13 +386,13 @@ impl World {
 
     /// Return identifiers for all stored images in stable order.
     pub fn image_ids(&self) -> Vec<ImageId> {
-        self.lineage.read().images.keys().copied().collect()
+        self.lineage.borrow().images.keys().copied().collect()
     }
 
     /// Create one serialized snapshot from one stored image.
     pub fn snapshot(&self, image_id: ImageId) -> RuntimeResult<Snapshot> {
         let (revision_id, lineage_snapshot) = {
-            let lineage = self.lineage.read();
+            let lineage = self.lineage.borrow();
             lineage.images.get(&image_id).ok_or_else(|| {
                 RuntimeError::ImageNotFound {
                     image_id: image_id.get(),
@@ -422,7 +424,7 @@ impl World {
     ) -> RuntimeResult<()> {
         // resolve the owning revision first
         let (revision_id, image, trace_image) = {
-            let lineage = self.lineage.read();
+            let lineage = self.lineage.borrow();
             let revision_id = lineage.revision_id_for_image_id(image_id).ok_or_else(|| {
                 RuntimeError::ImageNotFound {
                     image_id: image_id.get(),
@@ -440,7 +442,7 @@ impl World {
     /// Create one serialized snapshot from one specific revision.
     pub fn snapshot_revision(&self, revision_id: RevisionId) -> RuntimeResult<Snapshot> {
         let revision = {
-            let lineage = self.lineage.read();
+            let lineage = self.lineage.borrow();
             lineage
                 .revisions
                 .get(&revision_id)
@@ -454,7 +456,7 @@ impl World {
         };
 
         {
-            let lineage = self.lineage.read();
+            let lineage = self.lineage.borrow();
             if lineage.images.contains_key(&revision.image_id) {
                 return self.snapshot(revision.image_id);
             }
@@ -462,11 +464,11 @@ impl World {
 
         let _exclusive_access = self.acquire_exclusive_access()?;
         let plan = {
-            let lineage = self.lineage.read();
+            let lineage = self.lineage.borrow();
             lineage.resolve_revision_restore_plan(revision_id)?
         };
         let image = self.materialize_revision_image_from_plan(&plan, None)?;
-        let mut lineage_snapshot = self.lineage.read().snapshot();
+        let mut lineage_snapshot = self.lineage.borrow().snapshot();
         lineage_snapshot.images.insert(revision.image_id, image);
 
         Ok(Snapshot::new(
@@ -479,7 +481,7 @@ impl World {
     /// Create one serialized snapshot from one stored checkpoint.
     pub fn snapshot_checkpoint(&self, checkpoint_id: CheckpointId) -> RuntimeResult<Snapshot> {
         let revision_id = {
-            let lineage = self.lineage.read();
+            let lineage = self.lineage.borrow();
             let checkpoint = lineage.checkpoints.get(&checkpoint_id).ok_or_else(|| {
                 RuntimeError::CheckpointNotFound {
                     checkpoint_id: checkpoint_id.get(),
@@ -532,9 +534,9 @@ impl World {
         }
 
         let _exclusive_access = self.acquire_exclusive_access()?;
-        *self.lineage.write() = Lineage::from_snapshot(snapshot.lineage.clone());
+        *self.lineage.borrow_mut() = Lineage::from_snapshot(snapshot.lineage.clone());
         let (image, trace_image) = {
-            let lineage = self.lineage.read();
+            let lineage = self.lineage.borrow();
             let backing = lineage.resolve_revision_backing(snapshot.revision_id)?;
 
             (backing.image, backing.trace_image)
@@ -546,7 +548,7 @@ impl World {
     /// Capture one materialized world image while the world is under exclusive access.
     pub(crate) fn capture_image(&self, mode: CaptureMode) -> RuntimeResult<Image> {
         // runtime and agent state
-        let mut runtimes = self.runtimes.write();
+        let mut runtimes = self.runtimes.borrow_mut();
         let mut runtime_images = BTreeMap::new();
         let mut agent_images = BTreeMap::new();
 
@@ -558,14 +560,15 @@ impl World {
 
         Ok(Image {
             id: ImageId::new(0),
-            next_runtime_id: self.next_runtime_id.load(Ordering::SeqCst),
-            next_agent_id: self.next_agent_id.load(Ordering::SeqCst),
-            policy: self.policy.read().clone(),
-            topology: self.topology.read().clone(),
-            resources: self.resources.read().clone(),
-            simulation: self.simulation.read().clone(),
+            next_runtime_id: self.next_runtime_id.get(),
+            next_agent_id: self.next_agent_id.get(),
+            policy: self.policy.borrow().clone(),
+            topology: self.topology.borrow().clone(),
+            resources: self.resources.borrow().clone(),
+            simulation: self.simulation.borrow().clone(),
             clock: self.clock.snapshot(),
             random: self.random.snapshot(),
+            shared: self.shared.borrow_mut().image(None),
             runtimes: runtime_images,
             agents: agent_images,
         })
@@ -578,15 +581,14 @@ impl World {
         rebind_context: Option<&RebindContext>,
     ) -> RuntimeResult<()> {
         // world-owned state
-        self.next_runtime_id
-            .store(image.next_runtime_id, Ordering::SeqCst);
-        self.next_agent_id
-            .store(image.next_agent_id, Ordering::SeqCst);
+        self.next_runtime_id.set(image.next_runtime_id);
+        self.next_agent_id.set(image.next_agent_id);
 
-        *self.policy.write() = image.policy.clone();
-        *self.topology.write() = image.topology.clone();
-        *self.resources.write() = image.resources.clone();
-        *self.simulation.write() = image.simulation.clone();
+        *self.policy.borrow_mut() = image.policy.clone();
+        *self.topology.borrow_mut() = image.topology.clone();
+        *self.resources.borrow_mut() = image.resources.clone();
+        *self.simulation.borrow_mut() = image.simulation.clone();
+        *self.shared.borrow_mut() = heap::SharedSpace::from_image(&image.shared);
 
         self.clock.restore_snapshot(&image.clock);
         self.random.restore_snapshot(&image.random)?;
@@ -619,7 +621,7 @@ impl World {
             .boxed());
         }
 
-        *self.runtimes.write() = restored_runtimes;
+        *self.runtimes.borrow_mut() = restored_runtimes;
 
         Ok(())
     }
