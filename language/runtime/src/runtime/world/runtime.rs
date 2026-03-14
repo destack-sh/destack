@@ -54,7 +54,7 @@ impl World {
             None
         };
 
-        let mut runtimes = self.runtimes.write();
+        let mut runtimes = self.runtimes.borrow_mut();
         if runtimes.insert(runtime_id, Box::new(runtime)).is_some() {
             return Err(RuntimeError::RuntimeAlreadyExists {
                 runtime_id: runtime_id.0,
@@ -102,7 +102,7 @@ impl World {
         let _activity = self.enter_activity()?;
 
         // runtime lookup
-        let mut runtimes = self.runtimes.write();
+        let mut runtimes = self.runtimes.borrow_mut();
         let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
@@ -157,7 +157,7 @@ impl World {
 
     /// Return the stored runtime ids in stable order.
     pub fn runtime_ids(&self) -> Vec<RuntimeId> {
-        self.runtimes.read().keys().copied().collect()
+        self.runtimes.borrow().keys().copied().collect()
     }
 
     /// Run one closure with one stored runtime immutably borrowed.
@@ -166,7 +166,7 @@ impl World {
         runtime_id: RuntimeId,
         callback: impl FnOnce(&Runtime) -> RuntimeResult<R>,
     ) -> RuntimeResult<R> {
-        let runtimes = self.runtimes.read();
+        let runtimes = self.runtimes.borrow();
         let runtime = runtimes.get(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
@@ -184,7 +184,7 @@ impl World {
         runtime_id: RuntimeId,
         callback: impl FnOnce(&mut Runtime) -> RuntimeResult<R>,
     ) -> RuntimeResult<R> {
-        let mut runtimes = self.runtimes.write();
+        let mut runtimes = self.runtimes.borrow_mut();
         let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
@@ -203,7 +203,7 @@ impl World {
         // detach the runtime first
         let _activity = self.enter_activity()?;
         let runtime = {
-            let mut runtimes = self.runtimes.write();
+            let mut runtimes = self.runtimes.borrow_mut();
             runtimes.remove(&runtime_id).ok_or_else(|| {
                 RuntimeError::RuntimeNotFound {
                     runtime_id: runtime_id.0,
@@ -229,7 +229,7 @@ impl World {
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutput> {
         let _activity = self.enter_activity()?;
-        let mut runtimes = self.runtimes.write();
+        let mut runtimes = self.runtimes.borrow_mut();
         let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
@@ -248,7 +248,7 @@ impl World {
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutput> {
         let _activity = self.enter_activity()?;
-        let mut runtimes = self.runtimes.write();
+        let mut runtimes = self.runtimes.borrow_mut();
         let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
@@ -270,7 +270,7 @@ impl World {
         let runtime_id = runtime.runtime_id();
 
         let _activity = self.enter_activity()?;
-        let mut runtimes = self.runtimes.write();
+        let mut runtimes = self.runtimes.borrow_mut();
         if runtimes.insert(runtime_id, Box::new(runtime)).is_some() {
             return Err(RuntimeError::RuntimeAlreadyExists {
                 runtime_id: runtime_id.0,
@@ -293,7 +293,7 @@ impl World {
     ) -> RuntimeResult<()> {
         let _activity = self.enter_activity()?;
 
-        let mut topology = self.topology.write();
+        let mut topology = self.topology.borrow_mut();
         topology
             .add_runtime(
                 runtime_id,
@@ -323,7 +323,7 @@ impl World {
     ) -> RuntimeResult<()> {
         let _activity = self.enter_activity()?;
 
-        let mut topology = self.topology.write();
+        let mut topology = self.topology.borrow_mut();
         topology
             .add_agent(runtime_id, agent_id, agent_name, agent_labels)
             .map_err(|message| {
@@ -343,7 +343,7 @@ impl World {
         rebind_context: Option<&RebindContext>,
     ) -> RuntimeResult<()> {
         let platform_args = {
-            let runtimes = self.runtimes.read();
+            let runtimes = self.runtimes.borrow();
             let runtime = runtimes.get(&agent_image.runtime_id).ok_or_else(|| {
                 RuntimeError::RuntimeNotFound {
                     runtime_id: agent_image.runtime_id.0,
@@ -357,7 +357,7 @@ impl World {
         let agent = Agent::from_image(self, platform_args, agent_image, rebind_context)?;
 
         let _activity = self.enter_activity()?;
-        let mut runtimes = self.runtimes.write();
+        let mut runtimes = self.runtimes.borrow_mut();
         let runtime = runtimes.get_mut(&agent_image.runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
                 runtime_id: agent_image.runtime_id.0,

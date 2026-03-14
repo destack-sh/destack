@@ -1,6 +1,6 @@
+use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::bindings::BindingReplayPayload;
@@ -11,11 +11,11 @@ use crate::runtime::trace::{
     Outcome, Trace, TraceCheckpointIndex, TraceHeader, TraceImage, TraceRecord, TraceSequence,
 };
 use destack_core::CaptureMode;
+use destack_heap as heap;
 use destack_workspace::{
     ExecutionMode, RandomMode, RandomOptions, ReplayOptions, ReplayPayloadMode, RuntimeOptions,
     TimeMode, TimeOptions,
 };
-use parking_lot::{Mutex, RwLock};
 
 use serde::{Deserialize, Serialize};
 
@@ -91,7 +91,7 @@ impl World {
     /// Restore the world to one stored checkpoint.
     pub fn rewind(&self, checkpoint_id: CheckpointId) -> RuntimeResult<()> {
         let revision_id = {
-            let lineage = self.lineage.read();
+            let lineage = self.lineage.borrow();
             let checkpoint = lineage.checkpoints.get(&checkpoint_id).ok_or_else(|| {
                 RuntimeError::CheckpointNotFound {
                     checkpoint_id: checkpoint_id.get(),
@@ -116,7 +116,7 @@ impl World {
 
     /// Return metadata for one stored checkpoint.
     pub fn checkpoint_info(&self, checkpoint_id: CheckpointId) -> RuntimeResult<Checkpoint> {
-        let lineage = self.lineage.read();
+        let lineage = self.lineage.borrow();
         let checkpoint = lineage.checkpoints.get(&checkpoint_id).ok_or_else(|| {
             RuntimeError::CheckpointNotFound {
                 checkpoint_id: checkpoint_id.get(),
@@ -129,7 +129,7 @@ impl World {
 
     /// Return identifiers for all stored checkpoints in stable order.
     pub fn checkpoint_ids(&self) -> Vec<CheckpointId> {
-        self.lineage.read().checkpoints.keys().copied().collect()
+        self.lineage.borrow().checkpoints.keys().copied().collect()
     }
 
     /// Replace labels for one specific checkpoint.
@@ -138,7 +138,7 @@ impl World {
         checkpoint_id: CheckpointId,
         labels: BTreeMap<String, String>,
     ) -> RuntimeResult<()> {
-        let mut lineage = self.lineage.write();
+        let mut lineage = self.lineage.borrow_mut();
         let checkpoint = lineage.checkpoints.get_mut(&checkpoint_id).ok_or_else(|| {
             RuntimeError::CheckpointNotFound {
                 checkpoint_id: checkpoint_id.get(),
@@ -153,7 +153,7 @@ impl World {
     /// Restore this branch to one specific revision.
     pub fn rewind_revision(&self, revision_id: RevisionId) -> RuntimeResult<()> {
         let plan = {
-            let lineage = self.lineage.read();
+            let lineage = self.lineage.borrow();
             lineage.resolve_revision_restore_plan(revision_id)?
         };
 
@@ -173,7 +173,7 @@ impl World {
         }
 
         let plan = {
-            let lineage = self.lineage.read();
+            let lineage = self.lineage.borrow();
             lineage.resolve_moment_restore_plan(moment)?
         };
 
@@ -210,7 +210,7 @@ impl World {
             || checkpoint_name.is_some()
             || !matches!(mode, CaptureMode::Suspend);
         let committed = {
-            let mut lineage = self.lineage.write();
+            let mut lineage = self.lineage.borrow_mut();
             lineage.commit_revision(
                 self.branch_id,
                 image,
@@ -228,7 +228,7 @@ impl World {
             .drain_through(self.branch_id, committed.revision.sequence);
 
         if !observations.is_empty() {
-            let mut lineage = self.lineage.write();
+            let mut lineage = self.lineage.borrow_mut();
             lineage.record_observations(self.branch_id, observations);
         }
 
@@ -257,7 +257,7 @@ impl World {
     /// Fork one child world from one stored checkpoint.
     fn fork_inner(&self, checkpoint_id: CheckpointId, name: String) -> RuntimeResult<Arc<World>> {
         let revision_id = {
-            let lineage = self.lineage.read();
+            let lineage = self.lineage.borrow();
             let checkpoint = lineage.checkpoints.get(&checkpoint_id).ok_or_else(|| {
                 RuntimeError::CheckpointNotFound {
                     checkpoint_id: checkpoint_id.get(),
@@ -283,7 +283,7 @@ impl World {
         self.trace.restore_image(trace_image)?;
         self.trace.set_branch_id(self.branch_id);
 
-        let mut lineage = self.lineage.write();
+        let mut lineage = self.lineage.borrow_mut();
         lineage.set_branch_head_revision_id(self.branch_id, revision_id);
 
         Ok(())
@@ -298,7 +298,7 @@ impl World {
     ) -> RuntimeResult<Arc<World>> {
         // load the revision backing and allocate the child branch
         let (child_branch, plan) = {
-            let mut lineage = self.lineage.write();
+            let mut lineage = self.lineage.borrow_mut();
             let plan = lineage.resolve_revision_restore_plan(revision_id)?;
             let child_branch = lineage.fork_branch(plan.target_revision.id, name)?;
 
@@ -437,7 +437,7 @@ impl World {
     /// Materialize one exact image for one committed moment.
     pub(crate) fn image_at_committed_moment(&self, moment: Moment) -> RuntimeResult<Image> {
         let plan = {
-            let lineage = self.lineage.read();
+            let lineage = self.lineage.borrow();
             lineage.resolve_moment_restore_plan(moment)?
         };
 
@@ -541,24 +541,28 @@ impl World {
         // fresh child shell: restore_image will install policy, topology, resources, simulation, ids, and runtimes
         Arc::new(World {
             branch_id,
-            runtimes: RwLock::new(Default::default()),
-            simulation: RwLock::new(Default::default()),
+            runtimes: RefCell::new(Default::default()),
+            simulation: RefCell::new(Default::default()),
             time_mode: self.time_mode,
             random_mode: self.random_mode,
             clock,
             random,
             trace: Trace::new(trace_mode, trace_header),
             observations: ObservationLog::default(),
-            policy: RwLock::new(PolicyState::new(self.policy())),
-            mutation_lock: Mutex::new(()),
-            next_runtime_id: AtomicU64::new(0),
-            next_agent_id: AtomicU64::new(0),
+            policy: RefCell::new(PolicyState::new(self.policy())),
+            mutation_active: Cell::new(false),
+            next_runtime_id: Cell::new(0),
+            next_agent_id: Cell::new(0),
             lineage: self.lineage.clone(),
-            access_state: RwLock::new(AccessState::Shared {
+            access_state: Cell::new(AccessState::Shared {
                 active_operations: 0,
             }),
-            topology: RwLock::new(Default::default()),
-            resources: RwLock::new(Default::default()),
+            topology: RefCell::new(Default::default()),
+            resources: RefCell::new(Default::default()),
+            shared: RefCell::new(heap::SharedSpace::with_chunk_bytes(
+                self.shared.borrow().chunk_bytes(),
+            )),
+            shared_limits: self.shared_limits,
         })
     }
 }

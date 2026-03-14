@@ -6,7 +6,7 @@ use destack_mir::NodeTree;
 use destack_workspace::{RuntimeOptions, SchedulerOptions};
 use {destack_heap as heap, destack_vm as vm};
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{Host, HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleState};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
@@ -109,7 +109,7 @@ impl Engine for TestEngine {
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
-        _heap: &mut heap::Heap,
+        _memory: &mut heap::AgentMemory<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -121,7 +121,7 @@ impl Engine for TestEngine {
     /// Run one replayable entrypoint without yielding.
     fn run_replayable_entry(
         &mut self,
-        _heap: &mut heap::Heap,
+        _memory: &mut heap::AgentMemory<'_>,
         _entry: &EntryReference,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -133,7 +133,7 @@ impl Engine for TestEngine {
     /// Resume one continuation and yield once before completion.
     fn resume(
         &mut self,
-        _heap: &mut heap::Heap,
+        _memory: &mut heap::AgentMemory<'_>,
         _continuation: EngineContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
@@ -155,7 +155,7 @@ impl Engine for TestEngine {
 
     /// Capture one immutable engine image for tests.
     fn image(&mut self) -> RuntimeResult<EngineImage> {
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "test engine images are not implemented".to_string(),
         }
         .boxed())
@@ -165,7 +165,7 @@ impl Engine for TestEngine {
     fn restore_image(&mut self, _heap: &mut heap::Heap, image: &EngineImage) -> RuntimeResult<()> {
         let _ = image;
 
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "test engine image restore is not implemented".to_string(),
         }
         .boxed())
@@ -180,7 +180,7 @@ impl Engine for TestEngine {
             EngineContinuation::Native(continuation) => {
                 Ok(EngineContinuationImage::Native(*continuation))
             }
-            EngineContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+            EngineContinuation::Vm(_) => Err(RuntimeError::Internal {
                 message: "test engine vm continuation images are not implemented".to_string(),
             }
             .boxed()),
@@ -196,7 +196,7 @@ impl Engine for TestEngine {
             EngineContinuationImage::Native(continuation) => {
                 Ok(EngineContinuation::Native(*continuation))
             }
-            EngineContinuationImage::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+            EngineContinuationImage::Vm(_) => Err(RuntimeError::Internal {
                 message: "test engine vm continuation restore is not implemented".to_string(),
             }
             .boxed()),
@@ -205,7 +205,7 @@ impl Engine for TestEngine {
 
     /// Capture one serialized engine snapshot for tests.
     fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "test engine snapshots are not implemented".to_string(),
         }
         .boxed())
@@ -219,7 +219,7 @@ impl Engine for TestEngine {
     ) -> RuntimeResult<()> {
         let _ = snapshot;
 
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "test engine snapshot restore is not implemented".to_string(),
         }
         .boxed())
@@ -230,11 +230,11 @@ impl Engine for AllocatingEngine {
     /// Run one entrypoint after allocating into the heap.
     fn run(
         &mut self,
-        heap: &mut heap::Heap,
+        memory: &mut heap::AgentMemory<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
-        self.allocate(heap)?;
+        self.allocate(memory.heap())?;
 
         Ok(EngineOutcome::Completed {
             output: void_output(),
@@ -244,11 +244,11 @@ impl Engine for AllocatingEngine {
     /// Run one replayable entrypoint after allocating into the heap.
     fn run_replayable_entry(
         &mut self,
-        heap: &mut heap::Heap,
+        memory: &mut heap::AgentMemory<'_>,
         _entry: &EntryReference,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
-        self.allocate(heap)?;
+        self.allocate(memory.heap())?;
 
         Ok(EngineOutcome::Completed {
             output: void_output(),
@@ -258,11 +258,11 @@ impl Engine for AllocatingEngine {
     /// Resume one continuation after allocating into the heap.
     fn resume(
         &mut self,
-        heap: &mut heap::Heap,
+        memory: &mut heap::AgentMemory<'_>,
         _continuation: EngineContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
-        self.allocate(heap)?;
+        self.allocate(memory.heap())?;
 
         Ok(EngineOutcome::Completed {
             output: void_output(),
@@ -271,7 +271,7 @@ impl Engine for AllocatingEngine {
 
     /// Capture one immutable engine image for tests.
     fn image(&mut self) -> RuntimeResult<EngineImage> {
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "allocating test engine images are not implemented".to_string(),
         }
         .boxed())
@@ -281,7 +281,7 @@ impl Engine for AllocatingEngine {
     fn restore_image(&mut self, _heap: &mut heap::Heap, image: &EngineImage) -> RuntimeResult<()> {
         let _ = image;
 
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "allocating test engine image restore is not implemented".to_string(),
         }
         .boxed())
@@ -296,7 +296,7 @@ impl Engine for AllocatingEngine {
             EngineContinuation::Native(continuation) => {
                 Ok(EngineContinuationImage::Native(*continuation))
             }
-            EngineContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+            EngineContinuation::Vm(_) => Err(RuntimeError::Internal {
                 message: "allocating test engine vm continuation images are not implemented"
                     .to_string(),
             }
@@ -313,7 +313,7 @@ impl Engine for AllocatingEngine {
             EngineContinuationImage::Native(continuation) => {
                 Ok(EngineContinuation::Native(*continuation))
             }
-            EngineContinuationImage::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+            EngineContinuationImage::Vm(_) => Err(RuntimeError::Internal {
                 message: "allocating test engine vm continuation restore is not implemented"
                     .to_string(),
             }
@@ -323,7 +323,7 @@ impl Engine for AllocatingEngine {
 
     /// Capture one serialized engine snapshot for tests.
     fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "allocating test engine snapshots are not implemented".to_string(),
         }
         .boxed())
@@ -337,7 +337,7 @@ impl Engine for AllocatingEngine {
     ) -> RuntimeResult<()> {
         let _ = snapshot;
 
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "allocating test engine snapshot restore is not implemented".to_string(),
         }
         .boxed())
@@ -351,7 +351,7 @@ impl AllocatingEngine {
         if self.managed_values > 0 {
             let mut values = Vec::with_capacity(self.managed_values);
             values.resize(self.managed_values, heap::Value::int64(7));
-            let _ = heap.allocate_managed_values(values)?;
+            let _ = heap.allocate_packed_values(values)?;
         }
 
         // raw payload
@@ -468,7 +468,7 @@ impl TestWorld {
     }
 
     /// Allocate one managed heap value in the primary agent VM isolate.
-    pub(super) fn allocate_vm_managed_value(&self, runtime_id: RuntimeId, value: heap::Value) {
+    pub(super) fn allocate_vm_packed_value(&self, runtime_id: RuntimeId, value: heap::Value) {
         self.world
             .with_runtime_mut(runtime_id, |runtime| {
                 let agent_id = runtime.primary_agent_id();
@@ -488,7 +488,7 @@ impl TestWorld {
 
     /// Allocate one managed heap value in the primary agent VM isolate.
     pub(super) fn allocate_vm_heap_allocation(&self, runtime_id: RuntimeId) {
-        self.allocate_vm_managed_value(runtime_id, heap::Value::int32(7));
+        self.allocate_vm_packed_value(runtime_id, heap::Value::int32(7));
     }
 
     /// Return the managed heap allocation count for the primary agent VM isolate.
@@ -505,7 +505,7 @@ impl TestWorld {
             .expect("vm heap inspection should succeed")
     }
 
-    /// Allocate one raw span in the primary agent heap.
+    /// Allocate one raw run or extent in the primary agent heap.
     pub(super) fn allocate_vm_raw_bytes(
         &self,
         runtime_id: RuntimeId,
@@ -559,7 +559,7 @@ impl TestWorld {
                     .expect("runtime should keep its primary agent");
 
                 agent.heap.image().map_err(|error| {
-                    crate::diagnostic::RuntimeError::Internal {
+                    RuntimeError::Internal {
                         message: format!("heap capture failed during world test: {error}"),
                     }
                     .boxed()
@@ -1132,8 +1132,8 @@ fn void_output() -> EngineOutput {
     EngineOutput {
         value: heap::Value::VOID,
         stats: Default::default(),
-        heap_cells: 0,
-        raw_heap_cells: 0,
+        managed_allocation_count: 0,
+        raw_allocation_count: 0,
     }
 }
 

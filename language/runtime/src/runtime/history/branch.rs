@@ -58,7 +58,7 @@ impl World {
 
     /// Return the active branch metadata for this world.
     pub fn branch(&self) -> Branch {
-        let lineage = self.lineage.read();
+        let lineage = self.lineage.borrow();
         let branch = lineage
             .branches
             .get(&self.branch_id)
@@ -69,7 +69,7 @@ impl World {
 
     /// Return metadata for one specific branch.
     pub fn branch_info(&self, branch_id: BranchId) -> RuntimeResult<Branch> {
-        let lineage = self.lineage.read();
+        let lineage = self.lineage.borrow();
         let branch = lineage.branches.get(&branch_id).ok_or_else(|| {
             RuntimeError::BranchNotFound {
                 branch_id: branch_id.get(),
@@ -82,7 +82,7 @@ impl World {
 
     /// Return identifiers for all known branches in stable order.
     pub fn branch_ids(&self) -> Vec<BranchId> {
-        self.lineage.read().branches.keys().copied().collect()
+        self.lineage.borrow().branches.keys().copied().collect()
     }
 
     /// Replace labels for one specific branch.
@@ -91,7 +91,7 @@ impl World {
         branch_id: BranchId,
         labels: BTreeMap<String, String>,
     ) -> RuntimeResult<()> {
-        let mut lineage = self.lineage.write();
+        let mut lineage = self.lineage.borrow_mut();
         let branch = lineage.branches.get_mut(&branch_id).ok_or_else(|| {
             RuntimeError::BranchNotFound {
                 branch_id: branch_id.get(),

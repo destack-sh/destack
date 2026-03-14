@@ -4,7 +4,7 @@ use destack_core::{Capture, CaptureMode};
 use destack_heap as heap;
 use destack_workspace::{RuntimeOptions, SchedulerOptions, TimeMode, TimeOptions};
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{Host, HostEventKind, HostLifecycleState};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
@@ -39,7 +39,7 @@ impl Engine for CompleteEngine {
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
-        _heap: &mut heap::Heap,
+        _memory: &mut heap::AgentMemory<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -47,8 +47,8 @@ impl Engine for CompleteEngine {
             output: EngineOutput {
                 value: heap::Value::VOID,
                 stats: Default::default(),
-                heap_cells: 0,
-                raw_heap_cells: 0,
+                managed_allocation_count: 0,
+                raw_allocation_count: 0,
             },
         })
     }
@@ -56,7 +56,7 @@ impl Engine for CompleteEngine {
     /// Run one replayable entrypoint without yielding.
     fn run_replayable_entry(
         &mut self,
-        _heap: &mut heap::Heap,
+        _memory: &mut heap::AgentMemory<'_>,
         _entry: &EntryReference,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -64,8 +64,8 @@ impl Engine for CompleteEngine {
             output: EngineOutput {
                 value: heap::Value::VOID,
                 stats: Default::default(),
-                heap_cells: 0,
-                raw_heap_cells: 0,
+                managed_allocation_count: 0,
+                raw_allocation_count: 0,
             },
         })
     }
@@ -73,7 +73,7 @@ impl Engine for CompleteEngine {
     /// Resume one continuation and complete immediately.
     fn resume(
         &mut self,
-        _heap: &mut heap::Heap,
+        _memory: &mut heap::AgentMemory<'_>,
         continuation: EngineContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
@@ -87,15 +87,15 @@ impl Engine for CompleteEngine {
             output: EngineOutput {
                 value: heap::Value::VOID,
                 stats: Default::default(),
-                heap_cells: 0,
-                raw_heap_cells: 0,
+                managed_allocation_count: 0,
+                raw_allocation_count: 0,
             },
         })
     }
 
     /// Capture one immutable engine image for scheduler tests.
     fn image(&mut self) -> RuntimeResult<EngineImage> {
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "scheduler test engine images are not implemented".to_string(),
         }
         .boxed())
@@ -105,7 +105,7 @@ impl Engine for CompleteEngine {
     fn restore_image(&mut self, _heap: &mut heap::Heap, image: &EngineImage) -> RuntimeResult<()> {
         let _ = image;
 
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "scheduler test engine image restore is not implemented".to_string(),
         }
         .boxed())
@@ -120,7 +120,7 @@ impl Engine for CompleteEngine {
             EngineContinuation::Native(continuation) => {
                 Ok(EngineContinuationImage::Native(*continuation))
             }
-            EngineContinuation::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+            EngineContinuation::Vm(_) => Err(RuntimeError::Internal {
                 message: "scheduler test engine vm continuation images are not implemented"
                     .to_string(),
             }
@@ -137,7 +137,7 @@ impl Engine for CompleteEngine {
             EngineContinuationImage::Native(continuation) => {
                 Ok(EngineContinuation::Native(*continuation))
             }
-            EngineContinuationImage::Vm(_) => Err(crate::diagnostic::RuntimeError::Internal {
+            EngineContinuationImage::Vm(_) => Err(RuntimeError::Internal {
                 message: "scheduler test engine vm continuation restore is not implemented"
                     .to_string(),
             }
@@ -147,7 +147,7 @@ impl Engine for CompleteEngine {
 
     /// Capture one serialized engine snapshot for scheduler tests.
     fn snapshot(&mut self) -> RuntimeResult<EngineSnapshot> {
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "scheduler test engine snapshots are not implemented".to_string(),
         }
         .boxed())
@@ -161,7 +161,7 @@ impl Engine for CompleteEngine {
     ) -> RuntimeResult<()> {
         let _ = snapshot;
 
-        Err(crate::diagnostic::RuntimeError::Internal {
+        Err(RuntimeError::Internal {
             message: "scheduler test engine snapshot restore is not implemented".to_string(),
         }
         .boxed())

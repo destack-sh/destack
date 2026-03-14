@@ -10,7 +10,7 @@ use crate::platform::{ResourceId, ResourceTable};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::capability::resolve_capability_profile;
 use crate::runtime::engine::{Engine, EngineContinuation, EngineImage};
-use crate::runtime::memory::{Gc, RootSet, RootVisitor};
+use crate::runtime::memory::{Gc, RootSet, RootVisitor, resolve_heap_options};
 use crate::runtime::policy::HookSnapshot;
 use crate::runtime::poller::PollerToken;
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, EventLoopWatch};
@@ -216,15 +216,8 @@ impl Agent {
 
         let mut gc = Gc::default();
         gc.configure(options.heap.clone());
-        let heap = heap::Heap::with_limits_and_large_span_thresholds(
-            heap::HeapLimits {
-                max_bytes: options.heap.max_bytes,
-                max_managed_bytes: options.heap.max_managed_bytes,
-                max_raw_bytes: options.heap.max_raw_bytes,
-            },
-            options.heap.managed_large_span_values,
-            options.heap.raw_large_span_bytes,
-        );
+        let heap_options = resolve_heap_options(&options.heap)?;
+        let heap = heap::Heap::with_limits_and_layout(heap_options.limits, heap_options.layout);
 
         let mut event_loop = Box::new(EventLoop::default());
         event_loop.configure(options.scheduler.clone())?;
@@ -489,10 +482,10 @@ impl Agent {
     /// Check whether the heap should trigger a GC cycle.
     pub fn should_collect(&mut self) -> bool {
         // read the current heap size
-        let heap_bytes = self.heap.managed_heap_bytes();
+        let managed_retained_bytes = self.heap.managed_retained_bytes();
 
         // evaluate runtime gc pacing policy
-        self.gc.should_collect(heap_bytes)
+        self.gc.should_collect(managed_retained_bytes)
     }
 
     /// Run garbage collection using the current root set.
@@ -583,8 +576,12 @@ impl Agent {
         let mut heap = heap::Heap::from_image(&image.heap_image);
         heap.set_limits(heap::HeapLimits {
             max_bytes: image.options.heap.max_bytes,
-            max_managed_bytes: image.options.heap.max_managed_bytes,
-            max_raw_bytes: image.options.heap.max_raw_bytes,
+            managed: heap::ManagedLimits {
+                max_bytes: image.options.heap.max_managed_bytes,
+            },
+            raw: heap::RawLimits {
+                max_bytes: image.options.heap.max_raw_bytes,
+            },
         })?;
         let mut gc = Gc::default();
         gc.configure(image.options.heap.clone());

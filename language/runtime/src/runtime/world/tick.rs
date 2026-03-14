@@ -21,7 +21,7 @@ impl World {
 
     /// Return the earliest deadline contributed by simulation state.
     pub(crate) fn next_simulation_deadline(&self) -> Option<WorldInstant> {
-        let simulation = self.simulation.read();
+        let simulation = self.simulation.borrow();
         simulation.next_deadline()
     }
 
@@ -74,7 +74,7 @@ impl World {
     /// Execute one world tick without tracing the outer invocation.
     pub(crate) fn tick_inner(&self) -> RuntimeResult<TickOutcome> {
         let _activity = self.enter_activity()?;
-        let mut runtimes = self.runtimes.write();
+        let mut runtimes = self.runtimes.borrow_mut();
 
         // runnable work and ingress
         for runtime in runtimes.values_mut() {
@@ -112,7 +112,7 @@ impl World {
         }
 
         // deliver due simulation events into the simulation ready queue
-        self.simulation.write().deliver_due(deadline);
+        self.simulation.borrow_mut().deliver_due(deadline);
 
         // drain world timer wakes into per-runtime batches
         let wakes = self.drain_due(agent_timers);
@@ -154,7 +154,7 @@ impl World {
     #[cfg(test)]
     pub(crate) fn tick_runtime(&self, runtime_id: RuntimeId) -> RuntimeResult<TickOutcome> {
         let _activity = self.enter_activity()?;
-        let mut runtimes = self.runtimes.write();
+        let mut runtimes = self.runtimes.borrow_mut();
         let runtime = runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
@@ -190,7 +190,7 @@ impl World {
 
         // drain only the target runtime wakes
         let agent_timers = runtime.collect_due_timers(self)?;
-        self.simulation.write().deliver_due(deadline);
+        self.simulation.borrow_mut().deliver_due(deadline);
         let wakes = self.drain_due(agent_timers);
         runtime.deliver_wakes(self, wakes)?;
 

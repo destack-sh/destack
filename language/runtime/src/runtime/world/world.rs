@@ -1,8 +1,9 @@
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::BTreeMap;
+use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
-use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use destack_heap as heap;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
@@ -35,9 +36,9 @@ pub struct World {
     /// Active branch identifier for this live world instance.
     pub(crate) branch_id: BranchId,
     /// Live runtimes owned by this world.
-    pub(crate) runtimes: RwLock<BTreeMap<RuntimeId, Box<Runtime>>>,
+    pub(crate) runtimes: RefCell<BTreeMap<RuntimeId, Box<Runtime>>>,
     /// Shared simulation state for all agents using this world.
-    pub(crate) simulation: RwLock<Simulation>,
+    pub(crate) simulation: RefCell<Simulation>,
 
     /// Effective world time mode after execution-mode resolution.
     pub(crate) time_mode: TimeMode,
@@ -52,21 +53,25 @@ pub struct World {
     /// Emitted observation log (separate from causal trace).
     pub(crate) observations: ObservationLog,
     /// Active policy state.
-    pub(crate) policy: RwLock<PolicyState>,
-    /// One global mutation gate for replayable world-state changes.
-    pub(crate) mutation_lock: Mutex<()>,
+    pub(crate) policy: RefCell<PolicyState>,
+    /// One explicit reentrancy guard for structural mutation.
+    pub(crate) mutation_active: Cell<bool>,
     /// The next runtime id to allocate.
-    pub(crate) next_runtime_id: AtomicU64,
+    pub(crate) next_runtime_id: Cell<u64>,
     /// The next agent id to allocate.
-    pub(crate) next_agent_id: AtomicU64,
+    pub(crate) next_agent_id: Cell<u64>,
     /// World-owned lineage and durable restore metadata.
-    pub(crate) lineage: Arc<RwLock<Lineage>>,
+    pub(crate) lineage: Rc<RefCell<Lineage>>,
     /// World-owned shared and exclusive access coordinator state.
-    pub(crate) access_state: RwLock<AccessState>,
+    pub(crate) access_state: Cell<AccessState>,
     /// Topology registry for world metadata.
-    pub(crate) topology: RwLock<Topology>,
+    pub(crate) topology: RefCell<Topology>,
     /// Logical resource records keyed by world resource identifier.
-    pub(crate) resources: RwLock<BTreeMap<WorldResourceId, WorldResource>>,
+    pub(crate) resources: RefCell<BTreeMap<WorldResourceId, WorldResource>>,
+    /// World-owned shared memory visible across agents.
+    pub(crate) shared: RefCell<heap::SharedSpace>,
+    /// Exact hard limits for world-owned shared memory.
+    pub(crate) shared_limits: heap::SharedLimits,
 }
 
 #[allow(clippy::arc_with_non_send_sync)]
@@ -135,10 +140,14 @@ impl World {
         let policy = Policy::from_workspace_rules(&options.rules);
         let trace = Trace::new(options.execution, trace_header);
         let topology = Topology::new();
+        let mut shared = heap::SharedSpace::with_chunk_bytes(options.heap.chunk_bytes);
+        let shared_limits = heap::SharedLimits {
+            max_bytes: options.heap.max_shared_bytes,
+        };
         policy.validate_with_kind_catalog(&topology)?;
 
         // final world state
-        let lineage = Arc::new(RwLock::new(Lineage::new_root(
+        let lineage = Rc::new(RefCell::new(Lineage::new_root(
             Arc::new(Image {
                 id: ROOT_IMAGE_ID,
                 next_runtime_id: INITIAL_RUNTIME_ID,
@@ -149,6 +158,7 @@ impl World {
                 simulation: Simulation::default(),
                 clock: clock.snapshot(),
                 random: random.snapshot(),
+                shared: shared.image(None),
                 runtimes: BTreeMap::new(),
                 agents: BTreeMap::new(),
             }),
@@ -157,63 +167,65 @@ impl World {
 
         let world = Arc::new(Self {
             branch_id,
-            runtimes: RwLock::new(BTreeMap::new()),
-            simulation: RwLock::new(Simulation::default()),
+            runtimes: RefCell::new(BTreeMap::new()),
+            simulation: RefCell::new(Simulation::default()),
             time_mode,
             random_mode,
             clock,
             random,
             trace,
             observations: ObservationLog::default(),
-            policy: RwLock::new(PolicyState::new(policy)),
-            mutation_lock: Mutex::new(()),
-            next_runtime_id: AtomicU64::new(INITIAL_RUNTIME_ID),
-            next_agent_id: AtomicU64::new(INITIAL_AGENT_ID),
+            policy: RefCell::new(PolicyState::new(policy)),
+            mutation_active: Cell::new(false),
+            next_runtime_id: Cell::new(INITIAL_RUNTIME_ID),
+            next_agent_id: Cell::new(INITIAL_AGENT_ID),
             lineage,
-            access_state: RwLock::new(AccessState::Shared {
+            access_state: Cell::new(AccessState::Shared {
                 active_operations: 0,
             }),
-            topology: RwLock::new(topology),
-            resources: RwLock::new(BTreeMap::new()),
+            topology: RefCell::new(topology),
+            resources: RefCell::new(BTreeMap::new()),
+            shared: RefCell::new(shared),
+            shared_limits,
         });
 
         Ok(world)
     }
 
     /// Borrow one read guard for simulation.
-    pub fn read_simulation(&self) -> RwLockReadGuard<'_, Simulation> {
-        self.simulation.read()
+    pub fn read_simulation(&self) -> Ref<'_, Simulation> {
+        self.simulation.borrow()
     }
 
     /// Borrow one write guard for simulation.
-    pub fn write_simulation(&self) -> RwLockWriteGuard<'_, Simulation> {
-        self.simulation.write()
+    pub fn write_simulation(&self) -> RefMut<'_, Simulation> {
+        self.simulation.borrow_mut()
     }
 
     /// Snapshot world policy state.
     pub fn policy(&self) -> Policy {
-        self.policy.read().spec.clone()
+        self.policy.borrow().spec.clone()
     }
 
     /// Snapshot world entity kind definitions.
     pub fn entity_kinds(&self) -> BTreeMap<WorldEntityKind, WorldEntityKindDefinition> {
-        self.topology.read().entity_kinds().clone()
+        self.topology.borrow().entity_kinds().clone()
     }
 
     /// Snapshot world edge kind definitions.
     pub fn edge_kinds(&self) -> BTreeMap<WorldEdgeKind, WorldEdgeKindDefinition> {
-        self.topology.read().edge_kinds().clone()
+        self.topology.borrow().edge_kinds().clone()
     }
 
     /// Snapshot world entities.
     pub fn entities(&self) -> BTreeMap<WorldEntityId, WorldEntity> {
-        self.topology.read().entities().clone()
+        self.topology.borrow().entities().clone()
     }
 
     /// Return labels for one live runtime.
     pub fn runtime_labels(&self, runtime_id: RuntimeId) -> RuntimeResult<BTreeMap<String, String>> {
         let entity_id = format!("runtime.{}", runtime_id.0);
-        let topology = self.topology.read();
+        let topology = self.topology.borrow();
         let entity =
             topology
                 .entities()
@@ -228,7 +240,7 @@ impl World {
     /// Return labels for one live agent.
     pub fn agent_labels(&self, agent_id: AgentId) -> RuntimeResult<BTreeMap<String, String>> {
         let entity_id = format!("agent.{}", agent_id.0);
-        let topology = self.topology.read();
+        let topology = self.topology.borrow();
         let entity =
             topology
                 .entities()
@@ -242,24 +254,26 @@ impl World {
 
     /// Snapshot world edges.
     pub fn edges(&self) -> BTreeMap<WorldEdgeId, WorldEdge> {
-        self.topology.read().edges().clone()
+        self.topology.borrow().edges().clone()
     }
 
     /// Snapshot logical world resources.
     pub fn resources(&self) -> BTreeMap<WorldResourceId, WorldResource> {
-        self.resources.read().clone()
+        self.resources.borrow().clone()
     }
 
     /// Allocate one runtime identifier.
     pub(crate) fn allocate_runtime_id(&self) -> RuntimeId {
-        let runtime_id = self.next_runtime_id.fetch_add(1, Ordering::SeqCst);
+        let runtime_id = self.next_runtime_id.get();
+        self.next_runtime_id.set(runtime_id.saturating_add(1));
 
         RuntimeId(runtime_id)
     }
 
     /// Allocate one agent identifier.
     pub(crate) fn allocate_agent_id(&self) -> AgentId {
-        let agent_id = self.next_agent_id.fetch_add(1, Ordering::SeqCst);
+        let agent_id = self.next_agent_id.get();
+        self.next_agent_id.set(agent_id.saturating_add(1));
 
         AgentId(agent_id)
     }

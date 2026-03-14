@@ -50,7 +50,7 @@ pub struct Revision {
 impl World {
     /// Return the active branch revision identifier for this world.
     pub fn revision_id(&self) -> RevisionId {
-        let lineage = self.lineage.read();
+        let lineage = self.lineage.borrow();
         let branch = lineage
             .branches
             .get(&self.branch_id)
@@ -61,7 +61,7 @@ impl World {
 
     /// Return the active branch revision metadata for this world.
     pub fn revision(&self) -> Revision {
-        let lineage = self.lineage.read();
+        let lineage = self.lineage.borrow();
         let revision = lineage
             .revisions
             .get(&self.revision_id())
@@ -72,7 +72,7 @@ impl World {
 
     /// Return metadata for one specific revision.
     pub fn revision_info(&self, revision_id: RevisionId) -> RuntimeResult<Revision> {
-        let lineage = self.lineage.read();
+        let lineage = self.lineage.borrow();
         let revision = lineage.revisions.get(&revision_id).ok_or_else(|| {
             RuntimeError::RevisionNotFound {
                 revision_id: revision_id.get(),
@@ -88,13 +88,13 @@ impl World {
         &self,
         revision_id: RevisionId,
     ) -> RuntimeResult<RevisionBacking> {
-        let lineage = self.lineage.read();
+        let lineage = self.lineage.borrow();
 
         lineage.resolve_revision_backing(revision_id)
     }
 
     /// Return identifiers for all known revisions in stable order.
     pub fn revision_ids(&self) -> Vec<RevisionId> {
-        self.lineage.read().revisions.keys().copied().collect()
+        self.lineage.borrow().revisions.keys().copied().collect()
     }
 }

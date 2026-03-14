@@ -238,7 +238,7 @@ pub(crate) fn vm_test_byte_slice(
 }
 
 #[cfg(test)]
-/// Allocate one VM test raw payload from fully encoded values.
+/// Allocate one VM raw value buffer from fully encoded values.
 pub(crate) fn vm_test_raw_values(
     context: &mut vm::ExternalCallContext<'_>,
     values: Vec<vm::Value>,

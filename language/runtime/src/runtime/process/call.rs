@@ -1,7 +1,7 @@
 #![allow(clippy::missing_const_for_thread_local)]
 
 use std::any::Any;
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, Ref, RefCell};
 use std::ptr;
 use std::time::Duration;
 
@@ -327,7 +327,7 @@ impl BindingCallContext {
 
     /// Borrow one read guard for the simulation state.
     #[inline]
-    pub fn read_simulation(&self) -> parking_lot::RwLockReadGuard<'_, Simulation> {
+    pub fn read_simulation(&self) -> Ref<'_, Simulation> {
         self.world().read_simulation()
     }
 
