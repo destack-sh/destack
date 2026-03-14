@@ -512,4 +512,41 @@ impl TypeTable {
     pub fn ensure_display_name(&mut self, ty: LocalNodeId<Type>, name: StringId) -> StringId {
         *self.display_name_by_type.entry(ty).or_insert(name)
     }
+
+    /// Copy structural metadata from one type id to another.
+    pub fn copy_type_metadata(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
+        // copy layout metadata
+        if let Some(layout_id) = self.layout_id(from) {
+            self.set_layout_id(to, layout_id);
+        }
+
+        // copy lineage metadata
+        if let Some(lineage) = self.lineage(from).cloned() {
+            self.set_lineage(to, lineage);
+        }
+
+        // copy union metadata
+        if let Some(union_layout) = self.union_layout(from).cloned() {
+            self.set_union_layout(to, union_layout);
+        }
+
+        // copy dispatch metadata
+        if let Some(vtable_id) = self.vtable_id(from) {
+            self.set_vtable_id(to, vtable_id);
+        }
+
+        if let Some(itabs) = self.itabs(from).cloned() {
+            self.itabs_by_type.insert(to, itabs);
+        }
+
+        // copy field metadata
+        if let Some(field_map) = self.field_map(from).cloned() {
+            self.set_field_map(to, field_map);
+        }
+
+        // copy runtime descriptor metadata
+        if let Some(descriptor) = self.descriptor_global(from) {
+            self.set_descriptor_global(to, descriptor);
+        }
+    }
 }
