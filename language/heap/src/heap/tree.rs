@@ -3,12 +3,12 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-/// The child count per vector branch.
+/// The child count per tree-vector branch.
 const VECTOR_WIDTH: usize = 32;
 
 /// One branch-shared indexed sequence.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct Vector<T> {
+pub(crate) struct TreeVector<T> {
     /// The logical element count.
     len: usize,
     /// The root depth in directory levels.
@@ -54,21 +54,21 @@ impl<T> Node<T> {
 
 /// One indexed sequence iterator.
 #[derive(Debug)]
-pub(crate) struct VectorIter<'a, T> {
+pub(crate) struct TreeVectorIter<'a, T> {
     /// The traversal stack.
-    stack: Vec<VectorIterFrame<'a, T>>,
+    stack: Vec<TreeVectorIterFrame<'a, T>>,
 }
 
 /// One traversal frame for one indexed sequence iterator.
 #[derive(Debug)]
-enum VectorIterFrame<'a, T> {
+enum TreeVectorIterFrame<'a, T> {
     /// One leaf iterator.
     Leaf(slice::Iter<'a, T>),
     /// One branch iterator.
     Branch(slice::Iter<'a, Arc<Node<T>>>),
 }
 
-impl<T> Default for Vector<T> {
+impl<T> Default for TreeVector<T> {
     fn default() -> Self {
         Self {
             len: 0,
@@ -78,7 +78,7 @@ impl<T> Default for Vector<T> {
     }
 }
 
-impl<T> Vector<T> {
+impl<T> TreeVector<T> {
     /// Return the number of indexed elements.
     #[inline]
     pub(crate) fn len(&self) -> usize {
@@ -96,8 +96,8 @@ impl<T> Vector<T> {
     }
 
     /// Iterate all indexed elements in order.
-    pub(crate) fn iter(&self) -> VectorIter<'_, T> {
-        let mut iter = VectorIter { stack: Vec::new() };
+    pub(crate) fn iter(&self) -> TreeVectorIter<'_, T> {
+        let mut iter = TreeVectorIter { stack: Vec::new() };
 
         // seed traversal from the shared root
         if let Some(root) = self.root.as_deref() {
@@ -150,13 +150,13 @@ impl<T> Vector<T> {
     }
 }
 
-impl<T: Clone> Vector<T> {
-    /// Build one shared vector from values with one custom equality predicate.
+impl<T: Clone> TreeVector<T> {
+    /// Build one tree vector from values with one custom equality predicate.
     pub(crate) fn from_values_by<F>(values: &[T], base: Option<&Self>, is_equal: F) -> Self
     where
         F: Fn(&T, &T) -> bool,
     {
-        // empty vectors keep no root
+        // empty tree vectors keep no root
         if values.is_empty() {
             return Self::default();
         }
@@ -209,7 +209,6 @@ impl<T: Clone> Vector<T> {
         // branch nodes rebuild only the changed child ranges
         let child_capacity = Self::node_capacity(depth - 1);
         let mut children = Vec::new();
-
         for (child_index, slice) in values.chunks(child_capacity).enumerate() {
             let base_child = base.and_then(|base| match base.as_ref() {
                 Node::Branch { children, .. } => children.get(child_index),
@@ -239,10 +238,10 @@ impl<T: Clone> Vector<T> {
     }
 }
 
-impl<T: ?Sized> Vector<Arc<T>> {
-    /// Build one shared vector from shared leaves, reusing unchanged nodes from one base vector.
+impl<T: ?Sized> TreeVector<Arc<T>> {
+    /// Build one tree vector from shared leaves, reusing unchanged nodes from one base tree vector.
     pub(crate) fn from_shared(leaves: &[Arc<T>], base: Option<&Self>) -> Self {
-        // empty vectors keep no root
+        // empty tree vectors keep no root
         if leaves.is_empty() {
             return Self::default();
         }
@@ -314,34 +313,34 @@ impl<T: ?Sized> Vector<Arc<T>> {
     }
 }
 
-impl<'a, T> VectorIter<'a, T> {
+impl<'a, T> TreeVectorIter<'a, T> {
     /// Push one traversal frame for the given node.
     fn push_node(&mut self, node: &'a Node<T>) {
         // leaf frames yield values, branch frames walk child nodes
         match node {
-            Node::Leaf { values, .. } => self.stack.push(VectorIterFrame::Leaf(values.iter())),
-            Node::Branch { children, .. } => {
-                self.stack.push(VectorIterFrame::Branch(children.iter()))
-            }
+            Node::Leaf { values, .. } => self.stack.push(TreeVectorIterFrame::Leaf(values.iter())),
+            Node::Branch { children, .. } => self
+                .stack
+                .push(TreeVectorIterFrame::Branch(children.iter())),
         }
     }
 }
 
-impl<'a, T> Iterator for VectorIter<'a, T> {
+impl<'a, T> Iterator for TreeVectorIter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let frame = self.stack.last_mut()?;
             match frame {
-                VectorIterFrame::Leaf(values) => {
+                TreeVectorIterFrame::Leaf(values) => {
                     if let Some(value) = values.next() {
                         return Some(value);
                     }
 
                     self.stack.pop();
                 }
-                VectorIterFrame::Branch(children) => {
+                TreeVectorIterFrame::Branch(children) => {
                     if let Some(child) = children.next() {
                         self.push_node(child);
                         continue;

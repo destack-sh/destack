@@ -7,17 +7,31 @@ use std::fmt;
 pub struct HeapLimits {
     /// Optional hard limit for total live heap bytes.
     pub max_bytes: Option<u64>,
-    /// Optional hard limit for live managed heap bytes.
-    pub max_managed_bytes: Option<u64>,
-    /// Optional hard limit for live raw heap bytes.
-    pub max_raw_bytes: Option<u64>,
+    /// Hard limits for the managed space.
+    pub managed: ManagedLimits,
+    /// Hard limits for the raw space.
+    pub raw: RawLimits,
+}
+
+/// Hard limits for one live managed space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct ManagedLimits {
+    /// Optional hard limit for retained managed heap bytes.
+    pub max_bytes: Option<u64>,
+}
+
+/// Hard limits for one live raw space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct RawLimits {
+    /// Optional hard limit for retained raw heap bytes.
+    pub max_bytes: Option<u64>,
 }
 
 impl HeapLimits {
     /// Check exact managed and raw retained bytes against these limits.
     pub fn check(&self, managed_bytes: u64, raw_bytes: u64) -> Result<(), HeapLimitError> {
         // check managed heap limit
-        if let Some(max_bytes) = self.max_managed_bytes
+        if let Some(max_bytes) = self.managed.max_bytes
             && managed_bytes > max_bytes
         {
             return Err(HeapLimitError {
@@ -28,7 +42,7 @@ impl HeapLimits {
         }
 
         // check raw heap limit
-        if let Some(max_bytes) = self.max_raw_bytes
+        if let Some(max_bytes) = self.raw.max_bytes
             && raw_bytes > max_bytes
         {
             return Err(HeapLimitError {

@@ -22,16 +22,18 @@ pub enum ValueTag {
     ManagedReference = 7,
     /// Manually managed heap pointer.
     RawPointer = 8,
+    /// Shared-memory pointer.
+    SharedPointer = 9,
     /// Frame-scoped stack pointer.
-    StackPointer = 9,
+    StackPointer = 10,
     /// Frame-local pointer.
-    LocalPointer = 10,
+    LocalPointer = 11,
     /// Global variable pointer.
-    GlobalPointer = 11,
+    GlobalPointer = 12,
     /// Function pointer.
-    FunctionPointer = 12,
+    FunctionPointer = 13,
     /// Heap-allocated aggregate.
-    Aggregate = 13,
+    Aggregate = 14,
     /// Heap-allocated string.
-    String = 14,
+    String = 15,
 }

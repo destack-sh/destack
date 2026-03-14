@@ -1,12 +1,11 @@
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
-use crate::page::RetainedBytes;
-
 use super::meta::ReferenceMeta;
 use super::pointer::{
     GlobalPointer, LocalPointer, ManagedReference, POINTER_BASE_MASK, POINTER_SLOT_SHIFT,
-    REF_META_MASK, REF_META_SHIFT, RawPointer, STACK_INDEX_MASK, STACK_SLOT_SHIFT, StackPointer,
+    REF_META_MASK, REF_META_SHIFT, RawPointer, STACK_INDEX_MASK, STACK_SLOT_SHIFT, SharedPointer,
+    StackPointer,
 };
 use super::tag::ValueTag;
 
@@ -36,8 +35,6 @@ impl PartialEq for Value {
 }
 
 impl Eq for Value {}
-
-impl RetainedBytes for Value {}
 
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -85,6 +82,19 @@ impl std::fmt::Debug for Value {
                         "RawPointer({}, offset: {})",
                         pointer.id(),
                         pointer.slot_offset()
+                    )
+                }
+            }
+            ValueTag::SharedPointer => {
+                let pointer = self.as_shared_pointer().unwrap();
+                if pointer.byte_offset() == 0 {
+                    write!(f, "SharedPointer({})", pointer.id())
+                } else {
+                    write!(
+                        f,
+                        "SharedPointer({}, offset: {})",
+                        pointer.id(),
+                        pointer.byte_offset()
                     )
                 }
             }
@@ -159,6 +169,8 @@ impl From<&mir::Constant> for Value {
 impl Value {
     /// Constant void value.
     pub const VOID: Self = Self { data: 0, meta: 0 };
+    /// The packed byte width of one value.
+    pub const BYTE_LEN: usize = std::mem::size_of::<Self>();
 
     /// Create metadata from tag and width.
     #[inline(always)]
@@ -320,10 +332,25 @@ impl Value {
         }
     }
 
+    /// Create a shared pointer value.
+    #[inline]
+    pub const fn shared_pointer(ptr: SharedPointer) -> Self {
+        Self {
+            data: ptr.0,
+            meta: Self::make_meta(ValueTag::SharedPointer, 0),
+        }
+    }
+
     /// Create a raw pointer value with explicit metadata.
     #[inline]
     pub fn raw_pointer_with_meta(ptr: RawPointer, meta: ReferenceMeta) -> Self {
         Self::raw_pointer(ptr).with_reference_meta(meta)
+    }
+
+    /// Create a shared pointer value with explicit metadata.
+    #[inline]
+    pub fn shared_pointer_with_meta(ptr: SharedPointer, meta: ReferenceMeta) -> Self {
+        Self::shared_pointer(ptr).with_reference_meta(meta)
     }
 
     /// Create a stack pointer value.
@@ -434,6 +461,7 @@ impl Value {
             ValueTag::Char => true,
             ValueTag::ManagedReference => self.data != 0,
             ValueTag::RawPointer => self.data != 0,
+            ValueTag::SharedPointer => self.data != 0,
             ValueTag::StackPointer => true,
             ValueTag::LocalPointer => true,
             ValueTag::GlobalPointer => true,
@@ -517,6 +545,16 @@ impl Value {
     pub fn as_raw_pointer(&self) -> Option<RawPointer> {
         if self.tag() == ValueTag::RawPointer {
             Some(RawPointer(self.data))
+        } else {
+            None
+        }
+    }
+
+    /// Try to get this value as a shared pointer.
+    #[inline]
+    pub fn as_shared_pointer(&self) -> Option<SharedPointer> {
+        if self.tag() == ValueTag::SharedPointer {
+            Some(SharedPointer(self.data))
         } else {
             None
         }
@@ -615,5 +653,32 @@ impl Value {
     #[inline]
     pub fn raw_data(&self) -> u64 {
         self.data
+    }
+
+    /// Return the packed bytes for this value.
+    #[inline]
+    pub fn to_byte_array(self) -> [u8; Self::BYTE_LEN] {
+        let mut bytes = [0u8; Self::BYTE_LEN];
+        bytes[..8].copy_from_slice(&self.data.to_le_bytes());
+        bytes[8..].copy_from_slice(&self.meta.to_le_bytes());
+        bytes
+    }
+
+    /// Restore one value from one packed byte slice.
+    #[inline]
+    pub fn from_byte_slice(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() != Self::BYTE_LEN {
+            return None;
+        }
+
+        let mut data = [0u8; 8];
+        let mut meta = [0u8; 8];
+        data.copy_from_slice(&bytes[..8]);
+        meta.copy_from_slice(&bytes[8..]);
+
+        Some(Self {
+            data: u64::from_le_bytes(data),
+            meta: u64::from_le_bytes(meta),
+        })
     }
 }

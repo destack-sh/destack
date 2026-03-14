@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-/// Exact managed heap usage for one live heap.
+/// Exact managed-space usage for one live heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct ManagedHeapUsage {
+pub struct ManagedSpaceUsage {
     /// The number of live managed allocations.
     pub allocation_count: usize,
     /// The logical live managed allocation bytes.
@@ -11,9 +11,9 @@ pub struct ManagedHeapUsage {
     pub retained_bytes: u64,
 }
 
-/// Exact raw heap usage for one live heap.
+/// Exact raw-space usage for one live heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct RawHeapUsage {
+pub struct RawSpaceUsage {
     /// The number of live raw allocations.
     pub allocation_count: usize,
     /// The logical live raw allocation bytes.
@@ -22,13 +22,24 @@ pub struct RawHeapUsage {
     pub retained_bytes: u64,
 }
 
+/// Exact shared-memory usage for one live shared-memory space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct SharedSpaceUsage {
+    /// The number of live shared-memory regions.
+    pub allocation_count: usize,
+    /// The logical live shared-memory bytes.
+    pub allocation_bytes: u64,
+    /// The exact retained shared-memory bytes.
+    pub retained_bytes: u64,
+}
+
 /// Exact heap usage for one live heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct HeapUsage {
-    /// The exact managed heap usage.
-    pub managed: ManagedHeapUsage,
-    /// The exact raw heap usage.
-    pub raw: RawHeapUsage,
+    /// The exact managed-space usage.
+    pub managed: ManagedSpaceUsage,
+    /// The exact raw-space usage.
+    pub raw: RawSpaceUsage,
 }
 
 impl HeapUsage {
@@ -45,4 +56,13 @@ impl HeapUsage {
             .retained_bytes
             .saturating_add(self.raw.retained_bytes)
     }
+}
+
+/// Exact memory-context usage across local and shared memory.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct MemoryUsage {
+    /// The local heap usage.
+    pub heap: HeapUsage,
+    /// The world-shared memory usage.
+    pub shared: SharedSpaceUsage,
 }

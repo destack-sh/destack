@@ -1,10 +1,9 @@
-mod allocation;
+mod extent;
 mod heap;
 mod image;
-mod span;
-mod usage;
+mod run;
 
-pub use allocation::RawAllocation;
-pub(crate) use allocation::*;
+pub(crate) use extent::*;
 pub use heap::*;
-pub(crate) use image::*;
+pub use image::*;
+pub(crate) use run::*;
