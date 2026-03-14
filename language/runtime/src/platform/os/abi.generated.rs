@@ -10070,7 +10070,7 @@ pub struct IntentEventMetadataAbi<A: BindingAbi> {
     /// Monotonic sequence number for this stream.
     pub sequence: u64,
     /// Host source package or process identifier when available.
-    pub source: A::String,
+    pub source: Option<A::String>,
 }
 
 pub type IntentEventMetadata = IntentEventMetadataAbi<NativeAbi>;
@@ -10122,7 +10122,7 @@ impl VmAggregateCodec for IntentEventMetadataAbi<VmAbi> {
         let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_source =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -10137,7 +10137,10 @@ impl VmAggregateCodec for IntentEventMetadataAbi<VmAbi> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.source,
+                context,
+            )?,
         ];
         context
             .allocate_aggregate(slots)
@@ -10153,7 +10156,7 @@ pub struct IntentEventMetadataValue {
     /// Monotonic sequence number for this stream.
     pub sequence: u64,
     /// Host source package or process identifier when available.
-    pub source: String,
+    pub source: Option<String>,
 }
 
 impl NativeAbiCodec for IntentEventMetadataAbi<NativeAbi> {
@@ -10163,7 +10166,9 @@ impl NativeAbiCodec for IntentEventMetadataAbi<NativeAbi> {
         Ok(IntentEventMetadataValue {
             timestamp_ns: unsafe { <u64 as NativeAbiCodec>::into_value(self.timestamp_ns)? },
             sequence: unsafe { <u64 as NativeAbiCodec>::into_value(self.sequence)? },
-            source: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.source)? },
+            source: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.source)?
+            },
         })
     }
 
@@ -10171,7 +10176,7 @@ impl NativeAbiCodec for IntentEventMetadataAbi<NativeAbi> {
         Self {
             timestamp_ns: <u64 as NativeAbiCodec>::from_value(binding, value.timestamp_ns),
             sequence: <u64 as NativeAbiCodec>::from_value(binding, value.sequence),
-            source: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.source),
+            source: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.source),
         }
     }
 }
@@ -10186,7 +10191,7 @@ impl VmAbiCodec for IntentEventMetadataAbi<VmAbi> {
         Ok(IntentEventMetadataValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
             sequence: <u64 as VmAbiCodec>::into_value(self.sequence, context)?,
-            source: <vm::StringHandle as VmAbiCodec>::into_value(self.source, context)?,
+            source: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.source, context)?,
         })
     }
 
@@ -10197,7 +10202,7 @@ impl VmAbiCodec for IntentEventMetadataAbi<VmAbi> {
         Ok(Self {
             timestamp_ns: <u64 as VmAbiCodec>::from_value(context, value.timestamp_ns)?,
             sequence: <u64 as VmAbiCodec>::from_value(context, value.sequence)?,
-            source: <vm::StringHandle as VmAbiCodec>::from_value(context, value.source)?,
+            source: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.source)?,
         })
     }
 }
@@ -13795,14 +13800,14 @@ impl VmAbiCodec for MediaQueryAbi<VmAbi> {
 /// ABI struct for MountEntry.
 #[repr(C)]
 pub struct MountEntryAbi<A: BindingAbi> {
-    /// Source device or backing object.
-    pub source: A::String,
+    /// Source device or backing object when the host exposes one.
+    pub source: Option<A::String>,
     /// Target mount path.
     pub target: platform_fs::OsPathAbi<A>,
     /// Filesystem type name when the host exposes one.
-    pub file_system: A::String,
-    /// Host-defined mount flags bitmask.
-    pub flags: u64,
+    pub file_system: Option<A::String>,
+    /// Host-defined mount flags bitmask when the host exposes one.
+    pub host_flags: Option<u64>,
 }
 
 pub type MountEntry = MountEntryAbi<NativeAbi>;
@@ -13852,17 +13857,18 @@ impl VmAggregateCodec for MountEntryAbi<VmAbi> {
             .boxed());
         }
         let field_source =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_target =
             <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_file_system =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_host_flags =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             source: field_source,
             target: field_target,
             file_system: field_file_system,
-            flags: field_flags,
+            host_flags: field_host_flags,
         })
     }
 
@@ -13871,10 +13877,16 @@ impl VmAggregateCodec for MountEntryAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.source,
+                context,
+            )?,
             <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.target, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.file_system, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.file_system,
+                context,
+            )?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.host_flags, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -13885,14 +13897,14 @@ impl VmAggregateCodec for MountEntryAbi<VmAbi> {
 /// Value type for MountEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MountEntryValue {
-    /// Source device or backing object.
-    pub source: String,
+    /// Source device or backing object when the host exposes one.
+    pub source: Option<String>,
     /// Target mount path.
     pub target: platform_fs::abi_generated::OsPathValue,
     /// Filesystem type name when the host exposes one.
-    pub file_system: String,
-    /// Host-defined mount flags bitmask.
-    pub flags: u64,
+    pub file_system: Option<String>,
+    /// Host-defined mount flags bitmask when the host exposes one.
+    pub host_flags: Option<u64>,
 }
 
 impl NativeAbiCodec for MountEntryAbi<NativeAbi> {
@@ -13900,24 +13912,26 @@ impl NativeAbiCodec for MountEntryAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(MountEntryValue {
-            source: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.source)? },
+            source: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.source)?
+            },
             target: unsafe { <fs::OsPath as NativeAbiCodec>::into_value(self.target)? },
             file_system: unsafe {
-                <NativeStringRef as NativeAbiCodec>::into_value(self.file_system)?
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.file_system)?
             },
-            flags: unsafe { <u64 as NativeAbiCodec>::into_value(self.flags)? },
+            host_flags: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.host_flags)? },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            source: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.source),
+            source: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.source),
             target: <fs::OsPath as NativeAbiCodec>::from_value(binding, value.target),
-            file_system: <NativeStringRef as NativeAbiCodec>::from_value(
+            file_system: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
                 value.file_system,
             ),
-            flags: <u64 as NativeAbiCodec>::from_value(binding, value.flags),
+            host_flags: <Option<u64> as NativeAbiCodec>::from_value(binding, value.host_flags),
         }
     }
 }
@@ -13930,10 +13944,13 @@ impl VmAbiCodec for MountEntryAbi<VmAbi> {
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(MountEntryValue {
-            source: <vm::StringHandle as VmAbiCodec>::into_value(self.source, context)?,
+            source: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.source, context)?,
             target: <fs::OsPathVm as VmAbiCodec>::into_value(self.target, context)?,
-            file_system: <vm::StringHandle as VmAbiCodec>::into_value(self.file_system, context)?,
-            flags: <u64 as VmAbiCodec>::into_value(self.flags, context)?,
+            file_system: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.file_system,
+                context,
+            )?,
+            host_flags: <Option<u64> as VmAbiCodec>::into_value(self.host_flags, context)?,
         })
     }
 
@@ -13942,10 +13959,13 @@ impl VmAbiCodec for MountEntryAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
-            source: <vm::StringHandle as VmAbiCodec>::from_value(context, value.source)?,
+            source: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.source)?,
             target: <fs::OsPathVm as VmAbiCodec>::from_value(context, value.target)?,
-            file_system: <vm::StringHandle as VmAbiCodec>::from_value(context, value.file_system)?,
-            flags: <u64 as VmAbiCodec>::from_value(context, value.flags)?,
+            file_system: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.file_system,
+            )?,
+            host_flags: <Option<u64> as VmAbiCodec>::from_value(context, value.host_flags)?,
         })
     }
 }
@@ -17521,7 +17541,7 @@ pub struct IntenteventmetadataReplayRecord {
     /// Monotonic sequence number for this stream.
     pub sequence: u64,
     /// Host source package or process identifier when available.
-    pub source: String,
+    pub source: Option<String>,
 }
 
 /// Replay struct for IntentOpenFileEvent.
@@ -17732,14 +17752,14 @@ pub struct MediaqueryReplayRecord {
 /// Replay struct for MountEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MountentryReplayRecord {
-    /// Source device or backing object.
-    pub source: String,
+    /// Source device or backing object when the host exposes one.
+    pub source: Option<String>,
     /// Target mount path.
     pub target: fs::OspathReplayRecord,
     /// Filesystem type name when the host exposes one.
-    pub file_system: String,
-    /// Host-defined mount flags bitmask.
-    pub flags: u64,
+    pub file_system: Option<String>,
+    /// Host-defined mount flags bitmask when the host exposes one.
+    pub host_flags: Option<u64>,
 }
 
 /// Replay struct for NotificationAction.

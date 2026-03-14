@@ -54,7 +54,7 @@ export struct IntentEventMetadata {
     /// Monotonic sequence number for this stream.
     sequence: uint64;
     /// Host source package or process identifier when available.
-    source: string;
+    source: string | void;
 }
 
 /// Open-url intent event.
@@ -135,20 +135,20 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses shell activation hooks on desktop platforms and runtime host intent bridges on mobile-like hosts.
+    /// Uses runtime host intent bridges where the active host integrates activation or share ingress.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `os.intent.read`.
+    /// Requires `os.intent.write`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.os.intent.open", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["os.intent.read"],
+        capabilities: ["os.intent.write"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
@@ -163,7 +163,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific intent callback unregistration.
+    /// Uses runtime host intent bridge unregistration where the active host exposes one inbound stream.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -191,7 +191,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend intent event queues or callback bridges.
+    /// Uses runtime host intent queues where the active host delivers activation or share ingress.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -222,7 +222,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend nonblocking intent queue reads.
+    /// Uses runtime host intent queues where the active host delivers activation or share ingress.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -250,7 +250,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses `canOpenURL` or `resolveActivity` style APIs where available.
+    /// Uses host routing queries where the current target exposes them and launcher discovery elsewhere.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -278,7 +278,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses shell open-url APIs on desktop platforms and intent launch APIs on mobile-like hosts.
+    /// Uses host default URL routing where the current target exposes it.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -306,7 +306,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses shell open-file APIs and host launcher integration.
+    /// Uses host default path routing where the current target exposes it.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -334,7 +334,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses platform share APIs where available.
+    /// Uses host share routing where the current target exposes it.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -354,7 +354,10 @@ declare namespace os {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function intentShareText(text: string, mimeType: string): Result<void, PlatformError>;
+    export function intentShareText(
+        text: string,
+        mimeType: string | void,
+    ): Result<void, PlatformError>;
 
     /// Share file paths through host share routing.
     ///
@@ -362,7 +365,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses platform share APIs and shell handoff integration.
+    /// Uses host share routing where the current target exposes it.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -384,6 +387,6 @@ declare namespace os {
     })
     export function intentSharePaths(
         paths: Array<OsPath>,
-        mimeType: string,
+        mimeType: string | void,
     ): Result<void, PlatformError>;
 }

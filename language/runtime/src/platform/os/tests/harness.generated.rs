@@ -63,8 +63,8 @@ use crate::platform::os::{
     PowerState, SystemSnapshot, SystemSnapshotVm, native as os_native, vm as os_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, fs, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
 use destack_vm as vm;
 
@@ -117,16 +117,14 @@ impl<'call> OsHarnessContext<'call> {
                     argument_result,
                 )
             }
-            None => {
+            None => unsafe {
                 let executionid = executionid.into_native("executionid")?;
-                unsafe {
-                    os_native::destack_os_background_complete(
-                        self.call_context,
-                        executionid,
-                        argument_result,
-                    )
-                }
-            }
+                os_native::destack_os_background_complete(
+                    self.call_context,
+                    executionid,
+                    argument_result,
+                )
+            },
         }
     }
 
@@ -357,10 +355,10 @@ impl<'call> OsHarnessContext<'call> {
                 let options = options.into_vm("options")?;
                 os_vm::destack_os_background_register(self.call_context, context, options)
             }
-            None => {
+            None => unsafe {
                 let options = options.into_native("options")?;
-                unsafe { os_native::destack_os_background_register(self.call_context, options) }
-            }
+                os_native::destack_os_background_register(self.call_context, options)
+            },
         }
     }
 
@@ -468,12 +466,10 @@ impl<'call> OsHarnessContext<'call> {
                 let identifier = identifier.into_vm("identifier")?;
                 os_vm::destack_os_background_unregister(self.call_context, context, identifier)
             }
-            None => {
+            None => unsafe {
                 let identifier = identifier.into_native("identifier")?;
-                unsafe {
-                    os_native::destack_os_background_unregister(self.call_context, identifier)
-                }
-            }
+                os_native::destack_os_background_unregister(self.call_context, identifier)
+            },
         }
     }
 
@@ -545,10 +541,10 @@ impl<'call> OsHarnessContext<'call> {
                 let id = id.into_vm("id")?;
                 os_vm::destack_os_calendar_event_delete(self.call_context, context, id)
             }
-            None => {
+            None => unsafe {
                 let id = id.into_native("id")?;
-                unsafe { os_native::destack_os_calendar_event_delete(self.call_context, id) }
-            }
+                os_native::destack_os_calendar_event_delete(self.call_context, id)
+            },
         }
     }
 
@@ -663,11 +659,11 @@ impl<'call> OsHarnessContext<'call> {
                 let event = event.into_vm("event")?;
                 os_vm::destack_os_calendar_event_update(self.call_context, context, id, event)
             }
-            None => {
+            None => unsafe {
                 let id = id.into_native("id")?;
                 let event = event.into_native("event")?;
-                unsafe { os_native::destack_os_calendar_event_update(self.call_context, id, event) }
-            }
+                os_native::destack_os_calendar_event_update(self.call_context, id, event)
+            },
         }
     }
 
@@ -904,16 +900,14 @@ impl<'call> OsHarnessContext<'call> {
                     argument_bytes,
                 )
             }
-            None => {
+            None => unsafe {
                 let argument_bytes = argument_bytes.into_native("argument_bytes")?;
-                unsafe {
-                    os_native::destack_os_clipboard_write_bytes(
-                        self.call_context,
-                        format,
-                        argument_bytes,
-                    )
-                }
-            }
+                os_native::destack_os_clipboard_write_bytes(
+                    self.call_context,
+                    format,
+                    argument_bytes,
+                )
+            },
         }
     }
 
@@ -942,10 +936,10 @@ impl<'call> OsHarnessContext<'call> {
                 let text = text.into_vm("text")?;
                 os_vm::destack_os_clipboard_write_text(self.call_context, context, text)
             }
-            None => {
+            None => unsafe {
                 let text = text.into_native("text")?;
-                unsafe { os_native::destack_os_clipboard_write_text(self.call_context, text) }
-            }
+                os_native::destack_os_clipboard_write_text(self.call_context, text)
+            },
         }
     }
 
@@ -1016,10 +1010,10 @@ impl<'call> OsHarnessContext<'call> {
                 let id = id.into_vm("id")?;
                 os_vm::destack_os_contact_delete(self.call_context, context, id)
             }
-            None => {
+            None => unsafe {
                 let id = id.into_native("id")?;
-                unsafe { os_native::destack_os_contact_delete(self.call_context, id) }
-            }
+                os_native::destack_os_contact_delete(self.call_context, id)
+            },
         }
     }
 
@@ -1173,11 +1167,11 @@ impl<'call> OsHarnessContext<'call> {
                 let contact = contact.into_vm("contact")?;
                 os_vm::destack_os_contact_update(self.call_context, context, id, contact)
             }
-            None => {
+            None => unsafe {
                 let id = id.into_native("id")?;
                 let contact = contact.into_native("contact")?;
-                unsafe { os_native::destack_os_contact_update(self.call_context, id, contact) }
-            }
+                os_native::destack_os_contact_update(self.call_context, id, contact)
+            },
         }
     }
 
@@ -1253,7 +1247,7 @@ impl<'call> OsHarnessContext<'call> {
         &mut self,
         service: HarnessValue<NativeStringRef, vm::StringHandle>,
         account: HarnessValue<NativeStringRef, vm::StringHandle>,
-        accessgroup: HarnessValue<NativeStringRef, vm::StringHandle>,
+        accessgroup: HarnessValue<Option<NativeStringRef>, Option<vm::StringHandle>>,
     ) -> RuntimeResult<bool> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -1265,7 +1259,7 @@ impl<'call> OsHarnessContext<'call> {
                     context,
                     service,
                     account,
-                    Some(accessgroup),
+                    accessgroup,
                 )?;
                 Ok(out)
             }
@@ -1280,7 +1274,7 @@ impl<'call> OsHarnessContext<'call> {
                         out.as_mut_ptr(),
                         service,
                         account,
-                        Some(accessgroup),
+                        accessgroup,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -1311,7 +1305,7 @@ impl<'call> OsHarnessContext<'call> {
         &mut self,
         service: HarnessValue<NativeStringRef, vm::StringHandle>,
         account: HarnessValue<NativeStringRef, vm::StringHandle>,
-        accessgroup: HarnessValue<NativeStringRef, vm::StringHandle>,
+        accessgroup: HarnessValue<Option<NativeStringRef>, Option<vm::StringHandle>>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -1323,22 +1317,20 @@ impl<'call> OsHarnessContext<'call> {
                     context,
                     service,
                     account,
-                    Some(accessgroup),
+                    accessgroup,
                 )
             }
-            None => {
+            None => unsafe {
                 let service = service.into_native("service")?;
                 let account = account.into_native("account")?;
                 let accessgroup = accessgroup.into_native("accessgroup")?;
-                unsafe {
-                    os_native::destack_os_credentials_delete(
-                        self.call_context,
-                        service,
-                        account,
-                        Some(accessgroup),
-                    )
-                }
-            }
+                os_native::destack_os_credentials_delete(
+                    self.call_context,
+                    service,
+                    account,
+                    accessgroup,
+                )
+            },
         }
     }
 
@@ -1410,10 +1402,10 @@ impl<'call> OsHarnessContext<'call> {
                 let options = options.into_vm("options")?;
                 os_vm::destack_os_credentials_write(self.call_context, context, options)
             }
-            None => {
+            None => unsafe {
                 let options = options.into_native("options")?;
-                unsafe { os_native::destack_os_credentials_write(self.call_context, options) }
-            }
+                os_native::destack_os_credentials_write(self.call_context, options)
+            },
         }
     }
 
@@ -1712,7 +1704,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses uname and hostname APIs on Unix and version and hostname APIs on Windows.
+    /// Uses uname and hostname APIs on Unix and host identity APIs on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1887,7 +1879,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses `canOpenURL` or `resolveActivity` style APIs where available.
+    /// Uses host routing queries where the current target exposes them and launcher discovery elsewhere.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1929,7 +1921,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific intent callback unregistration.
+    /// Uses runtime host intent bridge unregistration where the active host exposes one inbound stream.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1955,13 +1947,13 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses shell activation hooks on desktop platforms and runtime host intent bridges on mobile-like hosts.
+    /// Uses runtime host intent bridges where the active host integrates activation or share ingress.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `os.intent.read`.
+    /// Requires `os.intent.write`.
     ///
     /// # Replay
     /// External, recordable.
@@ -1997,7 +1989,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses shell open-file APIs and host launcher integration.
+    /// Uses host default path routing where the current target exposes it.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2016,10 +2008,10 @@ impl<'call> OsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 os_vm::destack_os_intent_open_path(self.call_context, context, path)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { os_native::destack_os_intent_open_path(self.call_context, path) }
-            }
+                os_native::destack_os_intent_open_path(self.call_context, path)
+            },
         }
     }
 
@@ -2029,7 +2021,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses shell open-url APIs on desktop platforms and intent launch APIs on mobile-like hosts.
+    /// Uses host default URL routing where the current target exposes it.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2048,10 +2040,10 @@ impl<'call> OsHarnessContext<'call> {
                 let url = url.into_vm("url")?;
                 os_vm::destack_os_intent_open_url(self.call_context, context, url)
             }
-            None => {
+            None => unsafe {
                 let url = url.into_native("url")?;
-                unsafe { os_native::destack_os_intent_open_url(self.call_context, url) }
-            }
+                os_native::destack_os_intent_open_url(self.call_context, url)
+            },
         }
     }
 
@@ -2061,7 +2053,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend intent event queues or callback bridges.
+    /// Uses runtime host intent queues where the active host delivers activation or share ingress.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -2104,7 +2096,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses platform share APIs and shell handoff integration.
+    /// Uses host share routing where the current target exposes it.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2117,7 +2109,7 @@ impl<'call> OsHarnessContext<'call> {
     pub(crate) fn destack_os_intent_share_paths(
         &mut self,
         paths: HarnessValue<NativeArray<fs::OsPath>, VmArray<fs::OsPathVm>>,
-        mimetype: HarnessValue<NativeStringRef, vm::StringHandle>,
+        mimetype: HarnessValue<Option<NativeStringRef>, Option<vm::StringHandle>>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -2125,13 +2117,11 @@ impl<'call> OsHarnessContext<'call> {
                 let mimetype = mimetype.into_vm("mimetype")?;
                 os_vm::destack_os_intent_share_paths(self.call_context, context, paths, mimetype)
             }
-            None => {
+            None => unsafe {
                 let paths = paths.into_native("paths")?;
                 let mimetype = mimetype.into_native("mimetype")?;
-                unsafe {
-                    os_native::destack_os_intent_share_paths(self.call_context, paths, mimetype)
-                }
-            }
+                os_native::destack_os_intent_share_paths(self.call_context, paths, mimetype)
+            },
         }
     }
 
@@ -2141,7 +2131,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses platform share APIs where available.
+    /// Uses host share routing where the current target exposes it.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2154,7 +2144,7 @@ impl<'call> OsHarnessContext<'call> {
     pub(crate) fn destack_os_intent_share_text(
         &mut self,
         text: HarnessValue<NativeStringRef, vm::StringHandle>,
-        mimetype: HarnessValue<NativeStringRef, vm::StringHandle>,
+        mimetype: HarnessValue<Option<NativeStringRef>, Option<vm::StringHandle>>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -2162,13 +2152,11 @@ impl<'call> OsHarnessContext<'call> {
                 let mimetype = mimetype.into_vm("mimetype")?;
                 os_vm::destack_os_intent_share_text(self.call_context, context, text, mimetype)
             }
-            None => {
+            None => unsafe {
                 let text = text.into_native("text")?;
                 let mimetype = mimetype.into_native("mimetype")?;
-                unsafe {
-                    os_native::destack_os_intent_share_text(self.call_context, text, mimetype)
-                }
-            }
+                os_native::destack_os_intent_share_text(self.call_context, text, mimetype)
+            },
         }
     }
 
@@ -2178,7 +2166,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend nonblocking intent queue reads.
+    /// Uses runtime host intent queues where the active host delivers activation or share ingress.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2784,70 +2772,10 @@ impl<'call> OsHarnessContext<'call> {
         }
     }
 
-    /// Mount one filesystem target.
-    ///
-    /// Mount one source on one target path with explicit flags and data.
-    /// Mount privilege checks and propagation policy are host-defined.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses mount(2)-family APIs on Unix and volume-mount APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `os.mount`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_os_mount_add(
-        &mut self,
-        source: HarnessValue<NativeStringRef, vm::StringHandle>,
-        target: HarnessValue<fs::OsPath, fs::OsPathVm>,
-        filesystem: HarnessValue<NativeStringRef, vm::StringHandle>,
-        flags: u64,
-        data: HarnessValue<NativeStringRef, vm::StringHandle>,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let source = source.into_vm("source")?;
-                let target = target.into_vm("target")?;
-                let filesystem = filesystem.into_vm("filesystem")?;
-                let data = data.into_vm("data")?;
-                os_vm::destack_os_mount_add(
-                    self.call_context,
-                    context,
-                    source,
-                    target,
-                    filesystem,
-                    flags,
-                    data,
-                )
-            }
-            None => {
-                let source = source.into_native("source")?;
-                let target = target.into_native("target")?;
-                let filesystem = filesystem.into_native("filesystem")?;
-                let data = data.into_native("data")?;
-                unsafe {
-                    os_native::destack_os_mount_add(
-                        self.call_context,
-                        source,
-                        target,
-                        filesystem,
-                        flags,
-                        data,
-                    )
-                }
-            }
-        }
-    }
-
     /// Enumerate mount table entries.
     ///
     /// Return one snapshot of the current host mount table.
-    /// Entry shape is normalized but field availability is host-dependent.
+    /// Entry shape is normalized but field availability and flag bit layout are host-dependent.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2880,47 +2808,13 @@ impl<'call> OsHarnessContext<'call> {
         }
     }
 
-    /// Unmount one filesystem target.
-    ///
-    /// Unmount one target path with explicit unmount flags.
-    /// Forced unmount behavior follows host kernel semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses umount or unmount APIs on Unix and volume unmount APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `os.mount`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_os_mount_remove(
-        &mut self,
-        target: HarnessValue<fs::OsPath, fs::OsPathVm>,
-        flags: u64,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let target = target.into_vm("target")?;
-                os_vm::destack_os_mount_remove(self.call_context, context, target, flags)
-            }
-            None => {
-                let target = target.into_native("target")?;
-                unsafe { os_native::destack_os_mount_remove(self.call_context, target, flags) }
-            }
-        }
-    }
-
     /// Read host network state.
     ///
     /// Read one point-in-time host network state snapshot.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses Network.framework path monitoring on Apple platforms, ConnectivityManager on Android, and NetworkInformation APIs on Windows.
+    /// Uses host network state facilities.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -2955,7 +2849,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host network callback unsubscription APIs.
+    /// Uses runtime watch state cleanup.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2983,7 +2877,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host network callback subscription APIs.
+    /// Uses host network state facilities and runtime watch state.
     ///
     /// # Errors
     /// Returns ioWouldBlock, notSupported.
@@ -3018,7 +2912,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host network event queues.
+    /// Uses runtime network watch state.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -3065,7 +2959,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host nonblocking network event queue reads.
+    /// Uses runtime network watch state.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -3125,10 +3019,10 @@ impl<'call> OsHarnessContext<'call> {
                 let id = id.into_vm("id")?;
                 os_vm::destack_os_notification_cancel(self.call_context, context, id)
             }
-            None => {
+            None => unsafe {
                 let id = id.into_native("id")?;
-                unsafe { os_native::destack_os_notification_cancel(self.call_context, id) }
-            }
+                os_native::destack_os_notification_cancel(self.call_context, id)
+            },
         }
     }
 
@@ -3223,12 +3117,10 @@ impl<'call> OsHarnessContext<'call> {
                 let categories = categories.into_vm("categories")?;
                 os_vm::destack_os_notification_category_set(self.call_context, context, categories)
             }
-            None => {
+            None => unsafe {
                 let categories = categories.into_native("categories")?;
-                unsafe {
-                    os_native::destack_os_notification_category_set(self.call_context, categories)
-                }
-            }
+                os_native::destack_os_notification_category_set(self.call_context, categories)
+            },
         }
     }
 
@@ -3421,10 +3313,10 @@ impl<'call> OsHarnessContext<'call> {
                 let id = id.into_vm("id")?;
                 os_vm::destack_os_notification_pending_cancel(self.call_context, context, id)
             }
-            None => {
+            None => unsafe {
                 let id = id.into_native("id")?;
-                unsafe { os_native::destack_os_notification_pending_cancel(self.call_context, id) }
-            }
+                os_native::destack_os_notification_pending_cancel(self.call_context, id)
+            },
         }
     }
 
@@ -3866,7 +3758,8 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host power management APIs such as sysfs and IOKit on Unix-like systems and GetSystemPowerStatus on Windows.
+    /// Uses host power-management APIs where supported by the active backend.
+    /// Unsupported Unix hosts may return `notSupported` until a host integration exists.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -3901,6 +3794,8 @@ impl<'call> OsHarnessContext<'call> {
     /// # Platform
     /// Unix and Windows.
     /// Uses host power-management APIs where supported.
+    /// macOS and Windows desktop hosts support suspend.
+    /// Linux, Android, and other Unix hosts may return `notSupported` until a real host integration exists.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
