@@ -50,6 +50,8 @@ declare namespace os {
     /// # Platform
     /// Unix and Windows.
     /// Uses host power-management APIs where supported.
+    /// macOS and Windows desktop hosts support suspend.
+    /// Linux, Android, and other Unix hosts may return `notSupported` until a real host integration exists.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, notSupported.

@@ -2663,7 +2663,10 @@ fn encode_destack_os_intent_read_result(
                         Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    let field_2: RuntimeResult<vm::Value> = match value.metadata.source {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
@@ -2704,7 +2707,10 @@ fn encode_destack_os_intent_read_result(
                         Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    let field_2: RuntimeResult<vm::Value> = match value.metadata.source {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
@@ -2765,7 +2771,10 @@ fn encode_destack_os_intent_read_result(
                         Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    let field_2: RuntimeResult<vm::Value> = match value.metadata.source {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
@@ -2793,7 +2802,10 @@ fn encode_destack_os_intent_read_result(
                         Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    let field_2: RuntimeResult<vm::Value> = match value.metadata.source {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
@@ -2825,7 +2837,10 @@ fn encode_destack_os_intent_read_result(
                         Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    let field_2: RuntimeResult<vm::Value> = match value.metadata.source {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
@@ -2856,11 +2871,16 @@ fn encode_destack_os_intent_read_result(
 fn decode_destack_os_intent_share_paths_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(VmArray<fs::OsPathVm>, vm::StringHandle)> {
+) -> RuntimeResult<(VmArray<fs::OsPathVm>, Option<vm::StringHandle>)> {
     let paths_value = arg_value(args, 0, "paths", "Array<OsPath>")?;
     let paths = decode_array::<fs::OsPathVm>(context, paths_value, "paths", "Array<OsPath>")?;
-    let mimetype_value = arg_value(args, 1, "mimetype", "string")?;
-    let mimetype = decode_string(mimetype_value, "mimetype", "string")?;
+    let mimetype_value = arg_value(args, 1, "mimetype", "string | void")?;
+    let mimetype = if mimetype_value.tag() == vm::ValueTag::Void {
+        None
+    } else {
+        let mimetype_inner = decode_string(mimetype_value, "mimetype_inner", "string | void")?;
+        Some(mimetype_inner)
+    };
     Ok((paths, mimetype))
 }
 
@@ -2878,11 +2898,16 @@ fn encode_destack_os_intent_share_paths_result(
 fn decode_destack_os_intent_share_text_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
+) -> RuntimeResult<(vm::StringHandle, Option<vm::StringHandle>)> {
     let text_value = arg_value(args, 0, "text", "string")?;
     let text = decode_string(text_value, "text", "string")?;
-    let mimetype_value = arg_value(args, 1, "mimetype", "string")?;
-    let mimetype = decode_string(mimetype_value, "mimetype", "string")?;
+    let mimetype_value = arg_value(args, 1, "mimetype", "string | void")?;
+    let mimetype = if mimetype_value.tag() == vm::ValueTag::Void {
+        None
+    } else {
+        let mimetype_inner = decode_string(mimetype_value, "mimetype_inner", "string | void")?;
+        Some(mimetype_inner)
+    };
     Ok((text, mimetype))
 }
 
@@ -2924,7 +2949,10 @@ fn encode_destack_os_intent_try_read_result(
                         Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    let field_2: RuntimeResult<vm::Value> = match value.metadata.source {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
@@ -2965,7 +2993,10 @@ fn encode_destack_os_intent_try_read_result(
                         Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    let field_2: RuntimeResult<vm::Value> = match value.metadata.source {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
@@ -3026,7 +3057,10 @@ fn encode_destack_os_intent_try_read_result(
                         Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    let field_2: RuntimeResult<vm::Value> = match value.metadata.source {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
@@ -3054,7 +3088,10 @@ fn encode_destack_os_intent_try_read_result(
                         Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    let field_2: RuntimeResult<vm::Value> = match value.metadata.source {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
@@ -3086,7 +3123,10 @@ fn encode_destack_os_intent_try_read_result(
                         Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.source.value());
+                    let field_2: RuntimeResult<vm::Value> = match value.metadata.source {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
@@ -3934,40 +3974,6 @@ fn encode_destack_os_media_read_result(
     })
 }
 
-/// Decode arguments for destack.os.mount.add.
-#[inline]
-fn decode_destack_os_mount_add_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(
-    vm::StringHandle,
-    fs::OsPathVm,
-    vm::StringHandle,
-    u64,
-    vm::StringHandle,
-)> {
-    let source_value = arg_value(args, 0, "source", "string")?;
-    let source = decode_string(source_value, "source", "string")?;
-    let target_value = arg_value(args, 1, "target", "OsPath")?;
-    let target = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, target_value)?;
-    let filesystem_value = arg_value(args, 2, "filesystem", "string")?;
-    let filesystem = decode_string(filesystem_value, "filesystem", "string")?;
-    let flags_value = arg_value(args, 3, "flags", "uint64")?;
-    let flags = decode_uint64(flags_value, "flags", "uint64")?;
-    let data_value = arg_value(args, 4, "data", "string")?;
-    let data = decode_string(data_value, "data", "string")?;
-    Ok((source, target, filesystem, flags, data))
-}
-
-/// Encode the result for destack.os.mount.add.
-#[inline]
-fn encode_destack_os_mount_add_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
-}
-
 /// Encode the result for destack.os.mount.list.
 #[inline]
 fn encode_destack_os_mount_list_result(
@@ -3975,28 +3981,6 @@ fn encode_destack_os_mount_list_result(
     result: RuntimeResult<VmArray<MountEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.and_then(|value| value.to_value(context))
-}
-
-/// Decode arguments for destack.os.mount.remove.
-#[inline]
-fn decode_destack_os_mount_remove_args(
-    context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(fs::OsPathVm, u64)> {
-    let target_value = arg_value(args, 0, "target", "OsPath")?;
-    let target = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, target_value)?;
-    let flags_value = arg_value(args, 1, "flags", "uint64")?;
-    let flags = decode_uint64(flags_value, "flags", "uint64")?;
-    Ok((target, flags))
-}
-
-/// Encode the result for destack.os.mount.remove.
-#[inline]
-fn encode_destack_os_mount_remove_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<()>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|_| vm::Value::VOID)
 }
 
 /// Encode the result for destack.os.network.state.
@@ -6011,25 +5995,11 @@ struct OsLocationWatchTryReadReplayRecord {
     pub result: Result<LocationSample, TraceError>,
 }
 
-/// Replay payload for destack.os.mount.add.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OsMountAddReplayRecord {
-    /// Replay result payload.
-    pub result: Result<(), TraceError>,
-}
-
 /// Replay payload for destack.os.mount.list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsMountListReplayRecord {
     /// Replay result payload.
     pub result: Result<Vec<MountentryReplayRecord>, TraceError>,
-}
-
-/// Replay payload for destack.os.mount.remove.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OsMountRemoveReplayRecord {
-    /// Replay result payload.
-    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.os.network.state.
@@ -7136,7 +7106,7 @@ pub(crate) const OS_INTENT_OPEN: BindingDescriptor = BindingDescriptor::external
     "export function intentOpen(options: IntentOpenOptions): Result<IntentHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
-    &["os.intent.read"],
+    &["os.intent.write"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
     BindingAffinity::Any,
@@ -7217,7 +7187,7 @@ pub(crate) const OS_INTENT_READ: BindingDescriptor = BindingDescriptor::external
 /// Binding descriptor for destack.os.intent.sharePaths.
 pub(crate) const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.intent.sharePaths",
-    "export function intentSharePaths(paths: Array<OsPath>, mimeType: string): Result<void, PlatformError>",
+    "export function intentSharePaths(paths: Array<OsPath>, mimeType: string | void): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.intent.write"],
@@ -7231,7 +7201,7 @@ pub(crate) const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::e
 /// Binding descriptor for destack.os.intent.shareText.
 pub(crate) const OS_INTENT_SHARE_TEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.intent.shareText",
-    "export function intentShareText(text: string, mimeType: string): Result<void, PlatformError>",
+    "export function intentShareText(text: string, mimeType: string | void): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.intent.write"],
@@ -7592,53 +7562,11 @@ pub(crate) const OS_MEDIA_READ: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.os.mount.add.
-pub(crate) const OS_MOUNT_ADD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.mount.add",
-    "export function mountAdd(source: string, target: OsPath, fileSystem: string, flags: uint64, data: string): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["os.mount"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
 /// Binding descriptor for destack.os.mount.list.
 pub(crate) const OS_MOUNT_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.mount.list",
         "export function mountList(): Result<Array<MountEntry>, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["os.mount"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
-    )
-    .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
-
-/// Binding descriptor for destack.os.mount.remove.
-pub(crate) const OS_MOUNT_REMOVE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.os.mount.remove",
-        "export function mountRemove(target: OsPath, flags: uint64): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.mount"],
@@ -8521,19 +8449,9 @@ pub(crate) const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_os_media_read as *const (),
         ),
         NativeBinding::new(
-            OS_MOUNT_ADD,
-            "destack.os.mount.add",
-            destack_os_mount_add as *const (),
-        ),
-        NativeBinding::new(
             OS_MOUNT_LIST,
             "destack.os.mount.list",
             destack_os_mount_list as *const (),
-        ),
-        NativeBinding::new(
-            OS_MOUNT_REMOVE,
-            "destack.os.mount.remove",
-            destack_os_mount_remove as *const (),
         ),
         NativeBinding::new(
             OS_NETWORK_STATE,
@@ -9903,7 +9821,12 @@ fn destack_os_intent_read_replay(
                         let result_recorded_intent_custom_action_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_custom_action_event_metadata_source = unsafe { value.metadata.source.as_str()? }.to_string();
+                        let result_recorded_intent_custom_action_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_custom_action_event_metadata_source_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_custom_action_event_metadata_source_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_intent_custom_action_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_custom_action_event_metadata_timestamp_ns,
                             sequence: result_recorded_intent_custom_action_event_metadata_sequence,
@@ -9980,7 +9903,12 @@ fn destack_os_intent_read_replay(
                         let result_recorded_intent_open_file_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_open_file_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_open_file_event_metadata_source = unsafe { value.metadata.source.as_str()? }.to_string();
+                        let result_recorded_intent_open_file_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_open_file_event_metadata_source_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_open_file_event_metadata_source_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_intent_open_file_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_open_file_event_metadata_timestamp_ns,
                             sequence: result_recorded_intent_open_file_event_metadata_sequence,
@@ -10037,7 +9965,12 @@ fn destack_os_intent_read_replay(
                         let result_recorded_intent_open_url_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_open_url_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_open_url_event_metadata_source = unsafe { value.metadata.source.as_str()? }.to_string();
+                        let result_recorded_intent_open_url_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_open_url_event_metadata_source_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_open_url_event_metadata_source_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_intent_open_url_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_open_url_event_metadata_timestamp_ns,
                             sequence: result_recorded_intent_open_url_event_metadata_sequence,
@@ -10058,7 +9991,12 @@ fn destack_os_intent_read_replay(
                         let result_recorded_intent_share_files_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_share_files_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_share_files_event_metadata_source = unsafe { value.metadata.source.as_str()? }.to_string();
+                        let result_recorded_intent_share_files_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_share_files_event_metadata_source_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_share_files_event_metadata_source_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_intent_share_files_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_share_files_event_metadata_timestamp_ns,
                             sequence: result_recorded_intent_share_files_event_metadata_sequence,
@@ -10119,7 +10057,12 @@ fn destack_os_intent_read_replay(
                         let result_recorded_intent_share_text_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_share_text_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_share_text_event_metadata_source = unsafe { value.metadata.source.as_str()? }.to_string();
+                        let result_recorded_intent_share_text_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_share_text_event_metadata_source_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_share_text_event_metadata_source_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_intent_share_text_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_share_text_event_metadata_timestamp_ns,
                             sequence: result_recorded_intent_share_text_event_metadata_sequence,
@@ -10171,7 +10114,12 @@ fn destack_os_intent_read_replay(
                             let value_native_intent_custom_action_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_custom_action_event_metadata_source = binding.store_string(value.metadata.source.as_str());
+                            let value_native_intent_custom_action_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let value_native_intent_custom_action_event_metadata_source_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_custom_action_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let value_native_intent_custom_action_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_custom_action_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_custom_action_event_metadata_sequence,
@@ -10251,7 +10199,12 @@ fn destack_os_intent_read_replay(
                             let value_native_intent_open_file_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_open_file_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_open_file_event_metadata_source = binding.store_string(value.metadata.source.as_str());
+                            let value_native_intent_open_file_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let value_native_intent_open_file_event_metadata_source_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_open_file_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let value_native_intent_open_file_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_open_file_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_open_file_event_metadata_sequence,
@@ -10310,7 +10263,12 @@ fn destack_os_intent_read_replay(
                             let value_native_intent_open_url_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_open_url_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_open_url_event_metadata_source = binding.store_string(value.metadata.source.as_str());
+                            let value_native_intent_open_url_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let value_native_intent_open_url_event_metadata_source_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_open_url_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let value_native_intent_open_url_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_open_url_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_open_url_event_metadata_sequence,
@@ -10331,7 +10289,12 @@ fn destack_os_intent_read_replay(
                             let value_native_intent_share_files_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_share_files_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_share_files_event_metadata_source = binding.store_string(value.metadata.source.as_str());
+                            let value_native_intent_share_files_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let value_native_intent_share_files_event_metadata_source_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_share_files_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let value_native_intent_share_files_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_share_files_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_share_files_event_metadata_sequence,
@@ -10395,7 +10358,12 @@ fn destack_os_intent_read_replay(
                             let value_native_intent_share_text_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_share_text_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_share_text_event_metadata_source = binding.store_string(value.metadata.source.as_str());
+                            let value_native_intent_share_text_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let value_native_intent_share_text_event_metadata_source_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_share_text_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let value_native_intent_share_text_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_share_text_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_share_text_event_metadata_sequence,
@@ -10453,7 +10421,12 @@ fn destack_os_intent_try_read_replay(
                         let result_recorded_intent_custom_action_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_custom_action_event_metadata_source = unsafe { value.metadata.source.as_str()? }.to_string();
+                        let result_recorded_intent_custom_action_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_custom_action_event_metadata_source_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_custom_action_event_metadata_source_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_intent_custom_action_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_custom_action_event_metadata_timestamp_ns,
                             sequence: result_recorded_intent_custom_action_event_metadata_sequence,
@@ -10530,7 +10503,12 @@ fn destack_os_intent_try_read_replay(
                         let result_recorded_intent_open_file_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_open_file_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_open_file_event_metadata_source = unsafe { value.metadata.source.as_str()? }.to_string();
+                        let result_recorded_intent_open_file_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_open_file_event_metadata_source_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_open_file_event_metadata_source_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_intent_open_file_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_open_file_event_metadata_timestamp_ns,
                             sequence: result_recorded_intent_open_file_event_metadata_sequence,
@@ -10587,7 +10565,12 @@ fn destack_os_intent_try_read_replay(
                         let result_recorded_intent_open_url_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_open_url_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_open_url_event_metadata_source = unsafe { value.metadata.source.as_str()? }.to_string();
+                        let result_recorded_intent_open_url_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_open_url_event_metadata_source_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_open_url_event_metadata_source_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_intent_open_url_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_open_url_event_metadata_timestamp_ns,
                             sequence: result_recorded_intent_open_url_event_metadata_sequence,
@@ -10608,7 +10591,12 @@ fn destack_os_intent_try_read_replay(
                         let result_recorded_intent_share_files_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_share_files_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_share_files_event_metadata_source = unsafe { value.metadata.source.as_str()? }.to_string();
+                        let result_recorded_intent_share_files_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_share_files_event_metadata_source_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_share_files_event_metadata_source_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_intent_share_files_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_share_files_event_metadata_timestamp_ns,
                             sequence: result_recorded_intent_share_files_event_metadata_sequence,
@@ -10669,7 +10657,12 @@ fn destack_os_intent_try_read_replay(
                         let result_recorded_intent_share_text_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_share_text_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_share_text_event_metadata_source = unsafe { value.metadata.source.as_str()? }.to_string();
+                        let result_recorded_intent_share_text_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_share_text_event_metadata_source_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_intent_share_text_event_metadata_source_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_intent_share_text_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_share_text_event_metadata_timestamp_ns,
                             sequence: result_recorded_intent_share_text_event_metadata_sequence,
@@ -10721,7 +10714,12 @@ fn destack_os_intent_try_read_replay(
                             let value_native_intent_custom_action_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_custom_action_event_metadata_source = binding.store_string(value.metadata.source.as_str());
+                            let value_native_intent_custom_action_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let value_native_intent_custom_action_event_metadata_source_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_custom_action_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let value_native_intent_custom_action_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_custom_action_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_custom_action_event_metadata_sequence,
@@ -10801,7 +10799,12 @@ fn destack_os_intent_try_read_replay(
                             let value_native_intent_open_file_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_open_file_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_open_file_event_metadata_source = binding.store_string(value.metadata.source.as_str());
+                            let value_native_intent_open_file_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let value_native_intent_open_file_event_metadata_source_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_open_file_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let value_native_intent_open_file_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_open_file_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_open_file_event_metadata_sequence,
@@ -10860,7 +10863,12 @@ fn destack_os_intent_try_read_replay(
                             let value_native_intent_open_url_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_open_url_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_open_url_event_metadata_source = binding.store_string(value.metadata.source.as_str());
+                            let value_native_intent_open_url_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let value_native_intent_open_url_event_metadata_source_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_open_url_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let value_native_intent_open_url_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_open_url_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_open_url_event_metadata_sequence,
@@ -10881,7 +10889,12 @@ fn destack_os_intent_try_read_replay(
                             let value_native_intent_share_files_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_share_files_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_share_files_event_metadata_source = binding.store_string(value.metadata.source.as_str());
+                            let value_native_intent_share_files_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let value_native_intent_share_files_event_metadata_source_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_share_files_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let value_native_intent_share_files_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_share_files_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_share_files_event_metadata_sequence,
@@ -10945,7 +10958,12 @@ fn destack_os_intent_try_read_replay(
                             let value_native_intent_share_text_event_kind = binding.store_string(value.kind.as_str());
                             let value_native_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_share_text_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_intent_share_text_event_metadata_source = binding.store_string(value.metadata.source.as_str());
+                            let value_native_intent_share_text_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let value_native_intent_share_text_event_metadata_source_inner = binding.store_string(value.as_str());
+                                Some(value_native_intent_share_text_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let value_native_intent_share_text_event_metadata = IntentEventMetadata {
                                 timestamp_ns: value_native_intent_share_text_event_metadata_timestamp_ns,
                                 sequence: value_native_intent_share_text_event_metadata_sequence,
@@ -12146,62 +12164,6 @@ fn destack_os_location_watch_try_read_replay(
 }
 
 #[inline]
-fn destack_os_mount_add_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    source: NativeStringRef,
-    target: fs::OsPath,
-    filesystem: NativeStringRef,
-    flags: u64,
-    data: NativeStringRef,
-) -> RuntimeResult<()> {
-    let _ = (&source, &target, &filesystem, &flags, &data);
-
-    binding.trace().run_binding_without_context(
-        OS_MOUNT_ADD,
-        binding.replay_payload_for(OS_MOUNT_ADD)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_mount_add(
-                    binding, source, target, filesystem, flags, data,
-                )
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_mount_add(
-                    binding, source, target, filesystem, flags, data,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = OsMountAddReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsMountAddReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
 fn destack_os_mount_list_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
@@ -12219,7 +12181,12 @@ fn destack_os_mount_list_replay(
                 let result_value: NativeArray<MountEntry> = unsafe { out.read() };
                 let mut result_recorded = Vec::new();
                 for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
-                    let result_recorded_item_recorded_source = unsafe { result_recorded_item.source.as_str()? }.to_string();
+                    let result_recorded_item_recorded_source = if let Some(value) = result_recorded_item.source {
+                        let result_recorded_item_recorded_source_inner = unsafe { value.as_str()? }.to_string();
+                        Some(result_recorded_item_recorded_source_inner)
+                    } else {
+                        None
+                    };
                     let result_recorded_item_recorded_target = match result_recorded_item.target {
                         fs::OsPath::OsPathBytes(value) => {
                             let result_recorded_item_recorded_target_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
@@ -12250,13 +12217,23 @@ fn destack_os_mount_list_replay(
                             fs::OspathReplayRecord::OsPathUtf16(result_recorded_item_recorded_target_os_path_utf16)
                         }
                     };
-                    let result_recorded_item_recorded_file_system = unsafe { result_recorded_item.file_system.as_str()? }.to_string();
-                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded_file_system = if let Some(value) = result_recorded_item.file_system {
+                        let result_recorded_item_recorded_file_system_inner = unsafe { value.as_str()? }.to_string();
+                        Some(result_recorded_item_recorded_file_system_inner)
+                    } else {
+                        None
+                    };
+                    let result_recorded_item_recorded_host_flags = if let Some(value) = result_recorded_item.host_flags {
+                        let result_recorded_item_recorded_host_flags_inner = value;
+                        Some(result_recorded_item_recorded_host_flags_inner)
+                    } else {
+                        None
+                    };
                     let result_recorded_item_recorded = MountentryReplayRecord {
                         source: result_recorded_item_recorded_source,
                         target: result_recorded_item_recorded_target,
                         file_system: result_recorded_item_recorded_file_system,
-                        flags: result_recorded_item_recorded_flags,
+                        host_flags: result_recorded_item_recorded_host_flags,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -12284,7 +12261,12 @@ fn destack_os_mount_list_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::new();
                     for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_source = binding.store_string(value_native_item.source.as_str());
+                        let value_native_decoded_source = if let Some(value) = value_native_item.source {
+                            let value_native_decoded_source_inner = binding.store_string(value.as_str());
+                            Some(value_native_decoded_source_inner)
+                        } else {
+                            None
+                        };
                         let value_native_decoded_target = match value_native_item.target {
                             fs::OspathReplayRecord::OsPathBytes(value) => {
                                 let value_native_decoded_target_os_path_bytes_kind = binding.store_string(value.kind.as_str());
@@ -12317,13 +12299,23 @@ fn destack_os_mount_list_replay(
                                 fs::OsPath::OsPathUtf16(value_native_decoded_target_os_path_utf16)
                             }
                         };
-                        let value_native_decoded_file_system = binding.store_string(value_native_item.file_system.as_str());
-                        let value_native_decoded_flags = value_native_item.flags;
+                        let value_native_decoded_file_system = if let Some(value) = value_native_item.file_system {
+                            let value_native_decoded_file_system_inner = binding.store_string(value.as_str());
+                            Some(value_native_decoded_file_system_inner)
+                        } else {
+                            None
+                        };
+                        let value_native_decoded_host_flags = if let Some(value) = value_native_item.host_flags {
+                            let value_native_decoded_host_flags_inner = value;
+                            Some(value_native_decoded_host_flags_inner)
+                        } else {
+                            None
+                        };
                         let value_native_decoded = MountEntry {
                             source: value_native_decoded_source,
                             target: value_native_decoded_target,
                             file_system: value_native_decoded_file_system,
-                            flags: value_native_decoded_flags,
+                            host_flags: value_native_decoded_host_flags,
                         };
                         value_native_values.push(value_native_decoded);
                     }
@@ -12331,55 +12323,6 @@ fn destack_os_mount_list_replay(
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_os_mount_remove_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    target: fs::OsPath,
-    flags: u64,
-) -> RuntimeResult<()> {
-    let _ = (&target, &flags);
-
-    binding.trace().run_binding_without_context(
-        OS_MOUNT_REMOVE,
-        binding.replay_payload_for(OS_MOUNT_REMOVE)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_mount_remove(binding, target, flags)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_mount_remove(binding, target, flags)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = OsMountRemoveReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsMountRemoveReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
@@ -14811,7 +14754,7 @@ pub(crate) unsafe extern "C" fn destack_os_intent_read(
 #[unsafe(export_name = "destack.os.intent.sharePaths")]
 pub(crate) unsafe extern "C" fn destack_os_intent_share_paths(
     paths: NativeArray<fs::OsPath>,
-    mimetype: NativeStringRef,
+    mimetype: Option<NativeStringRef>,
 ) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&paths, &mimetype);
@@ -14836,7 +14779,7 @@ pub(crate) unsafe extern "C" fn destack_os_intent_share_paths(
 #[unsafe(export_name = "destack.os.intent.shareText")]
 pub(crate) unsafe extern "C" fn destack_os_intent_share_text(
     text: NativeStringRef,
-    mimetype: NativeStringRef,
+    mimetype: Option<NativeStringRef>,
 ) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&text, &mimetype);
@@ -15159,22 +15102,6 @@ pub(crate) unsafe extern "C" fn destack_os_media_read(
     })
 }
 
-#[unsafe(export_name = "destack.os.mount.add")]
-pub(crate) unsafe extern "C" fn destack_os_mount_add(
-    source: NativeStringRef,
-    target: fs::OsPath,
-    filesystem: NativeStringRef,
-    flags: u64,
-    data: NativeStringRef,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&source, &target, &filesystem, &flags, &data);
-
-        let (world, _binding_hook_guard) = context.on_before_binding_resolve_world(OS_MOUNT_ADD)?;
-        destack_os_mount_add_replay(context, world, source, target, filesystem, flags, data)
-    })
-}
-
 #[unsafe(export_name = "destack.os.mount.list")]
 pub(crate) unsafe extern "C" fn destack_os_mount_list(
     out: *mut NativeArray<MountEntry>,
@@ -15188,20 +15115,6 @@ pub(crate) unsafe extern "C" fn destack_os_mount_list(
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(OS_MOUNT_LIST)?;
         destack_os_mount_list_replay(context, world, out)
-    })
-}
-
-#[unsafe(export_name = "destack.os.mount.remove")]
-pub(crate) unsafe extern "C" fn destack_os_mount_remove(
-    target: fs::OsPath,
-    flags: u64,
-) -> RuntimeStatus {
-    native_call(|context| {
-        let _ = (&target, &flags);
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(OS_MOUNT_REMOVE)?;
-        destack_os_mount_remove_replay(context, world, target, flags)
     })
 }
 
@@ -17193,9 +17106,14 @@ fn destack_os_intent_read_vm_replay(
                         };
                         let result_recorded_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_custom_action_event_metadata_source = {
-                            let result_recorded_intent_custom_action_event_metadata_source_ref = context.string_ref(value.metadata.source).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_intent_custom_action_event_metadata_source_ref.as_str().to_string()
+                        let result_recorded_intent_custom_action_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_custom_action_event_metadata_source_inner = {
+                                let result_recorded_intent_custom_action_event_metadata_source_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_custom_action_event_metadata_source_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_intent_custom_action_event_metadata_source_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_intent_custom_action_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_custom_action_event_metadata_timestamp_ns,
@@ -17294,9 +17212,14 @@ fn destack_os_intent_read_vm_replay(
                         };
                         let result_recorded_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_open_file_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_open_file_event_metadata_source = {
-                            let result_recorded_intent_open_file_event_metadata_source_ref = context.string_ref(value.metadata.source).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_intent_open_file_event_metadata_source_ref.as_str().to_string()
+                        let result_recorded_intent_open_file_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_open_file_event_metadata_source_inner = {
+                                let result_recorded_intent_open_file_event_metadata_source_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_open_file_event_metadata_source_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_intent_open_file_event_metadata_source_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_intent_open_file_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_open_file_event_metadata_timestamp_ns,
@@ -17364,9 +17287,14 @@ fn destack_os_intent_read_vm_replay(
                         };
                         let result_recorded_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_open_url_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_open_url_event_metadata_source = {
-                            let result_recorded_intent_open_url_event_metadata_source_ref = context.string_ref(value.metadata.source).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_intent_open_url_event_metadata_source_ref.as_str().to_string()
+                        let result_recorded_intent_open_url_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_open_url_event_metadata_source_inner = {
+                                let result_recorded_intent_open_url_event_metadata_source_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_open_url_event_metadata_source_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_intent_open_url_event_metadata_source_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_intent_open_url_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_open_url_event_metadata_timestamp_ns,
@@ -17394,9 +17322,14 @@ fn destack_os_intent_read_vm_replay(
                         };
                         let result_recorded_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_share_files_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_share_files_event_metadata_source = {
-                            let result_recorded_intent_share_files_event_metadata_source_ref = context.string_ref(value.metadata.source).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_intent_share_files_event_metadata_source_ref.as_str().to_string()
+                        let result_recorded_intent_share_files_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_share_files_event_metadata_source_inner = {
+                                let result_recorded_intent_share_files_event_metadata_source_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_share_files_event_metadata_source_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_intent_share_files_event_metadata_source_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_intent_share_files_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_share_files_event_metadata_timestamp_ns,
@@ -17470,9 +17403,14 @@ fn destack_os_intent_read_vm_replay(
                         };
                         let result_recorded_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_share_text_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_share_text_event_metadata_source = {
-                            let result_recorded_intent_share_text_event_metadata_source_ref = context.string_ref(value.metadata.source).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_intent_share_text_event_metadata_source_ref.as_str().to_string()
+                        let result_recorded_intent_share_text_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_share_text_event_metadata_source_inner = {
+                                let result_recorded_intent_share_text_event_metadata_source_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_share_text_event_metadata_source_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_intent_share_text_event_metadata_source_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_intent_share_text_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_share_text_event_metadata_timestamp_ns,
@@ -17532,7 +17470,12 @@ fn destack_os_intent_read_vm_replay(
                             let vm_result_intent_custom_action_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_custom_action_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_intent_custom_action_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let vm_result_intent_custom_action_event_metadata_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_custom_action_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_intent_custom_action_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_custom_action_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_custom_action_event_metadata_sequence,
@@ -17607,7 +17550,12 @@ fn destack_os_intent_read_vm_replay(
                             let vm_result_intent_open_file_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_open_file_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_open_file_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_intent_open_file_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let vm_result_intent_open_file_event_metadata_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_open_file_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_intent_open_file_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_open_file_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_open_file_event_metadata_sequence,
@@ -17661,7 +17609,12 @@ fn destack_os_intent_read_vm_replay(
                             let vm_result_intent_open_url_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_open_url_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_open_url_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_intent_open_url_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let vm_result_intent_open_url_event_metadata_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_open_url_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_intent_open_url_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_open_url_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_open_url_event_metadata_sequence,
@@ -17682,7 +17635,12 @@ fn destack_os_intent_read_vm_replay(
                             let vm_result_intent_share_files_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_share_files_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_share_files_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_intent_share_files_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let vm_result_intent_share_files_event_metadata_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_share_files_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_intent_share_files_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_share_files_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_share_files_event_metadata_sequence,
@@ -17741,7 +17699,12 @@ fn destack_os_intent_read_vm_replay(
                             let vm_result_intent_share_text_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_share_text_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_share_text_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_intent_share_text_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let vm_result_intent_share_text_event_metadata_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_share_text_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_intent_share_text_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_share_text_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_share_text_event_metadata_sequence,
@@ -17805,9 +17768,14 @@ fn destack_os_intent_try_read_vm_replay(
                         };
                         let result_recorded_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_custom_action_event_metadata_source = {
-                            let result_recorded_intent_custom_action_event_metadata_source_ref = context.string_ref(value.metadata.source).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_intent_custom_action_event_metadata_source_ref.as_str().to_string()
+                        let result_recorded_intent_custom_action_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_custom_action_event_metadata_source_inner = {
+                                let result_recorded_intent_custom_action_event_metadata_source_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_custom_action_event_metadata_source_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_intent_custom_action_event_metadata_source_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_intent_custom_action_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_custom_action_event_metadata_timestamp_ns,
@@ -17906,9 +17874,14 @@ fn destack_os_intent_try_read_vm_replay(
                         };
                         let result_recorded_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_open_file_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_open_file_event_metadata_source = {
-                            let result_recorded_intent_open_file_event_metadata_source_ref = context.string_ref(value.metadata.source).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_intent_open_file_event_metadata_source_ref.as_str().to_string()
+                        let result_recorded_intent_open_file_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_open_file_event_metadata_source_inner = {
+                                let result_recorded_intent_open_file_event_metadata_source_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_open_file_event_metadata_source_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_intent_open_file_event_metadata_source_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_intent_open_file_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_open_file_event_metadata_timestamp_ns,
@@ -17976,9 +17949,14 @@ fn destack_os_intent_try_read_vm_replay(
                         };
                         let result_recorded_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_open_url_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_open_url_event_metadata_source = {
-                            let result_recorded_intent_open_url_event_metadata_source_ref = context.string_ref(value.metadata.source).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_intent_open_url_event_metadata_source_ref.as_str().to_string()
+                        let result_recorded_intent_open_url_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_open_url_event_metadata_source_inner = {
+                                let result_recorded_intent_open_url_event_metadata_source_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_open_url_event_metadata_source_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_intent_open_url_event_metadata_source_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_intent_open_url_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_open_url_event_metadata_timestamp_ns,
@@ -18006,9 +17984,14 @@ fn destack_os_intent_try_read_vm_replay(
                         };
                         let result_recorded_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_share_files_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_share_files_event_metadata_source = {
-                            let result_recorded_intent_share_files_event_metadata_source_ref = context.string_ref(value.metadata.source).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_intent_share_files_event_metadata_source_ref.as_str().to_string()
+                        let result_recorded_intent_share_files_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_share_files_event_metadata_source_inner = {
+                                let result_recorded_intent_share_files_event_metadata_source_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_share_files_event_metadata_source_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_intent_share_files_event_metadata_source_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_intent_share_files_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_share_files_event_metadata_timestamp_ns,
@@ -18082,9 +18065,14 @@ fn destack_os_intent_try_read_vm_replay(
                         };
                         let result_recorded_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_intent_share_text_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_intent_share_text_event_metadata_source = {
-                            let result_recorded_intent_share_text_event_metadata_source_ref = context.string_ref(value.metadata.source).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_intent_share_text_event_metadata_source_ref.as_str().to_string()
+                        let result_recorded_intent_share_text_event_metadata_source = if let Some(value) = value.metadata.source {
+                            let result_recorded_intent_share_text_event_metadata_source_inner = {
+                                let result_recorded_intent_share_text_event_metadata_source_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_intent_share_text_event_metadata_source_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_intent_share_text_event_metadata_source_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_intent_share_text_event_metadata = IntenteventmetadataReplayRecord {
                             timestamp_ns: result_recorded_intent_share_text_event_metadata_timestamp_ns,
@@ -18144,7 +18132,12 @@ fn destack_os_intent_try_read_vm_replay(
                             let vm_result_intent_custom_action_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_custom_action_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_intent_custom_action_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let vm_result_intent_custom_action_event_metadata_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_custom_action_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_intent_custom_action_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_custom_action_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_custom_action_event_metadata_sequence,
@@ -18219,7 +18212,12 @@ fn destack_os_intent_try_read_vm_replay(
                             let vm_result_intent_open_file_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_open_file_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_open_file_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_intent_open_file_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let vm_result_intent_open_file_event_metadata_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_open_file_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_intent_open_file_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_open_file_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_open_file_event_metadata_sequence,
@@ -18273,7 +18271,12 @@ fn destack_os_intent_try_read_vm_replay(
                             let vm_result_intent_open_url_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_open_url_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_open_url_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_intent_open_url_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let vm_result_intent_open_url_event_metadata_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_open_url_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_intent_open_url_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_open_url_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_open_url_event_metadata_sequence,
@@ -18294,7 +18297,12 @@ fn destack_os_intent_try_read_vm_replay(
                             let vm_result_intent_share_files_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_share_files_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_share_files_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_intent_share_files_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let vm_result_intent_share_files_event_metadata_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_share_files_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_intent_share_files_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_share_files_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_share_files_event_metadata_sequence,
@@ -18353,7 +18361,12 @@ fn destack_os_intent_try_read_vm_replay(
                             let vm_result_intent_share_text_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_intent_share_text_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_intent_share_text_event_metadata_source = context.string_handle(value.metadata.source.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_intent_share_text_event_metadata_source = if let Some(value) = value.metadata.source {
+                                let vm_result_intent_share_text_event_metadata_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_intent_share_text_event_metadata_source_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_intent_share_text_event_metadata = IntentEventMetadataVm {
                                 timestamp_ns: vm_result_intent_share_text_event_metadata_timestamp_ns,
                                 sequence: vm_result_intent_share_text_event_metadata_sequence,
@@ -19635,62 +19648,6 @@ fn destack_os_location_watch_try_read_vm_replay(
 }
 
 #[inline]
-fn destack_os_mount_add_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    source: vm::StringHandle,
-    target: fs::OsPathVm,
-    filesystem: vm::StringHandle,
-    flags: u64,
-    data: vm::StringHandle,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        OS_MOUNT_ADD,
-        binding.replay_payload_for(OS_MOUNT_ADD)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_mount_add(
-                binding, context, source, target, filesystem, flags, data,
-            ),
-            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_mount_add(
-                binding, context, source, target, filesystem, flags, data,
-            ),
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = OsMountAddReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsMountAddReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_os_mount_add_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
 fn destack_os_mount_list_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -19717,20 +19674,40 @@ fn destack_os_mount_list_vm_replay(
                         if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
                         let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
                         if slots.len() != 4 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 4 fields")).boxed()); }
-                        let result_recorded_item_source = decode_string(slots[0], "result_recorded_item_source", "source")?;
+                        let result_recorded_item_source = if slots[0].tag() == vm::ValueTag::Void {
+                            None
+                        } else {
+                            let result_recorded_item_source_inner = decode_string(slots[0], "result_recorded_item_source_inner", "source")?;
+                            Some(result_recorded_item_source_inner)
+                        };
                         let result_recorded_item_target = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-                        let result_recorded_item_file_system = decode_string(slots[2], "result_recorded_item_file_system", "fileSystem")?;
-                        let result_recorded_item_flags = decode_uint64(slots[3], "result_recorded_item_flags", "flags")?;
+                        let result_recorded_item_file_system = if slots[2].tag() == vm::ValueTag::Void {
+                            None
+                        } else {
+                            let result_recorded_item_file_system_inner = decode_string(slots[2], "result_recorded_item_file_system_inner", "fileSystem")?;
+                            Some(result_recorded_item_file_system_inner)
+                        };
+                        let result_recorded_item_host_flags = if slots[3].tag() == vm::ValueTag::Void {
+                            None
+                        } else {
+                            let result_recorded_item_host_flags_inner = decode_uint64(slots[3], "result_recorded_item_host_flags_inner", "hostFlags")?;
+                            Some(result_recorded_item_host_flags_inner)
+                        };
                         MountEntryVm {
                             source: result_recorded_item_source,
                             target: result_recorded_item_target,
                             file_system: result_recorded_item_file_system,
-                            flags: result_recorded_item_flags,
+                            host_flags: result_recorded_item_host_flags,
                         }
                     };
-                    let result_recorded_item_recorded_source = {
-                        let result_recorded_item_recorded_source_ref = context.string_ref(result_recorded_item.source).map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_item_recorded_source_ref.as_str().to_string()
+                    let result_recorded_item_recorded_source = if let Some(value) = result_recorded_item.source {
+                        let result_recorded_item_recorded_source_inner = {
+                            let result_recorded_item_recorded_source_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_item_recorded_source_inner_ref.as_str().to_string()
+                        };
+                        Some(result_recorded_item_recorded_source_inner)
+                    } else {
+                        None
                     };
                     let result_recorded_item_recorded_target = match result_recorded_item.target {
                         fs::OsPathVm::OsPathBytes(value) => {
@@ -19766,16 +19743,26 @@ fn destack_os_mount_list_vm_replay(
                             fs::OspathReplayRecord::OsPathUtf16(result_recorded_item_recorded_target_os_path_utf16)
                         }
                     };
-                    let result_recorded_item_recorded_file_system = {
-                        let result_recorded_item_recorded_file_system_ref = context.string_ref(result_recorded_item.file_system).map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_item_recorded_file_system_ref.as_str().to_string()
+                    let result_recorded_item_recorded_file_system = if let Some(value) = result_recorded_item.file_system {
+                        let result_recorded_item_recorded_file_system_inner = {
+                            let result_recorded_item_recorded_file_system_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_item_recorded_file_system_inner_ref.as_str().to_string()
+                        };
+                        Some(result_recorded_item_recorded_file_system_inner)
+                    } else {
+                        None
                     };
-                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded_host_flags = if let Some(value) = result_recorded_item.host_flags {
+                        let result_recorded_item_recorded_host_flags_inner = value;
+                        Some(result_recorded_item_recorded_host_flags_inner)
+                    } else {
+                        None
+                    };
                     let result_recorded_item_recorded = MountentryReplayRecord {
                         source: result_recorded_item_recorded_source,
                         target: result_recorded_item_recorded_target,
                         file_system: result_recorded_item_recorded_file_system,
-                        flags: result_recorded_item_recorded_flags,
+                        host_flags: result_recorded_item_recorded_host_flags,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -19804,7 +19791,12 @@ fn destack_os_mount_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_source = context.string_handle(vm_result_item.source.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_source = if let Some(value) = vm_result_item.source {
+                            let vm_result_item_value_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            Some(vm_result_item_value_source_inner)
+                        } else {
+                            None
+                        };
                         let vm_result_item_value_target = match vm_result_item.target {
                             fs::OspathReplayRecord::OsPathBytes(value) => {
                                 let vm_result_item_value_target_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -19832,13 +19824,23 @@ fn destack_os_mount_list_vm_replay(
                                 fs::OsPathVm::OsPathUtf16(vm_result_item_value_target_os_path_utf16)
                             }
                         };
-                        let vm_result_item_value_file_system = context.string_handle(vm_result_item.file_system.as_str()).map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_flags = vm_result_item.flags;
+                        let vm_result_item_value_file_system = if let Some(value) = vm_result_item.file_system {
+                            let vm_result_item_value_file_system_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            Some(vm_result_item_value_file_system_inner)
+                        } else {
+                            None
+                        };
+                        let vm_result_item_value_host_flags = if let Some(value) = vm_result_item.host_flags {
+                            let vm_result_item_value_host_flags_inner = value;
+                            Some(vm_result_item_value_host_flags_inner)
+                        } else {
+                            None
+                        };
                         let vm_result_item_value = MountEntryVm {
                             source: vm_result_item_value_source,
                             target: vm_result_item_value_target,
                             file_system: vm_result_item_value_file_system,
-                            flags: vm_result_item_value_flags,
+                            host_flags: vm_result_item_value_host_flags,
                         };
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -19850,59 +19852,6 @@ fn destack_os_mount_list_vm_replay(
         },
     );
     let result = encode_destack_os_mount_list_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
-fn destack_os_mount_remove_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    target: fs::OsPathVm,
-    flags: u64,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        OS_MOUNT_REMOVE,
-        binding.replay_payload_for(OS_MOUNT_REMOVE)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_os_mount_remove(binding, context, target, flags)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_mount_remove(binding, context, target, flags)
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(()) = result {
-                let result_recorded = ();
-                let payload = OsMountRemoveReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    OsMountRemoveReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(()) => Ok(()),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_os_mount_remove_result(context, result)?;
     Ok(result)
 }
 
@@ -23210,43 +23159,12 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
         });
     }
     {
-        binding!(registry, isolate, OS_MOUNT_ADD, move |context, args| {
-            with_binding_call_context(|binding| {
-                // decode args
-                let (source, target, filesystem, flags, data) =
-                    decode_destack_os_mount_add_args(context, args)?;
-
-                // execute binding
-                let (world, _binding_hook_guard) =
-                    binding.on_before_binding_resolve_world(OS_MOUNT_ADD)?;
-                destack_os_mount_add_vm_replay(
-                    binding, context, world, source, target, filesystem, flags, data,
-                )
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
         binding!(registry, isolate, OS_MOUNT_LIST, move |context, _args| {
             with_binding_call_context(|binding| {
                 // execute binding
                 let (world, _binding_hook_guard) =
                     binding.on_before_binding_resolve_world(OS_MOUNT_LIST)?;
                 destack_os_mount_list_vm_replay(binding, context, world)
-            })
-            .map_err(Into::into)
-        });
-    }
-    {
-        binding!(registry, isolate, OS_MOUNT_REMOVE, move |context, args| {
-            with_binding_call_context(|binding| {
-                // decode args
-                let (target, flags) = decode_destack_os_mount_remove_args(context, args)?;
-
-                // execute binding
-                let (world, _binding_hook_guard) =
-                    binding.on_before_binding_resolve_world(OS_MOUNT_REMOVE)?;
-                destack_os_mount_remove_vm_replay(binding, context, world, target, flags)
             })
             .map_err(Into::into)
         });
