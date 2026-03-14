@@ -94,7 +94,7 @@ impl<'a> ModuleCodegen<'a> {
                 inner,
             } => {
                 if name == "ResourceKind" && newtype_domain == "resource" {
-                    return format!("{value_expr}.value()");
+                    return format!("Ok({value_expr}.value())");
                 }
 
                 let inner_expr = format!("{value_expr}.0");
@@ -138,8 +138,10 @@ impl<'a> ModuleCodegen<'a> {
                     let field_expr = format!("{value_expr}.{field_name}");
                     let encoded_expr = self.render_encode_expr(&field.binding_type, &field_expr);
                     let local_name = format!("field_{index}");
-                    lines.push(format!("let {local_name} = {encoded_expr};"));
-                    encoded_fields.push(local_name);
+                    lines.push(format!(
+                        "let {local_name}: RuntimeResult<vm::Value> = {encoded_expr};"
+                    ));
+                    encoded_fields.push(format!("{local_name}?"));
                 }
 
                 lines.push(format!(
