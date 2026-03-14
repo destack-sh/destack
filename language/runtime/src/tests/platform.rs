@@ -1,5 +1,4 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-#[cfg(test)]
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(test)]
@@ -7,7 +6,7 @@ use crate::platform::{VmArray, VmSlice};
 #[cfg(test)]
 use destack_vm as vm;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Extract one platform error code from one failed runtime result.
 pub(crate) fn error_code_from_result<T>(
     result: RuntimeResult<T>,
@@ -34,7 +33,7 @@ pub(crate) fn error_code_from_runtime_error(error: &RuntimeError) -> Option<Plat
     error.platform_error().map(|platform| platform.code)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Assert one failed runtime result with one exact platform code.
 pub(crate) fn assert_platform_error_code<T>(
     result: RuntimeResult<T>,
@@ -46,7 +45,7 @@ pub(crate) fn assert_platform_error_code<T>(
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Assert one failed runtime result with one expected platform code set.
 pub(crate) fn assert_platform_error_codes<T>(
     result: RuntimeResult<T>,
@@ -61,7 +60,7 @@ pub(crate) fn assert_platform_error_codes<T>(
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Assert one failed runtime result with one exact platform code in privileged-mode policy.
 pub(crate) fn assert_platform_error_code_with_privileged_policy<T>(
     result: RuntimeResult<T>,
@@ -74,7 +73,7 @@ pub(crate) fn assert_platform_error_code_with_privileged_policy<T>(
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Assert one failed runtime result with one expected platform code set in privileged-mode policy.
 pub(crate) fn assert_platform_error_codes_with_privileged_policy<T>(
     result: RuntimeResult<T>,
@@ -117,13 +116,13 @@ pub(crate) fn is_not_supported_code(code: Option<PlatformErrorCode>) -> bool {
     code == Some(PlatformErrorCode::NotSupported)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Return whether one concrete platform error code is not-supported.
 pub(crate) fn is_not_supported_platform_code(code: PlatformErrorCode) -> bool {
     is_not_supported_code(Some(code))
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Assert one failed runtime result carries not-supported.
 pub(crate) fn assert_not_supported_result<T>(result: RuntimeResult<T>) -> RuntimeResult<()> {
     let code = error_code_from_result(result)?;
@@ -148,14 +147,14 @@ pub(crate) fn result_or_skip_not_supported<T>(
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Assert one runtime error carries not-supported.
 pub(crate) fn assert_not_supported_error(error: &RuntimeError) {
     let code = error_code_from_runtime_error(error).expect("expected one platform error payload");
     assert!(is_not_supported_platform_code(code));
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Assert one runtime error does not carry not-supported.
 #[cfg(any(target_vendor = "apple", target_os = "android", windows))]
 pub(crate) fn assert_not_not_supported_error(error: &RuntimeError) {
@@ -163,26 +162,26 @@ pub(crate) fn assert_not_not_supported_error(error: &RuntimeError) {
     assert!(!is_not_supported_platform_code(code));
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Assert one concrete platform error code carries not-supported.
 pub(crate) fn assert_not_supported_platform_code(code: PlatformErrorCode) {
     assert!(is_not_supported_platform_code(code));
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Assert one concrete platform error code does not carry not-supported.
 pub(crate) fn assert_not_not_supported_platform_code(code: PlatformErrorCode) {
     assert!(!is_not_supported_platform_code(code));
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Assert one runtime error carries one exact platform code.
 pub(crate) fn assert_runtime_error_code(error: &RuntimeError, expected: PlatformErrorCode) {
     let code = error_code_from_runtime_error(error).expect("expected one platform error payload");
     assert_eq!(code, expected);
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Fail privileged runs when assertions observe permission-denied errors.
 fn assert_no_permission_denied_in_privileged_mode(
     observed: PlatformErrorCode,
@@ -199,7 +198,7 @@ fn assert_no_permission_denied_in_privileged_mode(
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Return whether one process environment enables privileged test mode.
 pub(crate) fn is_privileged_test_mode() -> bool {
     let value = std::env::var("DESTACK_TEST_PRIVILEGED").unwrap_or_default();
@@ -248,7 +247,7 @@ pub(crate) fn vm_test_raw_values(
         .expect("vm test raw values should allocate")
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "execution"))]
 /// Return whether one platform code represents a permission denial.
 fn is_permission_denied_code(code: PlatformErrorCode) -> bool {
     matches!(

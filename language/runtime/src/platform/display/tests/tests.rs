@@ -7,8 +7,7 @@ use std::time::Duration;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{PlatformError, VmSlice, display, resource};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
-#[cfg(target_os = "macos")]
-use crate::tests::affinity::run_main_thread_case_or_return;
+pub(crate) use crate::tests::execution::run_execution_case_or_return;
 pub(crate) use crate::tests::platform::{
     error_code_from_runtime_error as error_code, is_not_supported_code,
     result_or_skip_not_supported,
@@ -131,18 +130,6 @@ where
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
-}
-
-#[cfg(target_os = "macos")]
-/// Run one display case through the required affinity helper when needed.
-pub(crate) fn run_display_case_or_return(case_name: &str) -> bool {
-    run_main_thread_case_or_return(case_name)
-}
-
-#[cfg(not(target_os = "macos"))]
-/// Return whether the current display case was delegated to one helper process.
-pub(crate) fn run_display_case_or_return(_case_name: &str) -> bool {
-    false
 }
 
 #[cfg(any(windows, target_os = "macos"))]

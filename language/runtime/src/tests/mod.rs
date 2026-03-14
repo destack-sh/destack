@@ -1,12 +1,12 @@
-#[cfg(feature = "affinity")]
-pub mod affinity;
-#[cfg(all(test, not(feature = "affinity")))]
-pub(crate) mod affinity;
 #[cfg(test)]
 mod bindings;
-#[cfg(any(test, feature = "affinity"))]
+#[cfg(feature = "execution")]
+pub mod execution;
+#[cfg(all(test, not(feature = "execution")))]
+pub(crate) mod execution;
+#[cfg(any(test, feature = "execution"))]
 pub(crate) mod platform;
-#[cfg(feature = "affinity")]
+#[cfg(feature = "execution")]
 mod registry;
-#[cfg(any(test, feature = "affinity"))]
+#[cfg(any(test, feature = "execution"))]
 pub(crate) mod runtime;

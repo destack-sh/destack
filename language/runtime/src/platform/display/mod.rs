@@ -11,7 +11,7 @@ pub mod native;
 pub(crate) mod options;
 pub(crate) mod simulation;
 mod state;
-#[cfg(any(test, feature = "affinity"))]
+#[cfg(any(test, feature = "execution"))]
 pub(crate) mod tests;
 #[cfg(unix)]
 mod unix;

@@ -7,7 +7,7 @@ use super::{
     default_monitor_list_request, default_window_event_open_options, default_window_options,
     error_code, is_not_supported_code, monitor_event_open_options,
     monitor_event_open_options_with_kind_mask, open_window_or_skip_not_supported,
-    result_or_skip_not_supported, run_display_case_or_return, window_event_open_options,
+    result_or_skip_not_supported, run_execution_case_or_return, window_event_open_options,
     window_event_open_options_with_filter, with_harness_context,
 };
 #[cfg(any(unix, windows))]
@@ -222,8 +222,8 @@ fn marker_for_window_event(
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_monitor_event_stream_is_seeded() {
-    if run_display_case_or_return(display_case_name!(test_monitor_event_stream_is_seeded)) {
+pub(crate) fn test_monitor_event_stream_is_seeded() {
+    if run_execution_case_or_return(display_case_name!(test_monitor_event_stream_is_seeded)) {
         return;
     }
 
@@ -264,8 +264,8 @@ pub(super) fn test_monitor_event_stream_is_seeded() {
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_monitor_event_kind_filter_restricts_seeded_events() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_monitor_event_kind_filter_restricts_seeded_events() {
+    if run_execution_case_or_return(display_case_name!(
         test_monitor_event_kind_filter_restricts_seeded_events
     )) {
         return;
@@ -297,8 +297,8 @@ pub(super) fn test_monitor_event_kind_filter_restricts_seeded_events() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_monitor_event_batch_rejects_zero_maxevents() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_monitor_event_batch_rejects_zero_maxevents() {
+    if run_execution_case_or_return(display_case_name!(
         test_monitor_event_batch_rejects_zero_maxevents
     )) {
         return;
@@ -331,8 +331,8 @@ pub(super) fn test_monitor_event_batch_rejects_zero_maxevents() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_monitor_event_filter_rejects_invalid_kind_mask() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_monitor_event_filter_rejects_invalid_kind_mask() {
+    if run_execution_case_or_return(display_case_name!(
         test_monitor_event_filter_rejects_invalid_kind_mask
     )) {
         return;
@@ -368,8 +368,8 @@ pub(super) fn test_monitor_event_filter_rejects_invalid_kind_mask() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_event_filter_rejects_invalid_kind_mask() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_event_filter_rejects_invalid_kind_mask() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_event_filter_rejects_invalid_kind_mask
     )) {
         return;
@@ -407,8 +407,8 @@ pub(super) fn test_window_event_filter_rejects_invalid_kind_mask() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_monitor_event_stream_double_close_reports_not_found() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_monitor_event_stream_double_close_reports_not_found() {
+    if run_execution_case_or_return(display_case_name!(
         test_monitor_event_stream_double_close_reports_not_found
     )) {
         return;
@@ -435,8 +435,8 @@ pub(super) fn test_monitor_event_stream_double_close_reports_not_found() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_event_stream_double_close_reports_not_found() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_event_stream_double_close_reports_not_found() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_event_stream_double_close_reports_not_found
     )) {
         return;
@@ -463,8 +463,8 @@ pub(super) fn test_window_event_stream_double_close_reports_not_found() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_monitor_event_read_after_stream_close_reports_not_found() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_monitor_event_read_after_stream_close_reports_not_found() {
+    if run_execution_case_or_return(display_case_name!(
         test_monitor_event_read_after_stream_close_reports_not_found
     )) {
         return;
@@ -493,8 +493,8 @@ pub(super) fn test_monitor_event_read_after_stream_close_reports_not_found() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_event_read_after_stream_close_reports_not_found() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_event_read_after_stream_close_reports_not_found() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_event_read_after_stream_close_reports_not_found
     )) {
         return;
@@ -524,8 +524,8 @@ pub(super) fn test_window_event_read_after_stream_close_reports_not_found() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_event_stream_reports_would_block_after_drain() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_event_stream_reports_would_block_after_drain() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_event_stream_reports_would_block_after_drain
     )) {
         return;
@@ -577,8 +577,8 @@ pub(super) fn test_window_event_stream_reports_would_block_after_drain() {
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_event_filter_restricts_window_and_kind() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_event_filter_restricts_window_and_kind() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_event_filter_restricts_window_and_kind
     )) {
         return;
@@ -642,8 +642,8 @@ pub(super) fn test_window_event_filter_restricts_window_and_kind() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_event_overflow_error_policy_reports_busy() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_event_overflow_error_policy_reports_busy() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_event_overflow_error_policy_reports_busy
     )) {
         return;
@@ -693,8 +693,8 @@ pub(super) fn test_window_event_overflow_error_policy_reports_busy() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_event_drop_oldest_reports_dropped_count_metadata() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_event_drop_oldest_reports_dropped_count_metadata() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_event_drop_oldest_reports_dropped_count_metadata
     )) {
         return;
@@ -764,8 +764,8 @@ pub(super) fn test_window_event_drop_oldest_reports_dropped_count_metadata() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_monitor_event_overflow_error_policy_reports_busy() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_monitor_event_overflow_error_policy_reports_busy() {
+    if run_execution_case_or_return(display_case_name!(
         test_monitor_event_overflow_error_policy_reports_busy
     )) {
         return;
@@ -805,8 +805,8 @@ pub(super) fn test_monitor_event_overflow_error_policy_reports_busy() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_event_visibility_changes_emit_expected_payloads() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_event_visibility_changes_emit_expected_payloads() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_event_visibility_changes_emit_expected_payloads
     )) {
         return;
@@ -915,8 +915,8 @@ pub(super) fn test_window_event_visibility_changes_emit_expected_payloads() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_event_occlusion_changes_follow_visibility_transitions() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_event_occlusion_changes_follow_visibility_transitions() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_event_occlusion_changes_follow_visibility_transitions
     )) {
         return;
@@ -1024,8 +1024,8 @@ pub(super) fn test_window_event_occlusion_changes_follow_visibility_transitions(
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_event_refresh_metadata_sequence_is_monotonic() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_event_refresh_metadata_sequence_is_monotonic() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_event_refresh_metadata_sequence_is_monotonic
     )) {
         return;
@@ -1126,8 +1126,8 @@ pub(super) fn test_window_event_refresh_metadata_sequence_is_monotonic() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_event_relation_and_modal_payloads_match_state_transitions() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_event_relation_and_modal_payloads_match_state_transitions() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_event_relation_and_modal_payloads_match_state_transitions
     )) {
         return;
@@ -1298,8 +1298,8 @@ pub(super) fn test_window_event_relation_and_modal_payloads_match_state_transiti
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_close_emits_single_destroyed_lifecycle_event() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_close_emits_single_destroyed_lifecycle_event() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_close_emits_single_destroyed_lifecycle_event
     )) {
         return;
@@ -1400,8 +1400,8 @@ pub(super) fn test_window_close_emits_single_destroyed_lifecycle_event() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_destroyed_is_terminal_for_window_event_stream() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_destroyed_is_terminal_for_window_event_stream() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_destroyed_is_terminal_for_window_event_stream
     )) {
         return;
@@ -1478,8 +1478,8 @@ pub(super) fn test_window_destroyed_is_terminal_for_window_event_stream() {
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_event_stream_receives_host_close_message() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_event_stream_receives_host_close_message() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_event_stream_receives_host_close_message
     )) {
         return;
@@ -1532,8 +1532,8 @@ pub(super) fn test_window_event_stream_receives_host_close_message() {
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_close_emits_single_lifecycle_events_after_host_close_request() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_close_emits_single_lifecycle_events_after_host_close_request() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_close_emits_single_lifecycle_events_after_host_close_request
     )) {
         return;
@@ -1608,8 +1608,8 @@ pub(super) fn test_window_close_emits_single_lifecycle_events_after_host_close_r
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_state_read_does_not_synthesize_window_events() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_state_read_does_not_synthesize_window_events() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_state_read_does_not_synthesize_window_events
     )) {
         return;
@@ -1667,8 +1667,8 @@ pub(super) fn test_window_state_read_does_not_synthesize_window_events() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_set_mode_noop_does_not_emit_mode_event() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_set_mode_noop_does_not_emit_mode_event() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_set_mode_noop_does_not_emit_mode_event
     )) {
         return;
@@ -1724,8 +1724,8 @@ pub(super) fn test_window_set_mode_noop_does_not_emit_mode_event() {
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_monitor_event_stream_ignores_noop_displaychange_message() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_monitor_event_stream_ignores_noop_displaychange_message() {
+    if run_execution_case_or_return(display_case_name!(
         test_monitor_event_stream_ignores_noop_displaychange_message
     )) {
         return;
