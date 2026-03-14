@@ -10,7 +10,7 @@ Nightly runs that same release-blocking verification coverage, adds nightly-only
 Use the repository root `just` recipes as the public operator surface.
 Do not bypass them with ad hoc script invocations unless you are repairing a failed release.
 Destack uses one canonical monorepo release version from [VERSION.txt](/Users/florian/symbol/destack/VERSION.txt).
-Public project maturity is tracked separately through the single `Status` label in [PROJECTS.toml](/Users/florian/symbol/destack/PROJECTS.toml) and the area README inventories.
+Public project maturity is tracked separately through the single `Status` label in the area README inventories.
 
 | Command | Purpose |
 |---------|---------|
