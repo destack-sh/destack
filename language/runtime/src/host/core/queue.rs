@@ -3,10 +3,13 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use parking_lot::{Condvar, Mutex, MutexGuard};
+use tracing::error;
 
-use super::{HostEvent, HostEventKind};
 use crate::diagnostic::RuntimeResult;
+use crate::host::core::event::{HostEvent, HostEventKind};
+use crate::host::core::observer::{HostEventObserver, HostEventObserverRegistry};
 use crate::runtime::poller::PollerWakeHandle;
+use crate::runtime::world::RuntimeId;
 
 /// Host event identity key used for queue coalescing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -18,6 +21,8 @@ enum HostEventCoalescingKey {
 /// Shared host event queue for adapter event delivery.
 #[derive(Debug, Clone)]
 pub(crate) struct HostQueue {
+    /// Runtime id that owns this queue.
+    runtime_id: RuntimeId,
     /// Shared queue state and synchronization primitives.
     state: Arc<HostQueueState>,
     /// Shared out-of-band wake handle for blocked pollers.
@@ -55,13 +60,17 @@ struct HostQueueWakeHandle {
 
 impl HostQueue {
     /// Create one empty host event queue.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(runtime_id: RuntimeId) -> Self {
         let state = Arc::new(HostQueueState::default());
         let wake_handle = Arc::new(HostQueueWakeHandle {
             state: Arc::clone(&state),
         });
 
-        Self { state, wake_handle }
+        Self {
+            runtime_id,
+            state,
+            wake_handle,
+        }
     }
 
     /// Configure one optional queue capacity.
@@ -82,6 +91,7 @@ impl HostQueue {
     /// Enqueue one host event and wake blocked pollers.
     pub(crate) fn enqueue(&self, event: HostEvent) {
         let mut payload = self.state.queue.lock();
+        let event_observer_event = event.clone();
 
         // coalesce latest-state semantic events before capacity checks
         coalesce_semantic_event(&mut payload.events, &event);
@@ -95,6 +105,15 @@ impl HostQueue {
         payload.events.push_back(event);
         payload.wake_sequence = payload.wake_sequence.wrapping_add(1);
         self.state.wake.notify_all();
+        drop(payload);
+
+        // host event observers receive the original event stream independently
+        if let Err(error) = HostEventObserverRegistry::shared()
+            .write()
+            .dispatch(self.runtime_id.0, &event_observer_event)
+        {
+            error!(?error, "host event observer dispatch failed");
+        }
     }
 
     /// Return one shared wake handle for this queue.
@@ -130,6 +149,21 @@ impl HostQueue {
         }
 
         Ok(drain_events(&mut payload))
+    }
+
+    /// Register one observer and snapshot queued events under one queue lock.
+    pub(crate) fn register_observer_and_snapshot(
+        &self,
+        observer: &Arc<dyn HostEventObserver>,
+    ) -> Vec<HostEvent> {
+        let payload = self.state.queue.lock();
+
+        // register while the queue lock is held so future enqueues cannot race the snapshot
+        HostEventObserverRegistry::shared()
+            .write()
+            .register(self.runtime_id.0, observer);
+
+        payload.events.iter().cloned().collect()
     }
 }
 
@@ -225,7 +259,10 @@ fn oldest_drop_eligible_event_index(events: &VecDeque<HostEvent>) -> Option<usiz
 
 /// Return whether this event must be handled losslessly.
 fn is_lossless_event(event: &HostEvent) -> bool {
-    matches!(event.kind(), HostEventKind::Permission)
+    matches!(
+        event.kind(),
+        HostEventKind::Intent | HostEventKind::Permission
+    )
 }
 
 /// Return whether this event uses latest-state coalescing semantics.
@@ -252,13 +289,16 @@ fn coalescing_key(event: &HostEvent) -> Option<HostEventCoalescingKey> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::{Arc, mpsc};
     use std::thread;
     use std::time::{Duration, Instant};
 
+    use crate::diagnostic::RuntimeResult;
+    use crate::host::core::observer::{HostEventObserver, HostEventObserverRegistry};
+    use crate::host::core::queue::HostQueue;
     use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState, HostPermissionEvent};
-
-    use super::HostQueue;
+    use crate::runtime::world::RuntimeId;
 
     fn lifecycle_event(state: HostLifecycleState) -> HostEvent {
         HostEvent::Lifecycle(HostLifecycleEvent { state })
@@ -271,9 +311,26 @@ mod tests {
         })
     }
 
+    fn queue() -> HostQueue {
+        HostQueue::new(RuntimeId(1))
+    }
+
+    #[derive(Debug)]
+    struct TestHostEventObserver {
+        callback_count: Arc<AtomicU64>,
+    }
+
+    impl HostEventObserver for TestHostEventObserver {
+        fn observe_host_event(&self, _event: &HostEvent) -> RuntimeResult<()> {
+            self.callback_count.fetch_add(1, Ordering::Relaxed);
+
+            Ok(())
+        }
+    }
+
     #[test]
     fn test_poll_events_drains_enqueued_events() {
-        let queue = HostQueue::new();
+        let queue = queue();
         queue.enqueue(lifecycle_event(HostLifecycleState::Running));
 
         let events = queue.poll_events(Some(0)).unwrap();
@@ -283,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_poll_events_returns_empty_after_timeout() {
-        let queue = HostQueue::new();
+        let queue = queue();
         let start = Instant::now();
 
         let events = queue.poll_events(Some(10_000_000)).unwrap();
@@ -294,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_wake_handle_interrupts_blocking_poll() {
-        let queue = HostQueue::new();
+        let queue = queue();
         let queue_for_thread = queue.clone();
         let wake_handle = queue.poll_wake_handle();
         let (sender, receiver) = mpsc::channel();
@@ -315,7 +372,7 @@ mod tests {
 
     #[test]
     fn test_configure_capacity_drops_oldest_when_full() {
-        let queue = HostQueue::new();
+        let queue = queue();
         queue.configure_capacity(Some(1));
 
         queue.enqueue(lifecycle_event(HostLifecycleState::Paused));
@@ -328,7 +385,7 @@ mod tests {
 
     #[test]
     fn test_take_dropped_event_count_resets_counter() {
-        let queue = HostQueue::new();
+        let queue = queue();
         queue.configure_capacity(Some(1));
 
         queue.enqueue(lifecycle_event(HostLifecycleState::Paused));
@@ -342,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_coalesces_lifecycle_events_to_latest_state() {
-        let queue = HostQueue::new();
+        let queue = queue();
 
         queue.enqueue(lifecycle_event(HostLifecycleState::Initializing));
         queue.enqueue(lifecycle_event(HostLifecycleState::Running));
@@ -353,8 +410,30 @@ mod tests {
     }
 
     #[test]
+    fn test_register_observer_and_snapshot_does_not_replay_existing_events_live() {
+        let queue = queue();
+        let callback_count = Arc::new(AtomicU64::new(0));
+        let observer: Arc<dyn HostEventObserver> = Arc::new(TestHostEventObserver {
+            callback_count: Arc::clone(&callback_count),
+        });
+
+        queue.enqueue(lifecycle_event(HostLifecycleState::Paused));
+
+        let events = queue.register_observer_and_snapshot(&observer);
+        assert_eq!(events.len(), 1);
+        assert_eq!(callback_count.load(Ordering::Relaxed), 0);
+
+        queue.enqueue(lifecycle_event(HostLifecycleState::Running));
+        assert_eq!(callback_count.load(Ordering::Relaxed), 1);
+
+        HostEventObserverRegistry::shared()
+            .write()
+            .unregister_runtime(1);
+    }
+
+    #[test]
     fn test_permission_events_stay_lossless_under_capacity_pressure() {
-        let queue = HostQueue::new();
+        let queue = queue();
         queue.configure_capacity(Some(1));
 
         queue.enqueue(permission_event("camera", false));
@@ -373,7 +452,7 @@ mod tests {
 
     #[test]
     fn test_coalescing_events_can_overflow_lossless_permission_capacity() {
-        let queue = HostQueue::new();
+        let queue = queue();
         queue.configure_capacity(Some(1));
 
         queue.enqueue(permission_event("camera", false));
@@ -393,7 +472,7 @@ mod tests {
 
     #[test]
     fn test_coalescing_event_overflows_lossless_capacity_without_drops() {
-        let queue = HostQueue::new();
+        let queue = queue();
         queue.configure_capacity(Some(1));
 
         queue.enqueue(permission_event("camera", false));

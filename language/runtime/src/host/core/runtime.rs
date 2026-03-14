@@ -2,16 +2,16 @@ use std::sync::Arc;
 
 use destack_workspace::{Platform, PlatformHostOptions, RuntimeOptions};
 
-use super::backend::{HostBackend, HostPollOutcome};
-use super::event::{HostEvent, HostLifecycleEvent, HostLifecycleState};
-use super::observer::RuntimeIngressObserverRegistry;
-use super::queue::HostQueue;
-use super::registry::{HostCleanup, HostQueueRegistry, HostRegistrationGuard};
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "android")]
 use crate::host::android::AndroidHost;
 #[cfg(target_os = "android")]
-use crate::host::android::unregister_android_bindings;
+use crate::host::android::unregister_android_host_runtime;
+use crate::host::core::backend::{HostBackend, HostPollOutcome};
+use crate::host::core::event::{HostEvent, HostLifecycleEvent, HostLifecycleState};
+use crate::host::core::observer::RuntimeIngressObserverRegistry;
+use crate::host::core::queue::HostQueue;
+use crate::host::core::registry::{HostCleanup, HostQueueRegistry, HostRegistrationGuard};
 #[cfg(target_os = "dragonfly")]
 use crate::host::dragonfly::DragonflyHost;
 #[cfg(target_os = "freebsd")]
@@ -108,7 +108,7 @@ impl Host {
         host_options: PlatformHostOptions,
     ) -> Self {
         let platform = backend.platform();
-        let queue = Arc::new(HostQueue::new());
+        let queue = Arc::new(HostQueue::new(runtime_id));
 
         // register callback routing before this host starts serving callers
         let registration_guard = HostQueueRegistry::shared().write().register(
@@ -230,7 +230,7 @@ impl Host {
         #[cfg(target_os = "android")]
         return (
             Arc::new(AndroidHost::new()),
-            Some(unregister_android_bindings),
+            Some(unregister_android_host_runtime),
         );
 
         #[cfg(target_os = "dragonfly")]
@@ -309,6 +309,7 @@ impl Host {
         for event in events {
             let is_enabled = match event {
                 HostEvent::Lifecycle(_) => self.host_options.enable_lifecycle_events,
+                HostEvent::Intent(_) => true,
                 HostEvent::Permission(_) => self.host_options.enable_permission_events,
                 HostEvent::Interruption(_) => self.host_options.enable_interruption_events,
                 HostEvent::MemoryPressure(_) => self.host_options.enable_interruption_events,

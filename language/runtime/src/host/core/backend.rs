@@ -22,12 +22,8 @@ pub(crate) trait HostBackend: std::fmt::Debug + Send + Sync {
     fn host_capabilities(&self) -> PlatformCapabilitySet {
         let mut host_capabilities = PlatformCapabilitySet::new();
 
-        // lifecycle and power signals are routed through the host event bridge
-        host_capabilities.insert_capability(PlatformCapability::OsLifecycleRead);
+        // power state is a broadly available host binding family
         host_capabilities.insert_capability(PlatformCapability::OsPower);
-
-        // permission result tracking is routed through host permission callbacks
-        host_capabilities.insert_capability(PlatformCapability::OsPermissionRead);
 
         host_capabilities
     }
