@@ -1,6 +1,6 @@
-use destack_runtime::tests::affinity::run_affinity_case;
+use destack_runtime::tests::execution::run_execution_case;
 
-/// Run one named affinity-sensitive test case on the process main thread.
+/// Run one named execution-sensitive test case on the process main thread.
 fn main() {
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
     let mut arguments = arguments.into_iter();
@@ -19,5 +19,5 @@ fn main() {
         return;
     };
 
-    run_affinity_case(case_name.as_str());
+    run_execution_case(case_name.as_str());
 }

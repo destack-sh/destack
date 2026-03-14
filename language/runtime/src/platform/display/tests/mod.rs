@@ -1,20 +1,18 @@
 #[cfg(any(unix, windows))]
 #[macro_use]
-mod registry;
-#[cfg(all(any(unix, windows), feature = "affinity"))]
-pub(crate) mod affinity;
+mod macros;
 #[cfg(any(unix, windows))]
-mod backend;
+pub(crate) mod backend;
 #[cfg(any(unix, windows))]
-mod basic;
+pub(crate) mod basic;
 #[cfg(any(unix, windows))]
-mod event;
+pub(crate) mod event;
 #[cfg(any(unix, windows))]
-mod monitor;
+pub(crate) mod monitor;
 #[cfg(any(unix, windows))]
 mod tests;
 #[cfg(any(unix, windows))]
-mod window;
+pub(crate) mod window;
 
 #[cfg(any(unix, windows))]
 pub(super) use tests::*;

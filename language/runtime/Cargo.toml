@@ -14,7 +14,7 @@ doctest = false
 [features]
 default = ["replay", "audio-backends-default"]
 replay = []
-affinity = []
+execution = []
 audio-backends-default = [
     "audio-wasapi",
     "audio-asio",
@@ -47,10 +47,10 @@ path = "src/generate/main.rs"
 required-features = ["generate_bindings"]
 
 [[test]]
-name = "runtime_affinity"
-path = "src/tests/main.rs"
+name = "runtime_execution"
+path = "src/tests/driver.rs"
 harness = false
-required-features = ["affinity"]
+required-features = ["execution"]
 
 [dependencies]
 # language
@@ -129,6 +129,7 @@ windows-sys = { workspace = true, features = [
     "Win32_Devices_Display",
     "Win32_Storage_FileSystem",
     "Win32_System_Com",
+    "Win32_System_DataExchange",
     "Win32_System_IO",
     "Win32_System_Ioctl",
     "Win32_System_LibraryLoader",
@@ -157,6 +158,7 @@ windows-sys = { workspace = true, features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_Devices_BiometricFramework",
     "Wdk_Foundation",
+    "Wdk_System_SystemServices",
     "Wdk_Storage_FileSystem",
 ] }
 

@@ -2,7 +2,7 @@ use super::{
     HarnessValue, HarnessWindowMode, decode_harness_value, default_window_options, error_code,
     harness_window_icon_set, harness_window_icon_set_none, harness_window_logical_size,
     harness_window_mode_options, harness_window_physical_size, is_not_supported_code,
-    open_window_or_skip_not_supported, run_display_case_or_return, wait_window_visibility,
+    open_window_or_skip_not_supported, run_execution_case_or_return, wait_window_visibility,
     with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -61,8 +61,8 @@ fn wait_cursor_visibility(expected_visible: bool) -> bool {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_rejects_invalid_size_values() {
-    if run_display_case_or_return(display_case_name!(test_window_rejects_invalid_size_values)) {
+pub(crate) fn test_window_rejects_invalid_size_values() {
+    if run_execution_case_or_return(display_case_name!(test_window_rejects_invalid_size_values)) {
         return;
     }
 
@@ -99,8 +99,8 @@ pub(super) fn test_window_rejects_invalid_size_values() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_mode_exclusive_with_invalid_display_is_rejected() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_mode_exclusive_with_invalid_display_is_rejected() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_mode_exclusive_with_invalid_display_is_rejected
     )) {
         return;
@@ -135,8 +135,8 @@ pub(super) fn test_window_mode_exclusive_with_invalid_display_is_rejected() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_failed_mode_change_preserves_previous_mode() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_failed_mode_change_preserves_previous_mode() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_failed_mode_change_preserves_previous_mode
     )) {
         return;
@@ -214,8 +214,8 @@ pub(super) fn test_window_failed_mode_change_preserves_previous_mode() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_open_mode_exclusive_with_invalid_display_is_rejected() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_open_mode_exclusive_with_invalid_display_is_rejected() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_open_mode_exclusive_with_invalid_display_is_rejected
     )) {
         return;
@@ -274,8 +274,8 @@ pub(super) fn test_window_open_mode_exclusive_with_invalid_display_is_rejected()
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_open_rejects_unusable_popup_role_configuration() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_open_rejects_unusable_popup_role_configuration() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_open_rejects_unusable_popup_role_configuration
     )) {
         return;
@@ -311,8 +311,8 @@ pub(super) fn test_window_open_rejects_unusable_popup_role_configuration() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_cursor_policy_transitions_keep_close_path_operational() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_cursor_policy_transitions_keep_close_path_operational() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_cursor_policy_transitions_keep_close_path_operational
     )) {
         return;
@@ -371,8 +371,8 @@ pub(super) fn test_window_cursor_policy_transitions_keep_close_path_operational(
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_visibility_roundtrip_and_double_close_error() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_visibility_roundtrip_and_double_close_error() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_visibility_roundtrip_and_double_close_error
     )) {
         return;
@@ -465,8 +465,8 @@ pub(super) fn test_window_visibility_roundtrip_and_double_close_error() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_set_size_logical_roundtrip_matches_state() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_set_size_logical_roundtrip_matches_state() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_set_size_logical_roundtrip_matches_state
     )) {
         return;
@@ -493,8 +493,8 @@ pub(super) fn test_window_set_size_logical_roundtrip_matches_state() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_set_modal_requires_owner_relationship() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_set_modal_requires_owner_relationship() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_set_modal_requires_owner_relationship
     )) {
         return;
@@ -525,8 +525,8 @@ pub(super) fn test_window_set_modal_requires_owner_relationship() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_modal_owner_removal_requires_explicit_transition() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_modal_owner_removal_requires_explicit_transition() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_modal_owner_removal_requires_explicit_transition
     )) {
         return;
@@ -599,8 +599,8 @@ pub(super) fn test_window_modal_owner_removal_requires_explicit_transition() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_set_parent_rejects_self_relationship() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_set_parent_rejects_self_relationship() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_set_parent_rejects_self_relationship
     )) {
         return;
@@ -631,8 +631,8 @@ pub(super) fn test_window_set_parent_rejects_self_relationship() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_parent_and_transient_relationship_roundtrip() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_parent_and_transient_relationship_roundtrip() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_parent_and_transient_relationship_roundtrip
     )) {
         return;
@@ -700,8 +700,8 @@ pub(super) fn test_window_parent_and_transient_relationship_roundtrip() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_opacity_roundtrip() {
-    if run_display_case_or_return(display_case_name!(test_window_opacity_roundtrip)) {
+pub(crate) fn test_window_opacity_roundtrip() {
+    if run_execution_case_or_return(display_case_name!(test_window_opacity_roundtrip)) {
         return;
     }
 
@@ -736,8 +736,8 @@ pub(super) fn test_window_opacity_roundtrip() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_chrome_and_decoration_roundtrip() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_chrome_and_decoration_roundtrip() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_chrome_and_decoration_roundtrip
     )) {
         return;
@@ -797,8 +797,8 @@ pub(super) fn test_window_chrome_and_decoration_roundtrip() {
 
 #[cfg(any(windows, target_os = "macos"))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_set_size_physical_matches_client_size() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_set_size_physical_matches_client_size() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_set_size_physical_matches_client_size
     )) {
         return;
@@ -823,8 +823,8 @@ pub(super) fn test_window_set_size_physical_matches_client_size() {
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_open_size_matches_requested_client_size() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_open_size_matches_requested_client_size() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_open_size_matches_requested_client_size
     )) {
         return;
@@ -858,8 +858,8 @@ pub(super) fn test_window_open_size_matches_requested_client_size() {
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_mode_borderless_without_display_is_accepted() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_mode_borderless_without_display_is_accepted() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_mode_borderless_without_display_is_accepted
     )) {
         return;
@@ -881,8 +881,8 @@ pub(super) fn test_window_mode_borderless_without_display_is_accepted() {
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_focus_on_show_false_does_not_force_focus() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_focus_on_show_false_does_not_force_focus() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_focus_on_show_false_does_not_force_focus
     )) {
         return;
@@ -915,8 +915,8 @@ pub(super) fn test_window_focus_on_show_false_does_not_force_focus() {
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_close_keeps_cursor_hidden_when_another_window_requests_hidden_mode() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_close_keeps_cursor_hidden_when_another_window_requests_hidden_mode() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_close_keeps_cursor_hidden_when_another_window_requests_hidden_mode
     )) {
         return;
@@ -959,8 +959,8 @@ pub(super) fn test_window_close_keeps_cursor_hidden_when_another_window_requests
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_aspect_ratio_roundtrip_and_size_lock() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_aspect_ratio_roundtrip_and_size_lock() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_aspect_ratio_roundtrip_and_size_lock
     )) {
         return;
@@ -1007,8 +1007,8 @@ pub(super) fn test_window_aspect_ratio_roundtrip_and_size_lock() {
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_close_restores_cursor_visibility() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_close_restores_cursor_visibility() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_close_restores_cursor_visibility
     )) {
         return;
@@ -1036,8 +1036,8 @@ pub(super) fn test_window_close_restores_cursor_visibility() {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_icons_set_and_clear() {
-    if run_display_case_or_return(display_case_name!(test_window_icons_set_and_clear)) {
+pub(crate) fn test_window_icons_set_and_clear() {
+    if run_execution_case_or_return(display_case_name!(test_window_icons_set_and_clear)) {
         return;
     }
 
@@ -1073,8 +1073,8 @@ pub(super) fn test_window_icons_set_and_clear() {
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_window_modal_parent_transition_reenables_previous_owner() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_window_modal_parent_transition_reenables_previous_owner() {
+    if run_execution_case_or_return(display_case_name!(
         test_window_modal_parent_transition_reenables_previous_owner
     )) {
         return;

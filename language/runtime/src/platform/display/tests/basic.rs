@@ -3,7 +3,7 @@ use super::{
     decode_window_descriptor, default_monitor_event_open_options, default_monitor_list_request,
     default_monitor_open_options, default_window_event_open_options, default_window_options,
     error_code, harness_string, is_not_supported_code, open_window_or_skip_not_supported,
-    result_or_skip_not_supported, run_display_case_or_return, wait_window_visibility,
+    result_or_skip_not_supported, run_execution_case_or_return, wait_window_visibility,
     with_harness_context,
 };
 #[cfg(windows)]
@@ -39,8 +39,8 @@ fn support_allows_host_execution(support: BackendSupport) -> bool {
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_display_monitor_surface_lists_opens_and_observes_primary_monitor() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_display_monitor_surface_lists_opens_and_observes_primary_monitor() {
+    if run_execution_case_or_return(display_case_name!(
         test_display_monitor_surface_lists_opens_and_observes_primary_monitor
     )) {
         return;
@@ -132,8 +132,8 @@ pub(super) fn test_display_monitor_surface_lists_opens_and_observes_primary_moni
 
 #[cfg(any(unix, windows))]
 #[cfg_attr(test, test)]
-pub(super) fn test_display_window_surface_open_mutate_and_observe_roundtrip() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_display_window_surface_open_mutate_and_observe_roundtrip() {
+    if run_execution_case_or_return(display_case_name!(
         test_display_window_surface_open_mutate_and_observe_roundtrip
     )) {
         return;
@@ -184,8 +184,8 @@ pub(super) fn test_display_window_surface_open_mutate_and_observe_roundtrip() {
 
 #[cfg(windows)]
 #[cfg_attr(test, test)]
-pub(super) fn test_display_backend_capabilities_match_win32_implementation() {
-    if run_display_case_or_return(display_case_name!(
+pub(crate) fn test_display_backend_capabilities_match_win32_implementation() {
+    if run_execution_case_or_return(display_case_name!(
         test_display_backend_capabilities_match_win32_implementation
     )) {
         return;
