@@ -4,6 +4,7 @@ mod codec;
 mod codegen;
 mod descriptor;
 mod docs;
+mod harness;
 mod header;
 mod index;
 mod native;
@@ -13,6 +14,7 @@ mod stubs;
 mod usage;
 mod vm;
 
+pub(crate) use harness::*;
 pub(crate) use index::*;
 pub(crate) use spec::*;
 pub(crate) use stubs::*;

@@ -36,7 +36,7 @@ audio-pulseaudio = []
 audio-jack = []
 audio-aaudio = []
 audio-opensles = []
-generate_bindings = [
+generator = [
     "dep:destack_builtin",
     "dep:destack_compiler",
 ]
@@ -44,7 +44,7 @@ generate_bindings = [
 [[bin]]
 name = "generate-bindings"
 path = "src/generate/main.rs"
-required-features = ["generate_bindings"]
+required-features = ["generator"]
 
 [[test]]
 name = "runtime_execution"

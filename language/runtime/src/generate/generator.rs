@@ -16,7 +16,7 @@ use crate::analyze::{
     normalize_binding_catalog, validate_binding_catalog,
 };
 use crate::capability::generate_platform_capability_kind;
-use crate::emit::{RenderSpec, render_platform_bindings_index};
+use crate::emit::{RenderSpec, render_platform_bindings_index, render_test_harness};
 use crate::model::{ModuleAbiTypes, ModuleSpec, WorkspaceLayout};
 use crate::option::parse_generator_options;
 
@@ -551,9 +551,13 @@ impl RuntimeGenerator {
         module: &ModuleSpec,
         bindings: &BTreeMap<String, BindingEntry>,
     ) {
-        let generated = RenderSpec::new(&module.name, bindings).render();
+        let spec = RenderSpec::new(&module.name, bindings);
+        let generated = spec.render();
 
         self.write_file(&module.layout.bindings_path, &generated);
+
+        // generated test harness
+        self.write_module_test_harness(module, &spec);
     }
 
     /// Write generated ABI output for one module.
@@ -566,6 +570,20 @@ impl RuntimeGenerator {
         let abi_types = types.render(&module.name, constants);
 
         self.write_file(&module.layout.abi_types_path, &abi_types);
+    }
+
+    /// Write one generated test harness when the module uses one.
+    fn write_module_test_harness(&self, module: &ModuleSpec, spec: &RenderSpec<'_>) {
+        let harness_stub_path = module.layout.dir.join("tests/harness.rs");
+        let harness_generated_path = module.layout.dir.join("tests/harness.generated.rs");
+
+        // skip modules that do not use the generated harness pattern
+        if !harness_stub_path.exists() && !harness_generated_path.exists() {
+            return;
+        }
+
+        let harness = render_test_harness(spec);
+        self.write_file(&harness_generated_path, &harness);
     }
 
     /// Remove the simulation scaffold when the module does not use it.

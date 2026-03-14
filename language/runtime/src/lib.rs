@@ -4,20 +4,20 @@
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::too_many_arguments)]
 
-#[cfg(not(feature = "generate_bindings"))]
+#[cfg(not(feature = "generator"))]
 pub mod diagnostic;
-#[cfg(not(feature = "generate_bindings"))]
+#[cfg(not(feature = "generator"))]
 pub mod host;
-#[cfg(not(feature = "generate_bindings"))]
+#[cfg(not(feature = "generator"))]
 pub mod platform;
-#[cfg(not(feature = "generate_bindings"))]
+#[cfg(not(feature = "generator"))]
 pub mod runtime;
-#[cfg(not(feature = "generate_bindings"))]
+#[cfg(not(feature = "generator"))]
 pub mod simulation;
 
-#[cfg(all(not(feature = "generate_bindings"), feature = "execution"))]
+#[cfg(all(not(feature = "generator"), feature = "execution"))]
 #[doc(hidden)]
 pub mod tests;
 
-#[cfg(all(not(feature = "generate_bindings"), test, not(feature = "execution")))]
+#[cfg(all(not(feature = "generator"), test, not(feature = "execution")))]
 mod tests;
