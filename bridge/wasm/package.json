@@ -44,5 +44,7 @@
         "access": "public"
     },
     "dependencies": {},
-    "devDependencies": {}
+    "devDependencies": {
+        "typescript": "5.8.3"
+    }
 }

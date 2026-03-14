@@ -9,7 +9,7 @@
     },
     "publisher": "symbol-industries",
     "author": {
-        "name": "Florian Cäsar",
+        "name": "Florian C\u00e4sar",
         "email": "florian@symbol.industries"
     },
     "categories": [
@@ -258,13 +258,13 @@
         ]
     },
     "scripts": {
-        "bundle": "bunx --bun esbuild src/extension/index.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
+        "bundle": "bun x esbuild src/extension/index.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
         "vscode:prepublish": "bun install --no-save --ignore-scripts && bun run bundle",
-        "package": "bunx --bun @vscode/vsce@latest package --no-dependencies",
-        "publish:live": "bunx --bun @vscode/vsce@latest publish",
+        "package": "bun x vsce package --no-dependencies",
+        "publish:live": "bun x vsce publish",
         "check:grammar": "node scripts/check-grammar.mjs",
-        "test:grammar": "node scripts/check-grammar.mjs && bunx vscode-tmgrammar-test --grammar destack.tmLanguage.json \"src/tests-grammar/*.txt\" && bunx vscode-tmgrammar-test --grammar destack-mir.tmLanguage.json \"src/tests-grammar-mir/*.txt\"",
-        "test:bridge:build": "node -e \"require('fs').rmSync('out-tests',{recursive:true,force:true})\" && bun run bundle && tsc -p tsconfig.tests.json",
+        "test:grammar": "node scripts/check-grammar.mjs && bun x vscode-tmgrammar-test --grammar destack.tmLanguage.json \"src/tests-grammar/*.txt\" && bun x vscode-tmgrammar-test --grammar destack-mir.tmLanguage.json \"src/tests-grammar-mir/*.txt\"",
+        "test:bridge:build": "node -e \"require('fs').rmSync('out-tests',{recursive:true,force:true})\" && bun run bundle && bun x tsc -p tsconfig.tests.json",
         "test:bridge": "bun run test:bridge:build && node out-tests/tests-bridge/run.js"
     },
     "dependencies": {},
