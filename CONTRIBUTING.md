@@ -37,9 +37,7 @@ The canonical release history lives in [CHANGELOG.md](CHANGELOG.md).
 Do not bump versions during normal development.
 Only bump versions through `just bump` or `just release`.
 
-Public project inventory and maturity live in [PROJECTS.toml](PROJECTS.toml) and the area README tables.
-Keep the area inventories and `PROJECTS.toml` in sync.
-Run `just check-projects` when you change public project metadata.
+Public project inventories and maturity live in the area README tables.
 Keep `VERSION.txt` and `CHANGELOG.md` in sync.
 Run `just check-release-drift` when you touch release metadata directly.
 
@@ -77,7 +75,6 @@ We use `justfile`s as the source of truth for all commands:
 ```sh
 just install        # setup everything
 just check          # run repository static checks
-just check-projects   # validate project inventory and status labels
 just check-release-drift   # validate VERSION.txt and CHANGELOG.md drift
 just test           # run area test aggregates
 just fmt            # format all code

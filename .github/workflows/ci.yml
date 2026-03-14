@@ -34,9 +34,6 @@ jobs:
       - name: Check Hygiene
         run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just check-hygiene
 
-      - name: Check Projects
-        run: just check-projects
-
       - name: Check Release Drift
         run: just check-release-drift
 

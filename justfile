@@ -71,7 +71,6 @@ alias fmt := format
 # run repository static checks
 check:
     just check-hygiene
-    just check-projects
     just check-release-drift
     just language/check
     just library/check
@@ -90,7 +89,6 @@ test:
 # run the repository quick gate
 quick:
     just check-hygiene
-    just check-projects
     just check-release-drift
     just language/quick
     just library/quick
@@ -118,10 +116,6 @@ check-hygiene:
 # validate ci workflow and target policy architecture
 check-workflow-policy:
     bash dev/ci/check-workflow-policy.sh
-
-# validate project inventory docs and local status labels
-check-projects:
-    python3 dev/ci/validate-projects.py
 
 # validate local release metadata drift between VERSION.txt and CHANGELOG.md
 check-release-drift:
