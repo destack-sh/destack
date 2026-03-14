@@ -21,7 +21,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses uname and hostname APIs on Unix and version and hostname APIs on Windows.
+    /// Uses uname and hostname APIs on Unix and host identity APIs on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.

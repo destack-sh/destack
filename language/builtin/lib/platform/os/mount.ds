@@ -7,9 +7,9 @@ export struct MountEntry {
     source: string;
     /// Target mount path.
     target: OsPath;
-    /// Filesystem type name.
+    /// Filesystem type name when the host exposes one.
     fileSystem: string;
-    /// Mount flags bitmask.
+    /// Host-defined mount flags bitmask.
     flags: uint64;
 }
 
@@ -18,7 +18,7 @@ declare namespace os {
     /// Enumerate mount table entries.
     ///
     /// Return one snapshot of the current host mount table.
-    /// Entry shape is normalized but field availability is host-dependent.
+    /// Entry shape is normalized but field availability and flag bit layout are host-dependent.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -40,7 +40,6 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function mountList(): Result<Array<MountEntry>, PlatformError>;
@@ -70,7 +69,6 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function mountAdd(
@@ -106,7 +104,6 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function mountRemove(target: OsPath, flags: uint64): Result<void, PlatformError>;

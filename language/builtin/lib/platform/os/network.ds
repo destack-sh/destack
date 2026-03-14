@@ -43,18 +43,18 @@ export struct NetworkState {
     connected: boolean;
     /// Whether one route to the public internet is available.
     internetReachable: boolean;
-    /// Whether the route is metered or expensive.
-    expensive: boolean;
-    /// Whether the route is constrained by low-data mode.
-    constrained: boolean;
-    /// Whether the active route is roaming.
-    roaming: boolean;
-    /// Cellular generation when `connectionType` is `Cellular`.
-    cellularGeneration: NetworkCellularGeneration;
-    /// Estimated downstream bandwidth in megabits per second when available.
-    downlinkMbps: float64;
-    /// Estimated upstream bandwidth in megabits per second when available.
-    uplinkMbps: float64;
+    /// Whether the route is metered or expensive when the host can determine it.
+    expensive?: boolean;
+    /// Whether the route is constrained by low-data mode when the host can determine it.
+    constrained?: boolean;
+    /// Whether the active route is roaming when the host can determine it.
+    roaming?: boolean;
+    /// Cellular generation when `connectionType` is `Cellular` and the host can determine it.
+    cellularGeneration?: NetworkCellularGeneration;
+    /// Estimated downstream bandwidth in megabits per second when the host can determine it.
+    downlinkMbps?: float64;
+    /// Estimated upstream bandwidth in megabits per second when the host can determine it.
+    uplinkMbps?: float64;
 }
 
 /// Host network event payload.
@@ -75,7 +75,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses Network.framework path monitoring on Apple platforms, ConnectivityManager on Android, and NetworkInformation APIs on Windows.
+    /// Uses host network state facilities.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -103,7 +103,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host network callback subscription APIs.
+    /// Uses host network state facilities and runtime watch state.
     ///
     /// # Errors
     /// Returns ioWouldBlock, notSupported.
@@ -131,7 +131,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host network callback unsubscription APIs.
+    /// Uses runtime watch state cleanup.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -159,7 +159,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host network event queues.
+    /// Uses runtime network watch state.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -190,7 +190,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host nonblocking network event queue reads.
+    /// Uses runtime network watch state.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

@@ -13799,9 +13799,9 @@ pub struct MountEntryAbi<A: BindingAbi> {
     pub source: A::String,
     /// Target mount path.
     pub target: platform_fs::OsPathAbi<A>,
-    /// Filesystem type name.
+    /// Filesystem type name when the host exposes one.
     pub file_system: A::String,
-    /// Mount flags bitmask.
+    /// Host-defined mount flags bitmask.
     pub flags: u64,
 }
 
@@ -13889,9 +13889,9 @@ pub struct MountEntryValue {
     pub source: String,
     /// Target mount path.
     pub target: platform_fs::abi_generated::OsPathValue,
-    /// Filesystem type name.
+    /// Filesystem type name when the host exposes one.
     pub file_system: String,
-    /// Mount flags bitmask.
+    /// Host-defined mount flags bitmask.
     pub flags: u64,
 }
 
@@ -14055,18 +14055,18 @@ pub struct NetworkState {
     pub connected: bool,
     /// Whether one route to the public internet is available.
     pub internet_reachable: bool,
-    /// Whether the route is metered or expensive.
-    pub expensive: bool,
-    /// Whether the route is constrained by low-data mode.
-    pub constrained: bool,
-    /// Whether the active route is roaming.
-    pub roaming: bool,
-    /// Cellular generation when `connectionType` is `Cellular`.
-    pub cellular_generation: NetworkCellularGeneration,
-    /// Estimated downstream bandwidth in megabits per second when available.
-    pub downlink_mbps: f64,
-    /// Estimated upstream bandwidth in megabits per second when available.
-    pub uplink_mbps: f64,
+    /// Whether the route is metered or expensive when the host can determine it.
+    pub expensive: Option<bool>,
+    /// Whether the route is constrained by low-data mode when the host can determine it.
+    pub constrained: Option<bool>,
+    /// Whether the active route is roaming when the host can determine it.
+    pub roaming: Option<bool>,
+    /// Cellular generation when `connectionType` is `Cellular` and the host can determine it.
+    pub cellular_generation: Option<NetworkCellularGeneration>,
+    /// Estimated downstream bandwidth in megabits per second when the host can determine it.
+    pub downlink_mbps: Option<f64>,
+    /// Estimated upstream bandwidth in megabits per second when the host can determine it.
+    pub uplink_mbps: Option<f64>,
 }
 
 pub type NetworkStateVm = NetworkState;
@@ -14098,16 +14098,20 @@ impl VmAggregateCodec for NetworkState {
         let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_internet_reachable =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_expensive = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_constrained = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_roaming = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_expensive =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_constrained =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_roaming =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_cellular_generation =
-            <NetworkCellularGeneration as VmAggregateCodec>::decode_with_context(
+            <Option<NetworkCellularGeneration> as VmAggregateCodec>::decode_with_context(
                 context, slots[6],
             )?;
         let field_downlink_mbps =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_uplink_mbps = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_uplink_mbps =
+            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
             connection_type: field_connection_type,
             connected: field_connected,
@@ -14132,15 +14136,15 @@ impl VmAggregateCodec for NetworkState {
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.internet_reachable, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.expensive, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.constrained, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.roaming, context)?,
-            <NetworkCellularGeneration as VmAggregateCodec>::encode_with_context(
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.expensive, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.constrained, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.roaming, context)?,
+            <Option<NetworkCellularGeneration> as VmAggregateCodec>::encode_with_context(
                 self.cellular_generation,
                 context,
             )?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.downlink_mbps, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.uplink_mbps, context)?,
+            <Option<f64> as VmAggregateCodec>::encode_with_context(self.downlink_mbps, context)?,
+            <Option<f64> as VmAggregateCodec>::encode_with_context(self.uplink_mbps, context)?,
         ];
         context
             .allocate_aggregate(slots)
@@ -17732,9 +17736,9 @@ pub struct MountentryReplayRecord {
     pub source: String,
     /// Target mount path.
     pub target: fs::OspathReplayRecord,
-    /// Filesystem type name.
+    /// Filesystem type name when the host exposes one.
     pub file_system: String,
-    /// Mount flags bitmask.
+    /// Host-defined mount flags bitmask.
     pub flags: u64,
 }
 

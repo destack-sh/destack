@@ -19,7 +19,8 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host power management APIs such as sysfs and IOKit on Unix-like systems and GetSystemPowerStatus on Windows.
+    /// Uses host power-management APIs where supported by the active backend.
+    /// Unsupported Unix hosts may return `notSupported` until a host integration exists.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -37,7 +38,6 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function powerState(): Result<PowerState, PlatformError>;
@@ -67,7 +67,6 @@ declare namespace os {
         simulation: "model",
         scope: "host",
         blocking: "sometimes",
-
         affinity: "any",
     })
     export function suspend(): Result<void, PlatformError>;

@@ -4010,13 +4010,30 @@ fn encode_destack_os_network_state_result(
             Ok(vm::Value::int(value.connection_type as i32 as i64, 32));
         let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connected));
         let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.internet_reachable));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.expensive));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.constrained));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.roaming));
-        let field_6: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.cellular_generation as i32 as i64, 32));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.downlink_mbps));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.uplink_mbps));
+        let field_3: RuntimeResult<vm::Value> = match value.expensive {
+            Some(value) => Ok(vm::Value::bool(value)),
+            None => Ok(vm::Value::VOID),
+        };
+        let field_4: RuntimeResult<vm::Value> = match value.constrained {
+            Some(value) => Ok(vm::Value::bool(value)),
+            None => Ok(vm::Value::VOID),
+        };
+        let field_5: RuntimeResult<vm::Value> = match value.roaming {
+            Some(value) => Ok(vm::Value::bool(value)),
+            None => Ok(vm::Value::VOID),
+        };
+        let field_6: RuntimeResult<vm::Value> = match value.cellular_generation {
+            Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+            None => Ok(vm::Value::VOID),
+        };
+        let field_7: RuntimeResult<vm::Value> = match value.downlink_mbps {
+            Some(value) => Ok(vm::Value::float64(value)),
+            None => Ok(vm::Value::VOID),
+        };
+        let field_8: RuntimeResult<vm::Value> = match value.uplink_mbps {
+            Some(value) => Ok(vm::Value::float64(value)),
+            None => Ok(vm::Value::VOID),
+        };
         context
             .allocate_aggregate(vec![
                 field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
@@ -4091,16 +4108,30 @@ fn encode_destack_os_network_watch_read_result(
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.connected));
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::bool(value.state.internet_reachable));
-            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.expensive));
-            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.constrained));
-            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.roaming));
-            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                value.state.cellular_generation as i32 as i64,
-                32,
-            ));
-            let field_7: RuntimeResult<vm::Value> =
-                Ok(vm::Value::float64(value.state.downlink_mbps));
-            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.state.uplink_mbps));
+            let field_3: RuntimeResult<vm::Value> = match value.state.expensive {
+                Some(value) => Ok(vm::Value::bool(value)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_4: RuntimeResult<vm::Value> = match value.state.constrained {
+                Some(value) => Ok(vm::Value::bool(value)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_5: RuntimeResult<vm::Value> = match value.state.roaming {
+                Some(value) => Ok(vm::Value::bool(value)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_6: RuntimeResult<vm::Value> = match value.state.cellular_generation {
+                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_7: RuntimeResult<vm::Value> = match value.state.downlink_mbps {
+                Some(value) => Ok(vm::Value::float64(value)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_8: RuntimeResult<vm::Value> = match value.state.uplink_mbps {
+                Some(value) => Ok(vm::Value::float64(value)),
+                None => Ok(vm::Value::VOID),
+            };
             context
                 .allocate_aggregate(vec![
                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
@@ -4145,16 +4176,30 @@ fn encode_destack_os_network_watch_try_read_result(
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.connected));
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::bool(value.state.internet_reachable));
-            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.expensive));
-            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.constrained));
-            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.state.roaming));
-            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                value.state.cellular_generation as i32 as i64,
-                32,
-            ));
-            let field_7: RuntimeResult<vm::Value> =
-                Ok(vm::Value::float64(value.state.downlink_mbps));
-            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.state.uplink_mbps));
+            let field_3: RuntimeResult<vm::Value> = match value.state.expensive {
+                Some(value) => Ok(vm::Value::bool(value)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_4: RuntimeResult<vm::Value> = match value.state.constrained {
+                Some(value) => Ok(vm::Value::bool(value)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_5: RuntimeResult<vm::Value> = match value.state.roaming {
+                Some(value) => Ok(vm::Value::bool(value)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_6: RuntimeResult<vm::Value> = match value.state.cellular_generation {
+                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_7: RuntimeResult<vm::Value> = match value.state.downlink_mbps {
+                Some(value) => Ok(vm::Value::float64(value)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_8: RuntimeResult<vm::Value> = match value.state.uplink_mbps {
+                Some(value) => Ok(vm::Value::float64(value)),
+                None => Ok(vm::Value::VOID),
+            };
             context
                 .allocate_aggregate(vec![
                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
@@ -12364,12 +12409,44 @@ fn destack_os_network_state_replay(
                 let result_recorded_connection_type = result_value.connection_type;
                 let result_recorded_connected = result_value.connected;
                 let result_recorded_internet_reachable = result_value.internet_reachable;
-                let result_recorded_expensive = result_value.expensive;
-                let result_recorded_constrained = result_value.constrained;
-                let result_recorded_roaming = result_value.roaming;
-                let result_recorded_cellular_generation = result_value.cellular_generation;
-                let result_recorded_downlink_mbps = result_value.downlink_mbps;
-                let result_recorded_uplink_mbps = result_value.uplink_mbps;
+                let result_recorded_expensive = if let Some(value) = result_value.expensive {
+                    let result_recorded_expensive_inner = value;
+                    Some(result_recorded_expensive_inner)
+                } else {
+                    None
+                };
+                let result_recorded_constrained = if let Some(value) = result_value.constrained {
+                    let result_recorded_constrained_inner = value;
+                    Some(result_recorded_constrained_inner)
+                } else {
+                    None
+                };
+                let result_recorded_roaming = if let Some(value) = result_value.roaming {
+                    let result_recorded_roaming_inner = value;
+                    Some(result_recorded_roaming_inner)
+                } else {
+                    None
+                };
+                let result_recorded_cellular_generation =
+                    if let Some(value) = result_value.cellular_generation {
+                        let result_recorded_cellular_generation_inner = value;
+                        Some(result_recorded_cellular_generation_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_downlink_mbps = if let Some(value) = result_value.downlink_mbps
+                {
+                    let result_recorded_downlink_mbps_inner = value;
+                    Some(result_recorded_downlink_mbps_inner)
+                } else {
+                    None
+                };
+                let result_recorded_uplink_mbps = if let Some(value) = result_value.uplink_mbps {
+                    let result_recorded_uplink_mbps_inner = value;
+                    Some(result_recorded_uplink_mbps_inner)
+                } else {
+                    None
+                };
                 let result_recorded = NetworkState {
                     connection_type: result_recorded_connection_type,
                     connected: result_recorded_connected,
@@ -12404,12 +12481,43 @@ fn destack_os_network_state_replay(
                     let value_native_connection_type = value.connection_type;
                     let value_native_connected = value.connected;
                     let value_native_internet_reachable = value.internet_reachable;
-                    let value_native_expensive = value.expensive;
-                    let value_native_constrained = value.constrained;
-                    let value_native_roaming = value.roaming;
-                    let value_native_cellular_generation = value.cellular_generation;
-                    let value_native_downlink_mbps = value.downlink_mbps;
-                    let value_native_uplink_mbps = value.uplink_mbps;
+                    let value_native_expensive = if let Some(value) = value.expensive {
+                        let value_native_expensive_inner = value;
+                        Some(value_native_expensive_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_constrained = if let Some(value) = value.constrained {
+                        let value_native_constrained_inner = value;
+                        Some(value_native_constrained_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_roaming = if let Some(value) = value.roaming {
+                        let value_native_roaming_inner = value;
+                        Some(value_native_roaming_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_cellular_generation =
+                        if let Some(value) = value.cellular_generation {
+                            let value_native_cellular_generation_inner = value;
+                            Some(value_native_cellular_generation_inner)
+                        } else {
+                            None
+                        };
+                    let value_native_downlink_mbps = if let Some(value) = value.downlink_mbps {
+                        let value_native_downlink_mbps_inner = value;
+                        Some(value_native_downlink_mbps_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_uplink_mbps = if let Some(value) = value.uplink_mbps {
+                        let value_native_uplink_mbps_inner = value;
+                        Some(value_native_uplink_mbps_inner)
+                    } else {
+                        None
+                    };
                     let value_native = NetworkState {
                         connection_type: value_native_connection_type,
                         connected: value_native_connected,
@@ -12560,13 +12668,48 @@ fn destack_os_network_watch_read_replay(
                 let result_recorded_state_connected = result_value.state.connected;
                 let result_recorded_state_internet_reachable =
                     result_value.state.internet_reachable;
-                let result_recorded_state_expensive = result_value.state.expensive;
-                let result_recorded_state_constrained = result_value.state.constrained;
-                let result_recorded_state_roaming = result_value.state.roaming;
+                let result_recorded_state_expensive =
+                    if let Some(value) = result_value.state.expensive {
+                        let result_recorded_state_expensive_inner = value;
+                        Some(result_recorded_state_expensive_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_constrained =
+                    if let Some(value) = result_value.state.constrained {
+                        let result_recorded_state_constrained_inner = value;
+                        Some(result_recorded_state_constrained_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_roaming = if let Some(value) = result_value.state.roaming
+                {
+                    let result_recorded_state_roaming_inner = value;
+                    Some(result_recorded_state_roaming_inner)
+                } else {
+                    None
+                };
                 let result_recorded_state_cellular_generation =
-                    result_value.state.cellular_generation;
-                let result_recorded_state_downlink_mbps = result_value.state.downlink_mbps;
-                let result_recorded_state_uplink_mbps = result_value.state.uplink_mbps;
+                    if let Some(value) = result_value.state.cellular_generation {
+                        let result_recorded_state_cellular_generation_inner = value;
+                        Some(result_recorded_state_cellular_generation_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_downlink_mbps =
+                    if let Some(value) = result_value.state.downlink_mbps {
+                        let result_recorded_state_downlink_mbps_inner = value;
+                        Some(result_recorded_state_downlink_mbps_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_uplink_mbps =
+                    if let Some(value) = result_value.state.uplink_mbps {
+                        let result_recorded_state_uplink_mbps_inner = value;
+                        Some(result_recorded_state_uplink_mbps_inner)
+                    } else {
+                        None
+                    };
                 let result_recorded_state = NetworkState {
                     connection_type: result_recorded_state_connection_type,
                     connected: result_recorded_state_connected,
@@ -12608,12 +12751,46 @@ fn destack_os_network_watch_read_replay(
                     let value_native_state_connection_type = value.state.connection_type;
                     let value_native_state_connected = value.state.connected;
                     let value_native_state_internet_reachable = value.state.internet_reachable;
-                    let value_native_state_expensive = value.state.expensive;
-                    let value_native_state_constrained = value.state.constrained;
-                    let value_native_state_roaming = value.state.roaming;
-                    let value_native_state_cellular_generation = value.state.cellular_generation;
-                    let value_native_state_downlink_mbps = value.state.downlink_mbps;
-                    let value_native_state_uplink_mbps = value.state.uplink_mbps;
+                    let value_native_state_expensive = if let Some(value) = value.state.expensive {
+                        let value_native_state_expensive_inner = value;
+                        Some(value_native_state_expensive_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_state_constrained =
+                        if let Some(value) = value.state.constrained {
+                            let value_native_state_constrained_inner = value;
+                            Some(value_native_state_constrained_inner)
+                        } else {
+                            None
+                        };
+                    let value_native_state_roaming = if let Some(value) = value.state.roaming {
+                        let value_native_state_roaming_inner = value;
+                        Some(value_native_state_roaming_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_state_cellular_generation =
+                        if let Some(value) = value.state.cellular_generation {
+                            let value_native_state_cellular_generation_inner = value;
+                            Some(value_native_state_cellular_generation_inner)
+                        } else {
+                            None
+                        };
+                    let value_native_state_downlink_mbps =
+                        if let Some(value) = value.state.downlink_mbps {
+                            let value_native_state_downlink_mbps_inner = value;
+                            Some(value_native_state_downlink_mbps_inner)
+                        } else {
+                            None
+                        };
+                    let value_native_state_uplink_mbps =
+                        if let Some(value) = value.state.uplink_mbps {
+                            let value_native_state_uplink_mbps_inner = value;
+                            Some(value_native_state_uplink_mbps_inner)
+                        } else {
+                            None
+                        };
                     let value_native_state = NetworkState {
                         connection_type: value_native_state_connection_type,
                         connected: value_native_state_connected,
@@ -12668,13 +12845,48 @@ fn destack_os_network_watch_try_read_replay(
                 let result_recorded_state_connected = result_value.state.connected;
                 let result_recorded_state_internet_reachable =
                     result_value.state.internet_reachable;
-                let result_recorded_state_expensive = result_value.state.expensive;
-                let result_recorded_state_constrained = result_value.state.constrained;
-                let result_recorded_state_roaming = result_value.state.roaming;
+                let result_recorded_state_expensive =
+                    if let Some(value) = result_value.state.expensive {
+                        let result_recorded_state_expensive_inner = value;
+                        Some(result_recorded_state_expensive_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_constrained =
+                    if let Some(value) = result_value.state.constrained {
+                        let result_recorded_state_constrained_inner = value;
+                        Some(result_recorded_state_constrained_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_roaming = if let Some(value) = result_value.state.roaming
+                {
+                    let result_recorded_state_roaming_inner = value;
+                    Some(result_recorded_state_roaming_inner)
+                } else {
+                    None
+                };
                 let result_recorded_state_cellular_generation =
-                    result_value.state.cellular_generation;
-                let result_recorded_state_downlink_mbps = result_value.state.downlink_mbps;
-                let result_recorded_state_uplink_mbps = result_value.state.uplink_mbps;
+                    if let Some(value) = result_value.state.cellular_generation {
+                        let result_recorded_state_cellular_generation_inner = value;
+                        Some(result_recorded_state_cellular_generation_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_downlink_mbps =
+                    if let Some(value) = result_value.state.downlink_mbps {
+                        let result_recorded_state_downlink_mbps_inner = value;
+                        Some(result_recorded_state_downlink_mbps_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_uplink_mbps =
+                    if let Some(value) = result_value.state.uplink_mbps {
+                        let result_recorded_state_uplink_mbps_inner = value;
+                        Some(result_recorded_state_uplink_mbps_inner)
+                    } else {
+                        None
+                    };
                 let result_recorded_state = NetworkState {
                     connection_type: result_recorded_state_connection_type,
                     connected: result_recorded_state_connected,
@@ -12716,12 +12928,46 @@ fn destack_os_network_watch_try_read_replay(
                     let value_native_state_connection_type = value.state.connection_type;
                     let value_native_state_connected = value.state.connected;
                     let value_native_state_internet_reachable = value.state.internet_reachable;
-                    let value_native_state_expensive = value.state.expensive;
-                    let value_native_state_constrained = value.state.constrained;
-                    let value_native_state_roaming = value.state.roaming;
-                    let value_native_state_cellular_generation = value.state.cellular_generation;
-                    let value_native_state_downlink_mbps = value.state.downlink_mbps;
-                    let value_native_state_uplink_mbps = value.state.uplink_mbps;
+                    let value_native_state_expensive = if let Some(value) = value.state.expensive {
+                        let value_native_state_expensive_inner = value;
+                        Some(value_native_state_expensive_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_state_constrained =
+                        if let Some(value) = value.state.constrained {
+                            let value_native_state_constrained_inner = value;
+                            Some(value_native_state_constrained_inner)
+                        } else {
+                            None
+                        };
+                    let value_native_state_roaming = if let Some(value) = value.state.roaming {
+                        let value_native_state_roaming_inner = value;
+                        Some(value_native_state_roaming_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_state_cellular_generation =
+                        if let Some(value) = value.state.cellular_generation {
+                            let value_native_state_cellular_generation_inner = value;
+                            Some(value_native_state_cellular_generation_inner)
+                        } else {
+                            None
+                        };
+                    let value_native_state_downlink_mbps =
+                        if let Some(value) = value.state.downlink_mbps {
+                            let value_native_state_downlink_mbps_inner = value;
+                            Some(value_native_state_downlink_mbps_inner)
+                        } else {
+                            None
+                        };
+                    let value_native_state_uplink_mbps =
+                        if let Some(value) = value.state.uplink_mbps {
+                            let value_native_state_uplink_mbps_inner = value;
+                            Some(value_native_state_uplink_mbps_inner)
+                        } else {
+                            None
+                        };
                     let value_native_state = NetworkState {
                         connection_type: value_native_state_connection_type,
                         connected: value_native_state_connected,
@@ -19683,12 +19929,44 @@ fn destack_os_network_state_vm_replay(
                 let result_recorded_connection_type = result_value.connection_type;
                 let result_recorded_connected = result_value.connected;
                 let result_recorded_internet_reachable = result_value.internet_reachable;
-                let result_recorded_expensive = result_value.expensive;
-                let result_recorded_constrained = result_value.constrained;
-                let result_recorded_roaming = result_value.roaming;
-                let result_recorded_cellular_generation = result_value.cellular_generation;
-                let result_recorded_downlink_mbps = result_value.downlink_mbps;
-                let result_recorded_uplink_mbps = result_value.uplink_mbps;
+                let result_recorded_expensive = if let Some(value) = result_value.expensive {
+                    let result_recorded_expensive_inner = value;
+                    Some(result_recorded_expensive_inner)
+                } else {
+                    None
+                };
+                let result_recorded_constrained = if let Some(value) = result_value.constrained {
+                    let result_recorded_constrained_inner = value;
+                    Some(result_recorded_constrained_inner)
+                } else {
+                    None
+                };
+                let result_recorded_roaming = if let Some(value) = result_value.roaming {
+                    let result_recorded_roaming_inner = value;
+                    Some(result_recorded_roaming_inner)
+                } else {
+                    None
+                };
+                let result_recorded_cellular_generation =
+                    if let Some(value) = result_value.cellular_generation {
+                        let result_recorded_cellular_generation_inner = value;
+                        Some(result_recorded_cellular_generation_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_downlink_mbps = if let Some(value) = result_value.downlink_mbps
+                {
+                    let result_recorded_downlink_mbps_inner = value;
+                    Some(result_recorded_downlink_mbps_inner)
+                } else {
+                    None
+                };
+                let result_recorded_uplink_mbps = if let Some(value) = result_value.uplink_mbps {
+                    let result_recorded_uplink_mbps_inner = value;
+                    Some(result_recorded_uplink_mbps_inner)
+                } else {
+                    None
+                };
                 let result_recorded = NetworkState {
                     connection_type: result_recorded_connection_type,
                     connected: result_recorded_connected,
@@ -19724,12 +20002,43 @@ fn destack_os_network_state_vm_replay(
                     let vm_result_connection_type = value.connection_type;
                     let vm_result_connected = value.connected;
                     let vm_result_internet_reachable = value.internet_reachable;
-                    let vm_result_expensive = value.expensive;
-                    let vm_result_constrained = value.constrained;
-                    let vm_result_roaming = value.roaming;
-                    let vm_result_cellular_generation = value.cellular_generation;
-                    let vm_result_downlink_mbps = value.downlink_mbps;
-                    let vm_result_uplink_mbps = value.uplink_mbps;
+                    let vm_result_expensive = if let Some(value) = value.expensive {
+                        let vm_result_expensive_inner = value;
+                        Some(vm_result_expensive_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_constrained = if let Some(value) = value.constrained {
+                        let vm_result_constrained_inner = value;
+                        Some(vm_result_constrained_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_roaming = if let Some(value) = value.roaming {
+                        let vm_result_roaming_inner = value;
+                        Some(vm_result_roaming_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_cellular_generation =
+                        if let Some(value) = value.cellular_generation {
+                            let vm_result_cellular_generation_inner = value;
+                            Some(vm_result_cellular_generation_inner)
+                        } else {
+                            None
+                        };
+                    let vm_result_downlink_mbps = if let Some(value) = value.downlink_mbps {
+                        let vm_result_downlink_mbps_inner = value;
+                        Some(vm_result_downlink_mbps_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_uplink_mbps = if let Some(value) = value.uplink_mbps {
+                        let vm_result_uplink_mbps_inner = value;
+                        Some(vm_result_uplink_mbps_inner)
+                    } else {
+                        None
+                    };
                     let vm_result = NetworkState {
                         connection_type: vm_result_connection_type,
                         connected: vm_result_connected,
@@ -19886,13 +20195,48 @@ fn destack_os_network_watch_read_vm_replay(
                 let result_recorded_state_connected = result_value.state.connected;
                 let result_recorded_state_internet_reachable =
                     result_value.state.internet_reachable;
-                let result_recorded_state_expensive = result_value.state.expensive;
-                let result_recorded_state_constrained = result_value.state.constrained;
-                let result_recorded_state_roaming = result_value.state.roaming;
+                let result_recorded_state_expensive =
+                    if let Some(value) = result_value.state.expensive {
+                        let result_recorded_state_expensive_inner = value;
+                        Some(result_recorded_state_expensive_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_constrained =
+                    if let Some(value) = result_value.state.constrained {
+                        let result_recorded_state_constrained_inner = value;
+                        Some(result_recorded_state_constrained_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_roaming = if let Some(value) = result_value.state.roaming
+                {
+                    let result_recorded_state_roaming_inner = value;
+                    Some(result_recorded_state_roaming_inner)
+                } else {
+                    None
+                };
                 let result_recorded_state_cellular_generation =
-                    result_value.state.cellular_generation;
-                let result_recorded_state_downlink_mbps = result_value.state.downlink_mbps;
-                let result_recorded_state_uplink_mbps = result_value.state.uplink_mbps;
+                    if let Some(value) = result_value.state.cellular_generation {
+                        let result_recorded_state_cellular_generation_inner = value;
+                        Some(result_recorded_state_cellular_generation_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_downlink_mbps =
+                    if let Some(value) = result_value.state.downlink_mbps {
+                        let result_recorded_state_downlink_mbps_inner = value;
+                        Some(result_recorded_state_downlink_mbps_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_uplink_mbps =
+                    if let Some(value) = result_value.state.uplink_mbps {
+                        let result_recorded_state_uplink_mbps_inner = value;
+                        Some(result_recorded_state_uplink_mbps_inner)
+                    } else {
+                        None
+                    };
                 let result_recorded_state = NetworkState {
                     connection_type: result_recorded_state_connection_type,
                     connected: result_recorded_state_connected,
@@ -19935,12 +20279,44 @@ fn destack_os_network_watch_read_vm_replay(
                     let vm_result_state_connection_type = value.state.connection_type;
                     let vm_result_state_connected = value.state.connected;
                     let vm_result_state_internet_reachable = value.state.internet_reachable;
-                    let vm_result_state_expensive = value.state.expensive;
-                    let vm_result_state_constrained = value.state.constrained;
-                    let vm_result_state_roaming = value.state.roaming;
-                    let vm_result_state_cellular_generation = value.state.cellular_generation;
-                    let vm_result_state_downlink_mbps = value.state.downlink_mbps;
-                    let vm_result_state_uplink_mbps = value.state.uplink_mbps;
+                    let vm_result_state_expensive = if let Some(value) = value.state.expensive {
+                        let vm_result_state_expensive_inner = value;
+                        Some(vm_result_state_expensive_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_state_constrained = if let Some(value) = value.state.constrained {
+                        let vm_result_state_constrained_inner = value;
+                        Some(vm_result_state_constrained_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_state_roaming = if let Some(value) = value.state.roaming {
+                        let vm_result_state_roaming_inner = value;
+                        Some(vm_result_state_roaming_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_state_cellular_generation =
+                        if let Some(value) = value.state.cellular_generation {
+                            let vm_result_state_cellular_generation_inner = value;
+                            Some(vm_result_state_cellular_generation_inner)
+                        } else {
+                            None
+                        };
+                    let vm_result_state_downlink_mbps =
+                        if let Some(value) = value.state.downlink_mbps {
+                            let vm_result_state_downlink_mbps_inner = value;
+                            Some(vm_result_state_downlink_mbps_inner)
+                        } else {
+                            None
+                        };
+                    let vm_result_state_uplink_mbps = if let Some(value) = value.state.uplink_mbps {
+                        let vm_result_state_uplink_mbps_inner = value;
+                        Some(vm_result_state_uplink_mbps_inner)
+                    } else {
+                        None
+                    };
                     let vm_result_state = NetworkState {
                         connection_type: vm_result_state_connection_type,
                         connected: vm_result_state_connected,
@@ -19996,13 +20372,48 @@ fn destack_os_network_watch_try_read_vm_replay(
                 let result_recorded_state_connected = result_value.state.connected;
                 let result_recorded_state_internet_reachable =
                     result_value.state.internet_reachable;
-                let result_recorded_state_expensive = result_value.state.expensive;
-                let result_recorded_state_constrained = result_value.state.constrained;
-                let result_recorded_state_roaming = result_value.state.roaming;
+                let result_recorded_state_expensive =
+                    if let Some(value) = result_value.state.expensive {
+                        let result_recorded_state_expensive_inner = value;
+                        Some(result_recorded_state_expensive_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_constrained =
+                    if let Some(value) = result_value.state.constrained {
+                        let result_recorded_state_constrained_inner = value;
+                        Some(result_recorded_state_constrained_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_roaming = if let Some(value) = result_value.state.roaming
+                {
+                    let result_recorded_state_roaming_inner = value;
+                    Some(result_recorded_state_roaming_inner)
+                } else {
+                    None
+                };
                 let result_recorded_state_cellular_generation =
-                    result_value.state.cellular_generation;
-                let result_recorded_state_downlink_mbps = result_value.state.downlink_mbps;
-                let result_recorded_state_uplink_mbps = result_value.state.uplink_mbps;
+                    if let Some(value) = result_value.state.cellular_generation {
+                        let result_recorded_state_cellular_generation_inner = value;
+                        Some(result_recorded_state_cellular_generation_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_downlink_mbps =
+                    if let Some(value) = result_value.state.downlink_mbps {
+                        let result_recorded_state_downlink_mbps_inner = value;
+                        Some(result_recorded_state_downlink_mbps_inner)
+                    } else {
+                        None
+                    };
+                let result_recorded_state_uplink_mbps =
+                    if let Some(value) = result_value.state.uplink_mbps {
+                        let result_recorded_state_uplink_mbps_inner = value;
+                        Some(result_recorded_state_uplink_mbps_inner)
+                    } else {
+                        None
+                    };
                 let result_recorded_state = NetworkState {
                     connection_type: result_recorded_state_connection_type,
                     connected: result_recorded_state_connected,
@@ -20045,12 +20456,44 @@ fn destack_os_network_watch_try_read_vm_replay(
                     let vm_result_state_connection_type = value.state.connection_type;
                     let vm_result_state_connected = value.state.connected;
                     let vm_result_state_internet_reachable = value.state.internet_reachable;
-                    let vm_result_state_expensive = value.state.expensive;
-                    let vm_result_state_constrained = value.state.constrained;
-                    let vm_result_state_roaming = value.state.roaming;
-                    let vm_result_state_cellular_generation = value.state.cellular_generation;
-                    let vm_result_state_downlink_mbps = value.state.downlink_mbps;
-                    let vm_result_state_uplink_mbps = value.state.uplink_mbps;
+                    let vm_result_state_expensive = if let Some(value) = value.state.expensive {
+                        let vm_result_state_expensive_inner = value;
+                        Some(vm_result_state_expensive_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_state_constrained = if let Some(value) = value.state.constrained {
+                        let vm_result_state_constrained_inner = value;
+                        Some(vm_result_state_constrained_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_state_roaming = if let Some(value) = value.state.roaming {
+                        let vm_result_state_roaming_inner = value;
+                        Some(vm_result_state_roaming_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_state_cellular_generation =
+                        if let Some(value) = value.state.cellular_generation {
+                            let vm_result_state_cellular_generation_inner = value;
+                            Some(vm_result_state_cellular_generation_inner)
+                        } else {
+                            None
+                        };
+                    let vm_result_state_downlink_mbps =
+                        if let Some(value) = value.state.downlink_mbps {
+                            let vm_result_state_downlink_mbps_inner = value;
+                            Some(vm_result_state_downlink_mbps_inner)
+                        } else {
+                            None
+                        };
+                    let vm_result_state_uplink_mbps = if let Some(value) = value.state.uplink_mbps {
+                        let vm_result_state_uplink_mbps_inner = value;
+                        Some(vm_result_state_uplink_mbps_inner)
+                    } else {
+                        None
+                    };
                     let vm_result_state = NetworkState {
                         connection_type: vm_result_state_connection_type,
                         connected: vm_result_state_connected,
