@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
         let placeholder_id = match self.type_alias_map.get(&name).copied() {
             Some(existing) => existing,
             None => {
-                let placeholder = self.tree.insert_type(Type::Void);
+                let placeholder = self.tree.insert(Type::Void);
                 self.type_alias_map.insert(name.clone(), placeholder);
                 placeholder
             }
@@ -56,6 +56,7 @@ impl<'a> Parser<'a> {
         if ty != placeholder_id {
             let resolved = self.tree.get(ty).clone();
             *self.tree.get_mut(placeholder_id) = resolved;
+            self.tree.type_table.copy_type_metadata(ty, placeholder_id);
         }
         self.type_alias_definitions.insert(name);
 

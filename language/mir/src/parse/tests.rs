@@ -1,5 +1,5 @@
 use crate::parse::{ParseOptions, Parser};
-use crate::{MirFormatOptions, format_mir};
+use crate::{MirFormatOptions, TypeAlias, format_mir};
 use destack_source::FileId;
 
 /// Test parsing and re-formatting produces the same output.
@@ -762,4 +762,25 @@ block0(v0: i32, v1: i32):
     return v2
 }"#,
     );
+}
+
+#[test]
+fn test_type_alias_preserves_layout_metadata() {
+    let source = r#"type @Env = { value: i32 }
+function @makeEnv() -> ref<managed @Env> {
+block0:
+    v0: ref<managed @Env> = managed.alloc @Env
+    return v0
+}"#;
+
+    let (tree, _strings) =
+        Parser::parse(FileId::new(0), source, ParseOptions::default()).expect("parse failed");
+    let alias = tree
+        .iter_nodes::<TypeAlias>()
+        .next()
+        .map(|(_, alias)| alias)
+        .expect("missing type alias");
+
+    assert!(tree.type_layout_id(alias.ty).is_some());
+    assert!(tree.type_layout(alias.ty).is_some());
 }
