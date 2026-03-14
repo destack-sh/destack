@@ -532,7 +532,7 @@ fn enter_tail_call(
     };
 
     // clear frame local stack allocations
-    state.current_frame_mut().stack_cells.clear();
+    state.current_frame_mut().stack_values.clear();
 
     // resize stacks to callee requirements
     let value_end = value_base + callee.value_count;
@@ -713,7 +713,7 @@ pub(crate) fn handle_tail_call_self(
     let entry_block = &threaded.blocks[*entry as usize];
 
     // clear frame-local stack allocations
-    state.current_frame_mut().stack_cells.clear();
+    state.current_frame_mut().stack_values.clear();
 
     // clear value and local slots
     let value_end = value_base + value_count;

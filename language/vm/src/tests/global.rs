@@ -79,10 +79,10 @@ block0:
 
 function @main() -> i32 {
 block0:
-    call @inc()
-    call @inc()
-    call @inc()
-    v0: i32 = call @get()
+    call @inc() -> fn() -> void
+    call @inc() -> fn() -> void
+    call @inc() -> fn() -> void
+    v0: i32 = call @get() -> fn() -> i32
     return v0
 }"#;
     run_mir_expect(mir, "main", &[], Value::int32(3));

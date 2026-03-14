@@ -2,7 +2,7 @@ use std::fmt;
 use std::ptr::NonNull;
 
 use crate::diagnostic::Error;
-use destack_heap::{Heap, RawPointer, Value, ValueTag};
+use destack_heap::{AgentMemory, RawPointer, SharedPointer, Value, ValueTag};
 
 use super::IsolateState;
 
@@ -27,19 +27,36 @@ pub(crate) type ExternalFnPtr = NonNull<dyn ExternalHandler>;
 pub struct ExternalCallContext<'ctx> {
     /// The isolate state backing this external call.
     state: &'ctx mut IsolateState,
-    /// The heap backing this external call.
-    heap: &'ctx mut Heap,
+    /// The execution memory backing this external call.
+    memory: AgentMemory<'ctx>,
 }
 
 impl<'ctx> ExternalCallContext<'ctx> {
     /// Wrap an isolate state for external calls.
-    pub(crate) fn new(state: &'ctx mut IsolateState, heap: &'ctx mut Heap) -> Self {
-        Self { state, heap }
+    pub(crate) fn new(state: &'ctx mut IsolateState, memory: AgentMemory<'ctx>) -> Self {
+        Self { state, memory }
+    }
+
+    /// Borrow the local heap.
+    fn heap(&mut self) -> &mut destack_heap::Heap {
+        self.memory.heap()
+    }
+
+    /// Borrow the local heap immutably.
+    fn heap_ref(&self) -> &destack_heap::Heap {
+        self.memory.heap_ref()
+    }
+
+    /// Borrow the world shared memory immutably.
+    fn shared_ref(&self) -> &destack_heap::SharedSpace {
+        self.memory.shared_ref()
     }
 
     /// Intern a UTF-8 string and return the managed string value.
     pub fn intern_string(&mut self, value: &str) -> Result<Value, Error> {
-        self.state.try_intern_string_literal(self.heap, value)
+        let state = &mut *self.state;
+        let heap = self.memory.heap();
+        state.try_intern_string_literal(heap, value)
     }
 
     /// Intern a UTF-8 string and return the managed string handle.
@@ -51,42 +68,57 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
     /// Read a UTF-8 string value from the heap.
     pub fn string_value(&self, value: Value) -> Result<String, Error> {
-        self.state.string_value(self.heap, value)
+        self.state.string_value(self.heap_ref(), value)
     }
 
     /// Read a UTF-8 string view from the heap.
     pub fn string_value_ref(&self, value: Value) -> Result<super::StringRef<'_>, Error> {
-        self.state.string_value_ref(self.heap, value)
+        self.state.string_value_ref(self.heap_ref(), value)
     }
 
     /// Read a UTF-8 string view from the heap using a string handle.
     pub fn string_ref(&self, value: super::StringHandle) -> Result<super::StringRef<'_>, Error> {
-        self.state.string_value_ref(self.heap, value.value())
+        self.state.string_value_ref(self.heap_ref(), value.value())
     }
 
     /// Allocate an aggregate on the heap and return it as a Value.
     pub fn allocate_aggregate(&mut self, values: Vec<Value>) -> Result<Value, Error> {
-        self.state.try_allocate_aggregate(self.heap, values)
+        let state = &mut *self.state;
+        let heap = self.memory.heap();
+        state.try_allocate_aggregate(heap, values)
     }
 
     /// Allocate a 2-element aggregate on the heap.
     pub fn allocate_pair(&mut self, first: Value, second: Value) -> Result<Value, Error> {
-        self.state.try_allocate_pair(self.heap, first, second)
+        let state = &mut *self.state;
+        let heap = self.memory.heap();
+        state.try_allocate_pair(heap, first, second)
     }
 
     /// Allocate a 1-element aggregate on the heap.
     pub fn allocate_single(&mut self, value: Value) -> Result<Value, Error> {
-        self.state.try_allocate_single(self.heap, value)
-    }
-
-    /// Allocate a raw heap cell with value slots and return its pointer.
-    pub fn allocate_raw_values(&mut self, values: Vec<Value>) -> Result<RawPointer, Error> {
-        self.state.try_allocate_raw_values(self.heap, values)
+        let state = &mut *self.state;
+        let heap = self.memory.heap();
+        state.try_allocate_single(heap, value)
     }
 
     /// Allocate a raw heap byte buffer and return its pointer.
     pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> Result<RawPointer, Error> {
-        self.state.try_allocate_raw_bytes(self.heap, bytes)
+        let state = &mut *self.state;
+        let heap = self.memory.heap();
+        state.try_allocate_raw_bytes(heap, bytes)
+    }
+
+    /// Allocate one raw packed-value buffer and return its pointer.
+    pub fn allocate_raw_values(&mut self, values: Vec<Value>) -> Result<RawPointer, Error> {
+        self.heap().allocate_raw_values(values).map_err(Error::from)
+    }
+
+    /// Allocate a shared heap byte region and return its pointer.
+    pub fn allocate_shared_bytes(&mut self, bytes: &[u8]) -> Result<SharedPointer, Error> {
+        self.memory
+            .allocate_shared_bytes(bytes)
+            .map_err(Error::from)
     }
 
     /// Read aggregate slots from the heap.
@@ -101,61 +133,94 @@ impl<'ctx> ExternalCallContext<'ctx> {
             .as_managed_reference()
             .ok_or(Error::InvalidManagedReference)?;
         let slots = self
-            .heap
-            .managed_slots_to_vec(handle)
+            .heap_ref()
+            .packed_values_to_vec(handle)
             .ok_or(Error::InvalidManagedReference)?;
         Ok(slots)
     }
 
-    /// Read raw values from a pointer to a values cell.
-    pub fn raw_values(&self, pointer: RawPointer) -> Result<Vec<Value>, Error> {
-        self.heap
-            .raw_values(pointer)
-            .map(|values| values.to_vec())
-            .ok_or(Error::TypeMismatch {
-                expected: "values".to_string(),
-                actual: "bytes".to_string(),
-            })
+    /// Write aggregate slots back into one heap aggregate.
+    pub fn write_aggregate_slots(&mut self, value: Value, values: &[Value]) -> Result<(), Error> {
+        if value.tag() != ValueTag::Aggregate {
+            return Err(Error::TypeMismatch {
+                expected: "aggregate".to_string(),
+                actual: format!("{:?}", value.tag()),
+            });
+        }
+
+        let handle = value
+            .as_managed_reference()
+            .ok_or(Error::InvalidManagedReference)?;
+
+        self.heap()
+            .resize_packed_values(handle, values.len())
+            .map_err(Error::from)?;
+
+        for (index, value) in values.iter().copied().enumerate() {
+            if !self.heap().set_packed_value(handle, index, value) {
+                return Err(Error::InvalidManagedReference);
+            }
+        }
+
+        Ok(())
     }
 
     /// Read raw bytes from a pointer to a bytes cell.
     pub fn raw_bytes(&self, pointer: RawPointer) -> Result<Vec<u8>, Error> {
-        self.heap
+        self.heap_ref()
             .raw_bytes_to_vec(pointer)
-            .ok_or(Error::TypeMismatch {
-                expected: "bytes".to_string(),
-                actual: "values".to_string(),
-            })
+            .ok_or(Error::InvalidManagedReference)
     }
 
-    /// Write raw values into a pointer to a values cell.
+    /// Read raw packed values from one pointer.
+    pub fn raw_values(&self, pointer: RawPointer) -> Result<Vec<Value>, Error> {
+        self.heap_ref()
+            .raw_values(pointer)
+            .ok_or(Error::InvalidManagedReference)
+    }
+
+    /// Read shared bytes from a pointer to one shared region.
+    pub fn shared_bytes(&self, pointer: SharedPointer) -> Result<Vec<u8>, Error> {
+        self.shared_ref()
+            .bytes_to_vec(pointer)
+            .ok_or(Error::InvalidManagedReference)
+    }
+
+    /// Write raw bytes into a pointer to a bytes cell.
+    pub fn write_raw_bytes(&mut self, pointer: RawPointer, bytes: &[u8]) -> Result<(), Error> {
+        if self
+            .heap()
+            .replace_raw_bytes(pointer, bytes)
+            .map_err(Error::from)?
+        {
+            return Ok(());
+        }
+
+        Err(Error::InvalidManagedReference)
+    }
+
+    /// Write raw packed values into one pointer.
     pub fn write_raw_values(&mut self, pointer: RawPointer, values: &[Value]) -> Result<(), Error> {
         if self
-            .heap
+            .heap()
             .replace_raw_values(pointer, values)
             .map_err(Error::from)?
         {
             return Ok(());
         }
 
-        Err(Error::TypeMismatch {
-            expected: "values".to_string(),
-            actual: "bytes".to_string(),
-        })
+        Err(Error::InvalidManagedReference)
     }
 
-    /// Write raw bytes into a pointer to a bytes cell.
-    pub fn write_raw_bytes(&mut self, pointer: RawPointer, bytes: &[u8]) -> Result<(), Error> {
-        if self.heap.raw_is_bytes(pointer) != Some(true) {
-            return Err(Error::TypeMismatch {
-                expected: "bytes".to_string(),
-                actual: "values".to_string(),
-            });
-        }
-
+    /// Write shared bytes into a pointer to one shared region.
+    pub fn write_shared_bytes(
+        &mut self,
+        pointer: SharedPointer,
+        bytes: &[u8],
+    ) -> Result<(), Error> {
         if self
-            .heap
-            .replace_raw_bytes(pointer, bytes)
+            .memory
+            .replace_shared_bytes(pointer, bytes)
             .map_err(Error::from)?
         {
             return Ok(());

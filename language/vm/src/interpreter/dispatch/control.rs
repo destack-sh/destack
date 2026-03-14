@@ -888,7 +888,7 @@ pub(crate) fn handle_trap(
                 .interpreter
                 .isolate
                 .string_interner
-                .string_value(state.interpreter.heap, payload)
+                .string_value(state.interpreter.heap_ref(), payload)
             {
                 Ok(message) => message,
                 Err(error) => return ControlFlow::Error(error),

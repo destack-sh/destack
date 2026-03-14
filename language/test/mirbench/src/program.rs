@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 #[cfg(feature = "cli")]
 use clap::ValueEnum;
-use destack_heap::{Heap, Value};
+use destack_heap::{Heap, MemoryContext, SharedSpace, Value};
 use destack_mir as mir;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
@@ -930,6 +930,7 @@ fn calibrate_scale(
     program: &Program,
     isolate: &mut Isolate,
     heap: &mut Heap,
+    shared: &mut SharedSpace,
     entry_id: mir::LocalNodeId<mir::Function>,
     args: &mut [Value],
     axis: ScaleAxis,
@@ -948,10 +949,10 @@ fn calibrate_scale(
     let mut sample = Duration::ZERO;
     for _ in 0..2 {
         if needs_gc {
-            let _ = isolate.collect_garbage(heap);
+            let _ = isolate.collect_garbage(heap, shared);
         }
         let start = Instant::now();
-        let _ = program.run_or_panic(isolate, heap, entry_id, args);
+        let _ = program.run_or_panic(isolate, heap, shared, entry_id, args);
         sample = sample.max(start.elapsed());
     }
 
@@ -1010,12 +1011,14 @@ fn matches_filters(entry: &ProgramEntry, options: &BenchOptions) -> bool {
 fn run_coroutine(
     isolate: &mut Isolate,
     heap: &mut Heap,
+    shared: &mut SharedSpace,
     entry_id: mir::LocalNodeId<mir::Function>,
     args: &[Value],
     resume_value: ResumeValueFn,
 ) -> RuntimeResult<ExecutionOutput> {
     // start execution
-    let mut outcome = isolate.run_function_yielding(heap, entry_id, args)?;
+    let mut memory = MemoryContext::new(heap, shared);
+    let mut outcome = isolate.run_function_yielding(&mut memory, entry_id, args)?;
     let mut yield_index = 0usize;
 
     // continue until completion
@@ -1030,7 +1033,8 @@ fn run_coroutine(
                 let resume = resume_value(args, yield_index, yielded.value);
                 yield_index += 1;
                 // resume execution
-                outcome = isolate.resume(heap, yielded.continuation, resume)?;
+                let mut memory = MemoryContext::new(heap, shared);
+                outcome = isolate.resume(&mut memory, yielded.continuation, resume)?;
             }
         }
     }
@@ -1085,14 +1089,18 @@ impl Program {
         &self,
         isolate: &mut Isolate,
         heap: &mut Heap,
+        shared: &mut SharedSpace,
         entry_id: mir::LocalNodeId<mir::Function>,
         args: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
         // dispatch to the selected runner
         match self.runner {
-            ProgramRunner::Function => isolate.run_function(heap, entry_id, args),
+            ProgramRunner::Function => {
+                let mut memory = MemoryContext::new(heap, shared);
+                isolate.run_function(&mut memory, entry_id, args)
+            }
             ProgramRunner::Coroutine { resume_value } => {
-                run_coroutine(isolate, heap, entry_id, args, resume_value)
+                run_coroutine(isolate, heap, shared, entry_id, args, resume_value)
             }
         }
     }
@@ -1102,11 +1110,12 @@ impl Program {
         &self,
         isolate: &mut Isolate,
         heap: &mut Heap,
+        shared: &mut SharedSpace,
         entry_id: mir::LocalNodeId<mir::Function>,
         args: &[Value],
     ) -> ExecutionOutput {
         // execute program
-        self.run_once(isolate, heap, entry_id, args)
+        self.run_once(isolate, heap, shared, entry_id, args)
             .unwrap_or_else(|e| panic!("'{}' failed: {:?}", self.name, e))
     }
 
@@ -1127,8 +1136,9 @@ impl Program {
     pub fn actual_instruction_count(&self, args: &[Value]) -> u64 {
         let mut isolate = self.isolate();
         let mut heap = Heap::default();
+        let mut shared = SharedSpace::default();
         let entry_id = self.entry_id(&isolate);
-        let result = self.run_or_panic(&mut isolate, &mut heap, entry_id, args);
+        let result = self.run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, args);
         result.statistics.threaded_instructions_executed
     }
 
@@ -1140,9 +1150,10 @@ impl Program {
         // build isolate and arguments
         let mut isolate = self.isolate();
         let mut heap = Heap::default();
+        let mut shared = SharedSpace::default();
         let args = (self.default_args)(&isolate);
         let entry_id = self.entry_id(&isolate);
-        let result = self.run_or_panic(&mut isolate, &mut heap, entry_id, &args);
+        let result = self.run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, &args);
 
         assert_eq!(
             result.value, expected,
@@ -1583,13 +1594,15 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
         // build isolate and arguments
         let mut isolate = entry.program.isolate_with_options(options);
         let mut heap = Heap::default();
+        let mut shared = SharedSpace::default();
         let entry_id = entry.program.entry_id(&isolate);
         let mut args = entry.program.args_for_profile(&isolate, profile.kind);
 
         // run once for stats
-        let result = entry
-            .program
-            .run_or_panic(&mut isolate, &mut heap, entry_id, &args);
+        let result =
+            entry
+                .program
+                .run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, &args);
         let mut stats = result.statistics;
         let mut needs_gc = stats.heap_allocations > 0;
 
@@ -1600,6 +1613,7 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
                     entry.program,
                     &mut isolate,
                     &mut heap,
+                    &mut shared,
                     entry_id,
                     &mut args,
                     axis,
@@ -1608,9 +1622,10 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
                 );
             }
 
-            let result = entry
-                .program
-                .run_or_panic(&mut isolate, &mut heap, entry_id, &args);
+            let result =
+                entry
+                    .program
+                    .run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, &args);
             stats = result.statistics;
             needs_gc = stats.heap_allocations > 0;
         }
@@ -1628,11 +1643,15 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
             let warmup_start = Instant::now();
             while warmup_start.elapsed() < profile.warmup {
                 if needs_gc {
-                    let _ = isolate.collect_garbage(&mut heap);
+                    let _ = isolate.collect_garbage(&mut heap, &mut shared);
                 }
-                let _ = entry
-                    .program
-                    .run_or_panic(&mut isolate, &mut heap, entry_id, &args);
+                let _ = entry.program.run_or_panic(
+                    &mut isolate,
+                    &mut heap,
+                    &mut shared,
+                    entry_id,
+                    &args,
+                );
             }
         }
 
@@ -1652,13 +1671,17 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
             let run_start = Instant::now();
             while run_start.elapsed() < min_duration {
                 if needs_gc {
-                    let gc = isolate.collect_garbage(&mut heap);
+                    let gc = isolate.collect_garbage(&mut heap, &mut shared);
                     gc_collections += 1;
                     gc_freed_cells += gc.freed_allocations as u64;
                 }
-                let _ = entry
-                    .program
-                    .run_or_panic(&mut isolate, &mut heap, entry_id, &args);
+                let _ = entry.program.run_or_panic(
+                    &mut isolate,
+                    &mut heap,
+                    &mut shared,
+                    entry_id,
+                    &args,
+                );
                 iterations += 1;
             }
             let elapsed = run_start.elapsed();
@@ -1703,11 +1726,15 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
                 let profile_start = Instant::now();
                 while profile_start.elapsed() < min_duration {
                     if needs_gc {
-                        let _ = isolate.collect_garbage(&mut heap);
+                        let _ = isolate.collect_garbage(&mut heap, &mut shared);
                     }
-                    let _ = entry
-                        .program
-                        .run_or_panic(&mut isolate, &mut heap, entry_id, &args);
+                    let _ = entry.program.run_or_panic(
+                        &mut isolate,
+                        &mut heap,
+                        &mut shared,
+                        entry_id,
+                        &args,
+                    );
                 }
 
                 let report = isolate.instruction_profile_report(INSTRUCTION_PROFILE_TARGET_PERCENT);
@@ -1920,15 +1947,17 @@ pub fn print_stats(options: &BenchOptions) {
         // build isolate and arguments
         let mut isolate = entry.program.isolate_with_options(options);
         let mut heap = Heap::default();
+        let mut shared = SharedSpace::default();
         let args = entry
             .program
             .args_for_profile(&isolate, options.profile.kind);
         let entry_id = entry.program.entry_id(&isolate);
 
         // run program and capture stats
-        let result = entry
-            .program
-            .run_or_panic(&mut isolate, &mut heap, entry_id, &args);
+        let result =
+            entry
+                .program
+                .run_or_panic(&mut isolate, &mut heap, &mut shared, entry_id, &args);
         let stats = result.statistics;
         let label = scale_label(entry.program, &args);
         rows.push(StatsRow {

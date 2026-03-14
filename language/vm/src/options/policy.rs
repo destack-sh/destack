@@ -105,12 +105,12 @@ pub struct LimitOptions {
     /// The maximum call stack depth before a stack overflow error.
     /// Default is 1024.
     pub max_stack_depth: usize,
-    /// The maximum number of heap cells before allocation fails.
-    /// Default is 100_000, roughly 10MB depending on cell size.
-    pub max_heap_cells: usize,
-    /// The maximum number of raw heap cells before allocation fails.
-    /// Default is 100_000, roughly 10MB depending on cell size.
-    pub max_raw_cells: usize,
+    /// The maximum number of managed allocations before allocation fails.
+    /// Default is 100_000, roughly 10MB depending on allocation shape.
+    pub max_managed_allocations: usize,
+    /// The maximum number of raw allocations before allocation fails.
+    /// Default is 100_000, roughly 10MB depending on allocation shape.
+    pub max_raw_allocations: usize,
     /// The maximum number of instructions to execute before timeout.
     /// None means no limit, use with caution.
     pub max_instructions: Option<u64>,
@@ -121,8 +121,8 @@ impl Default for LimitOptions {
         // use default runtime limits
         Self {
             max_stack_depth: 1024,
-            max_heap_cells: 100_000,
-            max_raw_cells: 100_000,
+            max_managed_allocations: 100_000,
+            max_raw_allocations: 100_000,
             max_instructions: Some(10_000_000),
         }
     }

@@ -1,4 +1,4 @@
-use destack_heap::{GcStats, Heap, ManagedHeap, RawHeap, Value};
+use destack_heap::{AgentMemory, GcStats, Heap, SharedSpace, Value};
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
@@ -11,6 +11,8 @@ pub(crate) struct TestIsolate {
     pub isolate: Isolate,
     /// The authoritative heap for the isolate.
     pub heap: Heap,
+    /// The world-shared memory for the isolate.
+    pub shared: SharedSpace,
 }
 
 impl TestIsolate {
@@ -20,20 +22,34 @@ impl TestIsolate {
             .expect("failed to parse MIR");
         let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
-        let heap = Heap::new();
-        let mut heap = heap;
+        let mut heap = Heap::new();
+        let mut shared = SharedSpace::new();
+        let mut memory = AgentMemory::new(&mut heap, &mut shared);
 
         // initialize isolate state against the authoritative heap
         isolate
-            .initialize(&mut heap)
+            .initialize(&mut memory)
             .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
-        Self { isolate, heap }
+        Self {
+            isolate,
+            heap,
+            shared,
+        }
     }
 
     /// Create one aggregate value on the isolate heap.
     pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
         self.isolate.allocate_aggregate(&mut self.heap, values)
+    }
+
+    /// Run one callback with the isolate execution memory.
+    pub(crate) fn with_memory<R>(
+        &mut self,
+        run: impl FnOnce(&mut Isolate, &mut AgentMemory<'_>) -> R,
+    ) -> R {
+        let mut memory = AgentMemory::new(&mut self.heap, &mut self.shared);
+        run(&mut self.isolate, &mut memory)
     }
 
     /// Run one MIR function by name with the given arguments.
@@ -42,13 +58,36 @@ impl TestIsolate {
         function: &str,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
+        let mut memory = AgentMemory::new(&mut self.heap, &mut self.shared);
         self.isolate
-            .run_function_by_name(&mut self.heap, function, arguments)
+            .run_function_by_name(&mut memory, function, arguments)
+    }
+
+    /// Run one MIR function by name with yield support.
+    pub(crate) fn run_function_by_name_yielding(
+        &mut self,
+        function: &str,
+        arguments: &[Value],
+    ) -> RuntimeResult<crate::ExecutionOutcome> {
+        let mut memory = AgentMemory::new(&mut self.heap, &mut self.shared);
+        self.isolate
+            .run_function_by_name_yielding(&mut memory, function, arguments)
+    }
+
+    /// Resume one yielded continuation.
+    pub(crate) fn resume(
+        &mut self,
+        continuation: Continuation,
+        resume_value: Value,
+    ) -> RuntimeResult<crate::ExecutionOutcome> {
+        let mut memory = AgentMemory::new(&mut self.heap, &mut self.shared);
+        self.isolate.resume(&mut memory, continuation, resume_value)
     }
 
     /// Collect garbage and return one GC summary.
     pub(crate) fn collect_garbage(&mut self) -> GcStats {
-        self.isolate.collect_garbage(&mut self.heap)
+        self.isolate
+            .collect_garbage(&mut self.heap, &mut self.shared)
     }
 
     /// Collect garbage with continuation roots and return one GC summary.
@@ -56,8 +95,11 @@ impl TestIsolate {
         &mut self,
         continuations: &[Continuation],
     ) -> GcStats {
-        self.isolate
-            .collect_garbage_with_continuations(&mut self.heap, continuations)
+        self.isolate.collect_garbage_with_continuations(
+            &mut self.heap,
+            &mut self.shared,
+            continuations,
+        )
     }
 }
 

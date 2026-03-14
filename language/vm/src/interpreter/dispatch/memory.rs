@@ -208,7 +208,13 @@ pub(crate) fn handle_load(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Load { dest, pointer } = &block[pc].data else {
+    let ThreadedInstructionData::Load {
+        dest,
+        pointer,
+        raw_pointee,
+        ..
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -216,7 +222,7 @@ pub(crate) fn handle_load(
     let ptr = state.get(*pointer);
 
     // load from pointer
-    let value = match instruction::load_from_pointer(state, ptr) {
+    let value = match instruction::load_from_pointer_with_raw_pointee(state, ptr, *raw_pointee) {
         Ok(v) => v,
         Err(e) => return ControlFlow::Error(e),
     };
@@ -239,6 +245,8 @@ pub(crate) fn handle_store(
         pointer,
         value,
         reference,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -254,7 +262,7 @@ pub(crate) fn handle_store(
     }
 
     // write through pointer
-    if let Err(e) = instruction::store_to_pointer(state, ptr, val) {
+    if let Err(e) = instruction::store_to_pointer_with_raw_pointee(state, ptr, *raw_pointee, val) {
         return ControlFlow::Error(e);
     }
 
@@ -269,7 +277,13 @@ pub(crate) fn handle_atomic_load(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::AtomicLoad { dest, pointer } = &block[pc].data else {
+    let ThreadedInstructionData::AtomicLoad {
+        dest,
+        pointer,
+        raw_pointee,
+        ..
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -279,6 +293,7 @@ pub(crate) fn handle_atomic_load(
     // execute the load
     let value = match state.interpreter.execute_atomic_load_value(
         pointer,
+        *raw_pointee,
         mir::MemoryOrdering::SeqCst,
         mir::AtomicScope::Device,
         mir::MemoryScope::Device,
@@ -302,7 +317,13 @@ pub(crate) fn handle_atomic_store(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::AtomicStore { pointer, value } = &block[pc].data else {
+    let ThreadedInstructionData::AtomicStore {
+        pointer,
+        value,
+        raw_pointee,
+        ..
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -314,6 +335,7 @@ pub(crate) fn handle_atomic_store(
     if let Err(error) = state.interpreter.execute_atomic_store_value(
         pointer,
         value,
+        *raw_pointee,
         mir::MemoryOrdering::SeqCst,
         mir::AtomicScope::Device,
         mir::MemoryScope::Device,
@@ -338,6 +360,8 @@ pub(crate) fn handle_atomic_compare_exchange(
         pointer,
         expected,
         new_value,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -353,6 +377,7 @@ pub(crate) fn handle_atomic_compare_exchange(
         pointer,
         expected,
         new_value,
+        *raw_pointee,
         false,
         mir::MemoryOrdering::SeqCst,
         mir::AtomicScope::Device,
@@ -382,6 +407,8 @@ pub(crate) fn handle_atomic_rmw(
         operator,
         pointer,
         value,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -396,6 +423,7 @@ pub(crate) fn handle_atomic_rmw(
         *operator,
         pointer,
         value,
+        *raw_pointee,
         mir::MemoryOrdering::SeqCst,
         mir::AtomicScope::Device,
         mir::MemoryScope::Device,
@@ -469,7 +497,14 @@ pub(crate) fn handle_load_managed(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Load { dest, pointer } = &block[pc].data else {
+    let ThreadedInstructionData::Load {
+        dest,
+        pointer,
+        managed_pointee,
+        raw_pointee: _,
+        ..
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -477,7 +512,10 @@ pub(crate) fn handle_load_managed(
     let ptr = state.get(*pointer);
 
     // load from managed reference
-    let value = match instruction::load_from_managed_reference(state, ptr) {
+    let Some(managed_pointee) = *managed_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
+    let value = match instruction::load_from_managed_reference_typed(state, ptr, managed_pointee) {
         Ok(v) => v,
         Err(e) => return ControlFlow::Error(e),
     };
@@ -497,7 +535,13 @@ pub(crate) fn handle_load_raw(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Load { dest, pointer } = &block[pc].data else {
+    let ThreadedInstructionData::Load {
+        dest,
+        pointer,
+        raw_pointee,
+        ..
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -505,7 +549,10 @@ pub(crate) fn handle_load_raw(
     let ptr = state.get(*pointer);
 
     // load from raw pointer
-    let value = match instruction::load_from_raw_pointer(state, ptr) {
+    let Some(raw_pointee) = *raw_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
+    let value = match instruction::load_from_raw_pointer_typed(state, ptr, raw_pointee) {
         Ok(v) => v,
         Err(e) => return ControlFlow::Error(e),
     };
@@ -525,7 +572,13 @@ pub(crate) fn handle_load_stack(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Load { dest, pointer } = &block[pc].data else {
+    let ThreadedInstructionData::Load {
+        dest,
+        pointer,
+        raw_pointee: _,
+        ..
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -553,7 +606,13 @@ pub(crate) fn handle_load_local(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Load { dest, pointer } = &block[pc].data else {
+    let ThreadedInstructionData::Load {
+        dest,
+        pointer,
+        raw_pointee: _,
+        ..
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -581,7 +640,13 @@ pub(crate) fn handle_load_global(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Load { dest, pointer } = &block[pc].data else {
+    let ThreadedInstructionData::Load {
+        dest,
+        pointer,
+        raw_pointee: _,
+        ..
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -613,6 +678,9 @@ pub(crate) fn handle_store_managed(
         pointer,
         value,
         reference,
+        managed_pointee,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -628,7 +696,11 @@ pub(crate) fn handle_store_managed(
     }
 
     // write through managed reference
-    if let Err(e) = instruction::store_to_managed_reference(state, ptr, val) {
+    let Some(managed_pointee) = *managed_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
+    if let Err(e) = instruction::store_to_managed_reference_typed(state, ptr, managed_pointee, val)
+    {
         return ControlFlow::Error(e);
     }
 
@@ -648,6 +720,8 @@ pub(crate) fn handle_store_raw(
         pointer,
         value,
         reference,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -663,7 +737,10 @@ pub(crate) fn handle_store_raw(
     }
 
     // write through raw pointer
-    if let Err(e) = instruction::store_to_raw_pointer(state, ptr, val) {
+    let Some(raw_pointee) = *raw_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
+    if let Err(e) = instruction::store_to_raw_pointer_typed(state, ptr, raw_pointee, val) {
         return ControlFlow::Error(e);
     }
 
@@ -683,6 +760,8 @@ pub(crate) fn handle_store_stack(
         pointer,
         value,
         reference,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -718,6 +797,8 @@ pub(crate) fn handle_store_local(
         pointer,
         value,
         reference,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -753,6 +834,8 @@ pub(crate) fn handle_store_global(
         pointer,
         value,
         reference,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -781,36 +864,35 @@ pub(crate) fn handle_managed_alloc(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
-    let max_heap_cells = state
+    let max_managed_allocations = state
         .interpreter
         .isolate
         .image
         .options
         .limits
-        .max_heap_cells;
+        .max_managed_allocations;
 
     // decode instruction data
     let ThreadedInstructionData::ManagedAlloc {
         dest,
         reference,
-        slot_count,
+        layout: _,
+        layout_id,
+        byte_len,
+        trace,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // allocate heap cell
+    // allocate managed storage
     let handle = {
         let heap = state.heap();
-        if heap.managed_allocation_count() >= max_heap_cells {
+        if heap.managed_allocation_count() >= max_managed_allocations {
             return ControlFlow::Error(Error::AllocationFailed);
         }
 
-        if *slot_count == UNKNOWN_SLOT_COUNT {
-            heap.allocate_managed()
-        } else {
-            heap.allocate_managed_slots(*slot_count as usize)
-        }
+        heap.allocate_managed_zeroed(*byte_len as usize, trace.clone(), *layout_id)
     };
     let handle = match handle {
         Ok(handle) => handle,
@@ -838,19 +920,20 @@ pub(crate) fn handle_managed_alloc_array(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
-    let max_heap_cells = state
+    let max_managed_allocations = state
         .interpreter
         .isolate
         .image
         .options
         .limits
-        .max_heap_cells;
+        .max_managed_allocations;
 
     // decode instruction data
     let ThreadedInstructionData::ManagedAllocArray {
         dest,
         length,
         reference,
+        element_type,
     } = &block[pc].data
     else {
         unreachable!()
@@ -860,14 +943,24 @@ pub(crate) fn handle_managed_alloc_array(
     let len_val = state.get(*length);
     let length = len_val.as_uint().unwrap_or(0) as usize;
 
-    // allocate heap cell with slots
+    // allocate managed array storage
     let handle = {
+        let tree = &state.interpreter.isolate.image.tree;
+        let element_byte_len = match instruction::managed_type_size(tree, *element_type) {
+            Ok(byte_len) => byte_len,
+            Err(error) => return ControlFlow::Error(error),
+        };
+        let byte_len = match length.checked_mul(element_byte_len) {
+            Some(byte_len) => byte_len,
+            None => return ControlFlow::Error(Error::AllocationFailed),
+        };
+        let trace = instruction::managed_array_reference_map(tree, *element_type, length);
+
         let heap = state.heap();
-        if heap.managed_allocation_count() >= max_heap_cells {
+        if heap.managed_allocation_count() >= max_managed_allocations {
             return ControlFlow::Error(Error::AllocationFailed);
         }
-
-        heap.allocate_managed_slots(length)
+        heap.allocate_managed_zeroed(byte_len, trace, None)
     };
     let handle = match handle {
         Ok(handle) => handle,
@@ -895,30 +988,33 @@ pub(crate) fn handle_raw_alloc(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
-    let max_raw_cells = state.interpreter.isolate.image.options.limits.max_raw_cells;
+    let max_raw_allocations = state
+        .interpreter
+        .isolate
+        .image
+        .options
+        .limits
+        .max_raw_allocations;
 
     // decode instruction data
     let ThreadedInstructionData::RawAlloc {
         dest,
         reference,
-        slot_count,
+        byte_len,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // allocate raw heap cell
+    // allocate raw heap bytes
     let ptr = {
         let heap = state.heap();
-        if heap.raw_allocation_count() >= max_raw_cells {
+        if heap.raw_allocation_count() >= max_raw_allocations {
             return ControlFlow::Error(Error::AllocationFailed);
         }
 
-        if *slot_count == UNKNOWN_SLOT_COUNT {
-            heap.allocate_raw()
-        } else {
-            heap.allocate_raw_slots(*slot_count as usize)
-        }
+        let bytes = vec![0; *byte_len as usize];
+        heap.allocate_raw_bytes(&bytes)
     };
     let ptr = match ptr {
         Ok(ptr) => ptr,
@@ -1028,11 +1124,11 @@ pub(crate) fn handle_stack_alloc(
     // NOTE #Broken: stack allocation requires proper layout sizing
     let frame_index = state.frame_index;
     let slot = if *slot_count == UNKNOWN_SLOT_COUNT {
-        state.current_frame_mut().allocate_stack_cell()
+        state.current_frame_mut().allocate_stack_buffer()
     } else {
         state
             .current_frame_mut()
-            .allocate_stack_cell_with_slots(*slot_count as usize)
+            .allocate_stack_buffer_with_values(*slot_count as usize)
     };
     let sp = destack_heap::StackPointer::new(frame_index, slot);
     let value = Value::stack_pointer_with_meta(sp, *reference);

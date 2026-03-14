@@ -1,8 +1,12 @@
 use crate::diagnostic::Error;
-use crate::tests::{create_aggregate, run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok};
-use destack_heap::{RawPointer, STRING_TYPE_ALIAS, Value};
+use crate::tests::{
+    create_aggregate, create_isolate, run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok,
+};
+use destack_heap::{RawPointer, STRING_TYPE_ALIAS, Value, ValueTag};
+use destack_mir::parse::{ParseOptions, Parser};
+use destack_source::FileId;
 
-/// Managed allocation creates a heap cell and returns a reference.
+/// Managed allocation creates one managed allocation and returns a reference.
 #[test]
 fn test_managed_allocate() {
     let mir = r#"
@@ -13,10 +17,10 @@ block0:
 }"#;
     let output = run_mir_ok(mir, "alloc", &[]);
     assert!(output.value.is_managed_reference());
-    assert_eq!(output.heap_cells, 1);
+    assert_eq!(output.managed_allocation_count, 1);
 }
 
-/// Load and store instructions read and write heap cells.
+/// Load and store instructions read and write managed allocations.
 #[test]
 fn test_load_store() {
     let mir = r#"
@@ -71,7 +75,51 @@ block0(v0: ref<raw addrspace(stack) i32>):
     assert!(matches!(err.error, Error::InvalidAddressSpace { .. }));
 }
 
-/// Array allocation creates a heap cell with multiple slots.
+/// External VM contexts can allocate and mutate explicit shared-memory regions.
+#[test]
+fn test_external_context_shared_bytes_roundtrip() {
+    let mut isolate = create_isolate(
+        r#"
+function @noop() -> void {
+block0:
+    return
+}"#,
+    );
+
+    let pointer = isolate.with_memory(|isolate, memory| {
+        isolate.with_runtime_context(memory, |context| {
+            let pointer = context
+                .allocate_shared_bytes(&[1, 2, 3])
+                .expect("shared allocation should succeed");
+            let initial = context
+                .shared_bytes(pointer)
+                .expect("shared bytes should decode");
+
+            assert_eq!(initial, vec![1, 2, 3]);
+
+            context
+                .write_shared_bytes(pointer, &[7, 8, 9, 10])
+                .expect("shared bytes should write");
+
+            pointer
+        })
+    });
+
+    assert_eq!(
+        Value::shared_pointer(pointer).tag(),
+        ValueTag::SharedPointer
+    );
+    assert_eq!(
+        Value::shared_pointer(pointer).as_shared_pointer(),
+        Some(pointer)
+    );
+    assert_eq!(
+        isolate.shared.bytes_to_vec(pointer),
+        Some(vec![7, 8, 9, 10])
+    );
+}
+
+/// Array allocation creates one managed allocation with multiple elements.
 #[test]
 fn test_managed_allocate_array() {
     let mir = r#"
@@ -83,7 +131,7 @@ block0:
 }"#;
     let output = run_mir_ok(mir, "alloc_array", &[]);
     assert!(output.value.is_managed_reference());
-    assert_eq!(output.heap_cells, 1);
+    assert_eq!(output.managed_allocation_count, 1);
 }
 
 /// Extract field reads a component from a tuple value.
@@ -206,13 +254,14 @@ block0(v0: (i32,)):
     v1: i32 = field.get v0, 5
     return v1
 }"#;
-    let result = crate::tests::run_mir_with(mir, "bad_field", |interp| {
-        let agg = create_aggregate(interp, vec![Value::int32(10)]);
-        vec![agg]
-    });
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::InvalidFieldAccess { .. }));
+
+    let err = Parser::parse(FileId::new(0), mir, ParseOptions::default())
+        .expect_err("expected parse failure");
+
+    assert_eq!(
+        err.message,
+        "metadata invariant violation: field.get field index 5 out of bounds for tuple with 1 elements"
+    );
 }
 
 /// Out-of-bounds array access produces an error.
@@ -236,7 +285,7 @@ block0(v0: [i32; 3], v1: i64):
     assert!(matches!(err.error, Error::InvalidArrayAccess { .. }));
 }
 
-/// Exceeding the heap cell limit produces an allocation error.
+/// Exceeding the managed allocation limit produces an allocation error.
 #[test]
 fn test_allocation_limit() {
     let mir = r#"
@@ -260,7 +309,7 @@ block2:
     assert!(matches!(err.error, Error::AllocationFailed));
 }
 
-/// Raw allocation creates a heap cell and returns a raw pointer.
+/// Raw allocation creates one raw allocation and returns a raw pointer.
 #[test]
 fn test_raw_allocate() {
     let mir = r#"
@@ -271,7 +320,7 @@ block0:
 }"#;
     let output = run_mir_ok(mir, "raw_alloc", &[]);
     assert!(output.value.as_raw_pointer().is_some());
-    assert_eq!(output.raw_heap_cells, 1);
+    assert_eq!(output.raw_allocation_count, 1);
 }
 
 /// Raw free deallocates a raw pointer.
@@ -290,7 +339,7 @@ block0:
     let output = run_mir_ok(mir, "raw_alloc_free", &[]);
     assert_eq!(output.value, Value::int32(42));
     // after free, raw heap should be empty
-    assert_eq!(output.raw_heap_cells, 0);
+    assert_eq!(output.raw_allocation_count, 0);
 }
 
 /// Raw free on invalid pointer produces an error.
@@ -347,7 +396,7 @@ global @literal:string:abc: ref<managed readonly @String> = "abc" ; readonly
 function @first_byte() -> u8 {
 block0:
     v0: ref<managed readonly @String> = global.const @literal:string:Hi
-    v1: ref<raw readonly u8> = field.get v0, 5
+    v1: ref<raw u8> = field.get v0, 5
     v2: u8 = load v1
     return v2
 }
@@ -355,7 +404,7 @@ block0:
 function @memcmp_self() -> i32 {
 block0:
     v0: ref<managed readonly @String> = global.const @literal:string:abc
-    v1: ref<raw readonly u8> = field.get v0, 5
+    v1: ref<raw u8> = field.get v0, 5
     v2: u64 = iconst 3u64
     v3: i32 = intrinsic.memcmp(v1, v1, v2)
     return v3

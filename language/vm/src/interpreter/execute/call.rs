@@ -481,7 +481,9 @@ impl<'a> InterpreterContext<'a> {
             // safety: handler pointer is stable for interpreter lifetime
             let handler = unsafe { handler.as_ref() };
             let value = {
-                let mut context = ExternalCallContext::new(self.isolate, self.heap);
+                let isolate = &mut *self.isolate;
+                let memory = self.memory.reborrow();
+                let mut context = ExternalCallContext::new(isolate, memory);
                 handler(&mut context, arguments)
             }
             .map_err(|e| self.make_error(e))?;
@@ -610,8 +612,8 @@ impl<'a> InterpreterContext<'a> {
         let output = ExecutionOutput {
             value,
             statistics: self.engine.statistics.clone(),
-            heap_cells: self.heap.managed_allocation_count(),
-            raw_heap_cells: self.heap.raw_allocation_count(),
+            managed_allocation_count: self.heap_ref().managed_allocation_count(),
+            raw_allocation_count: self.heap_ref().raw_allocation_count(),
         };
 
         // return completed outcome
@@ -843,7 +845,9 @@ impl<'a> InterpreterContext<'a> {
                         // safety: handler pointer is stable for interpreter lifetime
                         let handler = unsafe { handler.as_ref() };
                         let result = {
-                            let mut context = ExternalCallContext::new(self.isolate, self.heap);
+                            let isolate = &mut *self.isolate;
+                            let memory = self.memory.reborrow();
+                            let mut context = ExternalCallContext::new(isolate, memory);
                             handler(&mut context, &args)
                         }
                         .map_err(|e| self.make_error(e))?;
@@ -1012,7 +1016,9 @@ impl<'a> InterpreterContext<'a> {
                         // safety: handler pointer is stable for interpreter lifetime
                         let handler = unsafe { handler.as_ref() };
                         let result = {
-                            let mut context = ExternalCallContext::new(self.isolate, self.heap);
+                            let isolate = &mut *self.isolate;
+                            let memory = self.memory.reborrow();
+                            let mut context = ExternalCallContext::new(isolate, memory);
                             handler(&mut context, &argument_values)
                         }
                         .map_err(|e| self.make_error(e))?;
@@ -1080,7 +1086,7 @@ impl<'a> InterpreterContext<'a> {
                     let local_end = local_base + callee.local_count;
 
                     // clear frame-local stack allocations
-                    frame.stack_cells.clear();
+                    frame.stack_values.clear();
 
                     // resize stacks to callee requirements
                     resize_and_clear_stack(&mut self.engine.value_stack, value_base, value_end);

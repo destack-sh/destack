@@ -1,17 +1,107 @@
 use crate::diagnostic::Error;
 use destack_heap::{
-    GlobalPointer, LocalPointer, ManagedReference, RawPointer, StackPointer, Value, ValueTag,
+    GlobalPointer, Heap, LocalPointer, ManagedReference, RawPointer, ReferenceMap, ReferenceMeta,
+    SharedPointer, StackPointer, StringLayout, Value, ValueTag,
 };
 use destack_mir as mir;
 
 use super::super::decode::{ThreadedState, UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT};
 use crate::telemetry::stat_inc;
 
-/// Load a value from a pointer.
+/// Return the packed VM value count for one managed allocation.
 #[inline(always)]
-pub(crate) fn load_from_pointer(
+fn packed_value_count(heap: &Heap, handle: ManagedReference) -> Result<usize, Error> {
+    heap.packed_value_count(handle)
+        .ok_or(Error::InvalidManagedReference)
+}
+
+/// Report whether one managed allocation stores packed VM values.
+#[inline(always)]
+fn has_packed_values(heap: &Heap, handle: ManagedReference) -> bool {
+    matches!(
+        heap.reference_map(handle),
+        Some(ReferenceMap::ValueArray { .. })
+    )
+}
+
+/// Load one packed VM value from one managed allocation.
+#[inline(always)]
+fn load_packed_value(heap: &Heap, handle: ManagedReference, index: usize) -> Result<Value, Error> {
+    heap.packed_value_at(handle, index)
+        .ok_or(Error::InvalidManagedReference)
+}
+
+/// Store one packed VM value into one managed allocation.
+#[inline(always)]
+fn store_packed_value(
+    heap: &mut Heap,
+    handle: ManagedReference,
+    index: usize,
+    value: Value,
+) -> Result<(), Error> {
+    if heap.set_packed_value(handle, index, value) {
+        return Ok(());
+    }
+
+    Err(Error::InvalidManagedReference)
+}
+
+/// Load one field from one runtime string header.
+#[inline(always)]
+fn load_string_field(heap: &Heap, handle: ManagedReference, index: u32) -> Result<Value, Error> {
+    let bytes = heap
+        .managed_bytes(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+
+    StringLayout::read_field(bytes.as_ref(), index).ok_or(Error::InvalidFieldAccess {
+        index,
+        field_count: StringLayout::FIELD_COUNT,
+    })
+}
+
+/// Store one field into one runtime string header.
+#[inline(always)]
+fn store_string_field(
+    heap: &mut Heap,
+    handle: ManagedReference,
+    index: u32,
+    value: Value,
+) -> Result<(), Error> {
+    let mut bytes = heap
+        .managed_bytes_to_vec(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+
+    if !StringLayout::write_field(&mut bytes, index, value) {
+        return Err(Error::TypeMismatch {
+            expected: "string field value".to_string(),
+            actual: format!("{value:?}"),
+        });
+    }
+
+    for (offset, byte) in bytes.into_iter().enumerate() {
+        if !heap.set_managed_byte(handle, offset, byte) {
+            return Err(Error::InvalidManagedReference);
+        }
+    }
+
+    Ok(())
+}
+
+/// Return one byte offset for one runtime string field.
+#[inline(always)]
+fn string_field_offset(index: u32) -> Result<usize, Error> {
+    StringLayout::field_offset(index).ok_or(Error::InvalidFieldAccess {
+        index,
+        field_count: StringLayout::FIELD_COUNT,
+    })
+}
+
+/// Load a value from a pointer with one optional raw pointee type.
+#[inline(always)]
+pub(crate) fn load_from_pointer_with_raw_pointee(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
+    raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
@@ -22,11 +112,17 @@ pub(crate) fn load_from_pointer(
     match ptr.tag() {
         ValueTag::ManagedReference => {
             let handle = ptr.as_managed_reference().unwrap();
-            load_heap_slot(state, handle, handle.slot_offset())
+            let value_index = handle.byte_offset() / Value::BYTE_LEN;
+            load_heap_slot(state, handle, value_index)
         }
         ValueTag::RawPointer => {
-            let raw_ptr = ptr.as_raw_pointer().unwrap();
-            load_raw_slot(state, raw_ptr, raw_ptr.slot_offset())
+            let Some(raw_pointee) = raw_pointee else {
+                return Err(Error::InvalidPointerType {
+                    actual: "raw pointer without pointee type".to_string(),
+                });
+            };
+
+            load_from_raw_pointer_typed(state, ptr, raw_pointee)
         }
         ValueTag::StackPointer => {
             let sp = ptr.as_stack_pointer().unwrap();
@@ -46,11 +142,12 @@ pub(crate) fn load_from_pointer(
     }
 }
 
-/// Store a value to a pointer.
+/// Store a value to a pointer with one optional raw pointee type.
 #[inline(always)]
-pub(crate) fn store_to_pointer(
+pub(crate) fn store_to_pointer_with_raw_pointee(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
+    raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     val: Value,
 ) -> Result<(), Error> {
     // track pointer stores
@@ -62,11 +159,17 @@ pub(crate) fn store_to_pointer(
     match ptr.tag() {
         ValueTag::ManagedReference => {
             let handle = ptr.as_managed_reference().unwrap();
-            store_heap_slot(state, handle, handle.slot_offset(), val)
+            let value_index = handle.byte_offset() / Value::BYTE_LEN;
+            store_heap_slot(state, handle, value_index, val)
         }
         ValueTag::RawPointer => {
-            let raw_ptr = ptr.as_raw_pointer().unwrap();
-            store_raw_slot(state, raw_ptr, raw_ptr.slot_offset(), val)
+            let Some(raw_pointee) = raw_pointee else {
+                return Err(Error::InvalidPointerType {
+                    actual: "raw pointer without pointee type".to_string(),
+                });
+            };
+
+            store_to_raw_pointer_typed(state, ptr, raw_pointee, val)
         }
         ValueTag::StackPointer => {
             let sp = ptr.as_stack_pointer().unwrap();
@@ -105,25 +208,49 @@ pub(crate) fn load_from_managed_reference(
 
     // resolve handle
     let handle = ptr.as_managed_reference().unwrap();
-    load_heap_slot(state, handle, handle.slot_offset())
+    let value_index = handle.byte_offset() / Value::BYTE_LEN;
+    load_heap_slot(state, handle, value_index)
 }
 
-/// Load a value from a raw pointer.
+/// Load a typed value from a managed reference.
 #[inline(always)]
-pub(crate) fn load_from_raw_pointer(
+pub(crate) fn load_from_managed_reference_typed(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
+    pointee: mir::LocalNodeId<mir::Type>,
 ) -> Result<Value, Error> {
-    // validate pointer tag
-    if ptr.tag() != ValueTag::RawPointer {
+    if ptr.tag() != ValueTag::ManagedReference {
         return Err(Error::InvalidPointerType {
             actual: format!("{ptr:?}"),
         });
     }
 
-    // resolve pointer
-    let raw_ptr = ptr.as_raw_pointer().unwrap();
-    load_raw_slot(state, raw_ptr, raw_ptr.slot_offset())
+    let handle = ptr.as_managed_reference().unwrap();
+    if state.null_checks && handle.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let heap = state.heap_ref();
+    if !heap.is_managed_allocated(handle) {
+        return Err(Error::InvalidManagedReference);
+    }
+
+    if has_packed_values(heap, handle) {
+        let slot_offset = handle.byte_offset() / Value::BYTE_LEN;
+        return load_heap_slot(state, handle, slot_offset);
+    }
+
+    let pointee = managed_projection_type(&state.interpreter.isolate.image.tree, pointee);
+    let byte_len = managed_type_size(&state.interpreter.isolate.image.tree, pointee)?;
+    let bytes = heap
+        .managed_bytes(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+    let window = bytes.get(..byte_len).ok_or(Error::InvalidFieldAccess {
+        index: 0,
+        field_count: bytes.len(),
+    })?;
+
+    decode_raw_value(&state.interpreter.isolate.image.tree, pointee, window)
 }
 
 /// Load a value from a stack pointer.
@@ -180,42 +307,64 @@ pub(crate) fn load_from_global_pointer(
     load_global_slot(state, global)
 }
 
-/// Store a value through a managed reference.
+/// Store a typed value through a managed reference.
 #[inline(always)]
-pub(crate) fn store_to_managed_reference(
+pub(crate) fn store_to_managed_reference_typed(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
+    pointee: mir::LocalNodeId<mir::Type>,
     val: Value,
 ) -> Result<(), Error> {
-    // validate pointer tag
     if ptr.tag() != ValueTag::ManagedReference {
         return Err(Error::InvalidPointerType {
             actual: format!("{ptr:?}"),
         });
     }
 
-    // resolve handle
     let handle = ptr.as_managed_reference().unwrap();
-    store_heap_slot(state, handle, handle.slot_offset(), val)
-}
+    if state.null_checks && handle.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
 
-/// Store a value through a raw pointer.
-#[inline(always)]
-pub(crate) fn store_to_raw_pointer(
-    state: &mut ThreadedState<'_, '_>,
-    ptr: Value,
-    val: Value,
-) -> Result<(), Error> {
-    // validate pointer tag
-    if ptr.tag() != ValueTag::RawPointer {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{ptr:?}"),
+    let is_value_array = {
+        let heap = state.heap_ref();
+        if !heap.is_managed_allocated(handle) {
+            return Err(Error::InvalidManagedReference);
+        }
+        has_packed_values(heap, handle)
+    };
+
+    if is_value_array {
+        let slot_offset = handle.byte_offset() / Value::BYTE_LEN;
+        return store_heap_slot(state, handle, slot_offset, val);
+    }
+
+    let pointee = managed_projection_type(&state.interpreter.isolate.image.tree, pointee);
+    let bytes = encode_raw_value(&state.interpreter.isolate.image.tree, pointee, val)?;
+    let byte_len = state
+        .heap_ref()
+        .managed_byte_len(handle)
+        .ok_or(Error::InvalidManagedReference)?;
+    let start = 0usize;
+    let end = bytes.len();
+
+    if end > byte_len {
+        return Err(Error::InvalidFieldAccess {
+            index: start as u32,
+            field_count: byte_len,
         });
     }
 
-    // resolve pointer
-    let raw_ptr = ptr.as_raw_pointer().unwrap();
-    store_raw_slot(state, raw_ptr, raw_ptr.slot_offset(), val)
+    for (index, byte) in bytes.iter().copied().enumerate() {
+        if !state.heap().set_managed_byte(handle, index, byte) {
+            return Err(Error::InvalidFieldAccess {
+                index: index as u32,
+                field_count: byte_len,
+            });
+        }
+    }
+
+    Ok(())
 }
 
 /// Store a value through a stack pointer.
@@ -335,6 +484,647 @@ fn check_array_index(
     Ok(())
 }
 
+/// Resolve the byte size for one raw pointee type.
+pub(crate) fn raw_type_size(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Result<usize, Error> {
+    let size = match tree.get(ty) {
+        mir::Type::Void => 0,
+        mir::Type::Boolean => 1,
+        mir::Type::Int { width, .. } => (*width as usize).div_ceil(8),
+        mir::Type::Isize
+        | mir::Type::Usize
+        | mir::Type::TypeDescriptor
+        | mir::Type::TypeId
+        | mir::Type::Reference { .. }
+        | mir::Type::FunctionPointer { .. }
+        | mir::Type::TensorReference { .. } => tree.pointer_bytes() as usize,
+        mir::Type::Float { width } => (*width as usize).div_ceil(8),
+        mir::Type::Newtype { inner, .. } => return raw_type_size(tree, *inner),
+        mir::Type::Array { .. }
+        | mir::Type::Tuple { .. }
+        | mir::Type::Struct { .. }
+        | mir::Type::FunctionValue { .. }
+        | mir::Type::Vector { .. }
+        | mir::Type::Tensor { .. } => tree
+            .type_layout(ty)
+            .map(|layout| layout.size as usize)
+            .ok_or_else(|| Error::TypeMismatch {
+                expected: "layout-backed raw type".to_string(),
+                actual: format!("{ty:?}"),
+            })?,
+    };
+
+    Ok(size)
+}
+
+/// Resolve the byte size for one managed pointee type.
+pub(crate) fn managed_type_size(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Result<usize, Error> {
+    let size = match tree.get(ty) {
+        mir::Type::Reference {
+            kind: mir::ReferenceKind::Managed,
+            ..
+        }
+        | mir::Type::TensorReference {
+            kind: mir::ReferenceKind::Managed,
+            ..
+        } => tree.data_layout.managed_reference_layout.bytes as usize,
+        _ => raw_type_size(tree, ty)?,
+    };
+
+    Ok(size)
+}
+
+/// Build one managed reference map for a runtime array allocation.
+pub(crate) fn managed_array_reference_map(
+    tree: &mir::NodeTree,
+    element_type: mir::LocalNodeId<mir::Type>,
+    count: usize,
+) -> ReferenceMap {
+    if count == 0 {
+        return ReferenceMap::empty();
+    }
+
+    let element_size = match managed_type_size(tree, element_type) {
+        Ok(element_size) => element_size,
+        Err(_) => return ReferenceMap::empty(),
+    };
+
+    let mut offsets = Vec::new();
+    append_managed_reference_map_offsets(tree, element_type, 0, &mut offsets);
+
+    if offsets.is_empty() {
+        ReferenceMap::empty()
+    } else {
+        ReferenceMap::RepeatedReferenceOffsets {
+            count: count as u32,
+            element_size: element_size as u32,
+            offsets,
+        }
+    }
+}
+
+fn append_managed_reference_map_offsets(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+    base_offset: u32,
+    offsets: &mut Vec<u32>,
+) {
+    match tree.get(ty) {
+        mir::Type::Reference {
+            kind: mir::ReferenceKind::Managed,
+            ..
+        }
+        | mir::Type::TensorReference {
+            kind: mir::ReferenceKind::Managed,
+            ..
+        } => {
+            offsets.push(base_offset);
+        }
+        mir::Type::Newtype { inner, .. } => {
+            append_managed_reference_map_offsets(tree, *inner, base_offset, offsets);
+        }
+        mir::Type::Struct { .. }
+        | mir::Type::Tuple { .. }
+        | mir::Type::FunctionValue { .. }
+        | mir::Type::Vector { .. }
+        | mir::Type::Tensor { .. } => {
+            let Some(layout) = tree.type_layout(ty) else {
+                return;
+            };
+
+            for field in &layout.fields {
+                append_managed_reference_map_offsets(
+                    tree,
+                    field.ty,
+                    base_offset.saturating_add(field.offset),
+                    offsets,
+                );
+            }
+        }
+        mir::Type::Array {
+            element, length, ..
+        } => {
+            let Some(layout) = tree.type_layout(ty) else {
+                return;
+            };
+            let mir::LayoutType::Array { element_stride, .. } = &layout.layout_type else {
+                return;
+            };
+
+            for index in 0..*length as u32 {
+                let element_base =
+                    base_offset.saturating_add(index.saturating_mul(*element_stride));
+                append_managed_reference_map_offsets(tree, *element, element_base, offsets);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn managed_projection_type(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> mir::LocalNodeId<mir::Type> {
+    match tree.get(ty) {
+        mir::Type::Struct { fields, .. } => fields
+            .first()
+            .map(|field| tree.get(*field).ty)
+            .unwrap_or(ty),
+        mir::Type::Tuple { elements, .. } => elements.first().copied().unwrap_or(ty),
+        mir::Type::Array { element, .. } => *element,
+        mir::Type::Newtype { inner, .. } => managed_projection_type(tree, *inner),
+        _ => ty,
+    }
+}
+
+/// Resolve one raw struct or tuple field type and byte offset.
+fn raw_field_info(
+    tree: &mir::NodeTree,
+    aggregate_type: mir::LocalNodeId<mir::Type>,
+    index: u32,
+) -> Result<(mir::LocalNodeId<mir::Type>, usize), Error> {
+    match tree.get(aggregate_type) {
+        mir::Type::Struct { fields, .. } => {
+            let field_id =
+                fields
+                    .get(index as usize)
+                    .copied()
+                    .ok_or(Error::InvalidFieldAccess {
+                        index,
+                        field_count: fields.len(),
+                    })?;
+            let field_ty = tree.get(field_id).ty;
+            let layout = tree
+                .type_layout(aggregate_type)
+                .ok_or(Error::InvalidManagedReference)?;
+            let field = layout
+                .fields
+                .iter()
+                .find(|field| field.source_index == Some(index))
+                .or_else(|| layout.fields.get(index as usize))
+                .ok_or(Error::InvalidFieldAccess {
+                    index,
+                    field_count: layout.fields.len(),
+                })?;
+            Ok((field_ty, field.offset as usize))
+        }
+        mir::Type::Tuple { elements, .. } => {
+            let field_ty =
+                elements
+                    .get(index as usize)
+                    .copied()
+                    .ok_or(Error::InvalidFieldAccess {
+                        index,
+                        field_count: elements.len(),
+                    })?;
+            let layout = tree
+                .type_layout(aggregate_type)
+                .ok_or(Error::InvalidManagedReference)?;
+            let field = layout
+                .fields
+                .get(index as usize)
+                .ok_or(Error::InvalidFieldAccess {
+                    index,
+                    field_count: layout.fields.len(),
+                })?;
+            Ok((field_ty, field.offset as usize))
+        }
+        mir::Type::Newtype { inner, .. } => raw_field_info(tree, *inner, index),
+        _ => Err(Error::TypeMismatch {
+            expected: "raw aggregate".to_string(),
+            actual: format!("{aggregate_type:?}"),
+        }),
+    }
+}
+
+fn managed_field_info(
+    tree: &mir::NodeTree,
+    aggregate_type: mir::LocalNodeId<mir::Type>,
+    index: u32,
+) -> Result<(mir::LocalNodeId<mir::Type>, usize), Error> {
+    match tree.get(aggregate_type) {
+        mir::Type::Struct { fields, .. } => {
+            let field_id =
+                fields
+                    .get(index as usize)
+                    .copied()
+                    .ok_or(Error::InvalidFieldAccess {
+                        index,
+                        field_count: fields.len(),
+                    })?;
+            let field_ty = tree.get(field_id).ty;
+            let layout = tree
+                .type_layout(aggregate_type)
+                .ok_or(Error::InvalidManagedReference)?;
+            let field = layout
+                .fields
+                .iter()
+                .find(|field| field.source_index == Some(index))
+                .or_else(|| layout.fields.get(index as usize))
+                .ok_or(Error::InvalidFieldAccess {
+                    index,
+                    field_count: layout.fields.len(),
+                })?;
+            Ok((field_ty, field.offset as usize))
+        }
+        mir::Type::Tuple { elements, .. } => {
+            let field_ty =
+                elements
+                    .get(index as usize)
+                    .copied()
+                    .ok_or(Error::InvalidFieldAccess {
+                        index,
+                        field_count: elements.len(),
+                    })?;
+            let layout = tree
+                .type_layout(aggregate_type)
+                .ok_or(Error::InvalidManagedReference)?;
+            let field = layout
+                .fields
+                .get(index as usize)
+                .ok_or(Error::InvalidFieldAccess {
+                    index,
+                    field_count: layout.fields.len(),
+                })?;
+            Ok((field_ty, field.offset as usize))
+        }
+        mir::Type::Newtype { inner, .. } => managed_field_info(tree, *inner, index),
+        _ => Err(Error::TypeMismatch {
+            expected: "managed aggregate".to_string(),
+            actual: format!("{aggregate_type:?}"),
+        }),
+    }
+}
+
+/// Resolve one raw array element type and byte stride.
+fn raw_element_info(
+    tree: &mir::NodeTree,
+    array_type: mir::LocalNodeId<mir::Type>,
+) -> Result<(mir::LocalNodeId<mir::Type>, usize), Error> {
+    match tree.get(array_type) {
+        mir::Type::Array { element, .. } => {
+            let layout = tree
+                .type_layout(array_type)
+                .ok_or(Error::InvalidManagedReference)?;
+            let mir::LayoutType::Array {
+                element_stride,
+                element_type,
+                ..
+            } = &layout.layout_type
+            else {
+                return Err(Error::TypeMismatch {
+                    expected: "raw array layout".to_string(),
+                    actual: format!("{array_type:?}"),
+                });
+            };
+            debug_assert_eq!(*element, *element_type);
+            Ok((*element_type, *element_stride as usize))
+        }
+        mir::Type::Newtype { inner, .. } => raw_element_info(tree, *inner),
+        _ => Err(Error::TypeMismatch {
+            expected: "raw array".to_string(),
+            actual: format!("{array_type:?}"),
+        }),
+    }
+}
+
+fn managed_element_info(
+    tree: &mir::NodeTree,
+    array_type: mir::LocalNodeId<mir::Type>,
+) -> Result<(mir::LocalNodeId<mir::Type>, usize), Error> {
+    match tree.get(array_type) {
+        mir::Type::Array { element, .. } => {
+            let layout = tree
+                .type_layout(array_type)
+                .ok_or(Error::InvalidManagedReference)?;
+            let mir::LayoutType::Array {
+                element_stride,
+                element_type,
+                ..
+            } = &layout.layout_type
+            else {
+                return Err(Error::TypeMismatch {
+                    expected: "managed array layout".to_string(),
+                    actual: format!("{array_type:?}"),
+                });
+            };
+            debug_assert_eq!(*element, *element_type);
+            Ok((*element_type, *element_stride as usize))
+        }
+        mir::Type::Newtype { inner, .. } => managed_element_info(tree, *inner),
+        _ => Err(Error::TypeMismatch {
+            expected: "managed array".to_string(),
+            actual: format!("{array_type:?}"),
+        }),
+    }
+}
+
+/// Read one raw byte window into an owned buffer.
+fn read_raw_bytes(
+    state: &ThreadedState<'_, '_>,
+    pointer: RawPointer,
+    byte_offset: usize,
+    byte_len: usize,
+) -> Result<Vec<u8>, Error> {
+    let bytes = state
+        .heap_ref()
+        .raw_bytes(pointer)
+        .ok_or(Error::InvalidManagedReference)?;
+
+    let end = byte_offset
+        .checked_add(byte_len)
+        .ok_or(Error::InvalidFieldAccess {
+            index: byte_offset as u32,
+            field_count: bytes.len(),
+        })?;
+
+    let window = bytes
+        .get(byte_offset..end)
+        .ok_or(Error::InvalidFieldAccess {
+            index: byte_offset as u32,
+            field_count: bytes.len(),
+        })?;
+
+    Ok(window.to_vec())
+}
+
+/// Write one raw byte window from the given buffer.
+fn write_raw_bytes(
+    state: &mut ThreadedState<'_, '_>,
+    pointer: RawPointer,
+    byte_offset: usize,
+    bytes: &[u8],
+) -> Result<(), Error> {
+    let byte_len = state
+        .heap_ref()
+        .raw_byte_len(pointer)
+        .ok_or(Error::InvalidManagedReference)?;
+    let end = byte_offset
+        .checked_add(bytes.len())
+        .ok_or(Error::InvalidFieldAccess {
+            index: byte_offset as u32,
+            field_count: byte_len,
+        })?;
+
+    if end > byte_len {
+        return Err(Error::InvalidFieldAccess {
+            index: byte_offset as u32,
+            field_count: byte_len,
+        });
+    }
+
+    for (index, byte) in bytes.iter().copied().enumerate() {
+        if !state
+            .heap()
+            .set_raw_byte(pointer, byte_offset + index, byte)
+        {
+            return Err(Error::InvalidFieldAccess {
+                index: (byte_offset + index) as u32,
+                field_count: byte_len,
+            });
+        }
+    }
+
+    Ok(())
+}
+
+/// Decode one raw byte window into a VM value.
+pub(crate) fn decode_raw_value(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+    bytes: &[u8],
+) -> Result<Value, Error> {
+    match tree.get(ty) {
+        mir::Type::Void => Ok(Value::VOID),
+        mir::Type::Boolean => Ok(Value::bool(bytes.first().copied().unwrap_or(0) != 0)),
+        mir::Type::Int { width, is_signed } => {
+            let mut raw = [0u8; 8];
+            raw[..bytes.len()].copy_from_slice(bytes);
+            let raw = u64::from_le_bytes(raw);
+            if *is_signed {
+                Ok(Value::int(raw as i64, *width as u8))
+            } else {
+                Ok(Value::uint(raw, *width as u8))
+            }
+        }
+        mir::Type::Isize => {
+            let mut raw = [0u8; 8];
+            raw[..bytes.len()].copy_from_slice(bytes);
+            Ok(Value::int(
+                u64::from_le_bytes(raw) as i64,
+                tree.pointer_bits() as u8,
+            ))
+        }
+        mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
+            let mut raw = [0u8; 8];
+            raw[..bytes.len()].copy_from_slice(bytes);
+            Ok(Value::uint(
+                u64::from_le_bytes(raw),
+                tree.pointer_bits() as u8,
+            ))
+        }
+        mir::Type::Float { width: 32 } => {
+            let mut raw = [0u8; 4];
+            raw[..bytes.len()].copy_from_slice(bytes);
+            Ok(Value::float32(f32::from_bits(u32::from_le_bytes(raw))))
+        }
+        mir::Type::Float { width: 64 } => {
+            let mut raw = [0u8; 8];
+            raw.copy_from_slice(bytes);
+            Ok(Value::float64(f64::from_bits(u64::from_le_bytes(raw))))
+        }
+        mir::Type::Float { width } => Err(Error::TypeMismatch {
+            expected: "supported float width".to_string(),
+            actual: width.to_string(),
+        }),
+        mir::Type::Reference {
+            kind,
+            address_space,
+            mutability,
+            is_nullable,
+            ..
+        } => {
+            let mut raw = [0u8; 8];
+            raw[..bytes.len()].copy_from_slice(bytes);
+            let raw = u64::from_le_bytes(raw);
+            let meta = ReferenceMeta::new(*kind, *address_space, *mutability, *is_nullable);
+
+            match (*kind, *address_space) {
+                (mir::ReferenceKind::Managed, _) => Ok(Value::managed_reference_with_meta(
+                    ManagedReference::from_bits(raw),
+                    meta,
+                )),
+                (_, mir::AddressSpace::Shared) => Ok(Value::shared_pointer_with_meta(
+                    SharedPointer::from_bits(raw),
+                    meta,
+                )),
+                _ => Ok(Value::raw_pointer_with_meta(
+                    RawPointer::from_bits(raw),
+                    meta,
+                )),
+            }
+        }
+        mir::Type::FunctionPointer { .. } => {
+            let mut raw = [0u8; 8];
+            raw[..bytes.len()].copy_from_slice(bytes);
+            Ok(Value::function_pointer(mir::LocalNodeId::new(
+                u64::from_le_bytes(raw) as u32,
+            )))
+        }
+        mir::Type::Newtype { inner, .. } => decode_raw_value(tree, *inner, bytes),
+        _ => Err(Error::TypeMismatch {
+            expected: "scalar or reference raw load".to_string(),
+            actual: format!("{ty:?}"),
+        }),
+    }
+}
+
+/// Encode one VM value into raw bytes for the given type.
+pub(crate) fn encode_raw_value(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+    value: Value,
+) -> Result<Vec<u8>, Error> {
+    let byte_len = raw_type_size(tree, ty)?;
+
+    let bytes = match tree.get(ty) {
+        mir::Type::Void => Vec::new(),
+        mir::Type::Boolean => vec![u8::from(value.as_bool().ok_or_else(|| {
+            Error::TypeMismatch {
+                expected: "bool".to_string(),
+                actual: format!("{value:?}"),
+            }
+        })?)],
+        mir::Type::Int { .. } | mir::Type::Isize => {
+            let raw = match value.tag() {
+                ValueTag::Int => value.raw_data(),
+                ValueTag::UInt => value.raw_data(),
+                _ => {
+                    return Err(Error::TypeMismatch {
+                        expected: "integer".to_string(),
+                        actual: format!("{value:?}"),
+                    });
+                }
+            };
+            raw.to_le_bytes()[..byte_len].to_vec()
+        }
+        mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
+            let raw = value.as_uint().ok_or_else(|| Error::TypeMismatch {
+                expected: "integer".to_string(),
+                actual: format!("{value:?}"),
+            })?;
+            raw.to_le_bytes()[..byte_len].to_vec()
+        }
+        mir::Type::Float { width: 32 } => {
+            let raw = value.as_float32().ok_or_else(|| Error::TypeMismatch {
+                expected: "float32".to_string(),
+                actual: format!("{value:?}"),
+            })?;
+            raw.to_bits().to_le_bytes().to_vec()
+        }
+        mir::Type::Float { width: 64 } => {
+            let raw = value.as_float64().ok_or_else(|| Error::TypeMismatch {
+                expected: "float64".to_string(),
+                actual: format!("{value:?}"),
+            })?;
+            raw.to_bits().to_le_bytes().to_vec()
+        }
+        mir::Type::Float { width } => {
+            return Err(Error::TypeMismatch {
+                expected: "supported float width".to_string(),
+                actual: width.to_string(),
+            });
+        }
+        mir::Type::Reference { address_space, .. } => {
+            let raw = match address_space {
+                mir::AddressSpace::Shared => value
+                    .as_shared_pointer()
+                    .map(|pointer| pointer.bits())
+                    .ok_or_else(|| Error::TypeMismatch {
+                        expected: "shared pointer".to_string(),
+                        actual: format!("{value:?}"),
+                    })?,
+                _ => value
+                    .as_managed_reference()
+                    .map(|handle| handle.bits())
+                    .or_else(|| value.as_raw_pointer().map(|pointer| pointer.bits()))
+                    .ok_or_else(|| Error::TypeMismatch {
+                        expected: "reference".to_string(),
+                        actual: format!("{value:?}"),
+                    })?,
+            };
+            raw.to_le_bytes()[..byte_len].to_vec()
+        }
+        mir::Type::FunctionPointer { .. } => {
+            let raw = value
+                .as_function_pointer()
+                .ok_or_else(|| Error::TypeMismatch {
+                    expected: "function pointer".to_string(),
+                    actual: format!("{value:?}"),
+                })?;
+            (raw.id as u64).to_le_bytes()[..byte_len].to_vec()
+        }
+        mir::Type::Newtype { inner, .. } => return encode_raw_value(tree, *inner, value),
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: "scalar or reference raw store".to_string(),
+                actual: format!("{ty:?}"),
+            });
+        }
+    };
+
+    Ok(bytes)
+}
+
+/// Load one typed value from raw heap bytes.
+pub(crate) fn load_from_raw_pointer_typed(
+    state: &mut ThreadedState<'_, '_>,
+    ptr: Value,
+    pointee: mir::LocalNodeId<mir::Type>,
+) -> Result<Value, Error> {
+    if ptr.tag() != ValueTag::RawPointer {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    let pointer = ptr.as_raw_pointer().unwrap();
+    if state.null_checks && pointer.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let byte_len = raw_type_size(&state.interpreter.isolate.image.tree, pointee)?;
+    let bytes = read_raw_bytes(state, pointer, 0, byte_len)?;
+    decode_raw_value(&state.interpreter.isolate.image.tree, pointee, &bytes)
+}
+
+/// Store one typed value into raw heap bytes.
+pub(crate) fn store_to_raw_pointer_typed(
+    state: &mut ThreadedState<'_, '_>,
+    ptr: Value,
+    pointee: mir::LocalNodeId<mir::Type>,
+    value: Value,
+) -> Result<(), Error> {
+    if ptr.tag() != ValueTag::RawPointer {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    let pointer = ptr.as_raw_pointer().unwrap();
+    if state.null_checks && pointer.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let bytes = encode_raw_value(&state.interpreter.isolate.image.tree, pointee, value)?;
+    write_raw_bytes(state, pointer, 0, &bytes)
+}
+
 /// Get the address of a field from an aggregate or pointer.
 #[inline(always)]
 pub(crate) fn field_addr(
@@ -348,20 +1138,29 @@ pub(crate) fn field_addr(
 
     // resolve the source and compute the field pointer
     match aggregate.tag() {
-        ValueTag::Aggregate | ValueTag::ManagedReference | ValueTag::String => {
+        ValueTag::String => {
             let handle = aggregate.as_managed_reference().unwrap();
-            let slot_index = resolve_heap_field_slot(state, handle, index, field_count)?;
-            let handle = ManagedReference::with_slot_offset(handle.id(), slot_index);
+            let byte_offset = string_field_offset(index)?;
+            let byte_offset =
+                u32::try_from(byte_offset).map_err(|_| Error::InvalidFieldAccess {
+                    index,
+                    field_count: StringLayout::FIELD_COUNT,
+                })?;
+            let handle = ManagedReference::with_byte_offset(handle.id(), byte_offset);
             Ok(Value::managed_reference(handle))
         }
-        ValueTag::RawPointer => {
-            let raw_ptr = aggregate.as_raw_pointer().unwrap();
-            let slot_index = resolve_raw_field_slot(state, raw_ptr, index, field_count)?;
-            Ok(Value::raw_pointer(RawPointer::with_slot_offset(
-                raw_ptr.id(),
-                slot_index,
-            )))
+        ValueTag::Aggregate | ValueTag::ManagedReference => {
+            let handle = aggregate.as_managed_reference().unwrap();
+            let slot_index = resolve_heap_field_slot(state, handle, index, field_count)?;
+            let byte_offset = slot_index
+                .checked_mul(Value::BYTE_LEN as u32)
+                .ok_or(Error::InvalidManagedReference)?;
+            let handle = ManagedReference::with_byte_offset(handle.id(), byte_offset);
+            Ok(Value::managed_reference(handle))
         }
+        ValueTag::RawPointer => Err(Error::InvalidPointerType {
+            actual: "raw pointer requires typed field access".to_string(),
+        }),
         ValueTag::StackPointer => {
             let sp = aggregate.as_stack_pointer().unwrap();
             let slot_index = resolve_stack_field_slot(state, sp, index, field_count)?;
@@ -392,16 +1191,45 @@ pub(crate) fn field_addr(
 pub(crate) fn field_addr_managed(
     state: &mut ThreadedState<'_, '_>,
     handle: ManagedReference,
+    pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
     field_count: u32,
 ) -> Result<Value, Error> {
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
-    // resolve slot offset
-    let slot_index = resolve_heap_field_slot(state, handle, index, field_count)?;
+    let heap = state.heap_ref();
+    if !heap.is_managed_allocated(handle) {
+        return Err(Error::InvalidManagedReference);
+    }
+
+    if has_packed_values(heap, handle) {
+        let slot_index = resolve_heap_field_slot(state, handle, index, field_count)?;
+        let byte_offset = slot_index
+            .checked_mul(Value::BYTE_LEN as u32)
+            .ok_or(Error::InvalidManagedReference)?;
+        return Ok(Value::managed_reference(
+            ManagedReference::with_byte_offset(handle.id(), byte_offset),
+        ));
+    }
+
+    if state.null_checks && handle.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let (_, field_offset) =
+        managed_field_info(&state.interpreter.isolate.image.tree, pointee, index)?;
+    let byte_offset =
+        handle
+            .byte_offset()
+            .checked_add(field_offset)
+            .ok_or(Error::InvalidFieldAccess {
+                index,
+                field_count: field_count as usize,
+            })?;
+
     Ok(Value::managed_reference(
-        ManagedReference::with_slot_offset(handle.id(), slot_index),
+        ManagedReference::with_byte_offset(handle.id(), byte_offset as u32),
     ))
 }
 
@@ -410,17 +1238,31 @@ pub(crate) fn field_addr_managed(
 pub(crate) fn field_addr_raw(
     state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
+    pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
     field_count: u32,
 ) -> Result<Value, Error> {
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
-    // resolve slot offset
-    let slot_index = resolve_raw_field_slot(state, pointer, index, field_count)?;
-    Ok(Value::raw_pointer(RawPointer::with_slot_offset(
+    // reject null pointers when enabled
+    if state.null_checks && pointer.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    // resolve byte offset
+    let (_, field_offset) = raw_field_info(&state.interpreter.isolate.image.tree, pointee, index)?;
+    let byte_offset =
+        pointer
+            .byte_offset()
+            .checked_add(field_offset)
+            .ok_or(Error::InvalidFieldAccess {
+                index,
+                field_count: field_count as usize,
+            })?;
+    Ok(Value::raw_pointer(RawPointer::with_byte_offset(
         pointer.id(),
-        slot_index,
+        byte_offset as u32,
     )))
 }
 
@@ -470,7 +1312,30 @@ pub(crate) fn field_addr_global(
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
-    // resolve slot offset
+    // load the global value
+    let value = state
+        .interpreter
+        .isolate
+        .globals
+        .get(pointer.id)
+        .copied()
+        .ok_or(Error::UndefinedGlobal { global: pointer.id })?;
+
+    // project string fields directly into managed header bytes
+    if value.tag() == ValueTag::String {
+        let handle = value.as_managed_reference().unwrap();
+        let field_offset = string_field_offset(index)?;
+        let field_offset = u32::try_from(field_offset).map_err(|_| Error::InvalidFieldAccess {
+            index,
+            field_count: StringLayout::FIELD_COUNT,
+        })?;
+
+        return Ok(Value::managed_reference(
+            ManagedReference::with_byte_offset(handle.id(), field_offset),
+        ));
+    }
+
+    // resolve aggregate slot offset
     let slot_index = resolve_global_field_slot(state, pointer, index, field_count)?;
     Ok(Value::global_pointer_with_offset(pointer.id, slot_index))
 }
@@ -491,17 +1356,15 @@ pub(crate) fn element_addr(
         ValueTag::Aggregate | ValueTag::ManagedReference => {
             let handle = array.as_managed_reference().unwrap();
             let slot_index = resolve_heap_element_slot(state, handle, index, array_length)?;
-            let handle = ManagedReference::with_slot_offset(handle.id(), slot_index);
+            let byte_offset = slot_index
+                .checked_mul(Value::BYTE_LEN as u32)
+                .ok_or(Error::InvalidManagedReference)?;
+            let handle = ManagedReference::with_byte_offset(handle.id(), byte_offset);
             Ok(Value::managed_reference(handle))
         }
-        ValueTag::RawPointer => {
-            let raw_ptr = array.as_raw_pointer().unwrap();
-            let slot_index = resolve_raw_element_slot(state, raw_ptr, index, array_length)?;
-            Ok(Value::raw_pointer(RawPointer::with_slot_offset(
-                raw_ptr.id(),
-                slot_index,
-            )))
-        }
+        ValueTag::RawPointer => Err(Error::InvalidPointerType {
+            actual: "raw pointer requires typed element access".to_string(),
+        }),
         ValueTag::StackPointer => {
             let sp = array.as_stack_pointer().unwrap();
             let slot_index = resolve_stack_element_slot(state, sp, index, array_length)?;
@@ -532,16 +1395,51 @@ pub(crate) fn element_addr(
 pub(crate) fn element_addr_managed(
     state: &mut ThreadedState<'_, '_>,
     handle: ManagedReference,
+    pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
     array_length: u64,
 ) -> Result<Value, Error> {
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
-    // resolve slot offset
-    let slot_index = resolve_heap_element_slot(state, handle, index, array_length)?;
+    let heap = state.heap_ref();
+    if !heap.is_managed_allocated(handle) {
+        return Err(Error::InvalidManagedReference);
+    }
+
+    if has_packed_values(heap, handle) {
+        let slot_index = resolve_heap_element_slot(state, handle, index, array_length)?;
+        let byte_offset = slot_index
+            .checked_mul(Value::BYTE_LEN as u32)
+            .ok_or(Error::InvalidManagedReference)?;
+        return Ok(Value::managed_reference(
+            ManagedReference::with_byte_offset(handle.id(), byte_offset),
+        ));
+    }
+
+    if state.null_checks && handle.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    let (_, element_stride) = managed_element_info(&state.interpreter.isolate.image.tree, pointee)?;
+    let element_offset = usize::try_from(index)
+        .ok()
+        .and_then(|index| index.checked_mul(element_stride))
+        .ok_or(Error::InvalidArrayAccess {
+            index,
+            length: array_length,
+        })?;
+    let byte_offset =
+        handle
+            .byte_offset()
+            .checked_add(element_offset)
+            .ok_or(Error::InvalidArrayAccess {
+                index,
+                length: array_length,
+            })?;
+
     Ok(Value::managed_reference(
-        ManagedReference::with_slot_offset(handle.id(), slot_index),
+        ManagedReference::with_byte_offset(handle.id(), byte_offset as u32),
     ))
 }
 
@@ -550,17 +1448,38 @@ pub(crate) fn element_addr_managed(
 pub(crate) fn element_addr_raw(
     state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
+    pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
     array_length: u64,
 ) -> Result<Value, Error> {
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
-    // resolve slot offset
-    let slot_index = resolve_raw_element_slot(state, pointer, index, array_length)?;
-    Ok(Value::raw_pointer(RawPointer::with_slot_offset(
+    // reject null pointers when enabled
+    if state.null_checks && pointer.is_null() {
+        return Err(Error::NullPointerDereference);
+    }
+
+    // resolve byte offset
+    let (_, element_stride) = raw_element_info(&state.interpreter.isolate.image.tree, pointee)?;
+    let element_offset = usize::try_from(index)
+        .ok()
+        .and_then(|index| index.checked_mul(element_stride))
+        .ok_or(Error::InvalidArrayAccess {
+            index,
+            length: array_length,
+        })?;
+    let byte_offset =
+        pointer
+            .byte_offset()
+            .checked_add(element_offset)
+            .ok_or(Error::InvalidArrayAccess {
+                index,
+                length: array_length,
+            })?;
+    Ok(Value::raw_pointer(RawPointer::with_byte_offset(
         pointer.id(),
-        slot_index,
+        byte_offset as u32,
     )))
 }
 
@@ -623,6 +1542,7 @@ pub(crate) fn element_addr_global(
 pub(crate) fn load_field_managed(
     state: &mut ThreadedState<'_, '_>,
     handle: ManagedReference,
+    pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
     field_count: u32,
 ) -> Result<Value, Error> {
@@ -631,96 +1551,55 @@ pub(crate) fn load_field_managed(
         stat_inc!(state.interpreter.engine.statistics, loads);
     }
 
-    // fast path: skip all validation when bounds and null checks are disabled
-    if !state.bounds_checks && !state.null_checks {
-        // compute slot index
-        let slot_index = handle.slot_offset().wrapping_add(index as usize);
-
-        let heap = state.heap_ref();
-        // #Safety: checks are disabled, caller ensures validity
-        let cell = unsafe { heap.managed_allocation_unchecked(handle) };
-        debug_assert!(slot_index < cell.len(), "heap field out of bounds");
-        let value = unsafe { *cell.get_unchecked(slot_index) };
-        return Ok(value);
+    let heap = state.heap_ref();
+    if !heap.is_managed_allocated(handle) {
+        return Err(Error::InvalidManagedReference);
     }
 
-    // validate field index when known
+    if has_packed_values(heap, handle) {
+        // validate field index when known
+        check_field_index(state, index, field_count)?;
+
+        if state.null_checks && handle.is_null() {
+            return Err(Error::NullPointerDereference);
+        }
+
+        let cell_len = packed_value_count(heap, handle)?;
+        let value_index = handle.byte_offset() / Value::BYTE_LEN + index as usize;
+        return heap
+            .packed_value_at(handle, value_index)
+            .ok_or(Error::InvalidFieldAccess {
+                index,
+                field_count: cell_len,
+            });
+    }
+
     check_field_index(state, index, field_count)?;
 
-    // reject null handles when enabled
     if state.null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
-    let heap = state.heap_ref();
-    let cell = heap
-        .managed_allocation(handle)
+    let (field_type, field_offset) =
+        managed_field_info(&state.interpreter.isolate.image.tree, pointee, index)?;
+    let field_type = managed_projection_type(&state.interpreter.isolate.image.tree, field_type);
+    let byte_len = managed_type_size(&state.interpreter.isolate.image.tree, field_type)?;
+    let bytes = heap
+        .managed_bytes(handle)
         .ok_or(Error::InvalidManagedReference)?;
-    let cell_len = cell.len();
-
-    // fast path for small known aggregates
-    if field_count != UNKNOWN_FIELD_COUNT && field_count <= 2 {
-        let slot_index = handle.slot_offset().wrapping_add(index as usize);
-        if slot_index < cell_len {
-            return Ok(unsafe { *heap.managed_slot_unchecked(handle, slot_index) });
-        }
-    }
-
-    // select field count for diagnostics
-    let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        cell_len
-    } else {
-        field_count as usize
-    };
-
-    // compute the absolute slot offset
-    let slot_index = if state.bounds_checks {
-        handle
-            .slot_offset()
-            .checked_add(index as usize)
-            .ok_or(Error::InvalidFieldAccess {
-                index,
-                field_count: field_count_for_error,
-            })?
-    } else {
-        handle.slot_offset().wrapping_add(index as usize)
-    };
-
-    // validate bounds when field count is unknown
-    if state.bounds_checks
-        && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.is_empty()
-        && slot_index >= cell_len
-    {
-        return Err(Error::InvalidFieldAccess {
+    let start = field_offset;
+    let end = start
+        .checked_add(byte_len)
+        .ok_or(Error::InvalidFieldAccess {
             index,
-            field_count: cell_len,
-        });
-    }
-
-    // treat empty slot 0 as void
-    if cell.is_empty() && slot_index == 0 {
-        return Ok(Value::VOID);
-    }
-
-    // fast path without bounds checks
-    if !state.bounds_checks {
-        debug_assert!(slot_index < cell_len, "heap field out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *heap.managed_slot_unchecked(handle, slot_index) };
-        return Ok(value);
-    }
-
-    // read the slot when in bounds
-    if let Some(value) = heap.managed_slot(handle, slot_index).copied() {
-        return Ok(value);
-    }
-
-    Err(Error::InvalidFieldAccess {
+            field_count: bytes.len(),
+        })?;
+    let window = bytes.get(start..end).ok_or(Error::InvalidFieldAccess {
         index,
-        field_count: cell_len,
-    })
+        field_count: bytes.len(),
+    })?;
+
+    decode_raw_value(&state.interpreter.isolate.image.tree, field_type, window)
 }
 
 /// Store a field into a managed heap allocation.
@@ -728,105 +1607,86 @@ pub(crate) fn load_field_managed(
 pub(crate) fn store_field_managed(
     state: &mut ThreadedState<'_, '_>,
     handle: ManagedReference,
+    pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
     field_count: u32,
     value: Value,
 ) -> Result<(), Error> {
     let bounds_checks = state.bounds_checks;
     let null_checks = state.null_checks;
+    let tree = &state.interpreter.isolate.image.tree;
 
     // track pointer stores
     if state.collect_stats {
         stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
-    // fast path: skip all validation when bounds and null checks are disabled
-    if !bounds_checks && !null_checks {
-        // compute slot index
-        let slot_index = handle.slot_offset().wrapping_add(index as usize);
+    let is_value_array = {
+        let heap = state.heap_ref();
+        if !heap.is_managed_allocated(handle) {
+            return Err(Error::InvalidManagedReference);
+        }
+        has_packed_values(heap, handle)
+    };
 
-        // #Safety: checks are disabled, caller ensures validity
+    if is_value_array {
+        check_field_index(state, index, field_count)?;
+
+        if null_checks && handle.is_null() {
+            return Err(Error::NullPointerDereference);
+        }
+
         let heap = state.heap();
-        let cell_len = unsafe { heap.managed_allocation_unchecked(handle) }.len();
-        debug_assert!(slot_index < cell_len, "heap field out of bounds");
-        unsafe { heap.set_managed_slot_unchecked(handle, slot_index, value) };
-        return Ok(());
+        let cell_len = packed_value_count(heap, handle)?;
+        let value_index = handle.byte_offset() / Value::BYTE_LEN + index as usize;
+        return if heap.set_packed_value(handle, value_index, value) {
+            Ok(())
+        } else {
+            Err(Error::InvalidFieldAccess {
+                index,
+                field_count: cell_len,
+            })
+        };
     }
 
-    // validate field index when known
     check_field_index(state, index, field_count)?;
 
-    // reject null handles when enabled
     if null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
+    let (field_type, field_offset) = managed_field_info(tree, pointee, index)?;
+    let field_type = managed_projection_type(tree, field_type);
+    let bytes = encode_raw_value(tree, field_type, value)?;
     let heap = state.heap();
-    let cell = heap
-        .managed_allocation(handle)
+    let byte_len = heap
+        .managed_byte_len(handle)
         .ok_or(Error::InvalidManagedReference)?;
-    let cell_len = cell.len();
-    let cell_is_empty = cell.is_empty();
+    let start = field_offset;
+    let end = start
+        .checked_add(bytes.len())
+        .ok_or(Error::InvalidFieldAccess {
+            index,
+            field_count: byte_len,
+        })?;
 
-    // fast path for small known aggregates
-    if field_count != UNKNOWN_FIELD_COUNT && field_count <= 2 {
-        let slot_index = handle.slot_offset().wrapping_add(index as usize);
-        if slot_index < cell_len {
-            unsafe { heap.set_managed_slot_unchecked(handle, slot_index, value) };
-            return Ok(());
-        }
-    }
-
-    // select field count for diagnostics
-    let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        cell_len
-    } else {
-        field_count as usize
-    };
-
-    // compute the absolute slot offset
-    let slot_index = if bounds_checks {
-        handle
-            .slot_offset()
-            .checked_add(index as usize)
-            .ok_or(Error::InvalidFieldAccess {
-                index,
-                field_count: field_count_for_error,
-            })?
-    } else {
-        handle.slot_offset().wrapping_add(index as usize)
-    };
-
-    // validate bounds when field count is unknown
-    if bounds_checks
-        && field_count == UNKNOWN_FIELD_COUNT
-        && !cell_is_empty
-        && slot_index >= cell_len
-    {
+    if bounds_checks && end > byte_len {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell_len,
+            field_count: byte_len,
         });
     }
 
-    // fast path without bounds checks
-    if !bounds_checks {
-        debug_assert!(slot_index < cell_len, "heap field out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
-        unsafe { heap.set_managed_slot_unchecked(handle, slot_index, value) };
-        return Ok(());
+    for (offset, byte) in bytes.into_iter().enumerate() {
+        if !heap.set_managed_byte(handle, start + offset, byte) {
+            return Err(Error::InvalidFieldAccess {
+                index,
+                field_count: byte_len,
+            });
+        }
     }
 
-    // write the slot when in bounds
-    if heap.set_managed_slot(handle, slot_index, value) {
-        return Ok(());
-    }
-
-    Err(Error::InvalidFieldAccess {
-        index,
-        field_count: cell_len,
-    })
+    Ok(())
 }
 
 /// Load a field from a raw heap allocation.
@@ -834,6 +1694,7 @@ pub(crate) fn store_field_managed(
 pub(crate) fn load_field_raw(
     state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
+    pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
     field_count: u32,
 ) -> Result<Value, Error> {
@@ -850,42 +1711,21 @@ pub(crate) fn load_field_raw(
         return Err(Error::NullPointerDereference);
     }
 
-    // select field count for diagnostics
-    let slot_count = state
-        .raw_slot_count(pointer)
-        .ok_or(Error::InvalidManagedReference)?;
-    let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        slot_count
-    } else {
-        field_count as usize
-    };
-
-    // compute the absolute slot offset
-    let slot_index = if state.bounds_checks {
+    let (field_type, field_offset) =
+        raw_field_info(&state.interpreter.isolate.image.tree, pointee, index)?;
+    let byte_offset =
         pointer
-            .slot_offset()
-            .checked_add(index as usize)
+            .byte_offset()
+            .checked_add(field_offset)
             .ok_or(Error::InvalidFieldAccess {
                 index,
-                field_count: field_count_for_error,
-            })?
-    } else {
-        pointer.slot_offset().wrapping_add(index as usize)
-    };
-
-    // validate bounds when field count is unknown
-    if state.bounds_checks
-        && field_count == UNKNOWN_FIELD_COUNT
-        && slot_count != 0
-        && slot_index >= slot_count
-    {
-        return Err(Error::InvalidFieldAccess {
-            index,
-            field_count: slot_count,
-        });
-    }
-
-    state.read_raw_slot(pointer, slot_index, state.bounds_checks)
+                field_count: field_count as usize,
+            })?;
+    let pointer = Value::raw_pointer(RawPointer::with_byte_offset(
+        pointer.id(),
+        byte_offset as u32,
+    ));
+    load_from_raw_pointer_typed(state, pointer, field_type)
 }
 
 /// Store a field into a raw heap allocation.
@@ -893,6 +1733,7 @@ pub(crate) fn load_field_raw(
 pub(crate) fn store_field_raw(
     state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
+    pointee: mir::LocalNodeId<mir::Type>,
     index: u32,
     field_count: u32,
     value: Value,
@@ -910,42 +1751,21 @@ pub(crate) fn store_field_raw(
         return Err(Error::NullPointerDereference);
     }
 
-    // select field count for diagnostics
-    let slot_count = state
-        .raw_slot_count(pointer)
-        .ok_or(Error::InvalidManagedReference)?;
-    let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        slot_count
-    } else {
-        field_count as usize
-    };
-
-    // compute the absolute slot offset
-    let slot_index = if state.bounds_checks {
+    let (field_type, field_offset) =
+        raw_field_info(&state.interpreter.isolate.image.tree, pointee, index)?;
+    let byte_offset =
         pointer
-            .slot_offset()
-            .checked_add(index as usize)
+            .byte_offset()
+            .checked_add(field_offset)
             .ok_or(Error::InvalidFieldAccess {
                 index,
-                field_count: field_count_for_error,
-            })?
-    } else {
-        pointer.slot_offset().wrapping_add(index as usize)
-    };
-
-    // validate bounds when field count is unknown
-    if state.bounds_checks
-        && field_count == UNKNOWN_FIELD_COUNT
-        && slot_count != 0
-        && slot_index >= slot_count
-    {
-        return Err(Error::InvalidFieldAccess {
-            index,
-            field_count: slot_count,
-        });
-    }
-
-    state.write_raw_slot(pointer, slot_index, value, state.bounds_checks)
+                field_count: field_count as usize,
+            })?;
+    let pointer = Value::raw_pointer(RawPointer::with_byte_offset(
+        pointer.id(),
+        byte_offset as u32,
+    ));
+    store_to_raw_pointer_typed(state, pointer, field_type, value)
 }
 
 /// Load a field from a stack allocation.
@@ -964,10 +1784,10 @@ pub(crate) fn load_field_stack(
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
-    // look up the stack cell
+    // look up the stack buffer
     let frame = state.frame_by_index(pointer.frame_idx)?;
     let cell = frame
-        .get_stack_cell(pointer.slot)
+        .stack_buffer(pointer.slot)
         .ok_or(Error::InvalidManagedReference)?;
     let cell_len = cell.len();
 
@@ -1004,14 +1824,13 @@ pub(crate) fn load_field_stack(
     }
 
     // treat empty slot 0 as void
-    if cell.is_empty() && slot_index == 0 {
+    if cell_len == 0 && slot_index == 0 {
         return Ok(Value::VOID);
     }
 
     // fast path without bounds checks
     if !state.bounds_checks {
         debug_assert!(slot_index < cell.len(), "stack field out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
         let value = unsafe { *cell.get_unchecked(slot_index) };
         return Ok(value);
     }
@@ -1047,10 +1866,10 @@ pub(crate) fn store_field_stack(
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
-    // look up the stack cell
+    // look up the stack buffer
     let frame = state.frame_by_index_mut(pointer.frame_idx)?;
     let cell = frame
-        .get_stack_cell_mut(pointer.slot)
+        .stack_buffer_mut(pointer.slot)
         .ok_or(Error::InvalidManagedReference)?;
     let cell_len = cell.len();
 
@@ -1141,6 +1960,11 @@ pub(crate) fn load_field_global(
         });
     }
 
+    if value.tag() == ValueTag::String {
+        let handle = value.as_managed_reference().unwrap();
+        return load_string_field(state.heap_ref(), handle, index);
+    }
+
     let handle = value.as_managed_reference().unwrap();
 
     // reject null handles when enabled
@@ -1148,15 +1972,13 @@ pub(crate) fn load_field_global(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
+    // look up the managed allocation
     let heap = state.heap_ref();
-    let cell = heap
-        .managed_allocation(handle)
-        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = packed_value_count(heap, handle)?;
 
     // select field count for diagnostics
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        cell.len()
+        cell_len
     } else {
         field_count as usize
     };
@@ -1177,36 +1999,35 @@ pub(crate) fn load_field_global(
     // validate bounds when field count is unknown
     if state.bounds_checks
         && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.is_empty()
-        && slot_index >= cell.len()
+        && cell_len != 0
+        && slot_index >= cell_len
     {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell.len(),
+            field_count: cell_len,
         });
     }
 
     // treat empty slot 0 as void
-    if cell.is_empty() && slot_index == 0 {
+    if cell_len == 0 && slot_index == 0 {
         return Ok(Value::VOID);
     }
 
     // fast path without bounds checks
     if !state.bounds_checks {
-        debug_assert!(slot_index < cell.len(), "global field out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.get_unchecked(slot_index) };
+        debug_assert!(slot_index < cell_len, "global field out of bounds");
+        let value = load_packed_value(heap, handle, slot_index)?;
         return Ok(value);
     }
 
     // read the slot when in bounds
-    if let Some(value) = cell.get(slot_index).copied() {
+    if let Some(value) = heap.packed_value_at(handle, slot_index) {
         return Ok(value);
     }
 
     Err(Error::InvalidFieldAccess {
         index,
-        field_count: cell.len(),
+        field_count: cell_len,
     })
 }
 
@@ -1247,6 +2068,12 @@ pub(crate) fn store_field_global(
         });
     }
 
+    if current.tag() == ValueTag::String {
+        let handle = current.as_managed_reference().unwrap();
+        store_string_field(state.heap(), handle, index, value)?;
+        return Ok(());
+    }
+
     let handle = current.as_managed_reference().unwrap();
 
     // reject null handles when enabled
@@ -1257,11 +2084,7 @@ pub(crate) fn store_field_global(
     {
         // look up the managed heap allocation
         let heap = state.heap();
-        let allocation = heap
-            .managed_allocation(handle)
-            .ok_or(Error::InvalidManagedReference)?;
-        let allocation_len = allocation.len();
-        let allocation_is_empty = allocation.is_empty();
+        let allocation_len = packed_value_count(heap, handle)?;
 
         // select field count for diagnostics
         let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
@@ -1286,7 +2109,7 @@ pub(crate) fn store_field_global(
         // validate bounds when field count is unknown
         if bounds_checks
             && field_count == UNKNOWN_FIELD_COUNT
-            && !allocation_is_empty
+            && allocation_len != 0
             && slot_index >= allocation_len
         {
             return Err(Error::InvalidFieldAccess {
@@ -1299,10 +2122,8 @@ pub(crate) fn store_field_global(
         if !bounds_checks {
             debug_assert!(slot_index < allocation_len, "global field out of bounds");
             // #Safety: bounds checks are disabled and slot is trusted
-            unsafe {
-                heap.set_managed_slot_unchecked(handle, slot_index, value);
-            }
-        } else if heap.set_managed_slot(handle, slot_index, value) {
+            store_packed_value(heap, handle, slot_index, value)?;
+        } else if heap.set_packed_value(handle, slot_index, value) {
             // write the slot when in bounds
         } else {
             return Err(Error::InvalidFieldAccess {
@@ -1321,6 +2142,7 @@ pub(crate) fn store_field_global(
 pub(crate) fn load_element_managed(
     state: &mut ThreadedState<'_, '_>,
     handle: ManagedReference,
+    pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
     array_length: u64,
 ) -> Result<Value, Error> {
@@ -1329,72 +2151,61 @@ pub(crate) fn load_element_managed(
         stat_inc!(state.interpreter.engine.statistics, loads);
     }
 
-    // validate array index when known
+    let heap = state.heap_ref();
+    if !heap.is_managed_allocated(handle) {
+        return Err(Error::InvalidManagedReference);
+    }
+
+    if has_packed_values(heap, handle) {
+        check_array_index(state, index, array_length)?;
+
+        if state.null_checks && handle.is_null() {
+            return Err(Error::NullPointerDereference);
+        }
+
+        let cell_len = packed_value_count(heap, handle)?;
+        let value_index = handle.byte_offset() / Value::BYTE_LEN + index as usize;
+        return heap
+            .packed_value_at(handle, value_index)
+            .ok_or(Error::InvalidArrayAccess {
+                index,
+                length: cell_len as u64,
+            });
+    }
+
     check_array_index(state, index, array_length)?;
 
-    // reject null handles when enabled
     if state.null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
-    let heap = state.heap_ref();
-    let cell = heap
-        .managed_allocation(handle)
+    let (element_type, element_stride) =
+        managed_element_info(&state.interpreter.isolate.image.tree, pointee)?;
+    let element_type = managed_projection_type(&state.interpreter.isolate.image.tree, element_type);
+    let element_offset = usize::try_from(index)
+        .ok()
+        .and_then(|index| index.checked_mul(element_stride))
+        .ok_or(Error::InvalidArrayAccess {
+            index,
+            length: array_length,
+        })?;
+    let byte_len = managed_type_size(&state.interpreter.isolate.image.tree, element_type)?;
+    let bytes = heap
+        .managed_bytes(handle)
         .ok_or(Error::InvalidManagedReference)?;
-    let cell_len = cell.len();
-
-    // compute the absolute slot offset
-    let index_usize = if state.bounds_checks {
-        usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
+    let start = element_offset;
+    let end = start
+        .checked_add(byte_len)
+        .ok_or(Error::InvalidArrayAccess {
             index,
-            length: cell_len as u64,
-        })?
-    } else {
-        index as usize
-    };
-    let slot_index = if state.bounds_checks {
-        handle
-            .slot_offset()
-            .checked_add(index_usize)
-            .ok_or(Error::InvalidArrayAccess {
-                index,
-                length: cell.len() as u64,
-            })?
-    } else {
-        handle.slot_offset().wrapping_add(index_usize)
-    };
-
-    // validate bounds when array length is unknown
-    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell_len {
-        return Err(Error::InvalidArrayAccess {
-            index,
-            length: cell_len as u64,
-        });
-    }
-
-    // treat empty slot 0 as void
-    if cell.is_empty() && slot_index == 0 {
-        return Ok(Value::VOID);
-    }
-
-    // fast path without bounds checks
-    if !state.bounds_checks {
-        debug_assert!(slot_index < cell.len(), "heap element out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.get_unchecked(slot_index) };
-        return Ok(value);
-    }
-
-    // read the slot when in bounds
-    if let Some(value) = cell.get(slot_index).copied() {
-        return Ok(value);
-    }
-
-    Err(Error::InvalidArrayAccess {
+            length: bytes.len() as u64,
+        })?;
+    let window = bytes.get(start..end).ok_or(Error::InvalidArrayAccess {
         index,
-        length: cell.len() as u64,
-    })
+        length: bytes.len() as u64,
+    })?;
+
+    decode_raw_value(&state.interpreter.isolate.image.tree, element_type, window)
 }
 
 /// Store an element into a managed heap allocation.
@@ -1402,81 +2213,93 @@ pub(crate) fn load_element_managed(
 pub(crate) fn store_element_managed(
     state: &mut ThreadedState<'_, '_>,
     handle: ManagedReference,
+    pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
     array_length: u64,
     value: Value,
 ) -> Result<(), Error> {
     let bounds_checks = state.bounds_checks;
     let null_checks = state.null_checks;
+    let tree = &state.interpreter.isolate.image.tree;
 
     // track pointer stores
     if state.collect_stats {
         stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
-    // validate array index when known
+    let is_value_array = {
+        let heap = state.heap_ref();
+        if !heap.is_managed_allocated(handle) {
+            return Err(Error::InvalidManagedReference);
+        }
+        has_packed_values(heap, handle)
+    };
+
+    if is_value_array {
+        check_array_index(state, index, array_length)?;
+
+        if null_checks && handle.is_null() {
+            return Err(Error::NullPointerDereference);
+        }
+
+        let heap = state.heap();
+        let allocation_len = packed_value_count(heap, handle)?;
+        let value_index = handle.byte_offset() / Value::BYTE_LEN + index as usize;
+        return if heap.set_packed_value(handle, value_index, value) {
+            Ok(())
+        } else {
+            Err(Error::InvalidArrayAccess {
+                index,
+                length: allocation_len as u64,
+            })
+        };
+    }
+
     check_array_index(state, index, array_length)?;
 
-    // reject null handles when enabled
     if null_checks && handle.is_null() {
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap allocation
+    let (element_type, element_stride) = managed_element_info(tree, pointee)?;
+    let element_type = managed_projection_type(tree, element_type);
+    let element_offset = usize::try_from(index)
+        .ok()
+        .and_then(|index| index.checked_mul(element_stride))
+        .ok_or(Error::InvalidArrayAccess {
+            index,
+            length: array_length,
+        })?;
+    let bytes = encode_raw_value(tree, element_type, value)?;
     let heap = state.heap();
-    let allocation = heap
-        .managed_allocation(handle)
+    let allocation_len = heap
+        .managed_byte_len(handle)
         .ok_or(Error::InvalidManagedReference)?;
-    let allocation_len = allocation.len();
-
-    // compute the absolute slot offset
-    let index_usize = if bounds_checks {
-        usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
+    let start = element_offset;
+    let end = start
+        .checked_add(bytes.len())
+        .ok_or(Error::InvalidArrayAccess {
             index,
             length: allocation_len as u64,
-        })?
-    } else {
-        index as usize
-    };
-    let slot_index = if bounds_checks {
-        handle
-            .slot_offset()
-            .checked_add(index_usize)
-            .ok_or(Error::InvalidArrayAccess {
-                index,
-                length: allocation_len as u64,
-            })?
-    } else {
-        handle.slot_offset().wrapping_add(index_usize)
-    };
+        })?;
 
-    // validate bounds when array length is unknown
-    if bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= allocation_len {
+    if bounds_checks && end > allocation_len {
         return Err(Error::InvalidArrayAccess {
             index,
             length: allocation_len as u64,
         });
     }
 
-    // fast path without bounds checks
-    if !bounds_checks {
-        debug_assert!(slot_index < allocation_len, "heap element out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
-        unsafe {
-            heap.set_managed_slot_unchecked(handle, slot_index, value);
+    for (offset, byte) in bytes.into_iter().enumerate() {
+        if !heap.set_managed_byte(handle, start + offset, byte) {
+            return Err(Error::InvalidArrayAccess {
+                index,
+                length: allocation_len as u64,
+            });
         }
-        return Ok(());
     }
 
-    // write the slot when in bounds
-    if heap.set_managed_slot(handle, slot_index, value) {
-        return Ok(());
-    }
-
-    Err(Error::InvalidArrayAccess {
-        index,
-        length: allocation_len as u64,
-    })
+    Ok(())
 }
 
 /// Load an element from a raw heap allocation.
@@ -1484,6 +2307,7 @@ pub(crate) fn store_element_managed(
 pub(crate) fn load_element_raw(
     state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
+    pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
     array_length: u64,
 ) -> Result<Value, Error> {
@@ -1500,49 +2324,28 @@ pub(crate) fn load_element_raw(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the raw slot count
-    let slot_count = state
-        .raw_slot_count(pointer)
-        .ok_or(Error::InvalidManagedReference)?;
-
-    // compute the absolute slot offset
-    let index_usize = if state.bounds_checks {
-        usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
+    let (element_type, element_stride) =
+        raw_element_info(&state.interpreter.isolate.image.tree, pointee)?;
+    let element_offset = usize::try_from(index)
+        .ok()
+        .and_then(|index| index.checked_mul(element_stride))
+        .ok_or(Error::InvalidArrayAccess {
             index,
-            length: slot_count as u64,
-        })?
-    } else {
-        index as usize
-    };
-    let slot_index = if state.bounds_checks {
+            length: array_length,
+        })?;
+    let byte_offset =
         pointer
-            .slot_offset()
-            .checked_add(index_usize)
+            .byte_offset()
+            .checked_add(element_offset)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: slot_count as u64,
-            })?
-    } else {
-        pointer.slot_offset().wrapping_add(index_usize)
-    };
-
-    // validate bounds when array length is unknown
-    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= slot_count {
-        return Err(Error::InvalidArrayAccess {
-            index,
-            length: slot_count as u64,
-        });
-    }
-
-    state
-        .read_raw_slot(pointer, slot_index, state.bounds_checks)
-        .map_err(|error| match error {
-            Error::InvalidFieldAccess { .. } => Error::InvalidArrayAccess {
-                index,
-                length: slot_count as u64,
-            },
-            other => other,
-        })
+                length: array_length,
+            })?;
+    let pointer = Value::raw_pointer(RawPointer::with_byte_offset(
+        pointer.id(),
+        byte_offset as u32,
+    ));
+    load_from_raw_pointer_typed(state, pointer, element_type)
 }
 
 /// Store an element into a raw heap allocation.
@@ -1550,6 +2353,7 @@ pub(crate) fn load_element_raw(
 pub(crate) fn store_element_raw(
     state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
+    pointee: mir::LocalNodeId<mir::Type>,
     index: u64,
     array_length: u64,
     value: Value,
@@ -1567,49 +2371,28 @@ pub(crate) fn store_element_raw(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the raw slot count
-    let slot_count = state
-        .raw_slot_count(pointer)
-        .ok_or(Error::InvalidManagedReference)?;
-
-    // compute the absolute slot offset
-    let index_usize = if state.bounds_checks {
-        usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
+    let (element_type, element_stride) =
+        raw_element_info(&state.interpreter.isolate.image.tree, pointee)?;
+    let element_offset = usize::try_from(index)
+        .ok()
+        .and_then(|index| index.checked_mul(element_stride))
+        .ok_or(Error::InvalidArrayAccess {
             index,
-            length: slot_count as u64,
-        })?
-    } else {
-        index as usize
-    };
-    let slot_index = if state.bounds_checks {
+            length: array_length,
+        })?;
+    let byte_offset =
         pointer
-            .slot_offset()
-            .checked_add(index_usize)
+            .byte_offset()
+            .checked_add(element_offset)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: slot_count as u64,
-            })?
-    } else {
-        pointer.slot_offset().wrapping_add(index_usize)
-    };
-
-    // validate bounds when array length is unknown
-    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= slot_count {
-        return Err(Error::InvalidArrayAccess {
-            index,
-            length: slot_count as u64,
-        });
-    }
-
-    state
-        .write_raw_slot(pointer, slot_index, value, state.bounds_checks)
-        .map_err(|error| match error {
-            Error::InvalidFieldAccess { .. } => Error::InvalidArrayAccess {
-                index,
-                length: slot_count as u64,
-            },
-            other => other,
-        })
+                length: array_length,
+            })?;
+    let pointer = Value::raw_pointer(RawPointer::with_byte_offset(
+        pointer.id(),
+        byte_offset as u32,
+    ));
+    store_to_raw_pointer_typed(state, pointer, element_type, value)
 }
 
 /// Load an element from a stack allocation.
@@ -1628,10 +2411,10 @@ pub(crate) fn load_element_stack(
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
-    // look up the stack cell
+    // look up the stack buffer
     let frame = state.frame_by_index(pointer.frame_idx)?;
     let cell = frame
-        .get_stack_cell(pointer.slot)
+        .stack_buffer(pointer.slot)
         .ok_or(Error::InvalidManagedReference)?;
     let cell_len = cell.len();
 
@@ -1708,10 +2491,10 @@ pub(crate) fn store_element_stack(
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
-    // look up the stack cell
+    // look up the stack buffer
     let frame = state.frame_by_index_mut(pointer.frame_idx)?;
     let cell = frame
-        .get_stack_cell_mut(pointer.slot)
+        .stack_buffer_mut(pointer.slot)
         .ok_or(Error::InvalidManagedReference)?;
     let cell_len = cell.len();
 
@@ -1803,12 +2586,9 @@ pub(crate) fn load_element_global(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
+    // look up the managed allocation
     let heap = state.heap_ref();
-    let cell = heap
-        .managed_allocation(handle)
-        .ok_or(Error::InvalidManagedReference)?;
-    let cell_len = cell.len();
+    let cell_len = packed_value_count(heap, handle)?;
 
     // compute the absolute slot offset
     let index_usize = if state.bounds_checks {
@@ -1840,26 +2620,25 @@ pub(crate) fn load_element_global(
     }
 
     // treat empty slot 0 as void
-    if cell.is_empty() && slot_index == 0 {
+    if cell_len == 0 && slot_index == 0 {
         return Ok(Value::VOID);
     }
 
     // fast path without bounds checks
     if !state.bounds_checks {
-        debug_assert!(slot_index < cell.len(), "global element out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.get_unchecked(slot_index) };
+        debug_assert!(slot_index < cell_len, "global element out of bounds");
+        let value = load_packed_value(heap, handle, slot_index)?;
         return Ok(value);
     }
 
     // read the slot when in bounds
-    if let Some(value) = cell.get(slot_index).copied() {
+    if let Some(value) = heap.packed_value_at(handle, slot_index) {
         return Ok(value);
     }
 
     Err(Error::InvalidArrayAccess {
         index,
-        length: cell.len() as u64,
+        length: cell_len as u64,
     })
 }
 
@@ -1907,10 +2686,7 @@ pub(crate) fn store_element_global(
     {
         // look up the managed heap allocation
         let heap = state.heap();
-        let allocation = heap
-            .managed_allocation(handle)
-            .ok_or(Error::InvalidManagedReference)?;
-        let allocation_len = allocation.len();
+        let allocation_len = packed_value_count(heap, handle)?;
 
         // compute the absolute slot offset
         let index_usize = if bounds_checks {
@@ -1945,10 +2721,8 @@ pub(crate) fn store_element_global(
         if !bounds_checks {
             debug_assert!(slot_index < allocation_len, "global element out of bounds");
             // #Safety: bounds checks are disabled and slot is trusted
-            unsafe {
-                heap.set_managed_slot_unchecked(handle, slot_index, value);
-            }
-        } else if heap.set_managed_slot(handle, slot_index, value) {
+            store_packed_value(heap, handle, slot_index, value)?;
+        } else if heap.set_packed_value(handle, slot_index, value) {
             // write the slot when in bounds
         } else {
             return Err(Error::InvalidArrayAccess {
@@ -1971,7 +2745,11 @@ pub(crate) fn get_field(
 ) -> Result<Value, Error> {
     // resolve aggregate value
     match agg.tag() {
-        ValueTag::Aggregate | ValueTag::String => {
+        ValueTag::String => {
+            let handle = agg.as_managed_reference().unwrap();
+            load_string_field(state.heap_ref(), handle, index)
+        }
+        ValueTag::Aggregate => {
             let handle = agg.as_managed_reference().unwrap();
             get_heap_field(state, handle, index)
         }
@@ -1992,7 +2770,12 @@ pub(crate) fn set_field(
 ) -> Result<Value, Error> {
     // resolve aggregate value
     match agg.tag() {
-        ValueTag::Aggregate | ValueTag::String => {
+        ValueTag::String => {
+            let handle = agg.as_managed_reference().unwrap();
+            store_string_field(state.heap(), handle, index, val)?;
+            Ok(agg)
+        }
+        ValueTag::Aggregate => {
             let handle = agg.as_managed_reference().unwrap();
             set_heap_field(state, handle, index, val)?;
             Ok(agg)
@@ -2061,28 +2844,24 @@ fn load_heap_slot(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
+    // look up the managed allocation
     let heap = state.heap_ref();
-    let cell = heap
-        .managed_allocation(handle)
-        .ok_or(Error::InvalidManagedReference)?;
-    let cell_len = cell.len();
+    let cell_len = packed_value_count(heap, handle)?;
 
     // treat empty slot 0 as void
-    if cell.is_empty() && slot_index == 0 {
+    if cell_len == 0 && slot_index == 0 {
         return Ok(Value::VOID);
     }
 
     // fast path without bounds checks
     if !bounds_checks {
         debug_assert!(slot_index < cell_len, "heap slot out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *heap.managed_slot_unchecked(handle, slot_index) };
+        let value = load_packed_value(heap, handle, slot_index)?;
         return Ok(value);
     }
 
     // read the slot when in bounds
-    if let Some(value) = heap.managed_slot(handle, slot_index).copied() {
+    if let Some(value) = heap.packed_value_at(handle, slot_index) {
         return Ok(value);
     }
 
@@ -2110,38 +2889,29 @@ fn store_heap_slot(
 
     // look up the managed heap allocation
     let heap = state.heap();
-    let allocation = heap
-        .managed_allocation(handle)
-        .ok_or(Error::InvalidManagedReference)?;
-    let mut allocation_len = allocation.len();
+    let mut allocation_len = packed_value_count(heap, handle)?;
 
     // resize slots as needed when bounds checks are enabled
     if bounds_checks && allocation_len <= slot_index {
         if !heap
-            .resize_managed_slots(handle, slot_index + 1)
+            .resize_packed_values(handle, slot_index + 1)
             .map_err(Error::from)?
         {
             return Err(Error::InvalidManagedReference);
         }
 
-        allocation_len = heap
-            .managed_allocation(handle)
-            .ok_or(Error::InvalidManagedReference)?
-            .len();
+        allocation_len = packed_value_count(heap, handle)?;
     }
 
     // fast path without bounds checks
     if !bounds_checks {
         debug_assert!(slot_index < allocation_len, "heap slot out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
-        unsafe {
-            heap.set_managed_slot_unchecked(handle, slot_index, value);
-        }
+        store_packed_value(heap, handle, slot_index, value)?;
         return Ok(());
     }
 
     // write slot when in bounds
-    if heap.set_managed_slot(handle, slot_index, value) {
+    if heap.set_packed_value(handle, slot_index, value) {
         return Ok(());
     }
 
@@ -2149,37 +2919,6 @@ fn store_heap_slot(
         index: slot_index as u32,
         field_count: allocation_len,
     })
-}
-
-/// Load a slot from a raw heap allocation.
-#[inline(always)]
-fn load_raw_slot(
-    state: &mut ThreadedState<'_, '_>,
-    pointer: RawPointer,
-    slot_index: usize,
-) -> Result<Value, Error> {
-    // reject null pointers when enabled
-    if state.null_checks && pointer.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    state.read_raw_slot(pointer, slot_index, state.bounds_checks)
-}
-
-/// Store a slot into a raw heap allocation.
-#[inline(always)]
-fn store_raw_slot(
-    state: &mut ThreadedState<'_, '_>,
-    pointer: RawPointer,
-    slot_index: usize,
-    value: Value,
-) -> Result<(), Error> {
-    // reject null pointers when enabled
-    if state.null_checks && pointer.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    state.write_raw_slot(pointer, slot_index, value, state.bounds_checks)
 }
 
 /// Load from a global pointer, including slot offsets.
@@ -2211,6 +2950,9 @@ fn load_global_slot(
     }
 
     let handle = value.as_managed_reference().unwrap();
+    if value.tag() == ValueTag::String {
+        return load_string_field(state.heap_ref(), handle, global.slot_offset as u32);
+    }
 
     load_heap_slot(state, handle, global.slot_offset)
 }
@@ -2244,6 +2986,11 @@ fn store_global_slot(
     }
 
     let handle = current.as_managed_reference().unwrap();
+    if current.tag() == ValueTag::String {
+        store_string_field(state.heap(), handle, global.slot_offset as u32, value)?;
+        state.interpreter.isolate.globals.set(global.id, current);
+        return Ok(());
+    }
 
     store_heap_slot(state, handle, global.slot_offset, value)?;
     state.interpreter.isolate.globals.set(global.id, current);
@@ -2262,48 +3009,43 @@ fn get_heap_field(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
+    // look up the managed allocation
     let heap = state.heap_ref();
-    let cell = heap
-        .managed_allocation(handle)
-        .ok_or(Error::InvalidManagedReference)?;
-    let cell_len = cell.len();
+    let cell_len = packed_value_count(heap, handle)?;
 
     // fast path for small known aggregates
-    let inline_slot_index = handle.slot_offset().wrapping_add(index as usize);
+    let inline_slot_index = handle.byte_offset() / Value::BYTE_LEN + index as usize;
     if inline_slot_index < cell_len && cell_len <= 2 {
-        return Ok(unsafe { *heap.managed_slot_unchecked(handle, inline_slot_index) });
+        return load_packed_value(heap, handle, inline_slot_index);
     }
 
     // resolve the target slot
     let slot_index = if state.bounds_checks {
         handle
-            .slot_offset()
+            .byte_offset()
             .checked_add(index as usize)
             .ok_or(Error::InvalidFieldAccess {
                 index,
                 field_count: cell_len,
             })?
     } else {
-        handle.slot_offset().wrapping_add(index as usize)
+        handle.byte_offset() / Value::BYTE_LEN + index as usize
     };
 
     // fast path without bounds checks
     if !state.bounds_checks {
         debug_assert!(slot_index < cell_len, "heap field out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *heap.managed_slot_unchecked(handle, slot_index) };
+        let value = load_packed_value(heap, handle, slot_index)?;
         return Ok(value);
     }
 
     // read the slot when in bounds
-    let value =
-        heap.managed_slot(handle, slot_index)
-            .copied()
-            .ok_or(Error::InvalidFieldAccess {
-                index,
-                field_count: cell_len,
-            })?;
+    let value = heap
+        .packed_value_at(handle, slot_index)
+        .ok_or(Error::InvalidFieldAccess {
+            index,
+            field_count: cell_len,
+        })?;
 
     Ok(value)
 }
@@ -2324,45 +3066,39 @@ fn set_heap_field(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
+    // look up the managed allocation
     let heap = state.heap();
-    let cell = heap
-        .managed_allocation(handle)
-        .ok_or(Error::InvalidManagedReference)?;
-    let cell_len = cell.len();
+    let cell_len = packed_value_count(heap, handle)?;
 
     // fast path for small known aggregates
-    let inline_slot_index = handle.slot_offset().wrapping_add(index as usize);
+    let inline_slot_index = handle.byte_offset() / Value::BYTE_LEN + index as usize;
     if inline_slot_index < cell_len && cell_len <= 2 {
-        unsafe { heap.set_managed_slot_unchecked(handle, inline_slot_index, value) };
+        store_packed_value(heap, handle, inline_slot_index, value)?;
         return Ok(());
     }
 
     // resolve the target slot
     let slot_index = if bounds_checks {
         handle
-            .slot_offset()
+            .byte_offset()
             .checked_add(index as usize)
             .ok_or(Error::InvalidFieldAccess {
                 index,
                 field_count: cell_len,
             })?
     } else {
-        handle.slot_offset().wrapping_add(index as usize)
+        handle.byte_offset() / Value::BYTE_LEN + index as usize
     };
 
     // fast path without bounds checks
     if !bounds_checks {
         debug_assert!(slot_index < cell_len, "heap field out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
-        unsafe {
-            heap.set_managed_slot_unchecked(handle, slot_index, value);
-        }
+        store_packed_value(heap, handle, slot_index, value)?;
         return Ok(());
     }
 
     // write slot when in bounds
-    if heap.set_managed_slot(handle, slot_index, value) {
+    if heap.set_packed_value(handle, slot_index, value) {
         return Ok(());
     }
 
@@ -2384,48 +3120,44 @@ fn get_heap_element(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
+    // look up the managed allocation
     let heap = state.heap_ref();
-    let cell = heap
-        .managed_allocation(handle)
-        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = packed_value_count(heap, handle)?;
 
     // resolve the target slot
     let index_usize = if state.bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.len() as u64,
+            length: cell_len as u64,
         })?
     } else {
         index as usize
     };
     let slot_index = if state.bounds_checks {
         handle
-            .slot_offset()
+            .byte_offset()
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.len() as u64,
+                length: cell_len as u64,
             })?
     } else {
-        handle.slot_offset().wrapping_add(index_usize)
+        handle.byte_offset() / Value::BYTE_LEN + index_usize
     };
 
     // fast path without bounds checks
     if !state.bounds_checks {
-        debug_assert!(slot_index < cell.len(), "heap element out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
-        let value = unsafe { *cell.get_unchecked(slot_index) };
+        debug_assert!(slot_index < cell_len, "heap element out of bounds");
+        let value = load_packed_value(heap, handle, slot_index)?;
         return Ok(value);
     }
 
     // read the slot when in bounds
-    let value = cell
-        .get(slot_index)
-        .copied()
+    let value = heap
+        .packed_value_at(handle, slot_index)
         .ok_or(Error::InvalidArrayAccess {
             index,
-            length: cell.len() as u64,
+            length: cell_len as u64,
         })?;
 
     Ok(value)
@@ -2449,10 +3181,7 @@ fn set_heap_element(
 
     // look up the managed heap allocation
     let heap = state.heap();
-    let allocation = heap
-        .managed_allocation(handle)
-        .ok_or(Error::InvalidManagedReference)?;
-    let allocation_len = allocation.len();
+    let allocation_len = packed_value_count(heap, handle)?;
 
     // resolve the target slot
     let index_usize = if bounds_checks {
@@ -2465,28 +3194,25 @@ fn set_heap_element(
     };
     let slot_index = if bounds_checks {
         handle
-            .slot_offset()
+            .byte_offset()
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
                 length: allocation_len as u64,
             })?
     } else {
-        handle.slot_offset().wrapping_add(index_usize)
+        handle.byte_offset() / Value::BYTE_LEN + index_usize
     };
 
     // fast path without bounds checks
     if !bounds_checks {
         debug_assert!(slot_index < allocation_len, "heap element out of bounds");
-        // #Safety: bounds checks are disabled and slot is trusted
-        unsafe {
-            heap.set_managed_slot_unchecked(handle, slot_index, value);
-        }
+        store_packed_value(heap, handle, slot_index, value)?;
         return Ok(());
     }
 
     // write slot when in bounds
-    if heap.set_managed_slot(handle, slot_index, value) {
+    if heap.set_packed_value(handle, slot_index, value) {
         return Ok(());
     }
 
@@ -2509,15 +3235,13 @@ fn resolve_heap_field_slot(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
+    // look up the managed allocation
     let heap = state.heap_ref();
-    let cell = heap
-        .managed_allocation(handle)
-        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = packed_value_count(heap, handle)?;
 
     // select field count for diagnostics
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        cell.len()
+        cell_len
     } else {
         field_count as usize
     };
@@ -2525,25 +3249,25 @@ fn resolve_heap_field_slot(
     // compute the absolute slot offset
     let slot_index = if state.bounds_checks {
         handle
-            .slot_offset()
+            .byte_offset()
             .checked_add(index as usize)
             .ok_or(Error::InvalidFieldAccess {
                 index,
                 field_count: field_count_for_error,
             })?
     } else {
-        handle.slot_offset().wrapping_add(index as usize)
+        handle.byte_offset() / Value::BYTE_LEN + index as usize
     };
 
     // validate bounds when field count is unknown
     if state.bounds_checks
         && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.is_empty()
-        && slot_index >= cell.len()
+        && cell_len != 0
+        && slot_index >= cell_len
     {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell.len(),
+            field_count: cell_len,
         });
     }
 
@@ -2559,66 +3283,6 @@ fn resolve_heap_field_slot(
     Ok(slot_index as u32)
 }
 
-/// Resolve a field slot for a raw heap pointer.
-#[inline(always)]
-fn resolve_raw_field_slot(
-    state: &mut ThreadedState<'_, '_>,
-    pointer: RawPointer,
-    index: u32,
-    field_count: u32,
-) -> Result<u32, Error> {
-    // reject null pointers when enabled
-    if state.null_checks && pointer.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    // select field count for diagnostics
-    let slot_count = state
-        .raw_slot_count(pointer)
-        .ok_or(Error::InvalidManagedReference)?;
-    let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
-        slot_count
-    } else {
-        field_count as usize
-    };
-
-    // compute the absolute slot offset
-    let slot_index = if state.bounds_checks {
-        pointer
-            .slot_offset()
-            .checked_add(index as usize)
-            .ok_or(Error::InvalidFieldAccess {
-                index,
-                field_count: field_count_for_error,
-            })?
-    } else {
-        pointer.slot_offset().wrapping_add(index as usize)
-    };
-
-    // validate bounds when field count is unknown
-    if state.bounds_checks
-        && field_count == UNKNOWN_FIELD_COUNT
-        && slot_count != 0
-        && slot_index >= slot_count
-    {
-        return Err(Error::InvalidFieldAccess {
-            index,
-            field_count: slot_count,
-        });
-    }
-
-    // narrow slot index for pointer encoding
-    if state.bounds_checks {
-        return u32::try_from(slot_index).map_err(|_| Error::InvalidFieldAccess {
-            index,
-            field_count: field_count_for_error,
-        });
-    }
-
-    debug_assert!(slot_index <= u32::MAX as usize, "raw slot index overflow");
-    Ok(slot_index as u32)
-}
-
 /// Resolve a field slot for a stack pointer.
 #[inline(always)]
 fn resolve_stack_field_slot(
@@ -2627,11 +3291,12 @@ fn resolve_stack_field_slot(
     index: u32,
     field_count: u32,
 ) -> Result<usize, Error> {
-    // look up the stack cell
+    // look up the stack buffer
     let frame = state.frame_by_index(pointer.frame_idx)?;
     let cell = frame
-        .get_stack_cell(pointer.slot)
+        .stack_buffer(pointer.slot)
         .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = cell.len();
 
     // compute the absolute slot offset
     let slot_index = if state.bounds_checks {
@@ -2640,7 +3305,7 @@ fn resolve_stack_field_slot(
             .checked_add(index as usize)
             .ok_or(Error::InvalidFieldAccess {
                 index,
-                field_count: cell.len(),
+                field_count: cell_len,
             })?
     } else {
         pointer.slot_offset.wrapping_add(index as usize)
@@ -2649,12 +3314,12 @@ fn resolve_stack_field_slot(
     // validate bounds when field count is unknown
     if state.bounds_checks
         && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.is_empty()
-        && slot_index >= cell.len()
+        && cell_len != 0
+        && slot_index >= cell_len
     {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell.len(),
+            field_count: cell_len,
         });
     }
 
@@ -2688,11 +3353,9 @@ fn resolve_global_field_slot(
 
     let handle = value.as_managed_reference().unwrap();
 
-    // look up the managed heap cell
+    // look up the managed allocation
     let heap = state.heap_ref();
-    let cell = heap
-        .managed_allocation(handle)
-        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = packed_value_count(heap, handle)?;
 
     // compute the absolute slot offset
     let slot_index = if state.bounds_checks {
@@ -2701,7 +3364,7 @@ fn resolve_global_field_slot(
             .checked_add(index as usize)
             .ok_or(Error::InvalidFieldAccess {
                 index,
-                field_count: cell.len(),
+                field_count: cell_len,
             })?
     } else {
         global.slot_offset.wrapping_add(index as usize)
@@ -2710,12 +3373,12 @@ fn resolve_global_field_slot(
     // validate bounds when field count is unknown
     if state.bounds_checks
         && field_count == UNKNOWN_FIELD_COUNT
-        && !cell.is_empty()
-        && slot_index >= cell.len()
+        && cell_len != 0
+        && slot_index >= cell_len
     {
         return Err(Error::InvalidFieldAccess {
             index,
-            field_count: cell.len(),
+            field_count: cell_len,
         });
     }
 
@@ -2735,38 +3398,36 @@ fn resolve_heap_element_slot(
         return Err(Error::NullPointerDereference);
     }
 
-    // look up the managed heap cell
+    // look up the managed allocation
     let heap = state.heap_ref();
-    let cell = heap
-        .managed_allocation(handle)
-        .ok_or(Error::InvalidManagedReference)?;
+    let cell_len = packed_value_count(heap, handle)?;
 
     // compute the absolute slot offset
     let index_usize = if state.bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.len() as u64,
+            length: cell_len as u64,
         })?
     } else {
         index as usize
     };
     let slot_index = if state.bounds_checks {
         handle
-            .slot_offset()
+            .byte_offset()
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.len() as u64,
+                length: cell_len as u64,
             })?
     } else {
-        handle.slot_offset().wrapping_add(index_usize)
+        handle.byte_offset() / Value::BYTE_LEN + index_usize
     };
 
     // validate bounds when array length is unknown
-    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.len() {
+    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell_len {
         return Err(Error::InvalidArrayAccess {
             index,
-            length: cell.len() as u64,
+            length: cell_len as u64,
         });
     }
 
@@ -2774,75 +3435,13 @@ fn resolve_heap_element_slot(
     if state.bounds_checks {
         return u32::try_from(slot_index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.len() as u64,
+            length: cell_len as u64,
         });
     }
 
     debug_assert!(
         slot_index <= u32::MAX as usize,
         "heap element slot index overflow"
-    );
-    Ok(slot_index as u32)
-}
-
-/// Resolve an element slot for a raw heap pointer.
-#[inline(always)]
-fn resolve_raw_element_slot(
-    state: &mut ThreadedState<'_, '_>,
-    pointer: RawPointer,
-    index: u64,
-    array_length: u64,
-) -> Result<u32, Error> {
-    // reject null pointers when enabled
-    if state.null_checks && pointer.is_null() {
-        return Err(Error::NullPointerDereference);
-    }
-
-    // look up the raw heap cell
-    let slot_count = state
-        .raw_slot_count(pointer)
-        .ok_or(Error::InvalidManagedReference)?;
-
-    // compute the absolute slot offset
-    let index_usize = if state.bounds_checks {
-        usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
-            index,
-            length: slot_count as u64,
-        })?
-    } else {
-        index as usize
-    };
-    let slot_index = if state.bounds_checks {
-        pointer
-            .slot_offset()
-            .checked_add(index_usize)
-            .ok_or(Error::InvalidArrayAccess {
-                index,
-                length: slot_count as u64,
-            })?
-    } else {
-        pointer.slot_offset().wrapping_add(index_usize)
-    };
-
-    // validate bounds when array length is unknown
-    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= slot_count {
-        return Err(Error::InvalidArrayAccess {
-            index,
-            length: slot_count as u64,
-        });
-    }
-
-    // narrow slot index for pointer encoding
-    if state.bounds_checks {
-        return u32::try_from(slot_index).map_err(|_| Error::InvalidArrayAccess {
-            index,
-            length: slot_count as u64,
-        });
-    }
-
-    debug_assert!(
-        slot_index <= u32::MAX as usize,
-        "raw element slot index overflow"
     );
     Ok(slot_index as u32)
 }
@@ -2855,10 +3454,10 @@ fn resolve_stack_element_slot(
     index: u64,
     array_length: u64,
 ) -> Result<usize, Error> {
-    // look up the stack cell
+    // look up the stack buffer
     let frame = state.frame_by_index(pointer.frame_idx)?;
     let cell = frame
-        .get_stack_cell(pointer.slot)
+        .stack_buffer(pointer.slot)
         .ok_or(Error::InvalidManagedReference)?;
 
     // compute the absolute slot offset
@@ -2917,17 +3516,17 @@ fn resolve_global_element_slot(
 
     let handle = value.as_managed_reference().unwrap();
 
-    // look up the managed heap cell
+    // look up the managed allocation
     let heap = state.heap_ref();
-    let cell = heap
-        .managed_allocation(handle)
+    let cell_len = heap
+        .packed_value_count(handle)
         .ok_or(Error::InvalidManagedReference)?;
 
     // compute the absolute slot offset
     let index_usize = if state.bounds_checks {
         usize::try_from(index).map_err(|_| Error::InvalidArrayAccess {
             index,
-            length: cell.len() as u64,
+            length: cell_len as u64,
         })?
     } else {
         index as usize
@@ -2938,17 +3537,17 @@ fn resolve_global_element_slot(
             .checked_add(index_usize)
             .ok_or(Error::InvalidArrayAccess {
                 index,
-                length: cell.len() as u64,
+                length: cell_len as u64,
             })?
     } else {
         global.slot_offset.wrapping_add(index_usize)
     };
 
     // validate bounds when array length is unknown
-    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell.len() {
+    if state.bounds_checks && array_length == UNKNOWN_ARRAY_LENGTH && slot_index >= cell_len {
         return Err(Error::InvalidArrayAccess {
             index,
-            length: cell.len() as u64,
+            length: cell_len as u64,
         });
     }
 
@@ -2962,10 +3561,10 @@ fn load_stack_slot(
     sp: StackPointer,
     slot_index: usize,
 ) -> Result<Value, Error> {
-    // resolve the stack cell
+    // resolve the stack buffer
     let frame = state.frame_by_index(sp.frame_idx)?;
     let cell = frame
-        .get_stack_cell(sp.slot)
+        .stack_buffer(sp.slot)
         .ok_or(Error::InvalidManagedReference)?;
 
     // treat empty slot 0 as void
@@ -3028,10 +3627,10 @@ fn store_stack_slot(
     // cache bounds checks setting
     let bounds_checks = state.bounds_checks;
 
-    // resolve the stack cell
+    // resolve the stack buffer
     let frame = state.frame_by_index_mut(sp.frame_idx)?;
     let cell = frame
-        .get_stack_cell_mut(sp.slot)
+        .stack_buffer_mut(sp.slot)
         .ok_or(Error::InvalidManagedReference)?;
 
     // resize slots as needed when bounds checks are enabled

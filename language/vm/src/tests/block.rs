@@ -5,7 +5,7 @@ use destack_source::FileId;
 use crate::diagnostic::Error;
 use crate::tests::{create_isolate, run_mir, run_mir_expect, run_mir_ok};
 use crate::{Isolate, IsolateOptions};
-use destack_heap::{Heap, ManagedHeap, RawHeap, Value};
+use destack_heap::{AgentMemory, Heap, SharedSpace, Value};
 
 /// Branch instruction takes the true path when condition is true.
 #[test]
@@ -230,15 +230,17 @@ block0(v0: fn(i32) -> i32, v1: i32):
     let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let mut heap = Heap::new();
+    let mut shared = SharedSpace::new();
+    let mut memory = AgentMemory::new(&mut heap, &mut shared);
 
     // initialize isolate state against the authoritative heap
     isolate
-        .initialize(&mut heap)
+        .initialize(&mut memory)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
     let result = isolate
         .run_function_by_name(
-            &mut heap,
+            &mut memory,
             "caller",
             &[Value::function_pointer(double_id), Value::int32(21)],
         )
@@ -261,15 +263,20 @@ block0(v0: fn(i32) -> i32, v1: i32):
     let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let mut heap = Heap::new();
+    let mut shared = SharedSpace::new();
+    let mut memory = AgentMemory::new(&mut heap, &mut shared);
 
     // initialize isolate state against the authoritative heap
     isolate
-        .initialize(&mut heap)
+        .initialize(&mut memory)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
 
     // pass an integer instead of a function pointer
-    let result =
-        isolate.run_function_by_name(&mut heap, "caller", &[Value::int32(999), Value::int32(21)]);
+    let result = isolate.run_function_by_name(
+        &mut memory,
+        "caller",
+        &[Value::int32(999), Value::int32(21)],
+    );
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(matches!(err.error, Error::TypeMismatch { .. }));

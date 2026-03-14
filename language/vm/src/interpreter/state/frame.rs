@@ -6,7 +6,7 @@ use super::super::decode::{INVALID_VALUE_ID, ThreadedBlock, ThreadedFunction};
 use super::interpreter::ThreadedFunctionTable;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::snapshot::FrameImage;
-use destack_heap::{ManagedReference, Value, ValueCell};
+use destack_heap::{ManagedReference, Value, ValueBuffer};
 
 /// Call frame in the interpreter.
 #[derive(Debug)]
@@ -33,8 +33,8 @@ pub struct Frame {
     pub local_base: usize,
     /// Count of local variables in this frame.
     pub local_count: usize,
-    /// Stack-allocated cells (freed when frame pops).
-    pub stack_cells: Vec<ValueCell>,
+    /// Stack-allocated value buffers, freed when the frame pops.
+    pub stack_values: Vec<ValueBuffer>,
     /// Closure environment pointer for this frame.
     pub closure_env: Value,
     /// Return destination for the caller or INVALID_VALUE_ID for none.
@@ -69,7 +69,7 @@ impl Frame {
             value_count,
             local_base,
             local_count,
-            stack_cells: Vec::new(),
+            stack_values: Vec::new(),
             closure_env,
             return_destination: mir::Value(INVALID_VALUE_ID),
         }
@@ -197,32 +197,32 @@ impl Frame {
         values[start..end].fill(Value::VOID);
     }
 
-    /// Allocate a new stack cell, returning its slot index.
-    pub fn allocate_stack_cell(&mut self) -> usize {
-        let slot = self.stack_cells.len();
-        self.stack_cells.push(ValueCell::new());
+    /// Allocate a new stack buffer, returning its slot index.
+    pub fn allocate_stack_buffer(&mut self) -> usize {
+        let slot = self.stack_values.len();
+        self.stack_values.push(ValueBuffer::new());
         slot
     }
 
-    /// Allocate a new stack cell with the given slot count.
-    pub fn allocate_stack_cell_with_slots(&mut self, slot_count: usize) -> usize {
-        // allocate stack cell
-        let slot = self.stack_cells.len();
-        self.stack_cells
-            .push(ValueCell::with_values_len(slot_count));
+    /// Allocate a new stack buffer with the given value count.
+    pub fn allocate_stack_buffer_with_values(&mut self, slot_count: usize) -> usize {
+        // allocate stack buffer
+        let slot = self.stack_values.len();
+        self.stack_values
+            .push(ValueBuffer::with_values_len(slot_count));
         slot
     }
 
-    /// Get a stack cell by slot index.
+    /// Get a stack buffer by slot index.
     #[inline]
-    pub fn get_stack_cell(&self, slot: usize) -> Option<&ValueCell> {
-        self.stack_cells.get(slot)
+    pub fn stack_buffer(&self, slot: usize) -> Option<&ValueBuffer> {
+        self.stack_values.get(slot)
     }
 
-    /// Get a mutable reference to a stack cell by slot index.
+    /// Get a mutable reference to a stack buffer by slot index.
     #[inline]
-    pub fn get_stack_cell_mut(&mut self, slot: usize) -> Option<&mut ValueCell> {
-        self.stack_cells.get_mut(slot)
+    pub fn stack_buffer_mut(&mut self, slot: usize) -> Option<&mut ValueBuffer> {
+        self.stack_values.get_mut(slot)
     }
 
     /// Collect all managed references from this frame for GC roots.
@@ -256,9 +256,9 @@ impl Frame {
             Self::collect_pointers_from_value(value, roots);
         }
 
-        // collect pointers from stack cells
-        for cell in &self.stack_cells {
-            for value in cell {
+        // collect pointers from stack value buffers
+        for values in &self.stack_values {
+            for value in values {
                 Self::collect_pointers_from_value(value, roots);
             }
         }
@@ -273,11 +273,11 @@ impl Frame {
 
     /// Clone this frame for a forked continuation.
     pub(crate) fn clone_for_fork(&self) -> Self {
-        // clone stack cells for the forked frame
-        let stack_cells = self
-            .stack_cells
+        // clone stack value buffers for the forked frame
+        let stack_values = self
+            .stack_values
             .iter()
-            .map(ValueCell::clone_for_fork)
+            .map(ValueBuffer::clone_for_fork)
             .collect();
 
         // assemble cloned frame
@@ -293,7 +293,7 @@ impl Frame {
             value_count: self.value_count,
             local_base: self.local_base,
             local_count: self.local_count,
-            stack_cells,
+            stack_values,
             closure_env: self.closure_env,
             return_destination: self.return_destination,
         }
@@ -311,7 +311,7 @@ impl Frame {
             value_count: self.value_count,
             local_base: self.local_base,
             local_count: self.local_count,
-            stack_cells: self.stack_cells.clone(),
+            stack_values: self.stack_values.clone(),
             closure_env: self.closure_env,
             return_destination: self.return_destination,
         }
@@ -366,7 +366,7 @@ impl Frame {
             value_count: image.value_count,
             local_base: image.local_base,
             local_count: image.local_count,
-            stack_cells: image.stack_cells.clone(),
+            stack_values: image.stack_values.clone(),
             closure_env: image.closure_env,
             return_destination: image.return_destination,
         })
