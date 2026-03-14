@@ -8,7 +8,7 @@ use destack_mir as mir;
 
 use super::super::state::{Frame, InterpreterContext};
 use crate::diagnostic::{Error, RuntimeResult};
-use destack_heap::{Heap, RawPointer, ReferenceMeta, Value};
+use destack_heap::{Heap, LayoutId, ReferenceMap, ReferenceMeta, Value};
 
 /// Handler function for threaded dispatch.
 ///
@@ -412,6 +412,8 @@ pub enum ThreadedInstructionData {
     Load {
         dest: mir::Value,
         pointer: mir::Value,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     },
 
     /// Store to pointer.
@@ -419,6 +421,8 @@ pub enum ThreadedInstructionData {
         pointer: mir::Value,
         value: mir::Value,
         reference: ReferenceMeta,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     },
 
     /// Get struct/tuple field.
@@ -436,6 +440,8 @@ pub enum ThreadedInstructionData {
         index: u32,
         reference: ReferenceMeta,
         field_count: u32,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     },
 
     /// Load a field through field.addr + load.
@@ -444,6 +450,8 @@ pub enum ThreadedInstructionData {
         aggregate: mir::Value,
         index: u32,
         field_count: u32,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     },
 
     /// Set struct/tuple field.
@@ -461,6 +469,8 @@ pub enum ThreadedInstructionData {
         value: mir::Value,
         reference: ReferenceMeta,
         field_count: u32,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     },
 
     /// Get array element.
@@ -477,6 +487,8 @@ pub enum ThreadedInstructionData {
         index: mir::Value,
         reference: ReferenceMeta,
         array_length: u64,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     },
 
     /// Load an element through element.addr + load.
@@ -485,6 +497,8 @@ pub enum ThreadedInstructionData {
         array: mir::Value,
         index: mir::Value,
         array_length: u64,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     },
 
     /// Set array element.
@@ -776,13 +790,18 @@ pub enum ThreadedInstructionData {
         value: mir::Value,
         reference: ReferenceMeta,
         array_length: u64,
+        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     },
 
     /// Allocate managed memory.
     ManagedAlloc {
         dest: mir::Value,
         reference: ReferenceMeta,
-        slot_count: u32,
+        layout: mir::LocalNodeId<mir::Type>,
+        layout_id: Option<LayoutId>,
+        byte_len: u32,
+        trace: ReferenceMap,
     },
 
     /// Allocate managed array.
@@ -790,13 +809,14 @@ pub enum ThreadedInstructionData {
         dest: mir::Value,
         length: mir::Value,
         reference: ReferenceMeta,
+        element_type: mir::LocalNodeId<mir::Type>,
     },
 
     /// Allocate raw memory.
     RawAlloc {
         dest: mir::Value,
         reference: ReferenceMeta,
-        slot_count: u32,
+        byte_len: u32,
     },
 
     /// Free raw memory (user-inserted, FFI).
@@ -829,12 +849,14 @@ pub enum ThreadedInstructionData {
     AtomicLoad {
         dest: mir::Value,
         pointer: mir::Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     },
 
     /// Atomic store.
     AtomicStore {
         pointer: mir::Value,
         value: mir::Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     },
 
     /// Atomic compare exchange.
@@ -843,6 +865,7 @@ pub enum ThreadedInstructionData {
         pointer: mir::Value,
         expected: mir::Value,
         new_value: mir::Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     },
 
     /// Atomic read modify write.
@@ -851,6 +874,7 @@ pub enum ThreadedInstructionData {
         operator: mir::AtomicRmwOperator,
         pointer: mir::Value,
         value: mir::Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
     },
 
     /// Atomic fence.
@@ -1298,13 +1322,13 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
     /// Borrow the heap for the current block.
     #[inline]
     pub(crate) fn heap(&mut self) -> &mut Heap {
-        self.interpreter.heap
+        self.interpreter.heap()
     }
 
     /// Borrow the heap immutably for the current block.
     #[inline]
     pub(crate) fn heap_ref(&self) -> &Heap {
-        self.interpreter.heap
+        self.interpreter.heap_ref()
     }
 
     /// Execute one intrinsic against the current interpreter and heap state.
@@ -1316,166 +1340,12 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
         self.interpreter.execute_intrinsic_resolved(intrinsic, args)
     }
 
-    /// Get the slot count for a raw pointer.
-    pub(crate) fn raw_slot_count(&self, pointer: RawPointer) -> Option<usize> {
-        let cell = self.heap_ref().raw_allocation(pointer)?;
-
-        if cell.is_bytes() {
-            return self.heap_ref().raw_byte_len(pointer);
-        }
-
-        Some(cell.values()?.len())
-    }
-
-    /// Read a raw slot, dispatching to the correct raw heap.
-    pub(crate) fn read_raw_slot(
-        &self,
-        pointer: RawPointer,
-        slot_index: usize,
-        bounds_checks: bool,
-    ) -> Result<Value, Error> {
-        let cell = self
-            .heap_ref()
-            .raw_allocation(pointer)
-            .ok_or(Error::InvalidManagedReference)?;
-
-        if cell.is_bytes() {
-            let byte_len = self
-                .heap_ref()
-                .raw_byte_len(pointer)
-                .expect("raw bytes cell should resolve to one byte run");
-
-            // treat empty slot 0 as void
-            if byte_len == 0 && slot_index == 0 {
-                return Ok(Value::VOID);
-            }
-
-            // enforce bounds even in unchecked mode to avoid UB
-            if slot_index >= byte_len {
-                return Err(Error::InvalidFieldAccess {
-                    index: slot_index as u32,
-                    field_count: byte_len,
-                });
-            }
-
-            let byte = self
-                .heap_ref()
-                .raw_byte_at(pointer, slot_index)
-                .expect("validated raw byte slot should exist");
-            return Ok(Value::uint(byte as u64, 8));
-        }
-
-        let slots = cell
-            .values()
-            .expect("raw value allocation should expose values");
-
-        // treat empty slot 0 as void
-        if slots.is_empty() && slot_index == 0 {
-            return Ok(Value::VOID);
-        }
-
-        // fast path without bounds checks
-        if !bounds_checks {
-            debug_assert!(slot_index < slots.len(), "raw slot out of bounds");
-            // #Safety: bounds checks are disabled and slot is trusted
-            let value = unsafe { *slots.get_unchecked(slot_index) };
-            return Ok(value);
-        }
-
-        // read the slot when in bounds
-        if let Some(value) = slots.get(slot_index).copied() {
-            return Ok(value);
-        }
-
-        Err(Error::InvalidFieldAccess {
-            index: slot_index as u32,
-            field_count: slots.len(),
-        })
-    }
-
-    /// Write a raw slot, dispatching to the correct raw heap.
-    pub(crate) fn write_raw_slot(
-        &mut self,
-        pointer: RawPointer,
-        slot_index: usize,
-        value: Value,
-        bounds_checks: bool,
-    ) -> Result<(), Error> {
-        let is_bytes = match self.heap_ref().raw_is_bytes(pointer) {
-            Some(is_bytes) => is_bytes,
-            None => return Err(Error::InvalidManagedReference),
-        };
-
-        if is_bytes {
-            let raw = value.as_uint().ok_or_else(|| Error::TypeMismatch {
-                expected: "integer".to_string(),
-                actual: format!("{value:?}"),
-            })?;
-            let byte = raw as u8;
-            let byte_len = self
-                .heap_ref()
-                .raw_byte_len(pointer)
-                .expect("raw bytes cell should resolve to one byte run");
-
-            // enforce bounds even in unchecked mode to avoid UB
-            if slot_index >= byte_len {
-                return Err(Error::InvalidFieldAccess {
-                    index: slot_index as u32,
-                    field_count: byte_len,
-                });
-            }
-
-            if self.heap().set_raw_byte(pointer, slot_index, byte) {
-                return Ok(());
-            }
-
-            return Err(Error::InvalidFieldAccess {
-                index: slot_index as u32,
-                field_count: byte_len,
-            });
-        }
-
-        let value_len = self
-            .heap_ref()
-            .raw_values(pointer)
-            .map(|values| values.len())
-            .ok_or(Error::InvalidManagedReference)?;
-
-        // resize slots as needed when bounds checks are enabled
-        if bounds_checks && value_len <= slot_index {
-            self.heap()
-                .resize_raw_values(pointer, slot_index + 1)
-                .map_err(Error::from)?;
-        }
-
-        // fast path without bounds checks
-        if !bounds_checks {
-            debug_assert!(slot_index < value_len, "raw slot out of bounds");
-            // #Safety: bounds checks are disabled and slot is trusted
-            unsafe {
-                self.heap()
-                    .set_raw_value_unchecked(pointer, slot_index, value)
-            };
-            return Ok(());
-        }
-
-        // write the slot when in bounds
-        if self.heap().set_raw_value(pointer, slot_index, value) {
-            return Ok(());
-        }
-
-        Err(Error::InvalidFieldAccess {
-            index: slot_index as u32,
-            field_count: value_len.max(slot_index + 1),
-        })
-    }
-
     /// Allocate an aggregate on the managed heap.
     #[inline]
     pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
         let handle = self
             .heap()
-            .allocate_managed_values(values)
+            .allocate_packed_values(values)
             .unwrap_or_else(|error| panic!("{error}"));
         Value::aggregate(handle)
     }
@@ -1485,7 +1355,7 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
     pub(crate) fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
         let handle = self
             .heap()
-            .allocate_managed_pair(first, second)
+            .allocate_packed_pair(first, second)
             .unwrap_or_else(|error| panic!("{error}"));
         Value::aggregate(handle)
     }
@@ -1495,7 +1365,7 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
     pub(crate) fn allocate_single(&mut self, value: Value) -> Value {
         let handle = self
             .heap()
-            .allocate_managed_single(value)
+            .allocate_packed_single(value)
             .unwrap_or_else(|error| panic!("{error}"));
         Value::aggregate(handle)
     }

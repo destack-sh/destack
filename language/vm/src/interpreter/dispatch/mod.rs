@@ -102,7 +102,7 @@ fn check_reference_kind(
         return Ok(());
     };
 
-    let is_managed = pointer.tag() == ValueTag::ManagedReference;
+    let is_managed = matches!(pointer.tag(), ValueTag::ManagedReference);
     match kind {
         mir::ReferenceKind::Managed if !is_managed => Err(Error::InvalidReferenceKind {
             reference: reference_label(reference),
@@ -168,16 +168,12 @@ fn aggregate_slots<'a>(
         })?;
 
     let heap = state.heap_ref();
-    heap.managed_allocation(handle)
-        .ok_or(Error::InvalidManagedReference)?;
-
-    // borrow inline aggregates and copy overflow backed aggregates
-    if let Some(slots) = heap.managed_inline_slots(handle) {
-        return Ok(super::state::AggregateSlots::borrowed(slots));
+    if !heap.is_managed_allocated(handle) {
+        return Err(Error::InvalidManagedReference);
     }
 
     let slots = heap
-        .managed_slots_to_vec(handle)
+        .packed_values_to_vec(handle)
         .ok_or(Error::InvalidManagedReference)?;
 
     Ok(super::state::AggregateSlots::owned(slots))
@@ -407,12 +403,15 @@ fn offset_pointer(value: Value, offset: usize, length: usize) -> Result<Value, E
                     actual: format!("{value:?}"),
                 });
             };
-            let base = handle.slot_offset();
-            let slot = base.saturating_add(offset);
-            let slot = u32::try_from(slot).map_err(|_| Error::InvalidPointerType {
-                actual: format!("{value:?}"),
-            })?;
-            let handle = ManagedReference::with_slot_offset(handle.id(), slot);
+            let base = handle.byte_offset() / Value::BYTE_LEN;
+            let value_index = base.saturating_add(offset);
+            let byte_offset = value_index
+                .checked_mul(Value::BYTE_LEN)
+                .and_then(|value_index| u32::try_from(value_index).ok())
+                .ok_or(Error::InvalidPointerType {
+                    actual: format!("{value:?}"),
+                })?;
+            let handle = ManagedReference::with_byte_offset(handle.id(), byte_offset);
             Ok(Value::managed_reference_with_meta(handle, reference))
         }
         ValueTag::RawPointer => {
@@ -421,12 +420,13 @@ fn offset_pointer(value: Value, offset: usize, length: usize) -> Result<Value, E
                     actual: format!("{value:?}"),
                 });
             };
-            let base = pointer.slot_offset();
-            let slot = base.saturating_add(offset);
-            let slot = u32::try_from(slot).map_err(|_| Error::InvalidPointerType {
-                actual: format!("{value:?}"),
-            })?;
-            let pointer = RawPointer::with_slot_offset(pointer.id(), slot);
+            let base = pointer.byte_offset();
+            let byte_offset = base.saturating_add(offset);
+            let byte_offset =
+                u32::try_from(byte_offset).map_err(|_| Error::InvalidPointerType {
+                    actual: format!("{value:?}"),
+                })?;
+            let pointer = RawPointer::with_byte_offset(pointer.id(), byte_offset);
             Ok(Value::raw_pointer_with_meta(pointer, reference))
         }
         ValueTag::StackPointer => {
@@ -1185,7 +1185,9 @@ fn check_reference_address_space(
         ValueTag::StackPointer => ReferenceAddressSpace::Stack,
         ValueTag::LocalPointer => ReferenceAddressSpace::Stack,
         ValueTag::GlobalPointer => ReferenceAddressSpace::Global,
-        ValueTag::ManagedReference | ValueTag::RawPointer => ReferenceAddressSpace::Generic,
+        ValueTag::ManagedReference => ReferenceAddressSpace::Generic,
+        ValueTag::RawPointer => ReferenceAddressSpace::Generic,
+        ValueTag::SharedPointer => ReferenceAddressSpace::Shared,
         _ => {
             return Err(Error::InvalidPointerType {
                 actual: format!("{pointer:?}"),
@@ -1199,9 +1201,10 @@ fn check_reference_address_space(
             matches!(actual_space, ReferenceAddressSpace::Global)
         }
         ReferenceAddressSpace::Generic => true,
-        ReferenceAddressSpace::Shared
-        | ReferenceAddressSpace::Local
-        | ReferenceAddressSpace::Target => false,
+        ReferenceAddressSpace::Shared => {
+            matches!(actual_space, ReferenceAddressSpace::Shared)
+        }
+        ReferenceAddressSpace::Local | ReferenceAddressSpace::Target => false,
     };
 
     if !is_match {

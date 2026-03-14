@@ -288,6 +288,16 @@ impl From<heap::HeapLimitError> for Error {
     }
 }
 
+impl From<heap::SharedLimitError> for Error {
+    fn from(error: heap::SharedLimitError) -> Self {
+        Self::HeapLimitExceeded {
+            scope: "shared".to_string(),
+            used_bytes: error.used_bytes,
+            max_bytes: error.max_bytes,
+        }
+    }
+}
+
 /// A runtime error with call stack and location information.
 #[derive(Debug, Clone)]
 pub struct RuntimeError {

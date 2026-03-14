@@ -155,7 +155,7 @@ impl IsolateState {
         heap: &mut Heap,
         values: Vec<Value>,
     ) -> Result<Value, Error> {
-        let handle = heap.allocate_managed_values(values).map_err(Error::from)?;
+        let handle = heap.allocate_packed_values(values).map_err(Error::from)?;
         Ok(Value::aggregate(handle))
     }
 
@@ -167,7 +167,7 @@ impl IsolateState {
         second: Value,
     ) -> Result<Value, Error> {
         let handle = heap
-            .allocate_managed_pair(first, second)
+            .allocate_packed_pair(first, second)
             .map_err(Error::from)?;
         Ok(Value::aggregate(handle))
     }
@@ -178,30 +178,11 @@ impl IsolateState {
         heap: &mut Heap,
         value: Value,
     ) -> Result<Value, Error> {
-        let handle = heap.allocate_managed_single(value).map_err(Error::from)?;
+        let handle = heap.allocate_packed_single(value).map_err(Error::from)?;
         Ok(Value::aggregate(handle))
     }
 
-    /// Allocate a raw heap cell with value slots and return its pointer.
-    pub(crate) fn allocate_raw_values(
-        &mut self,
-        heap: &mut Heap,
-        values: Vec<Value>,
-    ) -> RawPointer {
-        self.try_allocate_raw_values(heap, values)
-            .unwrap_or_else(|error| panic!("{error}"))
-    }
-
-    /// Allocate a raw heap cell with value slots and return its pointer.
-    pub(crate) fn try_allocate_raw_values(
-        &mut self,
-        heap: &mut Heap,
-        values: Vec<Value>,
-    ) -> Result<RawPointer, Error> {
-        heap.allocate_raw_values(values).map_err(Error::from)
-    }
-
-    /// Allocate a raw heap cell with byte storage and return its pointer.
+    /// Allocate one raw byte allocation and return its pointer.
     pub(crate) fn try_allocate_raw_bytes(
         &mut self,
         heap: &mut Heap,

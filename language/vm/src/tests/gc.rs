@@ -1,193 +1,196 @@
-use destack_heap::{ManagedHeap, ManagedReference, Value};
+use destack_heap::{Heap, ManagedReference, Value};
+
+/// Allocate one empty managed cell for tests.
+fn allocate(heap: &mut Heap) -> ManagedReference {
+    heap.allocate_managed_zeroed(0, destack_heap::ReferenceMap::empty(), None)
+        .expect("managed allocation should succeed")
+}
+
+/// Allocate one managed cell with values for tests.
+fn allocate_with_values(heap: &mut Heap, values: Vec<Value>) -> ManagedReference {
+    heap.allocate_packed_values(values)
+        .expect("managed allocation should succeed")
+}
+
+/// Return whether one managed cell exists.
+fn contains(heap: &Heap, handle: ManagedReference) -> bool {
+    heap.is_managed_allocated(handle)
+}
+
+/// Return the managed allocation count for tests.
+fn allocation_count(heap: &Heap) -> usize {
+    heap.managed_allocation_count()
+}
 
 /// Garbage collection removes cells not reachable from roots.
 #[test]
 fn test_gc_collects_unreachable() {
-    let mut heap = ManagedHeap::new();
+    let mut heap = Heap::new();
 
-    // allocate some cells
-    let handle1 = heap.allocate();
-    let handle2 = heap.allocate();
-    let _handle3 = heap.allocate();
+    let handle1 = allocate(&mut heap);
+    let handle2 = allocate(&mut heap);
+    let _handle3 = allocate(&mut heap);
 
-    assert_eq!(heap.allocation_count(), 3);
+    assert_eq!(allocation_count(&heap), 3);
 
-    // only keep handle1 and handle2 as roots
-    heap.collect_handles([handle1, handle2]);
+    heap.collect_managed_handles([handle1, handle2]);
 
-    // handle3 should be collected
-    assert_eq!(heap.allocation_count(), 2);
-    assert!(heap.get(handle1).is_some());
-    assert!(heap.get(handle2).is_some());
+    assert_eq!(allocation_count(&heap), 2);
+    assert!(contains(&heap, handle1));
+    assert!(contains(&heap, handle2));
 }
 
 /// Garbage collection preserves all cells directly referenced as roots.
 #[test]
 fn test_gc_preserves_reachable() {
-    let mut heap = ManagedHeap::new();
+    let mut heap = Heap::new();
 
-    let handle1 = heap.allocate();
-    let handle2 = heap.allocate();
+    let handle1 = allocate(&mut heap);
+    let handle2 = allocate(&mut heap);
 
-    heap.collect_handles([handle1, handle2]);
+    heap.collect_managed_handles([handle1, handle2]);
 
-    assert_eq!(heap.allocation_count(), 2);
-    assert!(heap.get(handle1).is_some());
-    assert!(heap.get(handle2).is_some());
+    assert_eq!(allocation_count(&heap), 2);
+    assert!(contains(&heap, handle1));
+    assert!(contains(&heap, handle2));
 }
 
 /// Garbage collection follows reference chains to preserve indirectly reachable cells.
 #[test]
 fn test_gc_follows_references() {
-    let mut heap = ManagedHeap::new();
+    let mut heap = Heap::new();
 
-    // create a chain: root -> child1 -> child2
-    let child2 = heap.allocate();
-    let child1 = heap.allocate_with_values(vec![Value::managed_reference(child2)]);
-    let root = heap.allocate_with_values(vec![Value::managed_reference(child1)]);
+    let child2 = allocate(&mut heap);
+    let child1 = allocate_with_values(&mut heap, vec![Value::managed_reference(child2)]);
+    let root = allocate_with_values(&mut heap, vec![Value::managed_reference(child1)]);
+    let _unreachable = allocate(&mut heap);
 
-    // also create an unreachable cell
-    let _unreachable = heap.allocate();
+    assert_eq!(allocation_count(&heap), 4);
 
-    assert_eq!(heap.allocation_count(), 4);
+    heap.collect_managed_handles([root]);
 
-    // only root is in the roots list, but child1 and child2 should be preserved
-    heap.collect_handles([root]);
-
-    assert_eq!(heap.allocation_count(), 3);
-    assert!(heap.get(root).is_some());
-    assert!(heap.get(child1).is_some());
-    assert!(heap.get(child2).is_some());
+    assert_eq!(allocation_count(&heap), 3);
+    assert!(contains(&heap, root));
+    assert!(contains(&heap, child1));
+    assert!(contains(&heap, child2));
 }
 
 /// Garbage collection correctly handles cyclic reference structures.
 #[test]
 fn test_gc_handles_cycles() {
-    let mut heap = ManagedHeap::new();
+    let mut heap = Heap::new();
 
-    // create a cycle: a -> b -> a
-    let a = heap.allocate();
-    let b = heap.allocate();
+    let a = heap
+        .allocate_zeroed_packed_values(1)
+        .expect("managed allocation should succeed");
+    let b = heap
+        .allocate_zeroed_packed_values(1)
+        .expect("managed allocation should succeed");
 
-    // set up the cycle
-    heap.get_mut(a)
-        .unwrap()
-        .push_inline(Value::managed_reference(b));
-    heap.get_mut(b)
-        .unwrap()
-        .push_inline(Value::managed_reference(a));
+    assert!(heap.set_packed_value(a, 0, Value::managed_reference(b)));
+    assert!(heap.set_packed_value(b, 0, Value::managed_reference(a)));
 
-    // create unreachable cells
-    let _unreachable1 = heap.allocate();
-    let _unreachable2 = heap.allocate();
+    let _unreachable1 = allocate(&mut heap);
+    let _unreachable2 = allocate(&mut heap);
 
-    assert_eq!(heap.allocation_count(), 4);
+    assert_eq!(allocation_count(&heap), 4);
 
-    // collect with only 'a' as root
-    heap.collect_handles([a]);
+    heap.collect_managed_handles([a]);
 
-    // cycle should be preserved, unreachable should be collected
-    assert_eq!(heap.allocation_count(), 2);
-    assert!(heap.get(a).is_some());
-    assert!(heap.get(b).is_some());
+    assert_eq!(allocation_count(&heap), 2);
+    assert!(contains(&heap, a));
+    assert!(contains(&heap, b));
 }
 
-/// Garbage collection with no roots removes all heap cells.
+/// Garbage collection with no roots removes all managed allocations.
 #[test]
 fn test_gc_empty_roots() {
-    let mut heap = ManagedHeap::new();
+    let mut heap = Heap::new();
 
-    heap.allocate();
-    heap.allocate();
-    heap.allocate();
+    allocate(&mut heap);
+    allocate(&mut heap);
+    allocate(&mut heap);
 
-    assert_eq!(heap.allocation_count(), 3);
+    assert_eq!(allocation_count(&heap), 3);
 
-    // no roots = collect everything
-    heap.collect_handles([]);
+    heap.collect_managed_handles([]);
 
-    assert_eq!(heap.allocation_count(), 0);
+    assert_eq!(allocation_count(&heap), 0);
 }
 
 /// Garbage collection preserves cells referenced by multiple holders.
 #[test]
 fn test_gc_multiple_references_to_same_cell() {
-    let mut heap = ManagedHeap::new();
+    let mut heap = Heap::new();
 
-    let shared = heap.allocate();
-    let holder1 = heap.allocate_with_values(vec![Value::managed_reference(shared)]);
-    let holder2 = heap.allocate_with_values(vec![Value::managed_reference(shared)]);
+    let shared = allocate(&mut heap);
+    let holder1 = allocate_with_values(&mut heap, vec![Value::managed_reference(shared)]);
+    let holder2 = allocate_with_values(&mut heap, vec![Value::managed_reference(shared)]);
 
-    assert_eq!(heap.allocation_count(), 3);
+    assert_eq!(allocation_count(&heap), 3);
 
-    // both holders reference the same shared cell
-    heap.collect_handles([holder1, holder2]);
+    heap.collect_managed_handles([holder1, holder2]);
 
-    assert_eq!(heap.allocation_count(), 3);
-    assert!(heap.get(shared).is_some());
-    assert!(heap.get(holder1).is_some());
-    assert!(heap.get(holder2).is_some());
+    assert_eq!(allocation_count(&heap), 3);
+    assert!(contains(&heap, shared));
+    assert!(contains(&heap, holder1));
+    assert!(contains(&heap, holder2));
 }
 
 /// Garbage collection traces references nested inside aggregate values.
 #[test]
 fn test_gc_handles_aggregates() {
-    let mut heap = ManagedHeap::new();
+    let mut heap = Heap::new();
 
-    let child = heap.allocate();
-    // create an aggregate value containing a reference
-    let inner_agg =
-        heap.allocate_with_values(vec![Value::int32(42), Value::managed_reference(child)]);
-    // put the aggregate inside the parent
-    let parent = heap.allocate_with_values(vec![Value::aggregate(inner_agg)]);
+    let child = allocate(&mut heap);
+    let inner_agg = allocate_with_values(
+        &mut heap,
+        vec![Value::int32(42), Value::managed_reference(child)],
+    );
+    let parent = allocate_with_values(&mut heap, vec![Value::aggregate(inner_agg)]);
 
-    let _unreachable = heap.allocate();
+    let _unreachable = allocate(&mut heap);
 
-    assert_eq!(heap.allocation_count(), 4);
+    assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_handles([parent]);
+    heap.collect_managed_handles([parent]);
 
-    // parent, inner_agg, and child should be preserved
-    assert_eq!(heap.allocation_count(), 3);
-    assert!(heap.get(parent).is_some());
-    assert!(heap.get(inner_agg).is_some());
-    assert!(heap.get(child).is_some());
+    assert_eq!(allocation_count(&heap), 3);
+    assert!(contains(&heap, parent));
+    assert!(contains(&heap, inner_agg));
+    assert!(contains(&heap, child));
 }
 
 /// Garbage collection ignores invalid handles in the roots list.
 #[test]
 fn test_gc_invalid_root_ignored() {
-    let mut heap = ManagedHeap::new();
+    let mut heap = Heap::new();
 
-    let valid = heap.allocate();
-
-    // create an invalid handle
+    let valid = allocate(&mut heap);
     let invalid = ManagedReference::new(9999);
 
-    assert_eq!(heap.allocation_count(), 1);
+    assert_eq!(allocation_count(&heap), 1);
 
-    // gc should not crash with invalid roots
-    heap.collect_handles([valid, invalid]);
+    heap.collect_managed_handles([valid, invalid]);
 
-    assert_eq!(heap.allocation_count(), 1);
-    assert!(heap.get(valid).is_some());
+    assert_eq!(allocation_count(&heap), 1);
+    assert!(contains(&heap, valid));
 }
 
 /// Repeated garbage collections correctly remove newly allocated garbage.
 #[test]
 fn test_gc_repeated_collection() {
-    let mut heap = ManagedHeap::new();
+    let mut heap = Heap::new();
 
-    let root = heap.allocate();
-    let _garbage = heap.allocate();
+    let root = allocate(&mut heap);
+    let _garbage = allocate(&mut heap);
 
-    heap.collect_handles([root]);
-    assert_eq!(heap.allocation_count(), 1);
+    heap.collect_managed_handles([root]);
+    assert_eq!(allocation_count(&heap), 1);
 
-    // allocate more garbage
-    let _more_garbage = heap.allocate();
-    let _even_more = heap.allocate();
+    let _more_garbage = allocate(&mut heap);
+    let _even_more = allocate(&mut heap);
 
-    heap.collect_handles([root]);
-    assert_eq!(heap.allocation_count(), 1);
+    heap.collect_managed_handles([root]);
+    assert_eq!(allocation_count(&heap), 1);
 }

@@ -10,10 +10,10 @@ pub struct ExecutionOutput {
     pub value: Value,
     /// Statistics from this execution.
     pub statistics: Statistics,
-    /// Number of managed heap cells at end of execution.
-    pub heap_cells: usize,
-    /// Number of raw heap cells at end of execution.
-    pub raw_heap_cells: usize,
+    /// Number of managed allocations at end of execution.
+    pub managed_allocation_count: usize,
+    /// Number of raw allocations at end of execution.
+    pub raw_allocation_count: usize,
 }
 
 /// Yield result from a suspended coroutine execution.

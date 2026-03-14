@@ -4,6 +4,7 @@ use crate::diagnostic::{Error, RuntimeResult};
 use destack_heap::{Value, ValueTag};
 
 use super::super::state::InterpreterContext;
+use super::instruction;
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> InterpreterContext<'a> {
@@ -1125,6 +1126,112 @@ impl<'a> InterpreterContext<'a> {
         Ok(0)
     }
 
+    /// Read one atomic value from memory.
+    fn read_atomic_value(
+        &self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+    ) -> RuntimeResult<Value> {
+        if pointer.tag() != ValueTag::RawPointer {
+            return self.read_memory_slot(&pointer, 0);
+        }
+
+        let raw_pointer = pointer.as_raw_pointer().unwrap();
+        if raw_pointer.is_null() {
+            return Err(self.make_error(Error::NullPointerDereference));
+        }
+
+        let Some(raw_pointee) = raw_pointee else {
+            return Err(self.make_error(Error::InvalidPointerType {
+                actual: "raw pointer without pointee type".to_string(),
+            }));
+        };
+
+        let tree = &self.isolate.image.tree;
+        let byte_len = instruction::raw_type_size(tree, raw_pointee)
+            .map_err(|error| self.make_error(error))?;
+        let bytes = self
+            .heap_ref()
+            .raw_bytes(raw_pointer)
+            .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
+        let byte_offset = raw_pointer.byte_offset();
+        let end = byte_offset.checked_add(byte_len).ok_or_else(|| {
+            self.make_error(Error::InvalidFieldAccess {
+                index: byte_offset as u32,
+                field_count: bytes.len(),
+            })
+        })?;
+
+        if end > bytes.len() {
+            return Err(self.make_error(Error::InvalidFieldAccess {
+                index: byte_offset as u32,
+                field_count: bytes.len(),
+            }));
+        }
+
+        instruction::decode_raw_value(tree, raw_pointee, &bytes[byte_offset..end])
+            .map_err(|error| self.make_error(error))
+    }
+
+    /// Write one atomic value to memory.
+    fn write_atomic_value(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<()> {
+        if pointer.tag() != ValueTag::RawPointer {
+            return self.write_memory_slot(&pointer, 0, value);
+        }
+
+        let raw_pointer = pointer.as_raw_pointer().unwrap();
+        if raw_pointer.is_null() {
+            return Err(self.make_error(Error::NullPointerDereference));
+        }
+
+        let Some(raw_pointee) = raw_pointee else {
+            return Err(self.make_error(Error::InvalidPointerType {
+                actual: "raw pointer without pointee type".to_string(),
+            }));
+        };
+
+        let tree = &self.isolate.image.tree;
+        let bytes = instruction::encode_raw_value(tree, raw_pointee, value)
+            .map_err(|error| self.make_error(error))?;
+        let byte_len = self
+            .heap_ref()
+            .raw_byte_len(raw_pointer)
+            .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
+        let byte_offset = raw_pointer.byte_offset();
+        let end = byte_offset.checked_add(bytes.len()).ok_or_else(|| {
+            self.make_error(Error::InvalidFieldAccess {
+                index: byte_offset as u32,
+                field_count: byte_len,
+            })
+        })?;
+
+        if end > byte_len {
+            return Err(self.make_error(Error::InvalidFieldAccess {
+                index: byte_offset as u32,
+                field_count: byte_len,
+            }));
+        }
+
+        for (index, byte) in bytes.into_iter().enumerate() {
+            if !self
+                .heap()
+                .set_raw_byte(raw_pointer, byte_offset + index, byte)
+            {
+                return Err(self.make_error(Error::InvalidFieldAccess {
+                    index: (byte_offset + index) as u32,
+                    field_count: byte_len,
+                }));
+            }
+        }
+
+        Ok(())
+    }
+
     /// Read a value from a memory slot at offset.
     fn read_memory_slot(&self, ptr: &Value, offset: usize) -> RuntimeResult<Value> {
         // resolve pointer and slot offset
@@ -1134,15 +1241,16 @@ impl<'a> InterpreterContext<'a> {
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
-                let slot_index = handle.slot_offset().checked_add(offset).ok_or_else(|| {
-                    self.make_error(Error::InvalidFieldAccess {
-                        index: offset as u32,
-                        field_count: 0,
-                    })
-                })?;
-                self.heap
-                    .managed_slot(handle, slot_index)
-                    .copied()
+                let slot_index = (handle.byte_offset() / Value::BYTE_LEN)
+                    .checked_add(offset)
+                    .ok_or_else(|| {
+                        self.make_error(Error::InvalidFieldAccess {
+                            index: offset as u32,
+                            field_count: 0,
+                        })
+                    })?;
+                self.heap_ref()
+                    .packed_value_at(handle, slot_index)
                     .ok_or_else(|| self.make_error(Error::InvalidManagedReference))
             }
             ValueTag::RawPointer => {
@@ -1150,51 +1258,31 @@ impl<'a> InterpreterContext<'a> {
                 if raw_ptr.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
-                let slot_index = raw_ptr.slot_offset().checked_add(offset).ok_or_else(|| {
+                let slot_index = raw_ptr.byte_offset().checked_add(offset).ok_or_else(|| {
                     self.make_error(Error::InvalidFieldAccess {
                         index: offset as u32,
                         field_count: 0,
                     })
                 })?;
-                let cell = self
-                    .heap
-                    .raw_allocation(raw_ptr)
+
+                let byte_len = self
+                    .heap_ref()
+                    .raw_byte_len(raw_ptr)
                     .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
-                if cell.is_bytes() {
-                    let byte_len = self
-                        .heap
-                        .raw_byte_len(raw_ptr)
-                        .expect("raw bytes cell should resolve to one byte run");
-
-                    if byte_len == 0 && slot_index == 0 {
-                        return Ok(Value::VOID);
-                    }
-                    if slot_index >= byte_len {
-                        return Err(self.make_error(Error::InvalidFieldAccess {
-                            index: slot_index as u32,
-                            field_count: byte_len,
-                        }));
-                    }
-                    let byte = self
-                        .heap
-                        .raw_byte_at(raw_ptr, slot_index)
-                        .expect("validated raw byte slot should exist");
-                    return Ok(Value::uint(byte as u64, 8));
-                }
-
-                let slots = cell
-                    .values()
-                    .expect("raw value allocation should expose values");
-                if slots.is_empty() && slot_index == 0 {
+                if byte_len == 0 && slot_index == 0 {
                     return Ok(Value::VOID);
                 }
-                if let Some(value) = slots.get(slot_index).copied() {
-                    return Ok(value);
+                if slot_index >= byte_len {
+                    return Err(self.make_error(Error::InvalidFieldAccess {
+                        index: slot_index as u32,
+                        field_count: byte_len,
+                    }));
                 }
-                Err(self.make_error(Error::InvalidFieldAccess {
-                    index: slot_index as u32,
-                    field_count: slots.len(),
-                }))
+                let byte = self
+                    .heap_ref()
+                    .raw_byte_at(raw_ptr, slot_index)
+                    .expect("validated raw byte slot should exist");
+                Ok(Value::uint(byte as u64, 8))
             }
             ValueTag::StackPointer => {
                 let sp = ptr.as_stack_pointer().unwrap();
@@ -1204,7 +1292,7 @@ impl<'a> InterpreterContext<'a> {
                     .get(sp.frame_idx)
                     .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
                 let cell = frame
-                    .get_stack_cell(sp.slot)
+                    .stack_buffer(sp.slot)
                     .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
                 let slot_index = sp.slot_offset.checked_add(offset).ok_or_else(|| {
                     self.make_error(Error::InvalidFieldAccess {
@@ -1256,25 +1344,27 @@ impl<'a> InterpreterContext<'a> {
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
-                let slot_index = handle.slot_offset().checked_add(offset).ok_or_else(|| {
-                    self.make_error(Error::InvalidFieldAccess {
-                        index: offset as u32,
-                        field_count: 0,
-                    })
-                })?;
+                let slot_index = (handle.byte_offset() / Value::BYTE_LEN)
+                    .checked_add(offset)
+                    .ok_or_else(|| {
+                        self.make_error(Error::InvalidFieldAccess {
+                            index: offset as u32,
+                            field_count: 0,
+                        })
+                    })?;
                 // resolve the managed cell
-                let error = match self.heap.managed_allocation(handle) {
-                    Some(cell) => {
+                let error = match self.heap_ref().packed_value_count(handle) {
+                    Some(cell_len) => {
                         // ensure the slot exists
                         let required_len = slot_index + 1;
-                        if cell.len() < required_len {
-                            self.heap
-                                .resize_managed_slots(handle, required_len)
+                        if cell_len < required_len {
+                            self.heap()
+                                .resize_packed_values(handle, required_len)
                                 .map_err(|error| self.make_error(Error::from(error)))?;
                         }
 
                         // write the slot value
-                        if self.heap.set_managed_slot(handle, slot_index, value) {
+                        if self.heap().set_packed_value(handle, slot_index, value) {
                             return Ok(());
                         }
 
@@ -1294,73 +1384,36 @@ impl<'a> InterpreterContext<'a> {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
 
-                let slot_index = raw_ptr.slot_offset().checked_add(offset).ok_or_else(|| {
+                let slot_index = raw_ptr.byte_offset().checked_add(offset).ok_or_else(|| {
                     self.make_error(Error::InvalidFieldAccess {
                         index: offset as u32,
                         field_count: 0,
                     })
                 })?;
-
-                let write_error = {
-                    let is_bytes = match self.heap.raw_is_bytes(raw_ptr) {
-                        Some(is_bytes) => is_bytes,
-                        None => return Err(self.make_error(Error::InvalidManagedReference)),
-                    };
-
-                    if is_bytes {
-                        let byte = if matches!(value.tag(), ValueTag::UInt) {
-                            value.as_uint().unwrap() as u8
-                        } else {
-                            return Err(self.make_error(Error::TypeMismatch {
-                                expected: "integer".to_string(),
-                                actual: format!("{value:?}"),
-                            }));
-                        };
-
-                        let byte_len = self
-                            .heap
-                            .raw_byte_len(raw_ptr)
-                            .expect("raw bytes cell should resolve to one byte run");
-
-                        if slot_index >= byte_len {
-                            Some(Error::InvalidFieldAccess {
-                                index: slot_index as u32,
-                                field_count: byte_len,
-                            })
-                        } else if self.heap.set_raw_byte(raw_ptr, slot_index, byte) {
-                            None
-                        } else {
-                            Some(Error::InvalidFieldAccess {
-                                index: slot_index as u32,
-                                field_count: byte_len,
-                            })
-                        }
-                    } else {
-                        let value_len = self
-                            .heap
-                            .raw_values(raw_ptr)
-                            .map(|values| values.len())
-                            .expect("validated raw value allocation should expose values");
-
-                        if value_len <= slot_index {
-                            self.heap
-                                .resize_raw_values(raw_ptr, slot_index + 1)
-                                .map_err(|error| self.make_error(Error::from(error)))?;
-                        }
-
-                        if self.heap.set_raw_value(raw_ptr, slot_index, value) {
-                            None
-                        } else {
-                            Some(Error::InvalidFieldAccess {
-                                index: slot_index as u32,
-                                field_count: value_len.max(slot_index + 1),
-                            })
-                        }
-                    }
+                let byte = if matches!(value.tag(), ValueTag::UInt) {
+                    value.as_uint().unwrap() as u8
+                } else {
+                    return Err(self.make_error(Error::TypeMismatch {
+                        expected: "integer".to_string(),
+                        actual: format!("{value:?}"),
+                    }));
                 };
+                let byte_len = self
+                    .heap_ref()
+                    .raw_byte_len(raw_ptr)
+                    .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
 
-                if let Some(error) = write_error {
-                    return Err(self.make_error(error));
+                if slot_index >= byte_len {
+                    return Err(self.make_error(Error::InvalidFieldAccess {
+                        index: slot_index as u32,
+                        field_count: byte_len,
+                    }));
+                }
+                if !self.heap().set_raw_byte(raw_ptr, slot_index, byte) {
+                    return Err(self.make_error(Error::InvalidFieldAccess {
+                        index: slot_index as u32,
+                        field_count: byte_len,
+                    }));
                 }
 
                 Ok(())
@@ -1375,7 +1428,7 @@ impl<'a> InterpreterContext<'a> {
                 })?;
                 let error = match self.engine.call_stack.get_mut(sp.frame_idx) {
                     Some(frame) => {
-                        let cell = match frame.get_stack_cell_mut(sp.slot) {
+                        let cell = match frame.stack_buffer_mut(sp.slot) {
                             Some(cell) => cell,
                             None => return Err(self.make_error(Error::InvalidManagedReference)),
                         };
@@ -1431,13 +1484,13 @@ impl<'a> InterpreterContext<'a> {
     pub(crate) fn execute_atomic_load_value(
         &self,
         pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         _ordering: mir::MemoryOrdering,
         _scope: mir::AtomicScope,
         _memory_scope: mir::MemoryScope,
         _semantics: mir::MemorySemantics,
     ) -> RuntimeResult<Value> {
-        let args = [pointer];
-        self.execute_atomic_load(&args)
+        self.execute_atomic_load(pointer, raw_pointee)
     }
 
     /// Execute an atomic store.
@@ -1445,13 +1498,13 @@ impl<'a> InterpreterContext<'a> {
         &mut self,
         pointer: Value,
         value: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         _ordering: mir::MemoryOrdering,
         _scope: mir::AtomicScope,
         _memory_scope: mir::MemoryScope,
         _semantics: mir::MemorySemantics,
     ) -> RuntimeResult<()> {
-        let args = [pointer, value];
-        self.execute_atomic_store(&args)
+        self.execute_atomic_store(pointer, raw_pointee, value)
     }
 
     /// Execute an atomic compare exchange.
@@ -1460,20 +1513,19 @@ impl<'a> InterpreterContext<'a> {
         pointer: Value,
         expected: Value,
         new_value: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         is_weak: bool,
         _ordering: mir::MemoryOrdering,
         _scope: mir::AtomicScope,
         _memory_scope: mir::MemoryScope,
         _semantics: mir::MemorySemantics,
     ) -> RuntimeResult<Value> {
-        let args = [pointer, expected, new_value];
-
         // the interpreter uses strong semantics for the weak variant
         if is_weak {
-            return self.execute_atomic_cas_weak(&args);
+            return self.execute_atomic_cas_weak(pointer, raw_pointee, expected, new_value);
         }
 
-        self.execute_atomic_cas(&args)
+        self.execute_atomic_cas(pointer, raw_pointee, expected, new_value)
     }
 
     /// Execute an atomic read modify write.
@@ -1482,27 +1534,50 @@ impl<'a> InterpreterContext<'a> {
         operator: mir::AtomicRmwOperator,
         pointer: Value,
         value: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
         _ordering: mir::MemoryOrdering,
         _scope: mir::AtomicScope,
         _memory_scope: mir::MemoryScope,
         _semantics: mir::MemorySemantics,
     ) -> RuntimeResult<Value> {
-        let args = [pointer, value];
-
         match operator {
-            mir::AtomicRmwOperator::Exchange => self.execute_atomic_exchange(&args),
-            mir::AtomicRmwOperator::Add => self.execute_atomic_fetch_add(&args),
-            mir::AtomicRmwOperator::Sub => self.execute_atomic_fetch_sub(&args),
-            mir::AtomicRmwOperator::And => self.execute_atomic_fetch_and(&args),
-            mir::AtomicRmwOperator::Or => self.execute_atomic_fetch_or(&args),
-            mir::AtomicRmwOperator::Xor => self.execute_atomic_fetch_xor(&args),
-            mir::AtomicRmwOperator::Min => self.execute_atomic_fetch_min(&args),
-            mir::AtomicRmwOperator::Max => self.execute_atomic_fetch_max(&args),
-            mir::AtomicRmwOperator::Umin => self.execute_atomic_fetch_umin(&args),
-            mir::AtomicRmwOperator::Umax => self.execute_atomic_fetch_umax(&args),
-            mir::AtomicRmwOperator::Fadd => self.execute_atomic_fetch_fadd(&args),
-            mir::AtomicRmwOperator::Fmin => self.execute_atomic_fetch_fmin(&args),
-            mir::AtomicRmwOperator::Fmax => self.execute_atomic_fetch_fmax(&args),
+            mir::AtomicRmwOperator::Exchange => {
+                self.execute_atomic_exchange(pointer, raw_pointee, value)
+            }
+            mir::AtomicRmwOperator::Add => {
+                self.execute_atomic_fetch_add(pointer, raw_pointee, value)
+            }
+            mir::AtomicRmwOperator::Sub => {
+                self.execute_atomic_fetch_sub(pointer, raw_pointee, value)
+            }
+            mir::AtomicRmwOperator::And => {
+                self.execute_atomic_fetch_and(pointer, raw_pointee, value)
+            }
+            mir::AtomicRmwOperator::Or => self.execute_atomic_fetch_or(pointer, raw_pointee, value),
+            mir::AtomicRmwOperator::Xor => {
+                self.execute_atomic_fetch_xor(pointer, raw_pointee, value)
+            }
+            mir::AtomicRmwOperator::Min => {
+                self.execute_atomic_fetch_min(pointer, raw_pointee, value)
+            }
+            mir::AtomicRmwOperator::Max => {
+                self.execute_atomic_fetch_max(pointer, raw_pointee, value)
+            }
+            mir::AtomicRmwOperator::Umin => {
+                self.execute_atomic_fetch_umin(pointer, raw_pointee, value)
+            }
+            mir::AtomicRmwOperator::Umax => {
+                self.execute_atomic_fetch_umax(pointer, raw_pointee, value)
+            }
+            mir::AtomicRmwOperator::Fadd => {
+                self.execute_atomic_fetch_fadd(pointer, raw_pointee, value)
+            }
+            mir::AtomicRmwOperator::Fmin => {
+                self.execute_atomic_fetch_fmin(pointer, raw_pointee, value)
+            }
+            mir::AtomicRmwOperator::Fmax => {
+                self.execute_atomic_fetch_fmax(pointer, raw_pointee, value)
+            }
         }
     }
 
@@ -1528,44 +1603,37 @@ impl<'a> InterpreterContext<'a> {
     }
 
     /// Atomic load (single-threaded: same as regular load).
-    fn execute_atomic_load(&self, args: &[Value]) -> RuntimeResult<Value> {
-        let ptr = args.first().ok_or_else(|| {
-            self.make_error(Error::InvalidIntrinsicArguments {
-                intrinsic: "atomic.load".to_string(),
-            })
-        })?;
-        self.read_memory_slot(ptr, 0)
+    fn execute_atomic_load(
+        &self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+    ) -> RuntimeResult<Value> {
+        self.read_atomic_value(pointer, raw_pointee)
     }
 
     /// Atomic store (single-threaded: same as regular store).
-    fn execute_atomic_store(&mut self, args: &[Value]) -> RuntimeResult<()> {
-        if args.len() < 2 {
-            return Err(self.make_error(Error::InvalidIntrinsicArguments {
-                intrinsic: "atomic.store".to_string(),
-            }));
-        }
-        let ptr = args[0];
-        let value = args[1];
-        self.write_memory_slot(&ptr, 0, value)
+    fn execute_atomic_store(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<()> {
+        self.write_atomic_value(pointer, raw_pointee, value)
     }
 
     /// Atomic compare-and-swap.
-    fn execute_atomic_cas(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        if args.len() < 3 {
-            return Err(self.make_error(Error::InvalidIntrinsicArguments {
-                intrinsic: "atomic.cas".to_string(),
-            }));
-        }
-
-        let ptr = args[0];
-        let expected = &args[1];
-        let desired = args[2];
-
-        let current = self.read_memory_slot(&ptr, 0)?;
-        let success = self.values_equal(&current, expected);
+    fn execute_atomic_cas(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        expected: Value,
+        desired: Value,
+    ) -> RuntimeResult<Value> {
+        let current = self.read_atomic_value(pointer, raw_pointee)?;
+        let success = self.values_equal(&current, &expected);
 
         if success {
-            self.write_memory_slot(&ptr, 0, desired)?;
+            self.write_atomic_value(pointer, raw_pointee, desired)?;
         }
 
         Ok(self.allocate_pair(current, Value::bool(success)))
@@ -1574,226 +1642,367 @@ impl<'a> InterpreterContext<'a> {
     /// Atomic compare-and-swap (weak).
     ///
     /// The interpreter uses strong semantics for the weak variant.
-    fn execute_atomic_cas_weak(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_cas(args)
+    fn execute_atomic_cas_weak(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        expected: Value,
+        desired: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_cas(pointer, raw_pointee, expected, desired)
     }
 
     /// Atomic exchange.
-    fn execute_atomic_exchange(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.xchg", |_, b| *b)
+    fn execute_atomic_exchange(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(pointer, raw_pointee, value, "atomic.xchg", |_, b| *b)
     }
 
     /// Atomic fetch-and-add.
-    fn execute_atomic_fetch_add(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.add", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av.wrapping_add(bv), a.width())
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av.wrapping_add(bv), a.width())
-            }
-            _ => *a,
-        })
+    fn execute_atomic_fetch_add(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(
+            pointer,
+            raw_pointee,
+            value,
+            "atomic.fetch.add",
+            |a, b| match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av.wrapping_add(bv), a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.wrapping_add(bv), a.width())
+                }
+                _ => *a,
+            },
+        )
     }
 
     /// Atomic fetch-and-subtract.
-    fn execute_atomic_fetch_sub(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.sub", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av.wrapping_sub(bv), a.width())
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av.wrapping_sub(bv), a.width())
-            }
-            _ => *a,
-        })
+    fn execute_atomic_fetch_sub(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(
+            pointer,
+            raw_pointee,
+            value,
+            "atomic.fetch.sub",
+            |a, b| match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av.wrapping_sub(bv), a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.wrapping_sub(bv), a.width())
+                }
+                _ => *a,
+            },
+        )
     }
 
     /// Atomic fetch-and-and.
-    fn execute_atomic_fetch_and(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.and", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av & bv, a.width())
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av & bv, a.width())
-            }
-            _ => *a,
-        })
+    fn execute_atomic_fetch_and(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(
+            pointer,
+            raw_pointee,
+            value,
+            "atomic.fetch.and",
+            |a, b| match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av & bv, a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av & bv, a.width())
+                }
+                _ => *a,
+            },
+        )
     }
 
     /// Atomic fetch-and-or.
-    fn execute_atomic_fetch_or(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.or", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av | bv, a.width())
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av | bv, a.width())
-            }
-            _ => *a,
-        })
+    fn execute_atomic_fetch_or(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(
+            pointer,
+            raw_pointee,
+            value,
+            "atomic.fetch.or",
+            |a, b| match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av | bv, a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av | bv, a.width())
+                }
+                _ => *a,
+            },
+        )
     }
 
     /// Atomic fetch-and-xor.
-    fn execute_atomic_fetch_xor(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.xor", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av ^ bv, a.width())
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av ^ bv, a.width())
-            }
-            _ => *a,
-        })
+    fn execute_atomic_fetch_xor(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(
+            pointer,
+            raw_pointee,
+            value,
+            "atomic.fetch.xor",
+            |a, b| match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av ^ bv, a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av ^ bv, a.width())
+                }
+                _ => *a,
+            },
+        )
     }
 
     /// Atomic fetch-and-min.
-    fn execute_atomic_fetch_min(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.min", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av.min(bv), a.width())
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av.min(bv), a.width())
-            }
-            _ => *a,
-        })
+    fn execute_atomic_fetch_min(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(
+            pointer,
+            raw_pointee,
+            value,
+            "atomic.fetch.min",
+            |a, b| match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av.min(bv), a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.min(bv), a.width())
+                }
+                _ => *a,
+            },
+        )
     }
 
     /// Atomic fetch-and-max.
-    fn execute_atomic_fetch_max(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.max", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av.max(bv), a.width())
-            }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av.max(bv), a.width())
-            }
-            _ => *a,
-        })
+    fn execute_atomic_fetch_max(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(
+            pointer,
+            raw_pointee,
+            value,
+            "atomic.fetch.max",
+            |a, b| match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av.max(bv), a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.max(bv), a.width())
+                }
+                _ => *a,
+            },
+        )
     }
 
     /// Atomic fetch-and-min (unsigned).
-    fn execute_atomic_fetch_umin(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.umin", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av.min(bv), a.width())
-            }
-            _ => *a,
-        })
+    fn execute_atomic_fetch_umin(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(
+            pointer,
+            raw_pointee,
+            value,
+            "atomic.fetch.umin",
+            |a, b| match (a.tag(), b.tag()) {
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.min(bv), a.width())
+                }
+                _ => *a,
+            },
+        )
     }
 
     /// Atomic fetch-and-max (unsigned).
-    fn execute_atomic_fetch_umax(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.umax", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av.max(bv), a.width())
-            }
-            _ => *a,
-        })
+    fn execute_atomic_fetch_umax(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(
+            pointer,
+            raw_pointee,
+            value,
+            "atomic.fetch.umax",
+            |a, b| match (a.tag(), b.tag()) {
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.max(bv), a.width())
+                }
+                _ => *a,
+            },
+        )
     }
 
     /// Atomic fetch-and-add (float).
-    fn execute_atomic_fetch_fadd(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.fadd", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Float64, ValueTag::Float64) => {
-                let av = f64::from_bits(a.raw_data());
-                let bv = f64::from_bits(b.raw_data());
-                Value::float64(av + bv)
-            }
-            (ValueTag::Float32, ValueTag::Float32) => {
-                let av = f32::from_bits(a.raw_data() as u32);
-                let bv = f32::from_bits(b.raw_data() as u32);
-                Value::float32(av + bv)
-            }
-            _ => *a,
-        })
+    fn execute_atomic_fetch_fadd(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(
+            pointer,
+            raw_pointee,
+            value,
+            "atomic.fetch.fadd",
+            |a, b| match (a.tag(), b.tag()) {
+                (ValueTag::Float64, ValueTag::Float64) => {
+                    let av = f64::from_bits(a.raw_data());
+                    let bv = f64::from_bits(b.raw_data());
+                    Value::float64(av + bv)
+                }
+                (ValueTag::Float32, ValueTag::Float32) => {
+                    let av = f32::from_bits(a.raw_data() as u32);
+                    let bv = f32::from_bits(b.raw_data() as u32);
+                    Value::float32(av + bv)
+                }
+                _ => *a,
+            },
+        )
     }
 
     /// Atomic fetch-and-min (float).
-    fn execute_atomic_fetch_fmin(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.fmin", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Float64, ValueTag::Float64) => {
-                let av = f64::from_bits(a.raw_data());
-                let bv = f64::from_bits(b.raw_data());
-                Value::float64(av.min(bv))
-            }
-            (ValueTag::Float32, ValueTag::Float32) => {
-                let av = f32::from_bits(a.raw_data() as u32);
-                let bv = f32::from_bits(b.raw_data() as u32);
-                Value::float32(av.min(bv))
-            }
-            _ => *a,
-        })
+    fn execute_atomic_fetch_fmin(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(
+            pointer,
+            raw_pointee,
+            value,
+            "atomic.fetch.fmin",
+            |a, b| match (a.tag(), b.tag()) {
+                (ValueTag::Float64, ValueTag::Float64) => {
+                    let av = f64::from_bits(a.raw_data());
+                    let bv = f64::from_bits(b.raw_data());
+                    Value::float64(av.min(bv))
+                }
+                (ValueTag::Float32, ValueTag::Float32) => {
+                    let av = f32::from_bits(a.raw_data() as u32);
+                    let bv = f32::from_bits(b.raw_data() as u32);
+                    Value::float32(av.min(bv))
+                }
+                _ => *a,
+            },
+        )
     }
 
     /// Atomic fetch-and-max (float).
-    fn execute_atomic_fetch_fmax(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.fmax", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Float64, ValueTag::Float64) => {
-                let av = f64::from_bits(a.raw_data());
-                let bv = f64::from_bits(b.raw_data());
-                Value::float64(av.max(bv))
-            }
-            (ValueTag::Float32, ValueTag::Float32) => {
-                let av = f32::from_bits(a.raw_data() as u32);
-                let bv = f32::from_bits(b.raw_data() as u32);
-                Value::float32(av.max(bv))
-            }
-            _ => *a,
-        })
+    fn execute_atomic_fetch_fmax(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        value: Value,
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(
+            pointer,
+            raw_pointee,
+            value,
+            "atomic.fetch.fmax",
+            |a, b| match (a.tag(), b.tag()) {
+                (ValueTag::Float64, ValueTag::Float64) => {
+                    let av = f64::from_bits(a.raw_data());
+                    let bv = f64::from_bits(b.raw_data());
+                    Value::float64(av.max(bv))
+                }
+                (ValueTag::Float32, ValueTag::Float32) => {
+                    let av = f32::from_bits(a.raw_data() as u32);
+                    let bv = f32::from_bits(b.raw_data() as u32);
+                    Value::float32(av.max(bv))
+                }
+                _ => *a,
+            },
+        )
     }
 
     /// Execute an atomic read-modify-write operation.
-    fn execute_atomic_rmw<F>(&mut self, args: &[Value], name: &str, op: F) -> RuntimeResult<Value>
+    fn execute_atomic_rmw<F>(
+        &mut self,
+        pointer: Value,
+        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        operand: Value,
+        _name: &str,
+        op: F,
+    ) -> RuntimeResult<Value>
     where
         F: FnOnce(&Value, &Value) -> Value,
     {
-        if args.len() < 2 {
-            return Err(self.make_error(Error::InvalidIntrinsicArguments {
-                intrinsic: name.to_string(),
-            }));
-        }
-
-        let ptr = args[0];
-        let operand = &args[1];
-
-        let old_value = self.read_memory_slot(&ptr, 0)?;
-        let new_value = op(&old_value, operand);
-        self.write_memory_slot(&ptr, 0, new_value)?;
+        let old_value = self.read_atomic_value(pointer, raw_pointee)?;
+        let new_value = op(&old_value, &operand);
+        self.write_atomic_value(pointer, raw_pointee, new_value)?;
 
         Ok(old_value)
     }

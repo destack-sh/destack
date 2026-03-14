@@ -11,7 +11,8 @@ use crate::isolate::{ExternalFnPtr, GlobalStorage, IsolateState};
 use crate::snapshot::InterpreterImage;
 use crate::telemetry::Statistics;
 use destack_heap::{
-    GcStats, Heap, ManagedReference, RawPointer, ReferenceMeta, Value, string_layout_matches,
+    AgentMemory, GcStats, ManagedReference, RawPointer, ReferenceMeta, SharedPointer, Value,
+    string_layout_matches,
 };
 
 use super::super::decode::{INVALID_FUNCTION_INDEX, ThreadedFunction, thread_function};
@@ -66,11 +67,11 @@ impl Interpreter {
     pub(crate) fn context<'a>(
         &'a mut self,
         isolate: &'a mut IsolateState,
-        heap: &'a mut Heap,
+        memory: AgentMemory<'a>,
     ) -> InterpreterContext<'a> {
         InterpreterContext {
             isolate,
-            heap,
+            memory,
             engine: &mut self.state,
         }
     }
@@ -154,8 +155,8 @@ impl Interpreter {
 pub(crate) struct InterpreterContext<'a> {
     /// Shared isolate state for this execution.
     pub(crate) isolate: &'a mut IsolateState,
-    /// Authoritative heap for this agent.
-    pub(crate) heap: &'a mut Heap,
+    /// Execution memory for this run.
+    pub(crate) memory: AgentMemory<'a>,
     /// Interpreter engine state for execution.
     pub(crate) engine: &'a mut InterpreterState,
 }
@@ -169,14 +170,6 @@ pub(crate) struct AggregateSlots<'a> {
 }
 
 impl<'a> AggregateSlots<'a> {
-    /// Create aggregate slots from a borrowed slice reference.
-    pub(crate) fn borrowed(slots: &'a [Value]) -> Self {
-        Self {
-            borrowed: Some(slots),
-            owned: None,
-        }
-    }
-
     /// Create aggregate slots from one owned slot list.
     pub(crate) fn owned(slots: Vec<Value>) -> Self {
         Self {
@@ -291,6 +284,16 @@ impl ThreadedFunctionTable {
 }
 
 impl<'a> InterpreterContext<'a> {
+    /// Borrow the local heap.
+    pub(crate) fn heap(&mut self) -> &mut destack_heap::Heap {
+        self.memory.heap()
+    }
+
+    /// Borrow the local heap immutably.
+    pub(crate) fn heap_ref(&self) -> &destack_heap::Heap {
+        self.memory.heap_ref()
+    }
+
     /// Initialize global variables from the MIR tree.
     pub(crate) fn initialize_globals(&mut self) -> RuntimeResult<()> {
         // seed empty global storage
@@ -347,8 +350,10 @@ impl<'a> InterpreterContext<'a> {
                 // validate the declared string layout
                 self.validate_string_initializer_type(ty)?;
 
-                self.isolate
-                    .try_intern_string_literal(self.heap, value)
+                let isolate = &mut *self.isolate;
+                let heap = self.memory.heap();
+                isolate
+                    .try_intern_string_literal(heap, value)
                     .map_err(|error| self.make_error(error))
             }
             mir::GlobalInitializer::Bytes(bytes) => {
@@ -357,8 +362,8 @@ impl<'a> InterpreterContext<'a> {
 
                 // allocate managed aggregate for bytes
                 let handle = self
-                    .heap
-                    .allocate_managed_values(values)
+                    .heap()
+                    .allocate_packed_values(values)
                     .map_err(|error| self.make_error(Error::from(error)))?;
 
                 Ok(Value::aggregate(handle))
@@ -372,8 +377,8 @@ impl<'a> InterpreterContext<'a> {
 
                 // allocate managed aggregate for elements
                 let handle = self
-                    .heap
-                    .allocate_managed_values(values)
+                    .heap()
+                    .allocate_packed_values(values)
                     .map_err(|error| self.make_error(Error::from(error)))?;
 
                 Ok(Value::aggregate(handle))
@@ -471,6 +476,16 @@ impl<'a> InterpreterContext<'a> {
                     )),
                     mir::ReferenceKind::Owned
                     | mir::ReferenceKind::Borrowed
+                    | mir::ReferenceKind::Raw
+                        if matches!(
+                            meta.address_space(),
+                            destack_heap::ReferenceAddressSpace::Shared
+                        ) =>
+                    {
+                        Ok(Value::shared_pointer_with_meta(SharedPointer::NULL, meta))
+                    }
+                    mir::ReferenceKind::Owned
+                    | mir::ReferenceKind::Borrowed
                     | mir::ReferenceKind::Raw => {
                         Ok(Value::raw_pointer_with_meta(RawPointer::NULL, meta))
                     }
@@ -488,8 +503,8 @@ impl<'a> InterpreterContext<'a> {
 
                 // allocate managed aggregate for tuple
                 let handle = self
-                    .heap
-                    .allocate_managed_values(values)
+                    .heap()
+                    .allocate_packed_values(values)
                     .map_err(|error| self.make_error(Error::from(error)))?;
 
                 Ok(Value::aggregate(handle))
@@ -505,8 +520,8 @@ impl<'a> InterpreterContext<'a> {
 
                 // allocate managed aggregate for array
                 let handle = self
-                    .heap
-                    .allocate_managed_values(values)
+                    .heap()
+                    .allocate_packed_values(values)
                     .map_err(|error| self.make_error(Error::from(error)))?;
 
                 Ok(Value::aggregate(handle))
@@ -520,7 +535,9 @@ impl<'a> InterpreterContext<'a> {
     /// Sweep raw string payloads for freed managed string headers.
     fn sweep_string_buffers(&mut self) {
         // delegate to the isolate string interner
-        self.isolate.sweep_string_buffers(self.heap);
+        let isolate = &mut *self.isolate;
+        let heap = self.memory.heap();
+        isolate.sweep_string_buffers(heap);
     }
 
     /// Resolve an external handler for an imported function id.
@@ -558,13 +575,17 @@ impl<'a> InterpreterContext<'a> {
 
     /// Allocate an aggregate on the heap and return it as a Value.
     pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
-        self.isolate.allocate_aggregate(self.heap, values)
+        let isolate = &mut *self.isolate;
+        let heap = self.memory.heap();
+        isolate.allocate_aggregate(heap, values)
     }
 
     /// Allocate a 2-element aggregate on the heap (avoids Vec allocation).
     #[inline]
     pub(crate) fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
-        self.isolate.allocate_pair(self.heap, first, second)
+        let isolate = &mut *self.isolate;
+        let heap = self.memory.heap();
+        isolate.allocate_pair(heap, first, second)
     }
 
     /// Get call stack info for error reporting.
@@ -620,7 +641,7 @@ impl<'a> InterpreterContext<'a> {
         self.isolate.collect_string_roots(&mut roots);
 
         // run collection
-        let stats = self.heap.collect_managed_handles(roots);
+        let stats = self.heap().collect_managed_handles(roots);
 
         // sweep raw payload buffers for freed strings
         self.sweep_string_buffers();

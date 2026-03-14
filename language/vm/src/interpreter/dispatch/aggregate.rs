@@ -64,11 +64,12 @@ pub(crate) fn handle_field_get_inline(
         return ControlFlow::Error(Error::NullPointerDereference);
     }
 
-    // fast path: directly access the managed slot
-    let value = unsafe {
-        let heap = state.heap_ref();
-        let slot_index = handle.slot_offset().wrapping_add(*index as usize);
-        *heap.managed_slot_unchecked(handle, slot_index)
+    // fast path: directly access the managed value
+    let heap = state.heap_ref();
+    let slot_index = handle.byte_offset() / Value::BYTE_LEN + *index as usize;
+    let value = match heap.packed_value_at(handle, slot_index) {
+        Some(value) => value,
+        None => return ControlFlow::Error(Error::InvalidManagedReference),
     };
 
     // store result
@@ -92,6 +93,8 @@ pub(crate) fn handle_field_store_inline(
         value,
         reference: _,
         field_count: _,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -117,11 +120,11 @@ pub(crate) fn handle_field_store_inline(
     // load value to store
     let val = state.get(*value);
 
-    // fast path: directly access the managed slot
-    unsafe {
-        let heap = state.heap();
-        let slot_index = handle.slot_offset().wrapping_add(*index as usize);
-        heap.set_managed_slot_unchecked(handle, slot_index, val);
+    // fast path: directly access the managed value
+    let heap = state.heap();
+    let slot_index = handle.byte_offset() / Value::BYTE_LEN + *index as usize;
+    if !heap.set_packed_value(handle, slot_index, val) {
+        return ControlFlow::Error(Error::InvalidManagedReference);
     }
 
     // continue to next instruction
@@ -141,6 +144,9 @@ pub(crate) fn handle_field_addr(
         index,
         reference,
         field_count,
+        managed_pointee: _,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -183,6 +189,9 @@ pub(crate) fn handle_field_addr_aggregate(
         index,
         reference,
         field_count,
+        managed_pointee,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -199,10 +208,15 @@ pub(crate) fn handle_field_addr_aggregate(
 
     // compute field address
     let handle = agg.as_managed_reference().unwrap();
-    let value = match instruction::field_addr_managed(state, handle, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+    let Some(managed_pointee) = *managed_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
     };
+    let value =
+        match instruction::field_addr_managed(state, handle, managed_pointee, *index, *field_count)
+        {
+            Ok(value) => value,
+            Err(error) => return ControlFlow::Error(error),
+        };
 
     // apply reference metadata
     let value = value.with_reference_meta(*reference);
@@ -232,6 +246,9 @@ pub(crate) fn handle_field_addr_managed(
         index,
         reference,
         field_count,
+        managed_pointee,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -247,10 +264,15 @@ pub(crate) fn handle_field_addr_managed(
 
     // compute field address
     let handle = agg.as_managed_reference().unwrap();
-    let value = match instruction::field_addr_managed(state, handle, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+    let Some(managed_pointee) = *managed_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
     };
+    let value =
+        match instruction::field_addr_managed(state, handle, managed_pointee, *index, *field_count)
+        {
+            Ok(value) => value,
+            Err(error) => return ControlFlow::Error(error),
+        };
 
     // apply reference metadata
     let value = value.with_reference_meta(*reference);
@@ -280,6 +302,8 @@ pub(crate) fn handle_field_addr_raw(
         index,
         reference,
         field_count,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -295,7 +319,11 @@ pub(crate) fn handle_field_addr_raw(
 
     // compute field address
     let pointer = agg.as_raw_pointer().unwrap();
-    let value = match instruction::field_addr_raw(state, pointer, *index, *field_count) {
+    let Some(raw_pointee) = *raw_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
+    let value = match instruction::field_addr_raw(state, pointer, raw_pointee, *index, *field_count)
+    {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -328,6 +356,8 @@ pub(crate) fn handle_field_addr_stack(
         index,
         reference,
         field_count,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -376,6 +406,8 @@ pub(crate) fn handle_field_addr_global(
         index,
         reference,
         field_count,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -423,6 +455,8 @@ pub(crate) fn handle_field_load(
         aggregate,
         index,
         field_count,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -438,7 +472,8 @@ pub(crate) fn handle_field_load(
     };
 
     // load value
-    let value = match instruction::load_from_pointer(state, pointer) {
+    let value = match instruction::load_from_pointer_with_raw_pointee(state, pointer, *raw_pointee)
+    {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -461,7 +496,10 @@ pub(crate) fn handle_field_load_aggregate(
         dest,
         aggregate,
         index,
-        field_count,
+        field_count: _,
+        managed_pointee: _,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -477,8 +515,7 @@ pub(crate) fn handle_field_load_aggregate(
     }
 
     // load field value
-    let handle = agg.as_managed_reference().unwrap();
-    let value = match instruction::load_field_managed(state, handle, *index, *field_count) {
+    let value = match instruction::get_field(state, agg, *index) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -502,6 +539,9 @@ pub(crate) fn handle_field_load_managed(
         aggregate,
         index,
         field_count,
+        managed_pointee,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -517,10 +557,15 @@ pub(crate) fn handle_field_load_managed(
 
     // load field value
     let handle = agg.as_managed_reference().unwrap();
-    let value = match instruction::load_field_managed(state, handle, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+    let Some(managed_pointee) = *managed_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
     };
+    let value =
+        match instruction::load_field_managed(state, handle, managed_pointee, *index, *field_count)
+        {
+            Ok(value) => value,
+            Err(error) => return ControlFlow::Error(error),
+        };
 
     // store result
     state.set(*dest, value);
@@ -541,6 +586,8 @@ pub(crate) fn handle_field_load_raw(
         aggregate,
         index,
         field_count,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -556,7 +603,11 @@ pub(crate) fn handle_field_load_raw(
 
     // load field value
     let pointer = agg.as_raw_pointer().unwrap();
-    let value = match instruction::load_field_raw(state, pointer, *index, *field_count) {
+    let Some(raw_pointee) = *raw_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
+    let value = match instruction::load_field_raw(state, pointer, raw_pointee, *index, *field_count)
+    {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -580,6 +631,8 @@ pub(crate) fn handle_field_load_stack(
         aggregate,
         index,
         field_count,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -619,6 +672,8 @@ pub(crate) fn handle_field_load_global(
         aggregate,
         index,
         field_count,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -693,6 +748,8 @@ pub(crate) fn handle_field_store(
         value,
         reference,
         field_count,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -716,7 +773,9 @@ pub(crate) fn handle_field_store(
     }
 
     // store value
-    if let Err(error) = instruction::store_to_pointer(state, pointer, val) {
+    if let Err(error) =
+        instruction::store_to_pointer_with_raw_pointee(state, pointer, *raw_pointee, val)
+    {
         return ControlFlow::Error(error);
     }
 
@@ -736,7 +795,10 @@ pub(crate) fn handle_field_store_aggregate(
         index,
         value,
         reference,
-        field_count,
+        field_count: _,
+        managed_pointee: _,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -753,14 +815,14 @@ pub(crate) fn handle_field_store_aggregate(
     let val = state.get(*value);
 
     // validate reference kind
-    let handle = agg.as_managed_reference().unwrap();
-    let pointer = Value::managed_reference_with_meta(handle, *reference);
+    let pointer =
+        Value::managed_reference_with_meta(agg.as_managed_reference().unwrap(), *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
     }
 
     // store value
-    if let Err(error) = instruction::store_field_managed(state, handle, *index, *field_count, val) {
+    if let Err(error) = instruction::set_field(state, agg, *index, val) {
         return ControlFlow::Error(error);
     }
 
@@ -781,6 +843,9 @@ pub(crate) fn handle_field_store_managed(
         value,
         reference,
         field_count,
+        managed_pointee,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -803,7 +868,12 @@ pub(crate) fn handle_field_store_managed(
     }
 
     // store value
-    if let Err(error) = instruction::store_field_managed(state, handle, *index, *field_count, val) {
+    let Some(managed_pointee) = *managed_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
+    if let Err(error) =
+        instruction::store_field_managed(state, handle, managed_pointee, *index, *field_count, val)
+    {
         return ControlFlow::Error(error);
     }
 
@@ -824,6 +894,8 @@ pub(crate) fn handle_field_store_raw(
         value,
         reference,
         field_count,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -846,7 +918,11 @@ pub(crate) fn handle_field_store_raw(
     }
 
     // store value
-    if let Err(error) = instruction::store_field_raw(state, raw_pointer, *index, *field_count, val)
+    let Some(raw_pointee) = *raw_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
+    if let Err(error) =
+        instruction::store_field_raw(state, raw_pointer, raw_pointee, *index, *field_count, val)
     {
         return ControlFlow::Error(error);
     }
@@ -868,6 +944,8 @@ pub(crate) fn handle_field_store_stack(
         value,
         reference,
         field_count,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -916,6 +994,8 @@ pub(crate) fn handle_field_store_global(
         value,
         reference,
         field_count,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -994,6 +1074,9 @@ pub(crate) fn handle_element_addr(
         index,
         reference,
         array_length,
+        managed_pointee: _,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1038,6 +1121,9 @@ pub(crate) fn handle_element_addr_aggregate(
         index,
         reference,
         array_length,
+        managed_pointee,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1056,7 +1142,16 @@ pub(crate) fn handle_element_addr_aggregate(
 
     // compute element address
     let handle = arr.as_managed_reference().unwrap();
-    let value = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
+    let Some(managed_pointee) = *managed_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
+    let value = match instruction::element_addr_managed(
+        state,
+        handle,
+        managed_pointee,
+        idx_val,
+        *array_length,
+    ) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1089,6 +1184,9 @@ pub(crate) fn handle_element_addr_managed(
         index,
         reference,
         array_length,
+        managed_pointee,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1106,7 +1204,16 @@ pub(crate) fn handle_element_addr_managed(
 
     // compute element address
     let handle = arr.as_managed_reference().unwrap();
-    let value = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
+    let Some(managed_pointee) = *managed_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
+    let value = match instruction::element_addr_managed(
+        state,
+        handle,
+        managed_pointee,
+        idx_val,
+        *array_length,
+    ) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1139,6 +1246,8 @@ pub(crate) fn handle_element_addr_raw(
         index,
         reference,
         array_length,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1156,10 +1265,14 @@ pub(crate) fn handle_element_addr_raw(
 
     // compute element address
     let pointer = arr.as_raw_pointer().unwrap();
-    let value = match instruction::element_addr_raw(state, pointer, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+    let Some(raw_pointee) = *raw_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
     };
+    let value =
+        match instruction::element_addr_raw(state, pointer, raw_pointee, idx_val, *array_length) {
+            Ok(value) => value,
+            Err(error) => return ControlFlow::Error(error),
+        };
 
     // apply reference metadata
     let value = value.with_reference_meta(*reference);
@@ -1189,6 +1302,8 @@ pub(crate) fn handle_element_addr_stack(
         index,
         reference,
         array_length,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1239,6 +1354,8 @@ pub(crate) fn handle_element_addr_global(
         index,
         reference,
         array_length,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1288,6 +1405,8 @@ pub(crate) fn handle_element_load(
         array,
         index,
         array_length,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1305,7 +1424,8 @@ pub(crate) fn handle_element_load(
     };
 
     // load value
-    let value = match instruction::load_from_pointer(state, pointer) {
+    let value = match instruction::load_from_pointer_with_raw_pointee(state, pointer, *raw_pointee)
+    {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1328,7 +1448,10 @@ pub(crate) fn handle_element_load_aggregate(
         dest,
         array,
         index,
-        array_length,
+        array_length: _,
+        managed_pointee: _,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1346,8 +1469,7 @@ pub(crate) fn handle_element_load_aggregate(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // load element value
-    let handle = arr.as_managed_reference().unwrap();
-    let value = match instruction::load_element_managed(state, handle, idx_val, *array_length) {
+    let value = match instruction::get_element(state, arr, idx_val) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1371,6 +1493,9 @@ pub(crate) fn handle_element_load_managed(
         array,
         index,
         array_length,
+        managed_pointee,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1388,7 +1513,16 @@ pub(crate) fn handle_element_load_managed(
 
     // load element value
     let handle = arr.as_managed_reference().unwrap();
-    let value = match instruction::load_element_managed(state, handle, idx_val, *array_length) {
+    let Some(managed_pointee) = *managed_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
+    let value = match instruction::load_element_managed(
+        state,
+        handle,
+        managed_pointee,
+        idx_val,
+        *array_length,
+    ) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1412,6 +1546,8 @@ pub(crate) fn handle_element_load_raw(
         array,
         index,
         array_length,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1429,10 +1565,14 @@ pub(crate) fn handle_element_load_raw(
 
     // load element value
     let pointer = arr.as_raw_pointer().unwrap();
-    let value = match instruction::load_element_raw(state, pointer, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
+    let Some(raw_pointee) = *raw_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
     };
+    let value =
+        match instruction::load_element_raw(state, pointer, raw_pointee, idx_val, *array_length) {
+            Ok(value) => value,
+            Err(error) => return ControlFlow::Error(error),
+        };
 
     // store result
     state.set(*dest, value);
@@ -1453,6 +1593,8 @@ pub(crate) fn handle_element_load_stack(
         array,
         index,
         array_length,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1494,6 +1636,8 @@ pub(crate) fn handle_element_load_global(
         array,
         index,
         array_length,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1572,6 +1716,8 @@ pub(crate) fn handle_element_store(
         value,
         reference,
         array_length,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1600,7 +1746,9 @@ pub(crate) fn handle_element_store(
     }
 
     // store value
-    if let Err(error) = instruction::store_to_pointer(state, pointer, val) {
+    if let Err(error) =
+        instruction::store_to_pointer_with_raw_pointee(state, pointer, *raw_pointee, val)
+    {
         return ControlFlow::Error(error);
     }
 
@@ -1620,7 +1768,10 @@ pub(crate) fn handle_element_store_aggregate(
         index,
         value,
         reference,
-        array_length,
+        array_length: _,
+        managed_pointee: _,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1639,8 +1790,8 @@ pub(crate) fn handle_element_store_aggregate(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // validate reference semantics
-    let handle = arr.as_managed_reference().unwrap();
-    let pointer = Value::managed_reference_with_meta(handle, *reference);
+    let pointer =
+        Value::managed_reference_with_meta(arr.as_managed_reference().unwrap(), *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
     }
@@ -1649,9 +1800,7 @@ pub(crate) fn handle_element_store_aggregate(
     }
 
     // store value
-    if let Err(error) =
-        instruction::store_element_managed(state, handle, idx_val, *array_length, val)
-    {
+    if let Err(error) = instruction::set_element(state, arr, idx_val, val) {
         return ControlFlow::Error(error);
     }
 
@@ -1673,6 +1822,9 @@ pub(crate) fn handle_element_store_managed(
         value,
         reference,
         array_length,
+        managed_pointee,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1700,9 +1852,17 @@ pub(crate) fn handle_element_store_managed(
     }
 
     // store value
-    if let Err(error) =
-        instruction::store_element_managed(state, handle, idx_val, *array_length, val)
-    {
+    let Some(managed_pointee) = *managed_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
+    if let Err(error) = instruction::store_element_managed(
+        state,
+        handle,
+        managed_pointee,
+        idx_val,
+        *array_length,
+        val,
+    ) {
         return ControlFlow::Error(error);
     }
 
@@ -1723,6 +1883,8 @@ pub(crate) fn handle_element_store_raw(
         value,
         reference,
         array_length,
+        raw_pointee,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1750,8 +1912,11 @@ pub(crate) fn handle_element_store_raw(
     }
 
     // store value
+    let Some(raw_pointee) = *raw_pointee else {
+        return ControlFlow::Error(Error::InvalidManagedReference);
+    };
     if let Err(error) =
-        instruction::store_element_raw(state, raw_pointer, idx_val, *array_length, val)
+        instruction::store_element_raw(state, raw_pointer, raw_pointee, idx_val, *array_length, val)
     {
         return ControlFlow::Error(error);
     }
@@ -1773,6 +1938,8 @@ pub(crate) fn handle_element_store_stack(
         value,
         reference,
         array_length,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()
@@ -1823,6 +1990,8 @@ pub(crate) fn handle_element_store_global(
         value,
         reference,
         array_length,
+        raw_pointee: _,
+        ..
     } = &block[pc].data
     else {
         unreachable!()

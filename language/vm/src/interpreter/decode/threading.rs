@@ -4,7 +4,9 @@ use std::collections::{HashMap, HashSet};
 use destack_mir as mir;
 
 use crate::ThreadedHandler;
-use destack_heap::{ManagedReference, RawPointer, ReferenceMeta, Value};
+use destack_heap::{
+    ManagedReference, RawPointer, ReferenceMap, ReferenceMeta, SharedPointer, Value,
+};
 
 use super::super::dispatch;
 use super::threaded::{
@@ -1077,6 +1079,11 @@ fn try_fuse_addr_access(
                             aggregate: *aggregate,
                             index: *index,
                             field_count,
+                            managed_pointee: managed_pointee_type_for_value_kind(
+                                value_kinds,
+                                *aggregate,
+                            ),
+                            raw_pointee: raw_pointee_type_for_value_kind(value_kinds, *aggregate),
                         },
                     },
                     2,
@@ -1095,6 +1102,11 @@ fn try_fuse_addr_access(
                             value: *value,
                             reference: reference_meta_for_value(value_kinds, *destination),
                             field_count,
+                            managed_pointee: managed_pointee_type_for_value_kind(
+                                value_kinds,
+                                *aggregate,
+                            ),
+                            raw_pointee: raw_pointee_type_for_value_kind(value_kinds, *aggregate),
                         },
                     },
                     2,
@@ -1130,6 +1142,11 @@ fn try_fuse_addr_access(
                             array: *array,
                             index: *index,
                             array_length,
+                            managed_pointee: managed_pointee_type_for_value_kind(
+                                value_kinds,
+                                *array,
+                            ),
+                            raw_pointee: raw_pointee_type_for_value_kind(value_kinds, *array),
                         },
                     },
                     2,
@@ -1143,6 +1160,11 @@ fn try_fuse_addr_access(
                             value: *value,
                             reference: reference_meta_for_value(value_kinds, *destination),
                             array_length,
+                            managed_pointee: managed_pointee_type_for_value_kind(
+                                value_kinds,
+                                *array,
+                            ),
+                            raw_pointee: raw_pointee_type_for_value_kind(value_kinds, *array),
                         },
                     },
                     2,
@@ -1514,6 +1536,13 @@ fn thread_instruction(
                     Some(mir::ReferenceKind::Managed) => {
                         Value::managed_reference_with_meta(ManagedReference::NULL, reference)
                     }
+                    _ if matches!(
+                        reference.address_space(),
+                        destack_heap::ReferenceAddressSpace::Shared
+                    ) =>
+                    {
+                        Value::shared_pointer_with_meta(SharedPointer::NULL, reference)
+                    }
                     _ => Value::raw_pointer_with_meta(RawPointer::NULL, reference),
                 };
                 ConstValue::Value(value)
@@ -1822,6 +1851,8 @@ fn thread_instruction(
             data: ThreadedInstructionData::Load {
                 dest: *destination,
                 pointer: *pointer,
+                managed_pointee: managed_pointee_type_for_value(tree, value_types, *pointer),
+                raw_pointee: raw_pointee_type_for_value(tree, value_types, *pointer),
             },
         },
 
@@ -1831,6 +1862,8 @@ fn thread_instruction(
                 pointer: *pointer,
                 value: *value,
                 reference: reference_meta_for_value(value_kinds, *pointer),
+                managed_pointee: managed_pointee_type_for_value(tree, value_types, *pointer),
+                raw_pointee: raw_pointee_type_for_value(tree, value_types, *pointer),
             },
         },
 
@@ -1887,6 +1920,8 @@ fn thread_instruction(
                     .get(*aggregate)
                     .and_then(|kind| field_count_from_kind(tree, kind))
                     .unwrap_or(UNKNOWN_FIELD_COUNT),
+                managed_pointee: managed_pointee_type_for_value(tree, value_types, *aggregate),
+                raw_pointee: raw_pointee_type_for_value(tree, value_types, *aggregate),
             },
         },
 
@@ -1934,6 +1969,8 @@ fn thread_instruction(
                     .get(*array)
                     .and_then(|kind| array_length_from_kind(tree, kind))
                     .unwrap_or(UNKNOWN_ARRAY_LENGTH),
+                managed_pointee: managed_pointee_type_for_value(tree, value_types, *array),
+                raw_pointee: raw_pointee_type_for_value(tree, value_types, *array),
             },
         },
 
@@ -2554,12 +2591,17 @@ fn thread_instruction(
             data: ThreadedInstructionData::ManagedAlloc {
                 dest: *destination,
                 reference: reference_meta_for_value(value_kinds, *destination),
-                slot_count: slot_count_from_type(tree, *layout).unwrap_or(UNKNOWN_SLOT_COUNT),
+                layout: *layout,
+                layout_id: tree.type_layout_id(*layout),
+                byte_len: managed_byte_len_from_type(tree, *layout).unwrap_or(0),
+                trace: managed_reference_map_from_type(tree, *layout)
+                    .unwrap_or_else(ReferenceMap::empty),
             },
         },
 
         mir::Instruction::ManagedAllocArray {
             destination,
+            element,
             length,
             ..
         } => ThreadedInstruction {
@@ -2568,6 +2610,7 @@ fn thread_instruction(
                 dest: *destination,
                 length: *length,
                 reference: reference_meta_for_value(value_kinds, *destination),
+                element_type: *element,
             },
         },
 
@@ -2580,7 +2623,7 @@ fn thread_instruction(
             data: ThreadedInstructionData::RawAlloc {
                 dest: *destination,
                 reference: reference_meta_for_value(value_kinds, *destination),
-                slot_count: slot_count_from_type(tree, *layout).unwrap_or(UNKNOWN_SLOT_COUNT),
+                byte_len: raw_byte_len_from_type(tree, *layout).unwrap_or(0),
             },
         },
 
@@ -2627,6 +2670,7 @@ fn thread_instruction(
             data: ThreadedInstructionData::AtomicLoad {
                 dest: *destination,
                 pointer: *pointer,
+                raw_pointee: raw_pointee_type_for_value(tree, value_types, *pointer),
             },
         },
 
@@ -2635,6 +2679,7 @@ fn thread_instruction(
             data: ThreadedInstructionData::AtomicStore {
                 pointer: *pointer,
                 value: *value,
+                raw_pointee: raw_pointee_type_for_value(tree, value_types, *pointer),
             },
         },
 
@@ -2651,6 +2696,7 @@ fn thread_instruction(
                 pointer: *pointer,
                 expected: *expected,
                 new_value: *new_value,
+                raw_pointee: raw_pointee_type_for_value(tree, value_types, *pointer),
             },
         },
 
@@ -2667,6 +2713,7 @@ fn thread_instruction(
                 operator: *operator,
                 pointer: *pointer,
                 value: *value,
+                raw_pointee: raw_pointee_type_for_value(tree, value_types, *pointer),
             },
         },
 
@@ -3225,6 +3272,308 @@ fn slot_count_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -
         | mir::Type::Vector { .. }
         | mir::Type::Tensor { .. }
         | mir::Type::TensorReference { .. } => Some(1),
+    }
+}
+
+/// Resolve one raw pointee type from a pointer value when available.
+fn raw_pointee_type_for_value_kind(
+    value_kinds: &ValueKinds,
+    value: mir::Value,
+) -> Option<mir::LocalNodeId<mir::Type>> {
+    match value_kinds.get(value) {
+        Some(ValueKind::Pointer {
+            pointee,
+            storage: PointerStorage::Raw,
+            ..
+        }) => Some(pointee),
+        _ => None,
+    }
+}
+
+fn managed_pointee_type_for_value_kind(
+    value_kinds: &ValueKinds,
+    value: mir::Value,
+) -> Option<mir::LocalNodeId<mir::Type>> {
+    match value_kinds.get(value) {
+        Some(ValueKind::Pointer {
+            pointee,
+            storage: PointerStorage::Managed,
+            ..
+        }) => Some(pointee),
+        _ => None,
+    }
+}
+
+fn managed_pointee_type_for_value(
+    tree: &mir::NodeTree,
+    value_types: &[mir::LocalNodeId<mir::Type>],
+    value: mir::Value,
+) -> Option<mir::LocalNodeId<mir::Type>> {
+    let ty = value_type_for_value(value, value_types);
+
+    match tree.get(ty) {
+        mir::Type::Reference {
+            kind: mir::ReferenceKind::Managed,
+            pointee,
+            ..
+        } => Some(*pointee),
+        mir::Type::TensorReference {
+            kind: mir::ReferenceKind::Managed,
+            element,
+            ..
+        } => Some(*element),
+        mir::Type::Newtype { inner, .. } => match tree.get(*inner) {
+            mir::Type::Reference {
+                kind: mir::ReferenceKind::Managed,
+                pointee,
+                ..
+            } => Some(*pointee),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn raw_pointee_type_for_value(
+    tree: &mir::NodeTree,
+    value_types: &[mir::LocalNodeId<mir::Type>],
+    value: mir::Value,
+) -> Option<mir::LocalNodeId<mir::Type>> {
+    let ty = value_type_for_value(value, value_types);
+
+    match tree.get(ty) {
+        mir::Type::Reference {
+            kind,
+            address_space,
+            pointee,
+            ..
+        } if matches!(
+            pointer_storage_from_reference(*address_space, *kind),
+            PointerStorage::Raw
+        ) =>
+        {
+            Some(*pointee)
+        }
+        mir::Type::TensorReference {
+            kind,
+            address_space,
+            element,
+            ..
+        } if matches!(
+            pointer_storage_from_reference(*address_space, *kind),
+            PointerStorage::Raw
+        ) =>
+        {
+            Some(*element)
+        }
+        mir::Type::Newtype { inner, .. } => match tree.get(*inner) {
+            mir::Type::Reference {
+                kind,
+                address_space,
+                pointee,
+                ..
+            } if matches!(
+                pointer_storage_from_reference(*address_space, *kind),
+                PointerStorage::Raw
+            ) =>
+            {
+                Some(*pointee)
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn managed_byte_len_from_type(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Option<u32> {
+    match tree.get(ty) {
+        mir::Type::Void => Some(0),
+        mir::Type::Boolean => Some(1),
+        mir::Type::Int { width, .. } => Some((*width as u32).div_ceil(8)),
+        mir::Type::Isize | mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
+            Some(tree.pointer_bytes() as u32)
+        }
+        mir::Type::Reference {
+            kind: mir::ReferenceKind::Managed,
+            ..
+        }
+        | mir::Type::TensorReference {
+            kind: mir::ReferenceKind::Managed,
+            ..
+        } => Some(tree.data_layout.managed_reference_layout.bytes as u32),
+        mir::Type::Reference { .. }
+        | mir::Type::FunctionPointer { .. }
+        | mir::Type::TensorReference { .. } => Some(tree.pointer_bytes() as u32),
+        mir::Type::Float { width } => Some((*width as u32).div_ceil(8)),
+        mir::Type::Newtype { inner, .. } => managed_byte_len_from_type(tree, *inner),
+        mir::Type::Array { .. }
+        | mir::Type::Tuple { .. }
+        | mir::Type::Struct { .. }
+        | mir::Type::FunctionValue { .. }
+        | mir::Type::Vector { .. }
+        | mir::Type::Tensor { .. } => tree.type_layout(ty).map(|layout| layout.size),
+    }
+}
+
+fn managed_reference_map_from_type(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Option<ReferenceMap> {
+    match tree.get(ty) {
+        mir::Type::Void
+        | mir::Type::Boolean
+        | mir::Type::Int { .. }
+        | mir::Type::Isize
+        | mir::Type::Usize
+        | mir::Type::Float { .. }
+        | mir::Type::TypeDescriptor
+        | mir::Type::TypeId
+        | mir::Type::FunctionPointer { .. } => Some(ReferenceMap::empty()),
+        mir::Type::Reference {
+            kind: mir::ReferenceKind::Managed,
+            ..
+        }
+        | mir::Type::TensorReference {
+            kind: mir::ReferenceKind::Managed,
+            ..
+        } => Some(ReferenceMap::ReferenceOffsets { offsets: vec![0] }),
+        mir::Type::Reference { .. } | mir::Type::TensorReference { .. } => {
+            Some(ReferenceMap::empty())
+        }
+        mir::Type::Newtype { inner, .. } => managed_reference_map_from_type(tree, *inner),
+        mir::Type::Struct { .. }
+        | mir::Type::Tuple { .. }
+        | mir::Type::FunctionValue { .. }
+        | mir::Type::Vector { .. }
+        | mir::Type::Tensor { .. } => {
+            let layout = tree.type_layout(ty)?;
+            let mut offsets = Vec::new();
+
+            for field in &layout.fields {
+                append_managed_reference_offsets(tree, field.ty, field.offset, &mut offsets)?;
+            }
+
+            if offsets.is_empty() {
+                Some(ReferenceMap::empty())
+            } else {
+                Some(ReferenceMap::ReferenceOffsets { offsets })
+            }
+        }
+        mir::Type::Array {
+            element, length, ..
+        } => {
+            let layout = tree.type_layout(ty)?;
+            let mir::LayoutType::Array { element_stride, .. } = &layout.layout_type else {
+                return None;
+            };
+            let mut offsets = Vec::new();
+            append_managed_reference_offsets(tree, *element, 0, &mut offsets)?;
+
+            if offsets.is_empty() {
+                Some(ReferenceMap::empty())
+            } else {
+                Some(ReferenceMap::RepeatedReferenceOffsets {
+                    count: *length as u32,
+                    element_size: *element_stride,
+                    offsets,
+                })
+            }
+        }
+    }
+}
+
+fn append_managed_reference_offsets(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+    base_offset: u32,
+    offsets: &mut Vec<u32>,
+) -> Option<()> {
+    match tree.get(ty) {
+        mir::Type::Void
+        | mir::Type::Boolean
+        | mir::Type::Int { .. }
+        | mir::Type::Isize
+        | mir::Type::Usize
+        | mir::Type::Float { .. }
+        | mir::Type::TypeDescriptor
+        | mir::Type::TypeId
+        | mir::Type::FunctionPointer { .. }
+        | mir::Type::Reference { .. }
+        | mir::Type::TensorReference { .. } => {
+            if matches!(
+                tree.get(ty),
+                mir::Type::Reference {
+                    kind: mir::ReferenceKind::Managed,
+                    ..
+                } | mir::Type::TensorReference {
+                    kind: mir::ReferenceKind::Managed,
+                    ..
+                }
+            ) {
+                offsets.push(base_offset);
+            }
+        }
+        mir::Type::Newtype { inner, .. } => {
+            append_managed_reference_offsets(tree, *inner, base_offset, offsets)?;
+        }
+        mir::Type::Struct { .. }
+        | mir::Type::Tuple { .. }
+        | mir::Type::FunctionValue { .. }
+        | mir::Type::Vector { .. }
+        | mir::Type::Tensor { .. } => {
+            let layout = tree.type_layout(ty)?;
+            for field in &layout.fields {
+                append_managed_reference_offsets(
+                    tree,
+                    field.ty,
+                    base_offset.saturating_add(field.offset),
+                    offsets,
+                )?;
+            }
+        }
+        mir::Type::Array {
+            element, length, ..
+        } => {
+            let layout = tree.type_layout(ty)?;
+            let mir::LayoutType::Array { element_stride, .. } = &layout.layout_type else {
+                return None;
+            };
+
+            for index in 0..*length as u32 {
+                let element_base =
+                    base_offset.saturating_add(index.saturating_mul(*element_stride));
+                append_managed_reference_offsets(tree, *element, element_base, offsets)?;
+            }
+        }
+    }
+
+    Some(())
+}
+
+/// Resolve the byte size for one raw allocation type.
+fn raw_byte_len_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Option<u32> {
+    match tree.get(ty) {
+        mir::Type::Void => Some(0),
+        mir::Type::Boolean => Some(1),
+        mir::Type::Int { width, .. } => Some((*width as u32).div_ceil(8)),
+        mir::Type::Isize
+        | mir::Type::Usize
+        | mir::Type::TypeDescriptor
+        | mir::Type::TypeId
+        | mir::Type::Reference { .. }
+        | mir::Type::FunctionPointer { .. }
+        | mir::Type::TensorReference { .. } => Some(tree.pointer_bytes() as u32),
+        mir::Type::Float { width } => Some((*width as u32).div_ceil(8)),
+        mir::Type::Newtype { inner, .. } => raw_byte_len_from_type(tree, *inner),
+        mir::Type::Array { .. }
+        | mir::Type::Tuple { .. }
+        | mir::Type::Struct { .. }
+        | mir::Type::FunctionValue { .. }
+        | mir::Type::Vector { .. }
+        | mir::Type::Tensor { .. } => tree.type_layout(ty).map(|layout| layout.size),
     }
 }
 

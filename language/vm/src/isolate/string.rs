@@ -273,11 +273,13 @@ impl StringInterner {
             return Err(Error::NullPointerDereference);
         }
 
-        // load the string header slots from the heap
-        let length_value = heap
-            .managed_slot(handle, StringLayout::LENGTH_BYTES)
-            .copied()
+        // load the string header bytes from the heap
+        let header = heap
+            .managed_bytes(handle)
             .ok_or(Error::InvalidManagedReference)?;
+        let length_value =
+            StringLayout::read_field(header.as_ref(), StringLayout::LENGTH_BYTES_FIELD as u32)
+                .ok_or(Error::InvalidManagedReference)?;
         let length = length_value.as_uint().ok_or_else(|| Error::TypeMismatch {
             expected: "u32".to_string(),
             actual: format!("{length_value:?}"),
@@ -287,9 +289,7 @@ impl StringInterner {
         }
 
         // load the raw payload buffer
-        let data_value = heap
-            .managed_slot(handle, StringLayout::DATA)
-            .copied()
+        let data_value = StringLayout::read_field(header.as_ref(), StringLayout::DATA_FIELD as u32)
             .ok_or(Error::InvalidManagedReference)?;
         let data_ptr = data_value
             .as_raw_pointer()
@@ -365,7 +365,7 @@ impl StringInterner {
         heap.allocate_raw_bytes(bytes).map_err(Error::from)
     }
 
-    /// Allocate a managed string header cell.
+    /// Allocate a managed string header allocation.
     fn allocate_string_cell(
         heap: &mut Heap,
         length_utf16: u32,
@@ -375,17 +375,24 @@ impl StringInterner {
         flags: u32,
         data: RawPointer,
     ) -> Result<ManagedReference, Error> {
-        // assemble header slots for the string layout
-        let mut slots = vec![Value::VOID; StringLayout::SLOT_COUNT];
-        slots[StringLayout::LENGTH_UTF16] = Value::uint(length_utf16 as u64, 32);
-        slots[StringLayout::LENGTH_BYTES] = Value::uint(length_bytes as u64, 32);
-        slots[StringLayout::HASH] = Value::uint(hash, 64);
-        slots[StringLayout::CAPACITY] = Value::uint(capacity as u64, 32);
-        slots[StringLayout::FLAGS] = Value::uint(flags as u64, 32);
-        slots[StringLayout::DATA] = Value::raw_pointer(data);
+        // assemble fixed string header bytes
+        let mut bytes = [0u8; StringLayout::BYTE_LEN];
+        bytes[StringLayout::LENGTH_UTF16_OFFSET..StringLayout::LENGTH_UTF16_OFFSET + 4]
+            .copy_from_slice(&length_utf16.to_le_bytes());
+        bytes[StringLayout::LENGTH_BYTES_OFFSET..StringLayout::LENGTH_BYTES_OFFSET + 4]
+            .copy_from_slice(&length_bytes.to_le_bytes());
+        bytes[StringLayout::HASH_OFFSET..StringLayout::HASH_OFFSET + 8]
+            .copy_from_slice(&hash.to_le_bytes());
+        bytes[StringLayout::CAPACITY_OFFSET..StringLayout::CAPACITY_OFFSET + 4]
+            .copy_from_slice(&capacity.to_le_bytes());
+        bytes[StringLayout::FLAGS_OFFSET..StringLayout::FLAGS_OFFSET + 4]
+            .copy_from_slice(&flags.to_le_bytes());
+        bytes[StringLayout::DATA_OFFSET..StringLayout::DATA_OFFSET + 8]
+            .copy_from_slice(&data.bits().to_le_bytes());
 
-        // allocate managed heap cell for the header
-        heap.allocate_managed_values(slots).map_err(Error::from)
+        // allocate managed heap storage for the header
+        heap.allocate_managed_bytes(&bytes, destack_heap::ReferenceMap::empty(), None)
+            .map_err(Error::from)
     }
 }
 

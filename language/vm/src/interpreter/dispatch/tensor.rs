@@ -2,6 +2,22 @@ use super::*;
 
 // TODO #Performance: improve VM tensor performance
 
+/// Resolve the element type for one tensor or tensor reference type.
+fn tensor_element_type(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Result<mir::LocalNodeId<mir::Type>, Error> {
+    match tree.get(ty) {
+        mir::Type::Tensor { element, .. } | mir::Type::TensorReference { element, .. } => {
+            Ok(*element)
+        }
+        _ => Err(Error::TypeMismatch {
+            expected: "tensor type".to_string(),
+            actual: format!("{ty:?}"),
+        }),
+    }
+}
+
 /// Handle tensor.load.
 pub(crate) fn handle_tensor_load(
     state: &mut ThreadedState<'_, '_>,
@@ -22,6 +38,11 @@ pub(crate) fn handle_tensor_load(
     // resolve layout info
     let layout = match tensor_layout_info(&state.interpreter.isolate.image.tree, *view_type) {
         Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let element_type = match tensor_element_type(&state.interpreter.isolate.image.tree, *view_type)
+    {
+        Ok(element_type) => element_type,
         Err(error) => return ControlFlow::Error(error),
     };
 
@@ -48,10 +69,11 @@ pub(crate) fn handle_tensor_load(
     };
 
     // load element
-    let value = match instruction::load_from_pointer(state, pointer) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
+    let value =
+        match instruction::load_from_pointer_with_raw_pointee(state, pointer, Some(element_type)) {
+            Ok(value) => value,
+            Err(error) => return ControlFlow::Error(error),
+        };
     state.set(*dest, value);
 
     // continue to next instruction
@@ -80,6 +102,11 @@ pub(crate) fn handle_tensor_store(
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
+    let element_type = match tensor_element_type(&state.interpreter.isolate.image.tree, *view_type)
+    {
+        Ok(element_type) => element_type,
+        Err(error) => return ControlFlow::Error(error),
+    };
 
     // resolve indices
     let index_values = state.argument_slice(*indices);
@@ -105,7 +132,9 @@ pub(crate) fn handle_tensor_store(
 
     // store element
     let value = state.get(*value);
-    if let Err(error) = instruction::store_to_pointer(state, pointer, value) {
+    if let Err(error) =
+        instruction::store_to_pointer_with_raw_pointee(state, pointer, Some(element_type), value)
+    {
         return ControlFlow::Error(error);
     }
 
@@ -134,6 +163,11 @@ pub(crate) fn handle_tensor_fill(
         Ok(layout) => layout,
         Err(error) => return ControlFlow::Error(error),
     };
+    let element_type = match tensor_element_type(&state.interpreter.isolate.image.tree, *view_type)
+    {
+        Ok(element_type) => element_type,
+        Err(error) => return ControlFlow::Error(error),
+    };
     let fill_value = state.get(*value);
     let base_pointer = state.get(*view);
 
@@ -143,7 +177,12 @@ pub(crate) fn handle_tensor_fill(
             Ok(pointer) => pointer,
             Err(error) => return ControlFlow::Error(error),
         };
-        if let Err(error) = instruction::store_to_pointer(state, pointer, fill_value) {
+        if let Err(error) = instruction::store_to_pointer_with_raw_pointee(
+            state,
+            pointer,
+            Some(element_type),
+            fill_value,
+        ) {
             return ControlFlow::Error(error);
         }
     }
@@ -180,6 +219,16 @@ pub(crate) fn handle_tensor_copy(
             Ok(layout) => layout,
             Err(error) => return ControlFlow::Error(error),
         };
+    let target_element_type =
+        match tensor_element_type(&state.interpreter.isolate.image.tree, *target_type) {
+            Ok(element_type) => element_type,
+            Err(error) => return ControlFlow::Error(error),
+        };
+    let source_element_type =
+        match tensor_element_type(&state.interpreter.isolate.image.tree, *source_type) {
+            Ok(element_type) => element_type,
+            Err(error) => return ControlFlow::Error(error),
+        };
 
     // validate element counts
     if target_layout.storage_len != source_layout.storage_len {
@@ -204,11 +253,20 @@ pub(crate) fn handle_tensor_copy(
             Ok(pointer) => pointer,
             Err(error) => return ControlFlow::Error(error),
         };
-        let value = match instruction::load_from_pointer(state, src) {
+        let value = match instruction::load_from_pointer_with_raw_pointee(
+            state,
+            src,
+            Some(source_element_type),
+        ) {
             Ok(value) => value,
             Err(error) => return ControlFlow::Error(error),
         };
-        if let Err(error) = instruction::store_to_pointer(state, dst, value) {
+        if let Err(error) = instruction::store_to_pointer_with_raw_pointee(
+            state,
+            dst,
+            Some(target_element_type),
+            value,
+        ) {
             return ControlFlow::Error(error);
         }
     }

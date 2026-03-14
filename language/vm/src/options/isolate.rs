@@ -36,8 +36,8 @@ impl IsolateOptions {
         options.execution.mode = ExecutionMode::Debug;
         options.policy.borrow_mode = BorrowMode::Strict;
         options.limits.max_stack_depth = 100;
-        options.limits.max_heap_cells = 1000;
-        options.limits.max_raw_cells = 1000;
+        options.limits.max_managed_allocations = 1000;
+        options.limits.max_raw_allocations = 1000;
         options.limits.max_instructions = Some(100_000);
         options.checks.enforce_reference_kinds = true;
         options.checks.enforce_reference_mutability = true;
