@@ -62,7 +62,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
     /// Read one committed analyzed DIR snapshot for a module when available.
     fn artifact_dir_data_if_present(&self, module_id: ModuleId) -> Option<Arc<ModuleDirData>> {
-        self.compiler.program.artifacts.dir_snapshot(module_id, self.profile)
+        self.compiler
+            .program
+            .artifacts
+            .dir_snapshot(module_id, self.profile)
     }
 
     /// Return the builtin String type for lowering.
