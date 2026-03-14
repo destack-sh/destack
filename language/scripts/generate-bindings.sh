@@ -45,9 +45,9 @@ if [ "$refresh_stubs" = "true" ]; then
 fi
 
 if [ "${#runtime_args[@]}" -gt 0 ]; then
-	cargo run -p destack_runtime --features generate_bindings --bin generate-bindings --release -- "${runtime_args[@]}"
+	cargo run -p destack_runtime --features generator --bin generate-bindings --release -- "${runtime_args[@]}"
 else
-	cargo run -p destack_runtime --features generate_bindings --bin generate-bindings --release
+	cargo run -p destack_runtime --features generator --bin generate-bindings --release
 fi
 
 cargo fmt -p destack_runtime
