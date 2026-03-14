@@ -432,7 +432,9 @@ impl Compiler {
             kind,
             loader_override,
         )?;
-        dir.imported_modules.write().insert(cache_key, resolved.cache);
+        dir.imported_modules
+            .write()
+            .insert(cache_key, resolved.cache);
 
         Ok(resolved.target)
     }
@@ -504,12 +506,8 @@ impl Compiler {
         // builtin libs prefer ambient module bindings before package resolution
         if module.is_builtin()
             && loader_override.is_none()
-            && let Some((target, cache)) = self.resolve_binding_import_target(
-                module,
-                profile,
-                resolve_target,
-                kind,
-            )?
+            && let Some((target, cache)) =
+                self.resolve_binding_import_target(module, profile, resolve_target, kind)?
         {
             return Ok(ImportResolutionResult { target, cache });
         }
@@ -529,8 +527,7 @@ impl Compiler {
             edge_kind,
             loader_override,
             kind,
-        )
-        {
+        ) {
             self.require_import_target_modules(resolved_targets)?;
 
             return Ok(ImportResolutionResult {
@@ -541,12 +538,8 @@ impl Compiler {
 
         // user modules fall back to ambient module bindings after package resolution
         if loader_override.is_none()
-            && let Some((target, cache)) = self.resolve_binding_import_target(
-                module,
-                profile,
-                resolve_target,
-                kind,
-            )?
+            && let Some((target, cache)) =
+                self.resolve_binding_import_target(module, profile, resolve_target, kind)?
         {
             return Ok(ImportResolutionResult { target, cache });
         }
