@@ -3,10 +3,11 @@ use std::sync::{Arc, OnceLock, Weak};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
-use super::error::missing_host_queue;
-use super::observer::RuntimeIngressObserverRegistry;
-use super::{HostQueue, Platform};
 use crate::diagnostic::RuntimeResult;
+use crate::host::core::Platform;
+use crate::host::core::error::missing_host_queue;
+use crate::host::core::observer::{HostEventObserverRegistry, RuntimeIngressObserverRegistry};
+use crate::host::core::queue::HostQueue;
 use crate::runtime::world::RuntimeId;
 
 /// Cleanup hook run when one runtime host queue registration is removed.
@@ -110,6 +111,9 @@ impl HostQueueRegistry {
         RuntimeIngressObserverRegistry::shared()
             .write()
             .unregister_runtime(runtime_id.0);
+        HostEventObserverRegistry::shared()
+            .write()
+            .unregister_runtime(runtime_id.0);
 
         if let Some(cleanup) = cleanup {
             cleanup(runtime_id.0);
@@ -122,9 +126,9 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU64, Ordering};
 
-    use super::HostQueueRegistry;
     use crate::host::Platform;
     use crate::host::core::HostQueue;
+    use crate::host::core::registry::HostQueueRegistry;
     use crate::runtime::world::RuntimeId;
 
     /// Shared runtime id captured by one cleanup hook invocation in tests.
@@ -137,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_register_host_queue_resolves_by_runtime_id() {
-        let queue = Arc::new(HostQueue::new());
+        let queue = Arc::new(HostQueue::new(RuntimeId(1)));
         let mut registry = HostQueueRegistry::shared().write();
         let registration = registry.register(
             Platform::Android,
@@ -158,7 +162,7 @@ mod tests {
 
     #[test]
     fn test_drop_registration_unregisters_runtime_id() {
-        let queue = Arc::new(HostQueue::new());
+        let queue = Arc::new(HostQueue::new(RuntimeId(2)));
         let registration = HostQueueRegistry::shared().write().register(
             Platform::MacOS,
             RuntimeId(2),
@@ -177,7 +181,7 @@ mod tests {
 
     #[test]
     fn test_host_queue_for_runtime_rejects_platform_mismatch() {
-        let queue = Arc::new(HostQueue::new());
+        let queue = Arc::new(HostQueue::new(RuntimeId(3)));
         let registration = HostQueueRegistry::shared().write().register(
             Platform::Windows,
             RuntimeId(3),
@@ -196,7 +200,7 @@ mod tests {
     fn test_drop_registration_runs_cleanup_hook() {
         TEST_CLEANUP_RUNTIME_ID.store(0, Ordering::Relaxed);
 
-        let queue = Arc::new(HostQueue::new());
+        let queue = Arc::new(HostQueue::new(RuntimeId(4)));
         let registration = HostQueueRegistry::shared().write().register(
             Platform::Android,
             RuntimeId(4),

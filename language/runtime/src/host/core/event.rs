@@ -57,6 +57,8 @@ pub enum HostPowerMode {
 pub enum HostEventKind {
     /// Lifecycle transitions.
     Lifecycle,
+    /// Intent activation or share ingress events.
+    Intent,
     /// Permission result events.
     Permission,
     /// Interruption events.
@@ -76,6 +78,8 @@ pub enum HostEventKind {
 pub enum HostEvent {
     /// Host lifecycle transition event.
     Lifecycle(HostLifecycleEvent),
+    /// Host intent activation or share ingress event.
+    Intent(HostIntentEvent),
     /// Host permission flow result event.
     Permission(HostPermissionEvent),
     /// Host interruption event.
@@ -95,6 +99,7 @@ impl HostEvent {
     pub const fn kind(&self) -> HostEventKind {
         match self {
             HostEvent::Lifecycle(_) => HostEventKind::Lifecycle,
+            HostEvent::Intent(_) => HostEventKind::Intent,
             HostEvent::Permission(_) => HostEventKind::Permission,
             HostEvent::Interruption(_) => HostEventKind::Interruption,
             HostEvent::MemoryPressure(_) => HostEventKind::MemoryPressure,
@@ -110,6 +115,59 @@ impl HostEvent {
 pub struct HostLifecycleEvent {
     /// Next lifecycle state after this transition.
     pub state: HostLifecycleState,
+}
+
+/// Host intent ingress payload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostIntentEvent {
+    /// Source package, bundle, or process identifier when available.
+    pub source: Option<String>,
+    /// Intent payload delivered by the host.
+    pub payload: HostIntentPayload,
+}
+
+/// Host intent ingress variants.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HostIntentPayload {
+    /// Host requested that one URL be opened.
+    OpenUrl {
+        /// URL payload from the host.
+        url: String,
+    },
+    /// Host requested that one file be opened.
+    OpenFile {
+        /// Path payload from the host.
+        path: String,
+        /// MIME type when provided by the host.
+        mime_type: Option<String>,
+    },
+    /// Host delivered one shared text payload.
+    ShareText {
+        /// Shared text payload from the host.
+        text: String,
+        /// MIME type when provided by the host.
+        mime_type: Option<String>,
+    },
+    /// Host delivered one shared file list.
+    ShareFiles {
+        /// Shared file path payloads from the host.
+        paths: Vec<String>,
+        /// MIME type when provided by the host.
+        mime_type: Option<String>,
+    },
+    /// Host delivered one custom action payload.
+    CustomAction {
+        /// Action identifier from the host.
+        action: String,
+        /// URL payload when provided by the host.
+        url: Option<String>,
+        /// File path payloads when provided by the host.
+        paths: Vec<String>,
+        /// Shared text payload when provided by the host.
+        text: Option<String>,
+        /// MIME type when provided by the host.
+        mime_type: Option<String>,
+    },
 }
 
 /// Host permission flow payload.
