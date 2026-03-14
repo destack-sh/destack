@@ -1,13 +1,15 @@
-use super::{
-    IosApplicationLifecycle, ios_notify_application_lifecycle, ios_notify_interruption_changed,
+use crate::diagnostic::{RuntimeResult, RuntimeStatus};
+use crate::host::core::error::invalid_argument_value;
+use crate::host::ios::{
+    IosApplicationLifecycle, ios_notify_application_lifecycle, ios_notify_intent_custom_action,
+    ios_notify_intent_open_file, ios_notify_intent_open_url, ios_notify_intent_share_files,
+    ios_notify_intent_share_text, ios_notify_interruption_changed,
     ios_notify_memory_pressure_changed, ios_notify_permission_result,
     ios_notify_power_mode_changed, ios_notify_thermal_state_changed, ios_notify_wake,
     ios_notify_wall_clock_changed,
 };
-use crate::diagnostic::{RuntimeResult, RuntimeStatus};
-use crate::host::core::error::invalid_argument_value;
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
-use crate::runtime::NativeStringRef;
+use crate::runtime::{NativeStringRef, NativeStringSlice};
 
 /// iOS lifecycle code for `applicationDidFinishLaunching`.
 pub(super) const IOS_LIFECYCLE_DID_FINISH_LAUNCHING: u32 = 0;
@@ -59,6 +61,137 @@ pub unsafe extern "C" fn destack_host_ios_notify_permission_result(
 ) -> RuntimeStatus {
     let result = decode_permission_name(permission).and_then(|permission| {
         ios_notify_permission_result(runtime_id, permission.as_str(), granted)
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_ios_notify_intent_open_url(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    url: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string(url, "url")
+            .and_then(|url| ios_notify_intent_open_url(runtime_id, source.as_deref(), &url))
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_ios_notify_intent_open_file(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    path: NativeStringRef,
+    has_mime_type: bool,
+    mime_type: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string(path, "path").and_then(|path| {
+            decode_optional_string(has_mime_type, mime_type, "mime_type").and_then(|mime_type| {
+                ios_notify_intent_open_file(
+                    runtime_id,
+                    source.as_deref(),
+                    &path,
+                    mime_type.as_deref(),
+                )
+            })
+        })
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_ios_notify_intent_share_text(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    text: NativeStringRef,
+    has_mime_type: bool,
+    mime_type: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string(text, "text").and_then(|text| {
+            decode_optional_string(has_mime_type, mime_type, "mime_type").and_then(|mime_type| {
+                ios_notify_intent_share_text(
+                    runtime_id,
+                    source.as_deref(),
+                    &text,
+                    mime_type.as_deref(),
+                )
+            })
+        })
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_ios_notify_intent_share_files(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    paths: NativeStringSlice,
+    has_mime_type: bool,
+    mime_type: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string_slice(paths, "paths").and_then(|paths| {
+            decode_optional_string(has_mime_type, mime_type, "mime_type").and_then(|mime_type| {
+                ios_notify_intent_share_files(
+                    runtime_id,
+                    source.as_deref(),
+                    &paths,
+                    mime_type.as_deref(),
+                )
+            })
+        })
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_ios_notify_intent_custom_action(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    action: NativeStringRef,
+    has_url: bool,
+    url: NativeStringRef,
+    paths: NativeStringSlice,
+    has_text: bool,
+    text: NativeStringRef,
+    has_mime_type: bool,
+    mime_type: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string(action, "action").and_then(|action| {
+            decode_optional_string(has_url, url, "url").and_then(|url| {
+                decode_string_slice(paths, "paths").and_then(|paths| {
+                    decode_optional_string(has_text, text, "text").and_then(|text| {
+                        decode_optional_string(has_mime_type, mime_type, "mime_type").and_then(
+                            |mime_type| {
+                                ios_notify_intent_custom_action(
+                                    runtime_id,
+                                    source.as_deref(),
+                                    &action,
+                                    url.as_deref(),
+                                    &paths,
+                                    text.as_deref(),
+                                    mime_type.as_deref(),
+                                )
+                            },
+                        )
+                    })
+                })
+            })
+        })
     });
 
     runtime_status(result)
@@ -189,7 +322,40 @@ pub(super) fn decode_ios_power_mode(power_mode_code: u32) -> RuntimeResult<HostP
 }
 
 fn decode_permission_name(permission: NativeStringRef) -> RuntimeResult<String> {
-    unsafe { permission.as_str() }.map(|permission| permission.to_string())
+    decode_string(permission, "permission")
+}
+
+fn decode_optional_string(
+    is_present: bool,
+    value: NativeStringRef,
+    argument: &'static str,
+) -> RuntimeResult<Option<String>> {
+    if !is_present {
+        return Ok(None);
+    }
+
+    decode_string(value, argument).map(Some)
+}
+
+fn decode_string(value: NativeStringRef, argument: &'static str) -> RuntimeResult<String> {
+    unsafe { value.as_str() }
+        .map(str::to_string)
+        .map_err(|_| invalid_argument_value(argument, format!("invalid {argument} string")))
+}
+
+fn decode_string_slice(
+    values: NativeStringSlice,
+    argument: &'static str,
+) -> RuntimeResult<Vec<String>> {
+    let mut decoded_values = Vec::new();
+
+    for value in unsafe { values.as_slice() }
+        .map_err(|_| invalid_argument_value(argument, format!("invalid {argument} slice")))?
+    {
+        decoded_values.push(decode_string(*value, argument)?);
+    }
+
+    Ok(decoded_values)
 }
 
 fn runtime_status(result: RuntimeResult<()>) -> RuntimeStatus {

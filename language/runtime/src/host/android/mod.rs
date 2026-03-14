@@ -21,12 +21,6 @@ mod registry;
 #[cfg(test)]
 mod tests;
 
-#[cfg(any(test, target_os = "android"))]
-pub use abi::{
-    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,
-    HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
-    HOST_STATUS_PERMISSION_DENIED,
-};
 #[cfg(target_os = "android")]
 pub(crate) use backend::AndroidHost;
 #[cfg(any(test, target_os = "android"))]
@@ -34,9 +28,12 @@ pub use bindings::{AndroidHostBindings, destack_host_android_register_bindings};
 #[cfg(any(test, target_os = "android"))]
 pub use callback::{
     AndroidActivityLifecycle, android_notify_activity_lifecycle,
-    android_notify_interruption_changed, android_notify_memory_pressure_changed,
-    android_notify_permission_result, android_notify_power_mode_changed,
-    android_notify_thermal_state_changed, android_notify_wake, android_notify_wall_clock_changed,
+    android_notify_intent_custom_action, android_notify_intent_open_file,
+    android_notify_intent_open_url, android_notify_intent_share_files,
+    android_notify_intent_share_text, android_notify_interruption_changed,
+    android_notify_memory_pressure_changed, android_notify_permission_result,
+    android_notify_power_mode_changed, android_notify_thermal_state_changed, android_notify_wake,
+    android_notify_wall_clock_changed,
 };
 #[cfg(any(test, target_os = "android"))]
 pub use credentials::{
@@ -75,6 +72,9 @@ pub use crypto::{
 #[cfg(any(test, target_os = "android"))]
 pub use ffi::{
     destack_host_android_notify_activity_lifecycle,
+    destack_host_android_notify_intent_custom_action, destack_host_android_notify_intent_open_file,
+    destack_host_android_notify_intent_open_url, destack_host_android_notify_intent_share_files,
+    destack_host_android_notify_intent_share_text,
     destack_host_android_notify_interruption_changed,
     destack_host_android_notify_memory_pressure_changed,
     destack_host_android_notify_permission_result, destack_host_android_notify_power_mode_changed,
@@ -103,3 +103,9 @@ pub use midi::{
 };
 #[cfg(any(test, target_os = "android"))]
 pub(crate) use registry::unregister_android_bindings;
+
+/// Remove runtime-scoped Android host interop state.
+#[cfg(any(test, target_os = "android"))]
+pub(crate) fn unregister_android_host_runtime(runtime_id: u64) {
+    unregister_android_bindings(runtime_id);
+}

@@ -1,11 +1,21 @@
-use super::super::callback::{
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use crate::host::core::{HostQueue, HostQueueRegistry};
+use crate::host::unix::callback::{
     UnixApplicationLifecycle, host_lifecycle_state_for_unix_application,
     unix_notify_permission_result,
 };
-use crate::host::core::{HostQueue, HostQueueRegistry};
 use crate::host::{HostEvent, HostLifecycleState, HostPermissionEvent, Platform};
 use crate::runtime::world::RuntimeId;
-use std::sync::Arc;
+
+/// Shared runtime-id allocator for host callback tests.
+static TEST_RUNTIME_ID_NEXT: AtomicU64 = AtomicU64::new(u64::MAX - 16_384);
+
+/// Allocate one unique runtime id for this test process.
+fn next_test_runtime_id() -> RuntimeId {
+    RuntimeId(TEST_RUNTIME_ID_NEXT.fetch_add(1, Ordering::Relaxed))
+}
 
 #[test]
 fn test_map_unix_lifecycle_states() {
@@ -33,10 +43,11 @@ fn test_map_unix_lifecycle_states() {
 
 #[test]
 fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
-    let queue = Arc::new(HostQueue::new());
+    let runtime_id = next_test_runtime_id();
+    let queue = Arc::new(HostQueue::new(runtime_id));
     let registration = HostQueueRegistry::shared().write().register(
         Platform::Linux,
-        RuntimeId(1),
+        runtime_id,
         Arc::downgrade(&queue),
         None,
     );

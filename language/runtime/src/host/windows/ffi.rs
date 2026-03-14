@@ -1,13 +1,16 @@
-use super::{
-    WindowsApplicationLifecycle, windows_notify_application_lifecycle,
-    windows_notify_interruption_changed, windows_notify_memory_pressure_changed,
-    windows_notify_permission_result, windows_notify_power_mode_changed,
-    windows_notify_thermal_state_changed, windows_notify_wake, windows_notify_wall_clock_changed,
-};
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
 use crate::host::core::error::invalid_argument_value;
+use crate::host::windows::{
+    WindowsApplicationLifecycle, windows_notify_application_lifecycle,
+    windows_notify_intent_custom_action, windows_notify_intent_open_file,
+    windows_notify_intent_open_url, windows_notify_intent_share_files,
+    windows_notify_intent_share_text, windows_notify_interruption_changed,
+    windows_notify_memory_pressure_changed, windows_notify_permission_result,
+    windows_notify_power_mode_changed, windows_notify_thermal_state_changed, windows_notify_wake,
+    windows_notify_wall_clock_changed,
+};
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
-use crate::runtime::NativeStringRef;
+use crate::runtime::{NativeStringRef, NativeStringSlice};
 
 pub(super) const WINDOWS_LIFECYCLE_CREATED: u32 = 0;
 pub(super) const WINDOWS_LIFECYCLE_ACTIVATED: u32 = 1;
@@ -44,6 +47,137 @@ pub unsafe extern "C" fn destack_host_windows_notify_permission_result(
 ) -> RuntimeStatus {
     let result = decode_permission_name(permission).and_then(|permission| {
         windows_notify_permission_result(runtime_id, permission.as_str(), granted)
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_windows_notify_intent_open_url(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    url: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string(url, "url")
+            .and_then(|url| windows_notify_intent_open_url(runtime_id, source.as_deref(), &url))
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_windows_notify_intent_open_file(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    path: NativeStringRef,
+    has_mime_type: bool,
+    mime_type: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string(path, "path").and_then(|path| {
+            decode_optional_string(has_mime_type, mime_type, "mime_type").and_then(|mime_type| {
+                windows_notify_intent_open_file(
+                    runtime_id,
+                    source.as_deref(),
+                    &path,
+                    mime_type.as_deref(),
+                )
+            })
+        })
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_windows_notify_intent_share_text(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    text: NativeStringRef,
+    has_mime_type: bool,
+    mime_type: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string(text, "text").and_then(|text| {
+            decode_optional_string(has_mime_type, mime_type, "mime_type").and_then(|mime_type| {
+                windows_notify_intent_share_text(
+                    runtime_id,
+                    source.as_deref(),
+                    &text,
+                    mime_type.as_deref(),
+                )
+            })
+        })
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_windows_notify_intent_share_files(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    paths: NativeStringSlice,
+    has_mime_type: bool,
+    mime_type: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string_slice(paths, "paths").and_then(|paths| {
+            decode_optional_string(has_mime_type, mime_type, "mime_type").and_then(|mime_type| {
+                windows_notify_intent_share_files(
+                    runtime_id,
+                    source.as_deref(),
+                    &paths,
+                    mime_type.as_deref(),
+                )
+            })
+        })
+    });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_windows_notify_intent_custom_action(
+    runtime_id: u64,
+    has_source: bool,
+    source: NativeStringRef,
+    action: NativeStringRef,
+    has_url: bool,
+    url: NativeStringRef,
+    paths: NativeStringSlice,
+    has_text: bool,
+    text: NativeStringRef,
+    has_mime_type: bool,
+    mime_type: NativeStringRef,
+) -> RuntimeStatus {
+    let result = decode_optional_string(has_source, source, "source").and_then(|source| {
+        decode_string(action, "action").and_then(|action| {
+            decode_optional_string(has_url, url, "url").and_then(|url| {
+                decode_string_slice(paths, "paths").and_then(|paths| {
+                    decode_optional_string(has_text, text, "text").and_then(|text| {
+                        decode_optional_string(has_mime_type, mime_type, "mime_type").and_then(
+                            |mime_type| {
+                                windows_notify_intent_custom_action(
+                                    runtime_id,
+                                    source.as_deref(),
+                                    &action,
+                                    url.as_deref(),
+                                    &paths,
+                                    text.as_deref(),
+                                    mime_type.as_deref(),
+                                )
+                            },
+                        )
+                    })
+                })
+            })
+        })
     });
 
     runtime_status(result)
@@ -174,7 +308,41 @@ pub(super) fn decode_windows_power_mode(power_mode_code: u32) -> RuntimeResult<H
 }
 
 fn decode_permission_name(permission: NativeStringRef) -> RuntimeResult<String> {
-    unsafe { permission.as_str() }.map(|permission| permission.to_string())
+    decode_string(permission, "permission")
+}
+
+fn decode_optional_string(
+    is_present: bool,
+    value: NativeStringRef,
+    field: &'static str,
+) -> RuntimeResult<Option<String>> {
+    if !is_present {
+        return Ok(None);
+    }
+
+    decode_string(value, field).map(Some)
+}
+
+fn decode_string(value: NativeStringRef, field: &'static str) -> RuntimeResult<String> {
+    unsafe { value.as_str() }
+        .map(|value| value.to_string())
+        .map_err(|_| invalid_argument_value(field, format!("invalid utf8 {field} payload")))
+}
+
+fn decode_string_slice(
+    values: NativeStringSlice,
+    field: &'static str,
+) -> RuntimeResult<Vec<String>> {
+    let values = unsafe { values.as_slice() }
+        .map_err(|_| invalid_argument_value(field, format!("invalid {field} slice payload")))?;
+    let mut decoded = Vec::with_capacity(values.len());
+
+    for value in values {
+        let value = decode_string(*value, field)?;
+        decoded.push(value);
+    }
+
+    Ok(decoded)
 }
 
 fn runtime_status(result: RuntimeResult<()>) -> RuntimeStatus {

@@ -14,13 +14,19 @@ pub(crate) use backend::WindowsHost;
 #[cfg(any(test, windows))]
 pub use callback::{
     WindowsApplicationLifecycle, windows_notify_application_lifecycle,
-    windows_notify_interruption_changed, windows_notify_memory_pressure_changed,
-    windows_notify_permission_result, windows_notify_power_mode_changed,
-    windows_notify_thermal_state_changed, windows_notify_wake, windows_notify_wall_clock_changed,
+    windows_notify_intent_custom_action, windows_notify_intent_open_file,
+    windows_notify_intent_open_url, windows_notify_intent_share_files,
+    windows_notify_intent_share_text, windows_notify_interruption_changed,
+    windows_notify_memory_pressure_changed, windows_notify_permission_result,
+    windows_notify_power_mode_changed, windows_notify_thermal_state_changed, windows_notify_wake,
+    windows_notify_wall_clock_changed,
 };
 #[cfg(any(test, windows))]
 pub use ffi::{
     destack_host_windows_notify_application_lifecycle,
+    destack_host_windows_notify_intent_custom_action, destack_host_windows_notify_intent_open_file,
+    destack_host_windows_notify_intent_open_url, destack_host_windows_notify_intent_share_files,
+    destack_host_windows_notify_intent_share_text,
     destack_host_windows_notify_interruption_changed,
     destack_host_windows_notify_memory_pressure_changed,
     destack_host_windows_notify_permission_result, destack_host_windows_notify_power_mode_changed,
