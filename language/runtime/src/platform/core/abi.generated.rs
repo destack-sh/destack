@@ -3,18 +3,16 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
-
 #![allow(clippy::enum_variant_names)]
 
-use crate::diagnostic::RuntimeError;
-use crate::diagnostic::RuntimeResult;
-use crate::platform::PlatformError as AbiPlatformError;
-use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{
+    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmValueCodec, core as platform_core,
+};
 use crate::runtime::BindingCallContext;
-use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::core as platform_core;
 
 /// ABI enum for BackendSupport.
 #[repr(i32)]
@@ -34,8 +32,17 @@ impl VmValueCodec for BackendSupport {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0i32 => Self::Available, 1i32 => Self::UnsupportedTarget, 2i32 => Self::DisabledByBuild, 3i32 => Self::HostUnavailable,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown BackendSupport value")).boxed()),
+            0i32 => Self::Available,
+            1i32 => Self::UnsupportedTarget,
+            2i32 => Self::DisabledByBuild,
+            3i32 => Self::HostUnavailable,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BackendSupport value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -63,11 +70,17 @@ impl NativeAbiCodec for BackendSupport {
 impl VmAbiCodec for BackendSupport {
     type Value = BackendSupportValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }

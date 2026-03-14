@@ -117,7 +117,7 @@ pub(crate) fn destack_thread_local_set(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses sched affinity APIs on Unix and GetThreadGroupAffinity on Windows.
+/// Uses pthread affinity APIs on Unix and GetThreadGroupAffinity on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -262,7 +262,7 @@ pub(crate) fn destack_thread_detach(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses one runtime-managed completion slot on supported hosts.
+/// Uses host thread joins plus one runtime-managed completion slot.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -284,11 +284,12 @@ pub(crate) fn destack_thread_join(
 /// Spawn one host thread.
 ///
 /// Spawn one host thread that enters one runtime-provided thread entry handle.
+/// The runtime resolves `entry` against its thread-entry table and passes `argument` as one machine-word payload.
 /// Thread entry creation and argument interpretation are runtime ABI contracts.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses pthread_create on Unix and CreateThread on Windows.
+/// Uses host thread creation APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -312,11 +313,12 @@ pub(crate) fn destack_thread_spawn(
 /// Wait on one memory address value.
 ///
 /// Wait while the target memory word matches the expected value.
-/// Address wait semantics follow host futex or WaitOnAddress primitives.
+/// Address must identify one valid aligned 32 bit word that remains live for the full wait.
 ///
 /// # Platform
 /// Unix and Windows.
 /// Uses futex wait on Linux and WaitOnAddress on Windows.
+/// Other Unix targets currently return notSupported.
 ///
 /// # Errors
 /// Returns invalidArgument, ioTimedOut, ioWouldBlock, notSupported.
@@ -340,14 +342,15 @@ pub(crate) fn destack_thread_address_wait(
     .boxed())
 }
 
-/// Wake all waiters on a memory address.
+/// Wake all waiters on one memory address.
 ///
 /// Wake all waiters blocked on the target memory address.
-/// Wake ordering follows host wait-address primitive behavior.
+/// Wake ordering follows the host wait-address primitive.
 ///
 /// # Platform
 /// Unix and Windows.
 /// Uses futex wake on Linux and WakeByAddressAll on Windows.
+/// Other Unix targets currently return notSupported.
 ///
 /// # Errors
 /// Returns invalidArgument, ioWouldBlock, notSupported.
@@ -369,14 +372,15 @@ pub(crate) fn destack_thread_address_wake_all(
     .boxed())
 }
 
-/// Wake one waiter on a memory address.
+/// Wake one waiter on one memory address.
 ///
 /// Wake one waiter blocked on the target memory address.
-/// Wake ordering follows host wait-address primitive behavior.
+/// Wake ordering follows the host wait-address primitive.
 ///
 /// # Platform
 /// Unix and Windows.
 /// Uses futex wake on Linux and WakeByAddressSingle on Windows.
+/// Other Unix targets currently return notSupported.
 ///
 /// # Errors
 /// Returns invalidArgument, ioWouldBlock, notSupported.
