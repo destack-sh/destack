@@ -45,9 +45,8 @@ Aspiritionally, Destack is intended as a meta framework for developing and maint
 It has been more than 50 years since C introduced higher order programming as we still know it today, yet programming is still astoundingly immature.
 We routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it's not well integrated with other software.
 
-Software is very useful, we have a lot of it, and there is about to be much, much more.
-There are even new exciting possibilities to marry symbolic and probabilistic computation.
-However, we believe that the deep inscrutability, inefficiency, instability, and fragmentation of software can only be solved by reimagining the full software process end-to-end; in the limit, that requires unifying the disparate parts that have remained separate for historical reasons.
+Software is very useful, we have a lot of it, and there is about to be much, much more with exciting new possibilities to integrate symbolic and probabilistic computation.
+However, the deep inscrutability, inefficiency, instability, and fragmentation of software can only be solved by reimagining the full software process end-to-end; in the limit, that requires unifying the disparate parts that have remained separate for historical reasons.
 
 The more we can express in software, the higher order the abstractions we can program.
 In the beginning, software was the digital shadow of "real" systems, but done correctly, software is an enabling technology for new systems that were previously impossible.

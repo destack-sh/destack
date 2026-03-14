@@ -45,8 +45,8 @@
     },
     "sideEffects": false,
     "scripts": {
-        "build": "rm -rf dist && bunx --bun tsc -p tsconfig.json",
-        "test": "bunx --bun tsc --noEmit -p tsconfig.json",
+        "build": "rm -rf dist && bun x tsc -p tsconfig.json",
+        "test": "bun x tsc --noEmit -p tsconfig.json",
         "prepublishOnly": "bun run build",
         "publish:dry": "npm publish --dry-run --access public",
         "publish:live": "npm publish --access public"
@@ -55,5 +55,7 @@
         "access": "public"
     },
     "dependencies": {},
-    "devDependencies": {}
+    "devDependencies": {
+        "typescript": "5.8.3"
+    }
 }

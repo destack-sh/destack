@@ -9,7 +9,6 @@
     "scripts": {},
     "dependencies": {},
     "devDependencies": {
-        "@types/bun": "latest"
+        "@types/bun": "1.2.18"
     }
 }
-
