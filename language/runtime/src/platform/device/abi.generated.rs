@@ -3,23 +3,18 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
-
 #![allow(clippy::enum_variant_names)]
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::diagnostic::RuntimeError;
-use crate::diagnostic::RuntimeResult;
-use crate::platform::PlatformError as AbiPlatformError;
-use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};
+use crate::platform::{
+    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
+    VmValueCodec, device as platform_device, fs, fs as platform_fs,
+};
 use crate::runtime::BindingCallContext;
-use crate::platform::VmValueCodec;
-use crate::platform::VmAggregateCodec;
-use crate::platform::{VmArray, VmSlice};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::{fs};
-use crate::platform::device as platform_device;
-use crate::platform::fs as platform_fs;
 
 /// ABI newtype for PathBytes.
 #[repr(C)]
@@ -33,11 +28,19 @@ pub type PathBytes = PathBytesAbi<NativeAbi>;
 pub type PathBytesVm = PathBytesAbi<VmAbi>;
 
 impl VmAggregateCodec for PathBytesAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
-        Ok(Self(<VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?))
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(
+            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?,
+        ))
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -54,23 +57,37 @@ impl NativeAbiCodec for PathBytesAbi<NativeAbi> {
     type Value = PathBytesValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(PathBytesValue(unsafe { <NativeArray<u8> as NativeAbiCodec>::into_value(self.0)? }))
+        Ok(PathBytesValue(unsafe {
+            <NativeArray<u8> as NativeAbiCodec>::into_value(self.0)?
+        }))
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self(<NativeArray<u8> as NativeAbiCodec>::from_value(binding, value.0))
+        Self(<NativeArray<u8> as NativeAbiCodec>::from_value(
+            binding, value.0,
+        ))
     }
 }
 
 impl VmAbiCodec for PathBytesAbi<VmAbi> {
     type Value = PathBytesValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(PathBytesValue(<VmArray<u8> as VmAbiCodec>::into_value(self.0, context)?))
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(PathBytesValue(<VmArray<u8> as VmAbiCodec>::into_value(
+            self.0, context,
+        )?))
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
-        Ok(Self(<VmArray<u8> as VmAbiCodec>::from_value(context, value.0)?))
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(<VmArray<u8> as VmAbiCodec>::from_value(
+            context, value.0,
+        )?))
     }
 }
 
@@ -86,11 +103,19 @@ pub type PathUtf16 = PathUtf16Abi<NativeAbi>;
 pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
 
 impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
-        Ok(Self(<VmArray<u16> as VmAggregateCodec>::decode_with_context(context, value)?))
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(
+            <VmArray<u16> as VmAggregateCodec>::decode_with_context(context, value)?,
+        ))
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
@@ -107,23 +132,102 @@ impl NativeAbiCodec for PathUtf16Abi<NativeAbi> {
     type Value = PathUtf16Value;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(PathUtf16Value(unsafe { <NativeArray<u16> as NativeAbiCodec>::into_value(self.0)? }))
+        Ok(PathUtf16Value(unsafe {
+            <NativeArray<u16> as NativeAbiCodec>::into_value(self.0)?
+        }))
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self(<NativeArray<u16> as NativeAbiCodec>::from_value(binding, value.0))
+        Self(<NativeArray<u16> as NativeAbiCodec>::from_value(
+            binding, value.0,
+        ))
     }
 }
 
 impl VmAbiCodec for PathUtf16Abi<VmAbi> {
     type Value = PathUtf16Value;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(PathUtf16Value(<VmArray<u16> as VmAbiCodec>::into_value(self.0, context)?))
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(PathUtf16Value(<VmArray<u16> as VmAbiCodec>::into_value(
+            self.0, context,
+        )?))
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
-        Ok(Self(<VmArray<u16> as VmAbiCodec>::from_value(context, value.0)?))
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(<VmArray<u16> as VmAbiCodec>::from_value(
+            context, value.0,
+        )?))
+    }
+}
+
+/// ABI enum for BluetoothGattWriteMode.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BluetoothGattWriteMode {
+    /// WithResponse.
+    WithResponse = 1,
+    /// WithoutResponse.
+    WithoutResponse = 2,
+}
+
+impl VmValueCodec for BluetoothGattWriteMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::WithResponse,
+            2i32 => Self::WithoutResponse,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BluetoothGattWriteMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+/// Value type for BluetoothGattWriteMode.
+pub type BluetoothGattWriteModeValue = BluetoothGattWriteMode;
+
+impl NativeAbiCodec for BluetoothGattWriteMode {
+    type Value = BluetoothGattWriteModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BluetoothGattWriteMode {
+    type Value = BluetoothGattWriteModeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -145,8 +249,17 @@ impl VmValueCodec for BluetoothPairState {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Unknown, 2i32 => Self::Unpaired, 3i32 => Self::Pairing, 4i32 => Self::Paired,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown BluetoothPairState value")).boxed()),
+            1i32 => Self::Unknown,
+            2i32 => Self::Unpaired,
+            3i32 => Self::Pairing,
+            4i32 => Self::Paired,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BluetoothPairState value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -174,11 +287,17 @@ impl NativeAbiCodec for BluetoothPairState {
 impl VmAbiCodec for BluetoothPairState {
     type Value = BluetoothPairStateValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -201,8 +320,17 @@ impl VmValueCodec for BluetoothPhy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Le1M, 2i32 => Self::Le2M, 3i32 => Self::LeCoded, 4i32 => Self::Any,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown BluetoothPhy value")).boxed()),
+            1i32 => Self::Le1M,
+            2i32 => Self::Le2M,
+            3i32 => Self::LeCoded,
+            4i32 => Self::Any,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BluetoothPhy value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -230,11 +358,17 @@ impl NativeAbiCodec for BluetoothPhy {
 impl VmAbiCodec for BluetoothPhy {
     type Value = BluetoothPhyValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -253,8 +387,15 @@ impl VmValueCodec for BluetoothScanMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Passive, 2i32 => Self::Active,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown BluetoothScanMode value")).boxed()),
+            1i32 => Self::Passive,
+            2i32 => Self::Active,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BluetoothScanMode value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -282,11 +423,17 @@ impl NativeAbiCodec for BluetoothScanMode {
 impl VmAbiCodec for BluetoothScanMode {
     type Value = BluetoothScanModeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -307,8 +454,16 @@ impl VmValueCodec for BluetoothTransport {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::LowEnergy, 2i32 => Self::Classic, 3i32 => Self::Dual,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown BluetoothTransport value")).boxed()),
+            1i32 => Self::LowEnergy,
+            2i32 => Self::Classic,
+            3i32 => Self::Dual,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BluetoothTransport value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -336,11 +491,17 @@ impl NativeAbiCodec for BluetoothTransport {
 impl VmAbiCodec for BluetoothTransport {
     type Value = BluetoothTransportValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -365,8 +526,18 @@ impl VmValueCodec for CameraColorSpace {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Unknown, 2i32 => Self::Srgb, 3i32 => Self::Bt601, 4i32 => Self::Bt709, 5i32 => Self::Bt2020,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown CameraColorSpace value")).boxed()),
+            1i32 => Self::Unknown,
+            2i32 => Self::Srgb,
+            3i32 => Self::Bt601,
+            4i32 => Self::Bt709,
+            5i32 => Self::Bt2020,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CameraColorSpace value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -394,67 +565,17 @@ impl NativeAbiCodec for CameraColorSpace {
 impl VmAbiCodec for CameraColorSpace {
     type Value = CameraColorSpaceValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
-/// ABI enum for CameraControl.
-#[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CameraControl {
-    /// Exposure.
-    Exposure = 1,
-    /// WhiteBalance.
-    WhiteBalance = 2,
-    /// Focus.
-    Focus = 3,
-    /// Zoom.
-    Zoom = 4,
-}
-
-impl VmValueCodec for CameraControl {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <i32 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1i32 => Self::Exposure, 2i32 => Self::WhiteBalance, 3i32 => Self::Focus, 4i32 => Self::Zoom,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown CameraControl value")).boxed()),
-        };
-        Ok(decoded)
-    }
-
-    fn encode(self) -> vm::Value {
-        <i32 as VmValueCodec>::encode(self as i32)
-    }
-}
-
-/// Value type for CameraControl.
-pub type CameraControlValue = CameraControl;
-
-impl NativeAbiCodec for CameraControl {
-    type Value = CameraControlValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for CameraControl {
-    type Value = CameraControlValue;
-
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -475,8 +596,16 @@ impl VmValueCodec for CameraDynamicRange {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Standard, 2i32 => Self::Hdr10, 3i32 => Self::Hlg,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown CameraDynamicRange value")).boxed()),
+            1i32 => Self::Standard,
+            2i32 => Self::Hdr10,
+            3i32 => Self::Hlg,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CameraDynamicRange value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -504,11 +633,17 @@ impl NativeAbiCodec for CameraDynamicRange {
 impl VmAbiCodec for CameraDynamicRange {
     type Value = CameraDynamicRangeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -529,8 +664,16 @@ impl VmValueCodec for CameraExposureMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Auto, 2i32 => Self::ContinuousAuto, 3i32 => Self::Manual,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown CameraExposureMode value")).boxed()),
+            1i32 => Self::Auto,
+            2i32 => Self::ContinuousAuto,
+            3i32 => Self::Manual,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CameraExposureMode value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -558,11 +701,94 @@ impl NativeAbiCodec for CameraExposureMode {
 impl VmAbiCodec for CameraExposureMode {
     type Value = CameraExposureModeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for CameraFacingMode.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CameraFacingMode {
+    /// Unknown.
+    Unknown = 1,
+    /// User.
+    User = 2,
+    /// Environment.
+    Environment = 3,
+    /// Left.
+    Left = 4,
+    /// Right.
+    Right = 5,
+    /// External.
+    External = 6,
+}
+
+impl VmValueCodec for CameraFacingMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Unknown,
+            2i32 => Self::User,
+            3i32 => Self::Environment,
+            4i32 => Self::Left,
+            5i32 => Self::Right,
+            6i32 => Self::External,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CameraFacingMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+/// Value type for CameraFacingMode.
+pub type CameraFacingModeValue = CameraFacingMode;
+
+impl NativeAbiCodec for CameraFacingMode {
+    type Value = CameraFacingModeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CameraFacingMode {
+    type Value = CameraFacingModeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -585,8 +811,17 @@ impl VmValueCodec for CameraPixelFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Bgra8, 2i32 => Self::Rgba8, 3i32 => Self::Yuv420, 4i32 => Self::Jpeg,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown CameraPixelFormat value")).boxed()),
+            1i32 => Self::Bgra8,
+            2i32 => Self::Rgba8,
+            3i32 => Self::Yuv420,
+            4i32 => Self::Jpeg,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CameraPixelFormat value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -614,11 +849,85 @@ impl NativeAbiCodec for CameraPixelFormat {
 impl VmAbiCodec for CameraPixelFormat {
     type Value = CameraPixelFormatValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for CameraPixelFormatFamily.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CameraPixelFormatFamily {
+    /// PackedRgb.
+    PackedRgb = 1,
+    /// PlanarYuv.
+    PlanarYuv = 2,
+    /// Encoded.
+    Encoded = 3,
+}
+
+impl VmValueCodec for CameraPixelFormatFamily {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::PackedRgb,
+            2i32 => Self::PlanarYuv,
+            3i32 => Self::Encoded,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CameraPixelFormatFamily value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+/// Value type for CameraPixelFormatFamily.
+pub type CameraPixelFormatFamilyValue = CameraPixelFormatFamily;
+
+impl NativeAbiCodec for CameraPixelFormatFamily {
+    type Value = CameraPixelFormatFamilyValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CameraPixelFormatFamily {
+    type Value = CameraPixelFormatFamilyValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -639,8 +948,16 @@ impl VmValueCodec for CameraStabilizationMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Off, 2i32 => Self::Standard, 3i32 => Self::HighQuality,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown CameraStabilizationMode value")).boxed()),
+            1i32 => Self::Off,
+            2i32 => Self::Standard,
+            3i32 => Self::HighQuality,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CameraStabilizationMode value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -668,11 +985,17 @@ impl NativeAbiCodec for CameraStabilizationMode {
 impl VmAbiCodec for CameraStabilizationMode {
     type Value = CameraStabilizationModeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -693,8 +1016,16 @@ impl VmValueCodec for CameraTorchMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Off, 2i32 => Self::On, 3i32 => Self::Auto,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown CameraTorchMode value")).boxed()),
+            1i32 => Self::Off,
+            2i32 => Self::On,
+            3i32 => Self::Auto,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CameraTorchMode value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -722,33 +1053,50 @@ impl NativeAbiCodec for CameraTorchMode {
 impl VmAbiCodec for CameraTorchMode {
     type Value = CameraTorchModeValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
 
-/// ABI enum for SerialFlowControl.
+/// ABI enum for SerialDataBits.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum SerialFlowControl {
-    /// None.
-    None = 1,
-    /// RtsCts.
-    RtsCts = 2,
-    /// XonXoff.
-    XonXoff = 3,
+pub enum SerialDataBits {
+    /// Five.
+    Five = 5,
+    /// Six.
+    Six = 6,
+    /// Seven.
+    Seven = 7,
+    /// Eight.
+    Eight = 8,
 }
 
-impl VmValueCodec for SerialFlowControl {
+impl VmValueCodec for SerialDataBits {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::None, 2i32 => Self::RtsCts, 3i32 => Self::XonXoff,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown SerialFlowControl value")).boxed()),
+            5i32 => Self::Five,
+            6i32 => Self::Six,
+            7i32 => Self::Seven,
+            8i32 => Self::Eight,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SerialDataBits value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -758,11 +1106,11 @@ impl VmValueCodec for SerialFlowControl {
     }
 }
 
-/// Value type for SerialFlowControl.
-pub type SerialFlowControlValue = SerialFlowControl;
+/// Value type for SerialDataBits.
+pub type SerialDataBitsValue = SerialDataBits;
 
-impl NativeAbiCodec for SerialFlowControl {
-    type Value = SerialFlowControlValue;
+impl NativeAbiCodec for SerialDataBits {
+    type Value = SerialDataBitsValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -773,14 +1121,97 @@ impl NativeAbiCodec for SerialFlowControl {
     }
 }
 
-impl VmAbiCodec for SerialFlowControl {
-    type Value = SerialFlowControlValue;
+impl VmAbiCodec for SerialDataBits {
+    type Value = SerialDataBitsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for SerialErrorKind.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SerialErrorKind {
+    /// Unknown.
+    Unknown = 1,
+    /// Break.
+    Break = 2,
+    /// Framing.
+    Framing = 3,
+    /// Parity.
+    Parity = 4,
+    /// Overrun.
+    Overrun = 5,
+    /// BufferOverflow.
+    BufferOverflow = 6,
+}
+
+impl VmValueCodec for SerialErrorKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Unknown,
+            2i32 => Self::Break,
+            3i32 => Self::Framing,
+            4i32 => Self::Parity,
+            5i32 => Self::Overrun,
+            6i32 => Self::BufferOverflow,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SerialErrorKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+/// Value type for SerialErrorKind.
+pub type SerialErrorKindValue = SerialErrorKind;
+
+impl NativeAbiCodec for SerialErrorKind {
+    type Value = SerialErrorKindValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SerialErrorKind {
+    type Value = SerialErrorKindValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -795,14 +1226,28 @@ pub enum SerialParity {
     Odd = 2,
     /// Even.
     Even = 3,
+    /// Mark.
+    Mark = 4,
+    /// Space.
+    Space = 5,
 }
 
 impl VmValueCodec for SerialParity {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::None, 2i32 => Self::Odd, 3i32 => Self::Even,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown SerialParity value")).boxed()),
+            1i32 => Self::None,
+            2i32 => Self::Odd,
+            3i32 => Self::Even,
+            4i32 => Self::Mark,
+            5i32 => Self::Space,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SerialParity value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -830,35 +1275,50 @@ impl NativeAbiCodec for SerialParity {
 impl VmAbiCodec for SerialParity {
     type Value = SerialParityValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
 
-/// ABI enum for SerialSignalBits.
+/// ABI enum for SerialPortTransport.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum SerialSignalBits {
-    /// Cts.
-    Cts = 1,
-    /// Dsr.
-    Dsr = 2,
-    /// Dcd.
-    Dcd = 4,
-    /// Ri.
-    Ri = 8,
+pub enum SerialPortTransport {
+    /// Native.
+    Native = 1,
+    /// Usb.
+    Usb = 2,
+    /// Bluetooth.
+    Bluetooth = 3,
+    /// Unknown.
+    Unknown = 4,
 }
 
-impl VmValueCodec for SerialSignalBits {
+impl VmValueCodec for SerialPortTransport {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::Cts, 2i32 => Self::Dsr, 4i32 => Self::Dcd, 8i32 => Self::Ri,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown SerialSignalBits value")).boxed()),
+            1i32 => Self::Native,
+            2i32 => Self::Usb,
+            3i32 => Self::Bluetooth,
+            4i32 => Self::Unknown,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SerialPortTransport value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -868,11 +1328,11 @@ impl VmValueCodec for SerialSignalBits {
     }
 }
 
-/// Value type for SerialSignalBits.
-pub type SerialSignalBitsValue = SerialSignalBits;
+/// Value type for SerialPortTransport.
+pub type SerialPortTransportValue = SerialPortTransport;
 
-impl NativeAbiCodec for SerialSignalBits {
-    type Value = SerialSignalBitsValue;
+impl NativeAbiCodec for SerialPortTransport {
+    type Value = SerialPortTransportValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -883,14 +1343,20 @@ impl NativeAbiCodec for SerialSignalBits {
     }
 }
 
-impl VmAbiCodec for SerialSignalBits {
-    type Value = SerialSignalBitsValue;
+impl VmAbiCodec for SerialPortTransport {
+    type Value = SerialPortTransportValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -901,16 +1367,26 @@ impl VmAbiCodec for SerialSignalBits {
 pub enum SerialStopBits {
     /// One.
     One = 1,
+    /// OnePointFive.
+    OnePointFive = 2,
     /// Two.
-    Two = 2,
+    Two = 3,
 }
 
 impl VmValueCodec for SerialStopBits {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            1i32 => Self::One, 2i32 => Self::Two,
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown SerialStopBits value")).boxed()),
+            1i32 => Self::One,
+            2i32 => Self::OnePointFive,
+            3i32 => Self::Two,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SerialStopBits value",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
@@ -938,12 +1414,795 @@ impl NativeAbiCodec for SerialStopBits {
 impl VmAbiCodec for SerialStopBits {
     type Value = SerialStopBitsValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
+    }
+}
+
+/// ABI enum for UsbBosCapabilityKind.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum UsbBosCapabilityKind {
+    /// Unknown.
+    Unknown = 1,
+    /// WirelessUsb.
+    WirelessUsb = 2,
+    /// Usb20Extension.
+    Usb20Extension = 3,
+    /// SuperspeedUsb.
+    SuperspeedUsb = 4,
+    /// ContainerId.
+    ContainerId = 5,
+    /// Platform.
+    Platform = 6,
+    /// Billboard.
+    Billboard = 7,
+    /// ConfigurationSummary.
+    ConfigurationSummary = 8,
+}
+
+impl VmValueCodec for UsbBosCapabilityKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Unknown,
+            2i32 => Self::WirelessUsb,
+            3i32 => Self::Usb20Extension,
+            4i32 => Self::SuperspeedUsb,
+            5i32 => Self::ContainerId,
+            6i32 => Self::Platform,
+            7i32 => Self::Billboard,
+            8i32 => Self::ConfigurationSummary,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown UsbBosCapabilityKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+/// Value type for UsbBosCapabilityKind.
+pub type UsbBosCapabilityKindValue = UsbBosCapabilityKind;
+
+impl NativeAbiCodec for UsbBosCapabilityKind {
+    type Value = UsbBosCapabilityKindValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UsbBosCapabilityKind {
+    type Value = UsbBosCapabilityKindValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for UsbControlTransferType.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum UsbControlTransferType {
+    /// Standard.
+    Standard = 1,
+    /// Class.
+    Class = 2,
+    /// Vendor.
+    Vendor = 3,
+}
+
+impl VmValueCodec for UsbControlTransferType {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Standard,
+            2i32 => Self::Class,
+            3i32 => Self::Vendor,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown UsbControlTransferType value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+/// Value type for UsbControlTransferType.
+pub type UsbControlTransferTypeValue = UsbControlTransferType;
+
+impl NativeAbiCodec for UsbControlTransferType {
+    type Value = UsbControlTransferTypeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UsbControlTransferType {
+    type Value = UsbControlTransferTypeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for UsbEndpointDirection.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum UsbEndpointDirection {
+    /// In.
+    In = 1,
+    /// Out.
+    Out = 2,
+}
+
+impl VmValueCodec for UsbEndpointDirection {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::In,
+            2i32 => Self::Out,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown UsbEndpointDirection value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+/// Value type for UsbEndpointDirection.
+pub type UsbEndpointDirectionValue = UsbEndpointDirection;
+
+impl NativeAbiCodec for UsbEndpointDirection {
+    type Value = UsbEndpointDirectionValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UsbEndpointDirection {
+    type Value = UsbEndpointDirectionValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for UsbEndpointTransferType.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum UsbEndpointTransferType {
+    /// Bulk.
+    Bulk = 1,
+    /// Interrupt.
+    Interrupt = 2,
+    /// Isochronous.
+    Isochronous = 3,
+}
+
+impl VmValueCodec for UsbEndpointTransferType {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Bulk,
+            2i32 => Self::Interrupt,
+            3i32 => Self::Isochronous,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown UsbEndpointTransferType value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+/// Value type for UsbEndpointTransferType.
+pub type UsbEndpointTransferTypeValue = UsbEndpointTransferType;
+
+impl NativeAbiCodec for UsbEndpointTransferType {
+    type Value = UsbEndpointTransferTypeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UsbEndpointTransferType {
+    type Value = UsbEndpointTransferTypeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI enum for UsbTransferStatus.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum UsbTransferStatus {
+    /// Ok.
+    Ok = 1,
+    /// Stall.
+    Stall = 2,
+    /// Babble.
+    Babble = 3,
+}
+
+impl VmValueCodec for UsbTransferStatus {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <i32 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1i32 => Self::Ok,
+            2i32 => Self::Stall,
+            3i32 => Self::Babble,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown UsbTransferStatus value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <i32 as VmValueCodec>::encode(self as i32)
+    }
+}
+
+/// Value type for UsbTransferStatus.
+pub type UsbTransferStatusValue = UsbTransferStatus;
+
+impl NativeAbiCodec for UsbTransferStatus {
+    type Value = UsbTransferStatusValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UsbTransferStatus {
+    type Value = UsbTransferStatusValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI tagged union for BluetoothScanEvent.
+pub enum BluetoothScanEventAbi<A: BindingAbi> {
+    /// BluetoothScanDiscoveredEvent variant.
+    BluetoothScanDiscoveredEvent(platform_device::BluetoothScanDiscoveredEventAbi<A>),
+    /// BluetoothScanLostEvent variant.
+    BluetoothScanLostEvent(platform_device::BluetoothScanLostEventAbi<A>),
+    /// BluetoothScanUpdatedEvent variant.
+    BluetoothScanUpdatedEvent(platform_device::BluetoothScanUpdatedEventAbi<A>),
+}
+
+pub type BluetoothScanEvent = BluetoothScanEventAbi<NativeAbi>;
+pub type BluetoothScanEventVm = BluetoothScanEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for BluetoothScanEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("BluetoothScanEventAbi").finish()
+    }
+}
+
+impl Copy for BluetoothScanEventAbi<NativeAbi> {}
+impl Clone for BluetoothScanEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for BluetoothScanEventAbi<VmAbi> {}
+impl Clone for BluetoothScanEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for BluetoothScanEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothScanEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            4071846137u32 => Self::BluetoothScanDiscoveredEvent(
+                <BluetoothScanDiscoveredEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2895224211u32 => Self::BluetoothScanLostEvent(
+                <BluetoothScanLostEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3739149067u32 => Self::BluetoothScanUpdatedEvent(
+                <BluetoothScanUpdatedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BluetoothScanEvent tag",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::BluetoothScanDiscoveredEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(4071846137u32, context)?;
+                let payload_value =
+                    <BluetoothScanDiscoveredEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::BluetoothScanLostEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2895224211u32, context)?;
+                let payload_value =
+                    <BluetoothScanLostEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::BluetoothScanUpdatedEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3739149067u32, context)?;
+                let payload_value =
+                    <BluetoothScanUpdatedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+        };
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BluetoothScanEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum BluetoothScanEventValue {
+    /// BluetoothScanDiscoveredEvent variant.
+    BluetoothScanDiscoveredEvent(BluetoothScanDiscoveredEventValue),
+    /// BluetoothScanLostEvent variant.
+    BluetoothScanLostEvent(BluetoothScanLostEventValue),
+    /// BluetoothScanUpdatedEvent variant.
+    BluetoothScanUpdatedEvent(BluetoothScanUpdatedEventValue),
+}
+
+impl NativeAbiCodec for BluetoothScanEventAbi<NativeAbi> {
+    type Value = BluetoothScanEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        let owned = match self {
+            Self::BluetoothScanDiscoveredEvent(value) => {
+                BluetoothScanEventValue::BluetoothScanDiscoveredEvent(unsafe {
+                    <BluetoothScanDiscoveredEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::BluetoothScanLostEvent(value) => {
+                BluetoothScanEventValue::BluetoothScanLostEvent(unsafe {
+                    <BluetoothScanLostEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::BluetoothScanUpdatedEvent(value) => {
+                BluetoothScanEventValue::BluetoothScanUpdatedEvent(unsafe {
+                    <BluetoothScanUpdatedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+        };
+        Ok(owned)
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        match value {
+            BluetoothScanEventValue::BluetoothScanDiscoveredEvent(value) => {
+                Self::BluetoothScanDiscoveredEvent(
+                    <BluetoothScanDiscoveredEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            BluetoothScanEventValue::BluetoothScanLostEvent(value) => Self::BluetoothScanLostEvent(
+                <BluetoothScanLostEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            BluetoothScanEventValue::BluetoothScanUpdatedEvent(value) => {
+                Self::BluetoothScanUpdatedEvent(
+                    <BluetoothScanUpdatedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+        }
+    }
+}
+
+impl VmAbiCodec for BluetoothScanEventAbi<VmAbi> {
+    type Value = BluetoothScanEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        let owned = match self {
+            Self::BluetoothScanDiscoveredEvent(value) => {
+                BluetoothScanEventValue::BluetoothScanDiscoveredEvent(
+                    <BluetoothScanDiscoveredEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::BluetoothScanLostEvent(value) => BluetoothScanEventValue::BluetoothScanLostEvent(
+                <BluetoothScanLostEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::BluetoothScanUpdatedEvent(value) => {
+                BluetoothScanEventValue::BluetoothScanUpdatedEvent(
+                    <BluetoothScanUpdatedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+        };
+        Ok(owned)
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        match value {
+            BluetoothScanEventValue::BluetoothScanDiscoveredEvent(value) => {
+                Ok(Self::BluetoothScanDiscoveredEvent(
+                    <BluetoothScanDiscoveredEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            BluetoothScanEventValue::BluetoothScanLostEvent(value) => {
+                Ok(Self::BluetoothScanLostEvent(
+                    <BluetoothScanLostEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            BluetoothScanEventValue::BluetoothScanUpdatedEvent(value) => {
+                Ok(Self::BluetoothScanUpdatedEvent(
+                    <BluetoothScanUpdatedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+        }
+    }
+}
+
+/// ABI tagged union for BluetoothSessionEvent.
+pub enum BluetoothSessionEventAbi<A: BindingAbi> {
+    /// BluetoothSessionDisconnectedEvent variant.
+    BluetoothSessionDisconnectedEvent(platform_device::BluetoothSessionDisconnectedEventAbi<A>),
+    /// BluetoothSessionPairStateChangedEvent variant.
+    BluetoothSessionPairStateChangedEvent(
+        platform_device::BluetoothSessionPairStateChangedEventAbi<A>,
+    ),
+}
+
+pub type BluetoothSessionEvent = BluetoothSessionEventAbi<NativeAbi>;
+pub type BluetoothSessionEventVm = BluetoothSessionEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for BluetoothSessionEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("BluetoothSessionEventAbi").finish()
+    }
+}
+
+impl Copy for BluetoothSessionEventAbi<NativeAbi> {}
+impl Clone for BluetoothSessionEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for BluetoothSessionEventAbi<VmAbi> {}
+impl Clone for BluetoothSessionEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for BluetoothSessionEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothSessionEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            2652478646u32 => Self::BluetoothSessionDisconnectedEvent(
+                <BluetoothSessionDisconnectedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            611044851u32 => Self::BluetoothSessionPairStateChangedEvent(
+                <BluetoothSessionPairStateChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BluetoothSessionEvent tag",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::BluetoothSessionDisconnectedEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2652478646u32, context)?;
+                let payload_value =
+                    <BluetoothSessionDisconnectedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::BluetoothSessionPairStateChangedEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(611044851u32, context)?;
+                let payload_value = <BluetoothSessionPairStateChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+        };
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BluetoothSessionEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum BluetoothSessionEventValue {
+    /// BluetoothSessionDisconnectedEvent variant.
+    BluetoothSessionDisconnectedEvent(BluetoothSessionDisconnectedEventValue),
+    /// BluetoothSessionPairStateChangedEvent variant.
+    BluetoothSessionPairStateChangedEvent(BluetoothSessionPairStateChangedEventValue),
+}
+
+impl NativeAbiCodec for BluetoothSessionEventAbi<NativeAbi> {
+    type Value = BluetoothSessionEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        let owned = match self {
+            Self::BluetoothSessionDisconnectedEvent(value) => {
+                BluetoothSessionEventValue::BluetoothSessionDisconnectedEvent(unsafe {
+                    <BluetoothSessionDisconnectedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::BluetoothSessionPairStateChangedEvent(value) => {
+                BluetoothSessionEventValue::BluetoothSessionPairStateChangedEvent(unsafe {
+                    <BluetoothSessionPairStateChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+        };
+        Ok(owned)
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        match value {
+            BluetoothSessionEventValue::BluetoothSessionDisconnectedEvent(value) => {
+                Self::BluetoothSessionDisconnectedEvent(
+                    <BluetoothSessionDisconnectedEvent as NativeAbiCodec>::from_value(
+                        binding, value,
+                    ),
+                )
+            }
+            BluetoothSessionEventValue::BluetoothSessionPairStateChangedEvent(value) => {
+                Self::BluetoothSessionPairStateChangedEvent(
+                    <BluetoothSessionPairStateChangedEvent as NativeAbiCodec>::from_value(
+                        binding, value,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+impl VmAbiCodec for BluetoothSessionEventAbi<VmAbi> {
+    type Value = BluetoothSessionEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        let owned = match self {
+            Self::BluetoothSessionDisconnectedEvent(value) => {
+                BluetoothSessionEventValue::BluetoothSessionDisconnectedEvent(
+                    <BluetoothSessionDisconnectedEventVm as VmAbiCodec>::into_value(
+                        value, context,
+                    )?,
+                )
+            }
+            Self::BluetoothSessionPairStateChangedEvent(value) => {
+                BluetoothSessionEventValue::BluetoothSessionPairStateChangedEvent(
+                    <BluetoothSessionPairStateChangedEventVm as VmAbiCodec>::into_value(
+                        value, context,
+                    )?,
+                )
+            }
+        };
+        Ok(owned)
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        match value {
+            BluetoothSessionEventValue::BluetoothSessionDisconnectedEvent(value) => {
+                Ok(Self::BluetoothSessionDisconnectedEvent(
+                    <BluetoothSessionDisconnectedEventVm as VmAbiCodec>::from_value(
+                        context, value,
+                    )?,
+                ))
+            }
+            BluetoothSessionEventValue::BluetoothSessionPairStateChangedEvent(value) => {
+                Ok(Self::BluetoothSessionPairStateChangedEvent(
+                    <BluetoothSessionPairStateChangedEventVm as VmAbiCodec>::from_value(
+                        context, value,
+                    )?,
+                ))
+            }
+        }
     }
 }
 
@@ -966,45 +2225,80 @@ impl<A: BindingAbi> std::fmt::Debug for OsPathAbi<A> {
 
 impl Copy for OsPathAbi<NativeAbi> {}
 impl Clone for OsPathAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for OsPathAbi<VmAbi> {}
 impl Clone for OsPathAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for OsPathAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "OsPath")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "OsPath",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            1243901586u32 => Self::OsPathBytes(<fs::OsPathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2271740357u32 => Self::OsPathUtf16(<fs::OsPathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown OsPath tag")).boxed()),
+            1243901586u32 => Self::OsPathBytes(
+                <fs::OsPathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            2271740357u32 => Self::OsPathUtf16(
+                <fs::OsPathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown OsPath tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::OsPathBytes(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1243901586u32, context)?;
-                let payload_value = <fs::OsPathBytesVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1243901586u32, context)?;
+                let payload_value =
+                    <fs::OsPathBytesVm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
             Self::OsPathUtf16(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2271740357u32, context)?;
-                let payload_value = <fs::OsPathUtf16Vm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2271740357u32, context)?;
+                let payload_value =
+                    <fs::OsPathUtf16Vm as VmAggregateCodec>::encode_with_context(value, context)?;
                 vec![tag_value, payload_value]
             }
         };
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1022,16 +2316,24 @@ impl NativeAbiCodec for OsPathAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::OsPathBytes(value) => OsPathValue::OsPathBytes(unsafe { <fs::OsPathBytes as NativeAbiCodec>::into_value(value)? }),
-            Self::OsPathUtf16(value) => OsPathValue::OsPathUtf16(unsafe { <fs::OsPathUtf16 as NativeAbiCodec>::into_value(value)? }),
+            Self::OsPathBytes(value) => OsPathValue::OsPathBytes(unsafe {
+                <fs::OsPathBytes as NativeAbiCodec>::into_value(value)?
+            }),
+            Self::OsPathUtf16(value) => OsPathValue::OsPathUtf16(unsafe {
+                <fs::OsPathUtf16 as NativeAbiCodec>::into_value(value)?
+            }),
         };
         Ok(owned)
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            OsPathValue::OsPathBytes(value) => Self::OsPathBytes(<fs::OsPathBytes as NativeAbiCodec>::from_value(binding, value)),
-            OsPathValue::OsPathUtf16(value) => Self::OsPathUtf16(<fs::OsPathUtf16 as NativeAbiCodec>::from_value(binding, value)),
+            OsPathValue::OsPathBytes(value) => Self::OsPathBytes(
+                <fs::OsPathBytes as NativeAbiCodec>::from_value(binding, value),
+            ),
+            OsPathValue::OsPathUtf16(value) => Self::OsPathUtf16(
+                <fs::OsPathUtf16 as NativeAbiCodec>::from_value(binding, value),
+            ),
         }
     }
 }
@@ -1039,32 +2341,48 @@ impl NativeAbiCodec for OsPathAbi<NativeAbi> {
 impl VmAbiCodec for OsPathAbi<VmAbi> {
     type Value = OsPathValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::OsPathBytes(value) => OsPathValue::OsPathBytes(<fs::OsPathBytesVm as VmAbiCodec>::into_value(value, context)?),
-            Self::OsPathUtf16(value) => OsPathValue::OsPathUtf16(<fs::OsPathUtf16Vm as VmAbiCodec>::into_value(value, context)?),
+            Self::OsPathBytes(value) => OsPathValue::OsPathBytes(
+                <fs::OsPathBytesVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::OsPathUtf16(value) => OsPathValue::OsPathUtf16(
+                <fs::OsPathUtf16Vm as VmAbiCodec>::into_value(value, context)?,
+            ),
         };
         Ok(owned)
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         match value {
-            OsPathValue::OsPathBytes(value) => Ok(Self::OsPathBytes(<fs::OsPathBytesVm as VmAbiCodec>::from_value(context, value)?)),
-            OsPathValue::OsPathUtf16(value) => Ok(Self::OsPathUtf16(<fs::OsPathUtf16Vm as VmAbiCodec>::from_value(context, value)?)),
+            OsPathValue::OsPathBytes(value) => Ok(Self::OsPathBytes(
+                <fs::OsPathBytesVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            OsPathValue::OsPathUtf16(value) => Ok(Self::OsPathUtf16(
+                <fs::OsPathUtf16Vm as VmAbiCodec>::from_value(context, value)?,
+            )),
         }
     }
 }
 
 /// ABI tagged union for SerialEvent.
 pub enum SerialEventAbi<A: BindingAbi> {
+    /// SerialDisconnectedEvent variant.
+    SerialDisconnectedEvent(platform_device::SerialDisconnectedEventAbi<A>),
     /// SerialErrorEvent variant.
     SerialErrorEvent(platform_device::SerialErrorEventAbi<A>),
+    /// SerialModemStatusChangedEvent variant.
+    SerialModemStatusChangedEvent(platform_device::SerialModemStatusChangedEventAbi<A>),
     /// SerialReadReadyEvent variant.
     SerialReadReadyEvent(platform_device::SerialReadReadyEventAbi<A>),
-    /// SerialSignalsChangedEvent variant.
-    SerialSignalsChangedEvent(platform_device::SerialSignalsChangedEventAbi<A>),
-    /// SerialWriteReadyEvent variant.
-    SerialWriteReadyEvent(platform_device::SerialWriteReadyEventAbi<A>),
+    /// SerialWriteDrainedEvent variant.
+    SerialWriteDrainedEvent(platform_device::SerialWriteDrainedEventAbi<A>),
 }
 
 pub type SerialEvent = SerialEventAbi<NativeAbi>;
@@ -1078,71 +2396,143 @@ impl<A: BindingAbi> std::fmt::Debug for SerialEventAbi<A> {
 
 impl Copy for SerialEventAbi<NativeAbi> {}
 impl Clone for SerialEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SerialEventAbi<VmAbi> {}
 impl Clone for SerialEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for SerialEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SerialEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            410067109u32 => Self::SerialErrorEvent(<SerialErrorEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            1237782817u32 => Self::SerialReadReadyEvent(<SerialReadReadyEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            3387895374u32 => Self::SerialSignalsChangedEvent(<SerialSignalsChangedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            2674919946u32 => Self::SerialWriteReadyEvent(<SerialWriteReadyEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown SerialEvent tag")).boxed()),
+            1291871846u32 => Self::SerialDisconnectedEvent(
+                <SerialDisconnectedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            410067109u32 => Self::SerialErrorEvent(
+                <SerialErrorEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            4098744236u32 => Self::SerialModemStatusChangedEvent(
+                <SerialModemStatusChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1237782817u32 => Self::SerialReadReadyEvent(
+                <SerialReadReadyEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2097029052u32 => Self::SerialWriteDrainedEvent(
+                <SerialWriteDrainedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SerialEvent tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = match self {
+            Self::SerialDisconnectedEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1291871846u32, context)?;
+                let payload_value =
+                    <SerialDisconnectedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
             Self::SerialErrorEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(410067109u32, context)?;
-                let payload_value = <SerialErrorEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(410067109u32, context)?;
+                let payload_value =
+                    <SerialErrorEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::SerialModemStatusChangedEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(4098744236u32, context)?;
+                let payload_value =
+                    <SerialModemStatusChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::SerialReadReadyEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1237782817u32, context)?;
-                let payload_value = <SerialReadReadyEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1237782817u32, context)?;
+                let payload_value =
+                    <SerialReadReadyEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
-            Self::SerialSignalsChangedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(3387895374u32, context)?;
-                let payload_value = <SerialSignalsChangedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
-            }
-            Self::SerialWriteReadyEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(2674919946u32, context)?;
-                let payload_value = <SerialWriteReadyEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+            Self::SerialWriteDrainedEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2097029052u32, context)?;
+                let payload_value =
+                    <SerialWriteDrainedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
         };
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
 /// Value type for SerialEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SerialEventValue {
+    /// SerialDisconnectedEvent variant.
+    SerialDisconnectedEvent(SerialDisconnectedEventValue),
     /// SerialErrorEvent variant.
     SerialErrorEvent(SerialErrorEventValue),
+    /// SerialModemStatusChangedEvent variant.
+    SerialModemStatusChangedEvent(SerialModemStatusChangedEventValue),
     /// SerialReadReadyEvent variant.
     SerialReadReadyEvent(SerialReadReadyEventValue),
-    /// SerialSignalsChangedEvent variant.
-    SerialSignalsChangedEvent(SerialSignalsChangedEventValue),
-    /// SerialWriteReadyEvent variant.
-    SerialWriteReadyEvent(SerialWriteReadyEventValue),
+    /// SerialWriteDrainedEvent variant.
+    SerialWriteDrainedEvent(SerialWriteDrainedEventValue),
 }
 
 impl NativeAbiCodec for SerialEventAbi<NativeAbi> {
@@ -1150,20 +2540,50 @@ impl NativeAbiCodec for SerialEventAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::SerialErrorEvent(value) => SerialEventValue::SerialErrorEvent(unsafe { <SerialErrorEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::SerialReadReadyEvent(value) => SerialEventValue::SerialReadReadyEvent(unsafe { <SerialReadReadyEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::SerialSignalsChangedEvent(value) => SerialEventValue::SerialSignalsChangedEvent(unsafe { <SerialSignalsChangedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::SerialWriteReadyEvent(value) => SerialEventValue::SerialWriteReadyEvent(unsafe { <SerialWriteReadyEvent as NativeAbiCodec>::into_value(value)? }),
+            Self::SerialDisconnectedEvent(value) => {
+                SerialEventValue::SerialDisconnectedEvent(unsafe {
+                    <SerialDisconnectedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::SerialErrorEvent(value) => SerialEventValue::SerialErrorEvent(unsafe {
+                <SerialErrorEvent as NativeAbiCodec>::into_value(value)?
+            }),
+            Self::SerialModemStatusChangedEvent(value) => {
+                SerialEventValue::SerialModemStatusChangedEvent(unsafe {
+                    <SerialModemStatusChangedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::SerialReadReadyEvent(value) => SerialEventValue::SerialReadReadyEvent(unsafe {
+                <SerialReadReadyEvent as NativeAbiCodec>::into_value(value)?
+            }),
+            Self::SerialWriteDrainedEvent(value) => {
+                SerialEventValue::SerialWriteDrainedEvent(unsafe {
+                    <SerialWriteDrainedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
         };
         Ok(owned)
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            SerialEventValue::SerialErrorEvent(value) => Self::SerialErrorEvent(<SerialErrorEvent as NativeAbiCodec>::from_value(binding, value)),
-            SerialEventValue::SerialReadReadyEvent(value) => Self::SerialReadReadyEvent(<SerialReadReadyEvent as NativeAbiCodec>::from_value(binding, value)),
-            SerialEventValue::SerialSignalsChangedEvent(value) => Self::SerialSignalsChangedEvent(<SerialSignalsChangedEvent as NativeAbiCodec>::from_value(binding, value)),
-            SerialEventValue::SerialWriteReadyEvent(value) => Self::SerialWriteReadyEvent(<SerialWriteReadyEvent as NativeAbiCodec>::from_value(binding, value)),
+            SerialEventValue::SerialDisconnectedEvent(value) => Self::SerialDisconnectedEvent(
+                <SerialDisconnectedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            SerialEventValue::SerialErrorEvent(value) => Self::SerialErrorEvent(
+                <SerialErrorEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            SerialEventValue::SerialModemStatusChangedEvent(value) => {
+                Self::SerialModemStatusChangedEvent(
+                    <SerialModemStatusChangedEvent as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            SerialEventValue::SerialReadReadyEvent(value) => Self::SerialReadReadyEvent(
+                <SerialReadReadyEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            SerialEventValue::SerialWriteDrainedEvent(value) => Self::SerialWriteDrainedEvent(
+                <SerialWriteDrainedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
         }
     }
 }
@@ -1171,22 +2591,310 @@ impl NativeAbiCodec for SerialEventAbi<NativeAbi> {
 impl VmAbiCodec for SerialEventAbi<VmAbi> {
     type Value = SerialEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::SerialErrorEvent(value) => SerialEventValue::SerialErrorEvent(<SerialErrorEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::SerialReadReadyEvent(value) => SerialEventValue::SerialReadReadyEvent(<SerialReadReadyEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::SerialSignalsChangedEvent(value) => SerialEventValue::SerialSignalsChangedEvent(<SerialSignalsChangedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::SerialWriteReadyEvent(value) => SerialEventValue::SerialWriteReadyEvent(<SerialWriteReadyEventVm as VmAbiCodec>::into_value(value, context)?),
+            Self::SerialDisconnectedEvent(value) => SerialEventValue::SerialDisconnectedEvent(
+                <SerialDisconnectedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::SerialErrorEvent(value) => SerialEventValue::SerialErrorEvent(
+                <SerialErrorEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::SerialModemStatusChangedEvent(value) => {
+                SerialEventValue::SerialModemStatusChangedEvent(
+                    <SerialModemStatusChangedEventVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::SerialReadReadyEvent(value) => SerialEventValue::SerialReadReadyEvent(
+                <SerialReadReadyEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::SerialWriteDrainedEvent(value) => SerialEventValue::SerialWriteDrainedEvent(
+                <SerialWriteDrainedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
         };
         Ok(owned)
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         match value {
-            SerialEventValue::SerialErrorEvent(value) => Ok(Self::SerialErrorEvent(<SerialErrorEventVm as VmAbiCodec>::from_value(context, value)?)),
-            SerialEventValue::SerialReadReadyEvent(value) => Ok(Self::SerialReadReadyEvent(<SerialReadReadyEventVm as VmAbiCodec>::from_value(context, value)?)),
-            SerialEventValue::SerialSignalsChangedEvent(value) => Ok(Self::SerialSignalsChangedEvent(<SerialSignalsChangedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            SerialEventValue::SerialWriteReadyEvent(value) => Ok(Self::SerialWriteReadyEvent(<SerialWriteReadyEventVm as VmAbiCodec>::from_value(context, value)?)),
+            SerialEventValue::SerialDisconnectedEvent(value) => Ok(Self::SerialDisconnectedEvent(
+                <SerialDisconnectedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            SerialEventValue::SerialErrorEvent(value) => Ok(Self::SerialErrorEvent(
+                <SerialErrorEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            SerialEventValue::SerialModemStatusChangedEvent(value) => {
+                Ok(Self::SerialModemStatusChangedEvent(
+                    <SerialModemStatusChangedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            SerialEventValue::SerialReadReadyEvent(value) => Ok(Self::SerialReadReadyEvent(
+                <SerialReadReadyEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+            SerialEventValue::SerialWriteDrainedEvent(value) => Ok(Self::SerialWriteDrainedEvent(
+                <SerialWriteDrainedEventVm as VmAbiCodec>::from_value(context, value)?,
+            )),
+        }
+    }
+}
+
+/// ABI tagged union for UsbControlTarget.
+pub enum UsbControlTargetAbi<A: BindingAbi> {
+    /// UsbControlDeviceTarget variant.
+    UsbControlDeviceTarget(platform_device::UsbControlDeviceTargetAbi<A>),
+    /// UsbControlEndpointTarget variant.
+    UsbControlEndpointTarget(platform_device::UsbControlEndpointTargetAbi<A>),
+    /// UsbControlInterfaceTarget variant.
+    UsbControlInterfaceTarget(platform_device::UsbControlInterfaceTargetAbi<A>),
+    /// UsbControlOtherTarget variant.
+    UsbControlOtherTarget(platform_device::UsbControlOtherTargetAbi<A>),
+}
+
+pub type UsbControlTarget = UsbControlTargetAbi<NativeAbi>;
+pub type UsbControlTargetVm = UsbControlTargetAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UsbControlTargetAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("UsbControlTargetAbi").finish()
+    }
+}
+
+impl Copy for UsbControlTargetAbi<NativeAbi> {}
+impl Clone for UsbControlTargetAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UsbControlTargetAbi<VmAbi> {}
+impl Clone for UsbControlTargetAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UsbControlTargetAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbControlTarget",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            155530768u32 => Self::UsbControlDeviceTarget(
+                <UsbControlDeviceTargetVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1493225991u32 => Self::UsbControlEndpointTarget(
+                <UsbControlEndpointTargetVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2828517337u32 => Self::UsbControlInterfaceTarget(
+                <UsbControlInterfaceTargetVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3788320213u32 => Self::UsbControlOtherTarget(
+                <UsbControlOtherTargetVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown UsbControlTarget tag",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::UsbControlDeviceTarget(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(155530768u32, context)?;
+                let payload_value =
+                    <UsbControlDeviceTargetVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::UsbControlEndpointTarget(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1493225991u32, context)?;
+                let payload_value =
+                    <UsbControlEndpointTargetVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::UsbControlInterfaceTarget(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2828517337u32, context)?;
+                let payload_value =
+                    <UsbControlInterfaceTargetVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::UsbControlOtherTarget(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3788320213u32, context)?;
+                let payload_value =
+                    <UsbControlOtherTargetVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+        };
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for UsbControlTarget.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum UsbControlTargetValue {
+    /// UsbControlDeviceTarget variant.
+    UsbControlDeviceTarget(UsbControlDeviceTargetValue),
+    /// UsbControlEndpointTarget variant.
+    UsbControlEndpointTarget(UsbControlEndpointTargetValue),
+    /// UsbControlInterfaceTarget variant.
+    UsbControlInterfaceTarget(UsbControlInterfaceTargetValue),
+    /// UsbControlOtherTarget variant.
+    UsbControlOtherTarget(UsbControlOtherTargetValue),
+}
+
+impl NativeAbiCodec for UsbControlTargetAbi<NativeAbi> {
+    type Value = UsbControlTargetValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        let owned = match self {
+            Self::UsbControlDeviceTarget(value) => {
+                UsbControlTargetValue::UsbControlDeviceTarget(unsafe {
+                    <UsbControlDeviceTarget as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::UsbControlEndpointTarget(value) => {
+                UsbControlTargetValue::UsbControlEndpointTarget(unsafe {
+                    <UsbControlEndpointTarget as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::UsbControlInterfaceTarget(value) => {
+                UsbControlTargetValue::UsbControlInterfaceTarget(unsafe {
+                    <UsbControlInterfaceTarget as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::UsbControlOtherTarget(value) => {
+                UsbControlTargetValue::UsbControlOtherTarget(unsafe {
+                    <UsbControlOtherTarget as NativeAbiCodec>::into_value(value)?
+                })
+            }
+        };
+        Ok(owned)
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        match value {
+            UsbControlTargetValue::UsbControlDeviceTarget(value) => Self::UsbControlDeviceTarget(
+                <UsbControlDeviceTarget as NativeAbiCodec>::from_value(binding, value),
+            ),
+            UsbControlTargetValue::UsbControlEndpointTarget(value) => {
+                Self::UsbControlEndpointTarget(
+                    <UsbControlEndpointTarget as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            UsbControlTargetValue::UsbControlInterfaceTarget(value) => {
+                Self::UsbControlInterfaceTarget(
+                    <UsbControlInterfaceTarget as NativeAbiCodec>::from_value(binding, value),
+                )
+            }
+            UsbControlTargetValue::UsbControlOtherTarget(value) => Self::UsbControlOtherTarget(
+                <UsbControlOtherTarget as NativeAbiCodec>::from_value(binding, value),
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for UsbControlTargetAbi<VmAbi> {
+    type Value = UsbControlTargetValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        let owned = match self {
+            Self::UsbControlDeviceTarget(value) => UsbControlTargetValue::UsbControlDeviceTarget(
+                <UsbControlDeviceTargetVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::UsbControlEndpointTarget(value) => {
+                UsbControlTargetValue::UsbControlEndpointTarget(
+                    <UsbControlEndpointTargetVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::UsbControlInterfaceTarget(value) => {
+                UsbControlTargetValue::UsbControlInterfaceTarget(
+                    <UsbControlInterfaceTargetVm as VmAbiCodec>::into_value(value, context)?,
+                )
+            }
+            Self::UsbControlOtherTarget(value) => UsbControlTargetValue::UsbControlOtherTarget(
+                <UsbControlOtherTargetVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+        };
+        Ok(owned)
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        match value {
+            UsbControlTargetValue::UsbControlDeviceTarget(value) => {
+                Ok(Self::UsbControlDeviceTarget(
+                    <UsbControlDeviceTargetVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            UsbControlTargetValue::UsbControlEndpointTarget(value) => {
+                Ok(Self::UsbControlEndpointTarget(
+                    <UsbControlEndpointTargetVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            UsbControlTargetValue::UsbControlInterfaceTarget(value) => {
+                Ok(Self::UsbControlInterfaceTarget(
+                    <UsbControlInterfaceTargetVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            UsbControlTargetValue::UsbControlOtherTarget(value) => Ok(Self::UsbControlOtherTarget(
+                <UsbControlOtherTargetVm as VmAbiCodec>::from_value(context, value)?,
+            )),
         }
     }
 }
@@ -1210,45 +2918,89 @@ impl<A: BindingAbi> std::fmt::Debug for UsbHotplugEventAbi<A> {
 
 impl Copy for UsbHotplugEventAbi<NativeAbi> {}
 impl Clone for UsbHotplugEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UsbHotplugEventAbi<VmAbi> {}
 impl Clone for UsbHotplugEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "UsbHotplugEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbHotplugEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let decoded = match tag {
-            1449914010u32 => Self::UsbHotplugAttachedEvent(<UsbHotplugAttachedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            755050223u32 => Self::UsbHotplugDetachedEvent(<UsbHotplugDetachedEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
-            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown UsbHotplugEvent tag")).boxed()),
+            1449914010u32 => Self::UsbHotplugAttachedEvent(
+                <UsbHotplugAttachedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            755050223u32 => Self::UsbHotplugDetachedEvent(
+                <UsbHotplugDetachedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown UsbHotplugEvent tag",
+                ))
+                .boxed());
+            }
         };
         Ok(decoded)
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = match self {
             Self::UsbHotplugAttachedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(1449914010u32, context)?;
-                let payload_value = <UsbHotplugAttachedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1449914010u32, context)?;
+                let payload_value =
+                    <UsbHotplugAttachedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
             Self::UsbHotplugDetachedEvent(value) => {
-                let tag_value = <u32 as VmAggregateCodec>::encode_with_context(755050223u32, context)?;
-                let payload_value = <UsbHotplugDetachedEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(755050223u32, context)?;
+                let payload_value =
+                    <UsbHotplugDetachedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
                 vec![tag_value, payload_value]
             }
         };
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1266,16 +3018,28 @@ impl NativeAbiCodec for UsbHotplugEventAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         let owned = match self {
-            Self::UsbHotplugAttachedEvent(value) => UsbHotplugEventValue::UsbHotplugAttachedEvent(unsafe { <UsbHotplugAttachedEvent as NativeAbiCodec>::into_value(value)? }),
-            Self::UsbHotplugDetachedEvent(value) => UsbHotplugEventValue::UsbHotplugDetachedEvent(unsafe { <UsbHotplugDetachedEvent as NativeAbiCodec>::into_value(value)? }),
+            Self::UsbHotplugAttachedEvent(value) => {
+                UsbHotplugEventValue::UsbHotplugAttachedEvent(unsafe {
+                    <UsbHotplugAttachedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
+            Self::UsbHotplugDetachedEvent(value) => {
+                UsbHotplugEventValue::UsbHotplugDetachedEvent(unsafe {
+                    <UsbHotplugDetachedEvent as NativeAbiCodec>::into_value(value)?
+                })
+            }
         };
         Ok(owned)
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         match value {
-            UsbHotplugEventValue::UsbHotplugAttachedEvent(value) => Self::UsbHotplugAttachedEvent(<UsbHotplugAttachedEvent as NativeAbiCodec>::from_value(binding, value)),
-            UsbHotplugEventValue::UsbHotplugDetachedEvent(value) => Self::UsbHotplugDetachedEvent(<UsbHotplugDetachedEvent as NativeAbiCodec>::from_value(binding, value)),
+            UsbHotplugEventValue::UsbHotplugAttachedEvent(value) => Self::UsbHotplugAttachedEvent(
+                <UsbHotplugAttachedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
+            UsbHotplugEventValue::UsbHotplugDetachedEvent(value) => Self::UsbHotplugDetachedEvent(
+                <UsbHotplugDetachedEvent as NativeAbiCodec>::from_value(binding, value),
+            ),
         }
     }
 }
@@ -1283,19 +3047,145 @@ impl NativeAbiCodec for UsbHotplugEventAbi<NativeAbi> {
 impl VmAbiCodec for UsbHotplugEventAbi<VmAbi> {
     type Value = UsbHotplugEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
-            Self::UsbHotplugAttachedEvent(value) => UsbHotplugEventValue::UsbHotplugAttachedEvent(<UsbHotplugAttachedEventVm as VmAbiCodec>::into_value(value, context)?),
-            Self::UsbHotplugDetachedEvent(value) => UsbHotplugEventValue::UsbHotplugDetachedEvent(<UsbHotplugDetachedEventVm as VmAbiCodec>::into_value(value, context)?),
+            Self::UsbHotplugAttachedEvent(value) => UsbHotplugEventValue::UsbHotplugAttachedEvent(
+                <UsbHotplugAttachedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
+            Self::UsbHotplugDetachedEvent(value) => UsbHotplugEventValue::UsbHotplugDetachedEvent(
+                <UsbHotplugDetachedEventVm as VmAbiCodec>::into_value(value, context)?,
+            ),
         };
         Ok(owned)
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         match value {
-            UsbHotplugEventValue::UsbHotplugAttachedEvent(value) => Ok(Self::UsbHotplugAttachedEvent(<UsbHotplugAttachedEventVm as VmAbiCodec>::from_value(context, value)?)),
-            UsbHotplugEventValue::UsbHotplugDetachedEvent(value) => Ok(Self::UsbHotplugDetachedEvent(<UsbHotplugDetachedEventVm as VmAbiCodec>::from_value(context, value)?)),
+            UsbHotplugEventValue::UsbHotplugAttachedEvent(value) => {
+                Ok(Self::UsbHotplugAttachedEvent(
+                    <UsbHotplugAttachedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
+            UsbHotplugEventValue::UsbHotplugDetachedEvent(value) => {
+                Ok(Self::UsbHotplugDetachedEvent(
+                    <UsbHotplugDetachedEventVm as VmAbiCodec>::from_value(context, value)?,
+                ))
+            }
         }
+    }
+}
+
+/// ABI struct for BluetoothAdapterCapabilities.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothAdapterCapabilities {
+    /// Whether the adapter supports Low Energy mode.
+    pub low_energy: bool,
+    /// Whether the adapter supports Classic Bluetooth mode.
+    pub classic: bool,
+    /// Whether the adapter supports central-role operations.
+    pub central: bool,
+    /// Whether the adapter supports peripheral-role operations.
+    pub peripheral: bool,
+    /// Whether the adapter supports extended advertising when known.
+    pub extended_advertising: Option<bool>,
+}
+
+pub type BluetoothAdapterCapabilitiesVm = BluetoothAdapterCapabilities;
+
+impl VmAggregateCodec for BluetoothAdapterCapabilities {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothAdapterCapabilities",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_low_energy = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_classic = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_central = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_peripheral = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_extended_advertising =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            low_energy: field_low_energy,
+            classic: field_classic,
+            central: field_central,
+            peripheral: field_peripheral,
+            extended_advertising: field_extended_advertising,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(self.low_energy, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.classic, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.central, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.peripheral, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(
+                self.extended_advertising,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BluetoothAdapterCapabilities.
+pub type BluetoothAdapterCapabilitiesValue = BluetoothAdapterCapabilities;
+
+impl NativeAbiCodec for BluetoothAdapterCapabilities {
+    type Value = BluetoothAdapterCapabilitiesValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BluetoothAdapterCapabilities {
+    type Value = BluetoothAdapterCapabilitiesValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -1308,8 +3198,12 @@ pub struct BluetoothAdapterDescriptorAbi<A: BindingAbi> {
     pub name: A::String,
     /// Whether the adapter is powered.
     pub powered: bool,
-    /// Whether the adapter supports Low Energy mode.
-    pub low_energy: bool,
+    /// Whether the adapter is currently discoverable when known.
+    pub discoverable: Option<bool>,
+    /// Whether the adapter is currently scanning or discovering when known.
+    pub discovering: Option<bool>,
+    /// Adapter capability descriptor.
+    pub capabilities: BluetoothAdapterCapabilities,
 }
 
 pub type BluetoothAdapterDescriptor = BluetoothAdapterDescriptorAbi<NativeAbi>;
@@ -1317,48 +3211,88 @@ pub type BluetoothAdapterDescriptorVm = BluetoothAdapterDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for BluetoothAdapterDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("BluetoothAdapterDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("BluetoothAdapterDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for BluetoothAdapterDescriptorAbi<NativeAbi> {}
 impl Clone for BluetoothAdapterDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for BluetoothAdapterDescriptorAbi<VmAbi> {}
 impl Clone for BluetoothAdapterDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for BluetoothAdapterDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "BluetoothAdapterDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothAdapterDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 6 fields",
+            ))
+            .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_powered = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_low_energy = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_discoverable =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_discovering =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_capabilities =
+            <BluetoothAdapterCapabilitiesVm as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
         Ok(Self {
             id: field_id,
             name: field_name,
             powered: field_powered,
-            low_energy: field_low_energy,
+            discoverable: field_discoverable,
+            discovering: field_discovering,
+            capabilities: field_capabilities,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.powered, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.low_energy, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.discoverable, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.discovering, context)?,
+            <BluetoothAdapterCapabilitiesVm as VmAggregateCodec>::encode_with_context(
+                self.capabilities,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1371,8 +3305,12 @@ pub struct BluetoothAdapterDescriptorValue {
     pub name: String,
     /// Whether the adapter is powered.
     pub powered: bool,
-    /// Whether the adapter supports Low Energy mode.
-    pub low_energy: bool,
+    /// Whether the adapter is currently discoverable when known.
+    pub discoverable: Option<bool>,
+    /// Whether the adapter is currently scanning or discovering when known.
+    pub discovering: Option<bool>,
+    /// Adapter capability descriptor.
+    pub capabilities: BluetoothAdapterCapabilities,
 }
 
 impl NativeAbiCodec for BluetoothAdapterDescriptorAbi<NativeAbi> {
@@ -1383,7 +3321,13 @@ impl NativeAbiCodec for BluetoothAdapterDescriptorAbi<NativeAbi> {
             id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.id)? },
             name: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.name)? },
             powered: unsafe { <bool as NativeAbiCodec>::into_value(self.powered)? },
-            low_energy: unsafe { <bool as NativeAbiCodec>::into_value(self.low_energy)? },
+            discoverable: unsafe {
+                <Option<bool> as NativeAbiCodec>::into_value(self.discoverable)?
+            },
+            discovering: unsafe { <Option<bool> as NativeAbiCodec>::into_value(self.discovering)? },
+            capabilities: unsafe {
+                <BluetoothAdapterCapabilities as NativeAbiCodec>::into_value(self.capabilities)?
+            },
         })
     }
 
@@ -1392,7 +3336,12 @@ impl NativeAbiCodec for BluetoothAdapterDescriptorAbi<NativeAbi> {
             id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.id),
             name: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.name),
             powered: <bool as NativeAbiCodec>::from_value(binding, value.powered),
-            low_energy: <bool as NativeAbiCodec>::from_value(binding, value.low_energy),
+            discoverable: <Option<bool> as NativeAbiCodec>::from_value(binding, value.discoverable),
+            discovering: <Option<bool> as NativeAbiCodec>::from_value(binding, value.discovering),
+            capabilities: <BluetoothAdapterCapabilities as NativeAbiCodec>::from_value(
+                binding,
+                value.capabilities,
+            ),
         }
     }
 }
@@ -1400,21 +3349,37 @@ impl NativeAbiCodec for BluetoothAdapterDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for BluetoothAdapterDescriptorAbi<VmAbi> {
     type Value = BluetoothAdapterDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothAdapterDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
             name: <vm::StringHandle as VmAbiCodec>::into_value(self.name, context)?,
             powered: <bool as VmAbiCodec>::into_value(self.powered, context)?,
-            low_energy: <bool as VmAbiCodec>::into_value(self.low_energy, context)?,
+            discoverable: <Option<bool> as VmAbiCodec>::into_value(self.discoverable, context)?,
+            discovering: <Option<bool> as VmAbiCodec>::into_value(self.discovering, context)?,
+            capabilities: <BluetoothAdapterCapabilitiesVm as VmAbiCodec>::into_value(
+                self.capabilities,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
             name: <vm::StringHandle as VmAbiCodec>::from_value(context, value.name)?,
             powered: <bool as VmAbiCodec>::from_value(context, value.powered)?,
-            low_energy: <bool as VmAbiCodec>::from_value(context, value.low_energy)?,
+            discoverable: <Option<bool> as VmAbiCodec>::from_value(context, value.discoverable)?,
+            discovering: <Option<bool> as VmAbiCodec>::from_value(context, value.discovering)?,
+            capabilities: <BluetoothAdapterCapabilitiesVm as VmAbiCodec>::from_value(
+                context,
+                value.capabilities,
+            )?,
         })
     }
 }
@@ -1439,31 +3404,55 @@ pub type BluetoothAdvertisementDataVm = BluetoothAdvertisementDataAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for BluetoothAdvertisementDataAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("BluetoothAdvertisementDataAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("BluetoothAdvertisementDataAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for BluetoothAdvertisementDataAbi<NativeAbi> {}
 impl Clone for BluetoothAdvertisementDataAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for BluetoothAdvertisementDataAbi<VmAbi> {}
 impl Clone for BluetoothAdvertisementDataAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for BluetoothAdvertisementDataAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "BluetoothAdvertisementData")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothAdvertisementData",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_local_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_tx_power = <Option<i16> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_service_uuids = <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_local_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_tx_power =
+            <Option<i16> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_service_uuids =
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
         let field_manufacturer_data = <VmArray<BluetoothAdvertisementManufacturerDataVm> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_service_data = <VmArray<BluetoothAdvertisementServiceDataVm> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
@@ -1475,7 +3464,10 @@ impl VmAggregateCodec for BluetoothAdvertisementDataAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.local_name, context)?,
             <Option<i16> as VmAggregateCodec>::encode_with_context(self.tx_power, context)?,
@@ -1483,7 +3475,9 @@ impl VmAggregateCodec for BluetoothAdvertisementDataAbi<VmAbi> {
             <VmArray<BluetoothAdvertisementManufacturerDataVm> as VmAggregateCodec>::encode_with_context(self.manufacturer_data, context)?,
             <VmArray<BluetoothAdvertisementServiceDataVm> as VmAggregateCodec>::encode_with_context(self.service_data, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1507,21 +3501,47 @@ impl NativeAbiCodec for BluetoothAdvertisementDataAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(BluetoothAdvertisementDataValue {
-            local_name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.local_name)? },
+            local_name: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.local_name)?
+            },
             tx_power: unsafe { <Option<i16> as NativeAbiCodec>::into_value(self.tx_power)? },
-            service_uuids: unsafe { <NativeArray<NativeStringRef> as NativeAbiCodec>::into_value(self.service_uuids)? },
-            manufacturer_data: unsafe { <NativeArray<BluetoothAdvertisementManufacturerData> as NativeAbiCodec>::into_value(self.manufacturer_data)? },
-            service_data: unsafe { <NativeArray<BluetoothAdvertisementServiceData> as NativeAbiCodec>::into_value(self.service_data)? },
+            service_uuids: unsafe {
+                <NativeArray<NativeStringRef> as NativeAbiCodec>::into_value(self.service_uuids)?
+            },
+            manufacturer_data: unsafe {
+                <NativeArray<BluetoothAdvertisementManufacturerData> as NativeAbiCodec>::into_value(
+                    self.manufacturer_data,
+                )?
+            },
+            service_data: unsafe {
+                <NativeArray<BluetoothAdvertisementServiceData> as NativeAbiCodec>::into_value(
+                    self.service_data,
+                )?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            local_name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.local_name),
+            local_name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.local_name,
+            ),
             tx_power: <Option<i16> as NativeAbiCodec>::from_value(binding, value.tx_power),
-            service_uuids: <NativeArray<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.service_uuids),
-            manufacturer_data: <NativeArray<BluetoothAdvertisementManufacturerData> as NativeAbiCodec>::from_value(binding, value.manufacturer_data),
-            service_data: <NativeArray<BluetoothAdvertisementServiceData> as NativeAbiCodec>::from_value(binding, value.service_data),
+            service_uuids: <NativeArray<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.service_uuids,
+            ),
+            manufacturer_data:
+                <NativeArray<BluetoothAdvertisementManufacturerData> as NativeAbiCodec>::from_value(
+                    binding,
+                    value.manufacturer_data,
+                ),
+            service_data:
+                <NativeArray<BluetoothAdvertisementServiceData> as NativeAbiCodec>::from_value(
+                    binding,
+                    value.service_data,
+                ),
         }
     }
 }
@@ -1529,23 +3549,55 @@ impl NativeAbiCodec for BluetoothAdvertisementDataAbi<NativeAbi> {
 impl VmAbiCodec for BluetoothAdvertisementDataAbi<VmAbi> {
     type Value = BluetoothAdvertisementDataValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothAdvertisementDataValue {
-            local_name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.local_name, context)?,
+            local_name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.local_name,
+                context,
+            )?,
             tx_power: <Option<i16> as VmAbiCodec>::into_value(self.tx_power, context)?,
-            service_uuids: <VmArray<vm::StringHandle> as VmAbiCodec>::into_value(self.service_uuids, context)?,
-            manufacturer_data: <VmArray<BluetoothAdvertisementManufacturerDataVm> as VmAbiCodec>::into_value(self.manufacturer_data, context)?,
-            service_data: <VmArray<BluetoothAdvertisementServiceDataVm> as VmAbiCodec>::into_value(self.service_data, context)?,
+            service_uuids: <VmArray<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.service_uuids,
+                context,
+            )?,
+            manufacturer_data:
+                <VmArray<BluetoothAdvertisementManufacturerDataVm> as VmAbiCodec>::into_value(
+                    self.manufacturer_data,
+                    context,
+                )?,
+            service_data: <VmArray<BluetoothAdvertisementServiceDataVm> as VmAbiCodec>::into_value(
+                self.service_data,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
-            local_name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.local_name)?,
+            local_name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.local_name,
+            )?,
             tx_power: <Option<i16> as VmAbiCodec>::from_value(context, value.tx_power)?,
-            service_uuids: <VmArray<vm::StringHandle> as VmAbiCodec>::from_value(context, value.service_uuids)?,
-            manufacturer_data: <VmArray<BluetoothAdvertisementManufacturerDataVm> as VmAbiCodec>::from_value(context, value.manufacturer_data)?,
-            service_data: <VmArray<BluetoothAdvertisementServiceDataVm> as VmAbiCodec>::from_value(context, value.service_data)?,
+            service_uuids: <VmArray<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.service_uuids,
+            )?,
+            manufacturer_data:
+                <VmArray<BluetoothAdvertisementManufacturerDataVm> as VmAbiCodec>::from_value(
+                    context,
+                    value.manufacturer_data,
+                )?,
+            service_data: <VmArray<BluetoothAdvertisementServiceDataVm> as VmAbiCodec>::from_value(
+                context,
+                value.service_data,
+            )?,
         })
     }
 }
@@ -1559,32 +3611,53 @@ pub struct BluetoothAdvertisementManufacturerDataAbi<A: BindingAbi> {
     pub data: A::Slice<u8>,
 }
 
-pub type BluetoothAdvertisementManufacturerData = BluetoothAdvertisementManufacturerDataAbi<NativeAbi>;
-pub type BluetoothAdvertisementManufacturerDataVm = BluetoothAdvertisementManufacturerDataAbi<VmAbi>;
+pub type BluetoothAdvertisementManufacturerData =
+    BluetoothAdvertisementManufacturerDataAbi<NativeAbi>;
+pub type BluetoothAdvertisementManufacturerDataVm =
+    BluetoothAdvertisementManufacturerDataAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for BluetoothAdvertisementManufacturerDataAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("BluetoothAdvertisementManufacturerDataAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("BluetoothAdvertisementManufacturerDataAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for BluetoothAdvertisementManufacturerDataAbi<NativeAbi> {}
 impl Clone for BluetoothAdvertisementManufacturerDataAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {}
 impl Clone for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "BluetoothAdvertisementManufacturerData")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothAdvertisementManufacturerData",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let field_company_id = <u16 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_data = <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -1594,12 +3667,17 @@ impl VmAggregateCodec for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u16 as VmAggregateCodec>::encode_with_context(self.company_id, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1633,14 +3711,20 @@ impl NativeAbiCodec for BluetoothAdvertisementManufacturerDataAbi<NativeAbi> {
 impl VmAbiCodec for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
     type Value = BluetoothAdvertisementManufacturerDataValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothAdvertisementManufacturerDataValue {
             company_id: <u16 as VmAbiCodec>::into_value(self.company_id, context)?,
             data: <VmSlice<u8> as VmAbiCodec>::into_value(self.data, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             company_id: <u16 as VmAbiCodec>::from_value(context, value.company_id)?,
             data: <VmSlice<u8> as VmAbiCodec>::from_value(context, value.data)?,
@@ -1662,29 +3746,49 @@ pub type BluetoothAdvertisementServiceDataVm = BluetoothAdvertisementServiceData
 
 impl<A: BindingAbi> std::fmt::Debug for BluetoothAdvertisementServiceDataAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("BluetoothAdvertisementServiceDataAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("BluetoothAdvertisementServiceDataAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for BluetoothAdvertisementServiceDataAbi<NativeAbi> {}
 impl Clone for BluetoothAdvertisementServiceDataAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for BluetoothAdvertisementServiceDataAbi<VmAbi> {}
 impl Clone for BluetoothAdvertisementServiceDataAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for BluetoothAdvertisementServiceDataAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "BluetoothAdvertisementServiceData")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothAdvertisementServiceData",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_service_uuid = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_service_uuid =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_data = <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             service_uuid: field_service_uuid,
@@ -1692,12 +3796,20 @@ impl VmAggregateCodec for BluetoothAdvertisementServiceDataAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service_uuid, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.service_uuid,
+                context,
+            )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1715,14 +3827,19 @@ impl NativeAbiCodec for BluetoothAdvertisementServiceDataAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(BluetoothAdvertisementServiceDataValue {
-            service_uuid: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.service_uuid)? },
+            service_uuid: unsafe {
+                <NativeStringRef as NativeAbiCodec>::into_value(self.service_uuid)?
+            },
             data: unsafe { <NativeSlice<u8> as NativeAbiCodec>::into_value(self.data)? },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            service_uuid: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.service_uuid),
+            service_uuid: <NativeStringRef as NativeAbiCodec>::from_value(
+                binding,
+                value.service_uuid,
+            ),
             data: <NativeSlice<u8> as NativeAbiCodec>::from_value(binding, value.data),
         }
     }
@@ -1731,16 +3848,25 @@ impl NativeAbiCodec for BluetoothAdvertisementServiceDataAbi<NativeAbi> {
 impl VmAbiCodec for BluetoothAdvertisementServiceDataAbi<VmAbi> {
     type Value = BluetoothAdvertisementServiceDataValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothAdvertisementServiceDataValue {
             service_uuid: <vm::StringHandle as VmAbiCodec>::into_value(self.service_uuid, context)?,
             data: <VmSlice<u8> as VmAbiCodec>::into_value(self.data, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
-            service_uuid: <vm::StringHandle as VmAbiCodec>::from_value(context, value.service_uuid)?,
+            service_uuid: <vm::StringHandle as VmAbiCodec>::from_value(
+                context,
+                value.service_uuid,
+            )?,
             data: <VmSlice<u8> as VmAbiCodec>::from_value(context, value.data)?,
         })
     }
@@ -1765,6 +3891,8 @@ pub struct BluetoothDeviceDescriptorAbi<A: BindingAbi> {
     pub connected: bool,
     /// Whether this advertisement indicates connectable state.
     pub connectable: bool,
+    /// Host-reported transport classification when available.
+    pub transport: Option<BluetoothTransport>,
     /// Advertisement payload.
     pub advertisement: platform_device::BluetoothAdvertisementDataAbi<A>,
 }
@@ -1774,37 +3902,67 @@ pub type BluetoothDeviceDescriptorVm = BluetoothDeviceDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for BluetoothDeviceDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("BluetoothDeviceDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("BluetoothDeviceDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for BluetoothDeviceDescriptorAbi<NativeAbi> {}
 impl Clone for BluetoothDeviceDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for BluetoothDeviceDescriptorAbi<VmAbi> {}
 impl Clone for BluetoothDeviceDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "BluetoothDeviceDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothDeviceDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 9 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 9 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 10 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 10 fields",
+            ))
+            .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_address = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_address =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_rssi = <Option<i32> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_paired = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_pair_state = <BluetoothPairState as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_pair_state =
+            <BluetoothPairState as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_connectable = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_advertisement = <BluetoothAdvertisementDataVm as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_transport =
+            <Option<BluetoothTransport> as VmAggregateCodec>::decode_with_context(
+                context, slots[8],
+            )?;
+        let field_advertisement =
+            <BluetoothAdvertisementDataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[9],
+            )?;
         Ok(Self {
             id: field_id,
             address: field_address,
@@ -1814,23 +3972,41 @@ impl VmAggregateCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
             pair_state: field_pair_state,
             connected: field_connected,
             connectable: field_connectable,
+            transport: field_transport,
             advertisement: field_advertisement,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.address, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.rssi, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.paired, context)?,
-            <BluetoothPairState as VmAggregateCodec>::encode_with_context(self.pair_state, context)?,
+            <BluetoothPairState as VmAggregateCodec>::encode_with_context(
+                self.pair_state,
+                context,
+            )?,
             <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.connectable, context)?,
-            <BluetoothAdvertisementDataVm as VmAggregateCodec>::encode_with_context(self.advertisement, context)?,
+            <Option<BluetoothTransport> as VmAggregateCodec>::encode_with_context(
+                self.transport,
+                context,
+            )?,
+            <BluetoothAdvertisementDataVm as VmAggregateCodec>::encode_with_context(
+                self.advertisement,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1853,6 +4029,8 @@ pub struct BluetoothDeviceDescriptorValue {
     pub connected: bool,
     /// Whether this advertisement indicates connectable state.
     pub connectable: bool,
+    /// Host-reported transport classification when available.
+    pub transport: Option<BluetoothTransport>,
     /// Advertisement payload.
     pub advertisement: BluetoothAdvertisementDataValue,
 }
@@ -1867,10 +4045,17 @@ impl NativeAbiCodec for BluetoothDeviceDescriptorAbi<NativeAbi> {
             name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name)? },
             rssi: unsafe { <Option<i32> as NativeAbiCodec>::into_value(self.rssi)? },
             paired: unsafe { <bool as NativeAbiCodec>::into_value(self.paired)? },
-            pair_state: unsafe { <BluetoothPairState as NativeAbiCodec>::into_value(self.pair_state)? },
+            pair_state: unsafe {
+                <BluetoothPairState as NativeAbiCodec>::into_value(self.pair_state)?
+            },
             connected: unsafe { <bool as NativeAbiCodec>::into_value(self.connected)? },
             connectable: unsafe { <bool as NativeAbiCodec>::into_value(self.connectable)? },
-            advertisement: unsafe { <BluetoothAdvertisementData as NativeAbiCodec>::into_value(self.advertisement)? },
+            transport: unsafe {
+                <Option<BluetoothTransport> as NativeAbiCodec>::into_value(self.transport)?
+            },
+            advertisement: unsafe {
+                <BluetoothAdvertisementData as NativeAbiCodec>::into_value(self.advertisement)?
+            },
         })
     }
 
@@ -1881,10 +4066,20 @@ impl NativeAbiCodec for BluetoothDeviceDescriptorAbi<NativeAbi> {
             name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.name),
             rssi: <Option<i32> as NativeAbiCodec>::from_value(binding, value.rssi),
             paired: <bool as NativeAbiCodec>::from_value(binding, value.paired),
-            pair_state: <BluetoothPairState as NativeAbiCodec>::from_value(binding, value.pair_state),
+            pair_state: <BluetoothPairState as NativeAbiCodec>::from_value(
+                binding,
+                value.pair_state,
+            ),
             connected: <bool as NativeAbiCodec>::from_value(binding, value.connected),
             connectable: <bool as NativeAbiCodec>::from_value(binding, value.connectable),
-            advertisement: <BluetoothAdvertisementData as NativeAbiCodec>::from_value(binding, value.advertisement),
+            transport: <Option<BluetoothTransport> as NativeAbiCodec>::from_value(
+                binding,
+                value.transport,
+            ),
+            advertisement: <BluetoothAdvertisementData as NativeAbiCodec>::from_value(
+                binding,
+                value.advertisement,
+            ),
         }
     }
 }
@@ -1892,7 +4087,10 @@ impl NativeAbiCodec for BluetoothDeviceDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
     type Value = BluetoothDeviceDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothDeviceDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
             address: <vm::StringHandle as VmAbiCodec>::into_value(self.address, context)?,
@@ -1902,11 +4100,21 @@ impl VmAbiCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
             pair_state: <BluetoothPairState as VmAbiCodec>::into_value(self.pair_state, context)?,
             connected: <bool as VmAbiCodec>::into_value(self.connected, context)?,
             connectable: <bool as VmAbiCodec>::into_value(self.connectable, context)?,
-            advertisement: <BluetoothAdvertisementDataVm as VmAbiCodec>::into_value(self.advertisement, context)?,
+            transport: <Option<BluetoothTransport> as VmAbiCodec>::into_value(
+                self.transport,
+                context,
+            )?,
+            advertisement: <BluetoothAdvertisementDataVm as VmAbiCodec>::into_value(
+                self.advertisement,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
             address: <vm::StringHandle as VmAbiCodec>::from_value(context, value.address)?,
@@ -1916,7 +4124,14 @@ impl VmAbiCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
             pair_state: <BluetoothPairState as VmAbiCodec>::from_value(context, value.pair_state)?,
             connected: <bool as VmAbiCodec>::from_value(context, value.connected)?,
             connectable: <bool as VmAbiCodec>::from_value(context, value.connectable)?,
-            advertisement: <BluetoothAdvertisementDataVm as VmAbiCodec>::from_value(context, value.advertisement)?,
+            transport: <Option<BluetoothTransport> as VmAbiCodec>::from_value(
+                context,
+                value.transport,
+            )?,
+            advertisement: <BluetoothAdvertisementDataVm as VmAbiCodec>::from_value(
+                context,
+                value.advertisement,
+            )?,
         })
     }
 }
@@ -1928,40 +4143,65 @@ pub struct BluetoothGattCharacteristicDescriptorAbi<A: BindingAbi> {
     pub service_uuid: A::String,
     /// Characteristic UUID.
     pub uuid: A::String,
-    /// Characteristic property bitmask.
-    pub properties: u32,
+    /// Characteristic property set.
+    pub properties: BluetoothGattCharacteristicProperties,
 }
 
-pub type BluetoothGattCharacteristicDescriptor = BluetoothGattCharacteristicDescriptorAbi<NativeAbi>;
+pub type BluetoothGattCharacteristicDescriptor =
+    BluetoothGattCharacteristicDescriptorAbi<NativeAbi>;
 pub type BluetoothGattCharacteristicDescriptorVm = BluetoothGattCharacteristicDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for BluetoothGattCharacteristicDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("BluetoothGattCharacteristicDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("BluetoothGattCharacteristicDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for BluetoothGattCharacteristicDescriptorAbi<NativeAbi> {}
 impl Clone for BluetoothGattCharacteristicDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for BluetoothGattCharacteristicDescriptorAbi<VmAbi> {}
 impl Clone for BluetoothGattCharacteristicDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for BluetoothGattCharacteristicDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "BluetoothGattCharacteristicDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothGattCharacteristicDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_service_uuid = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_uuid = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_properties = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_service_uuid =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_uuid =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_properties =
+            <BluetoothGattCharacteristicPropertiesVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
         Ok(Self {
             service_uuid: field_service_uuid,
             uuid: field_uuid,
@@ -1969,13 +4209,24 @@ impl VmAggregateCodec for BluetoothGattCharacteristicDescriptorAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service_uuid, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.service_uuid,
+                context,
+            )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uuid, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.properties, context)?,
+            <BluetoothGattCharacteristicPropertiesVm as VmAggregateCodec>::encode_with_context(
+                self.properties,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -1986,8 +4237,8 @@ pub struct BluetoothGattCharacteristicDescriptorValue {
     pub service_uuid: String,
     /// Characteristic UUID.
     pub uuid: String,
-    /// Characteristic property bitmask.
-    pub properties: u32,
+    /// Characteristic property set.
+    pub properties: BluetoothGattCharacteristicProperties,
 }
 
 impl NativeAbiCodec for BluetoothGattCharacteristicDescriptorAbi<NativeAbi> {
@@ -1995,17 +4246,29 @@ impl NativeAbiCodec for BluetoothGattCharacteristicDescriptorAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(BluetoothGattCharacteristicDescriptorValue {
-            service_uuid: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.service_uuid)? },
+            service_uuid: unsafe {
+                <NativeStringRef as NativeAbiCodec>::into_value(self.service_uuid)?
+            },
             uuid: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.uuid)? },
-            properties: unsafe { <u32 as NativeAbiCodec>::into_value(self.properties)? },
+            properties: unsafe {
+                <BluetoothGattCharacteristicProperties as NativeAbiCodec>::into_value(
+                    self.properties,
+                )?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            service_uuid: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.service_uuid),
+            service_uuid: <NativeStringRef as NativeAbiCodec>::from_value(
+                binding,
+                value.service_uuid,
+            ),
             uuid: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.uuid),
-            properties: <u32 as NativeAbiCodec>::from_value(binding, value.properties),
+            properties: <BluetoothGattCharacteristicProperties as NativeAbiCodec>::from_value(
+                binding,
+                value.properties,
+            ),
         }
     }
 }
@@ -2013,20 +4276,166 @@ impl NativeAbiCodec for BluetoothGattCharacteristicDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for BluetoothGattCharacteristicDescriptorAbi<VmAbi> {
     type Value = BluetoothGattCharacteristicDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothGattCharacteristicDescriptorValue {
             service_uuid: <vm::StringHandle as VmAbiCodec>::into_value(self.service_uuid, context)?,
             uuid: <vm::StringHandle as VmAbiCodec>::into_value(self.uuid, context)?,
-            properties: <u32 as VmAbiCodec>::into_value(self.properties, context)?,
+            properties: <BluetoothGattCharacteristicPropertiesVm as VmAbiCodec>::into_value(
+                self.properties,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
-            service_uuid: <vm::StringHandle as VmAbiCodec>::from_value(context, value.service_uuid)?,
+            service_uuid: <vm::StringHandle as VmAbiCodec>::from_value(
+                context,
+                value.service_uuid,
+            )?,
             uuid: <vm::StringHandle as VmAbiCodec>::from_value(context, value.uuid)?,
-            properties: <u32 as VmAbiCodec>::from_value(context, value.properties)?,
+            properties: <BluetoothGattCharacteristicPropertiesVm as VmAbiCodec>::from_value(
+                context,
+                value.properties,
+            )?,
         })
+    }
+}
+
+/// ABI struct for BluetoothGattCharacteristicProperties.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothGattCharacteristicProperties {
+    /// Whether broadcast writes are supported.
+    pub broadcast: bool,
+    /// Whether characteristic reads are supported.
+    pub read: bool,
+    /// Whether writes without response are supported.
+    pub write_without_response: bool,
+    /// Whether writes with response are supported.
+    pub write: bool,
+    /// Whether notifications are supported.
+    pub notify: bool,
+    /// Whether indications are supported.
+    pub indicate: bool,
+    /// Whether signed writes are supported.
+    pub authenticated_signed_writes: bool,
+    /// Whether reliable writes are supported.
+    pub reliable_write: bool,
+    /// Whether writable auxiliaries are supported.
+    pub writable_auxiliaries: bool,
+}
+
+pub type BluetoothGattCharacteristicPropertiesVm = BluetoothGattCharacteristicProperties;
+
+impl VmAggregateCodec for BluetoothGattCharacteristicProperties {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothGattCharacteristicProperties",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 9 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 9 fields",
+            ))
+            .boxed());
+        }
+        let field_broadcast = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_read = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_write_without_response =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_write = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_notify = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_indicate = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_authenticated_signed_writes =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_reliable_write =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_writable_auxiliaries =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        Ok(Self {
+            broadcast: field_broadcast,
+            read: field_read,
+            write_without_response: field_write_without_response,
+            write: field_write,
+            notify: field_notify,
+            indicate: field_indicate,
+            authenticated_signed_writes: field_authenticated_signed_writes,
+            reliable_write: field_reliable_write,
+            writable_auxiliaries: field_writable_auxiliaries,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(self.broadcast, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.read, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.write_without_response, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.write, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.notify, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.indicate, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.authenticated_signed_writes,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.reliable_write, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.writable_auxiliaries, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BluetoothGattCharacteristicProperties.
+pub type BluetoothGattCharacteristicPropertiesValue = BluetoothGattCharacteristicProperties;
+
+impl NativeAbiCodec for BluetoothGattCharacteristicProperties {
+    type Value = BluetoothGattCharacteristicPropertiesValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BluetoothGattCharacteristicProperties {
+    type Value = BluetoothGattCharacteristicPropertiesValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -2046,31 +4455,53 @@ pub type BluetoothGattDescriptorDescriptorVm = BluetoothGattDescriptorDescriptor
 
 impl<A: BindingAbi> std::fmt::Debug for BluetoothGattDescriptorDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("BluetoothGattDescriptorDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("BluetoothGattDescriptorDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for BluetoothGattDescriptorDescriptorAbi<NativeAbi> {}
 impl Clone for BluetoothGattDescriptorDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for BluetoothGattDescriptorDescriptorAbi<VmAbi> {}
 impl Clone for BluetoothGattDescriptorDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for BluetoothGattDescriptorDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "BluetoothGattDescriptorDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothGattDescriptorDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_service_uuid = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_characteristic_uuid = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_uuid = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_service_uuid =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_characteristic_uuid =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_uuid =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             service_uuid: field_service_uuid,
             characteristic_uuid: field_characteristic_uuid,
@@ -2078,13 +4509,24 @@ impl VmAggregateCodec for BluetoothGattDescriptorDescriptorAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service_uuid, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.characteristic_uuid, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.service_uuid,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.characteristic_uuid,
+                context,
+            )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uuid, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2104,16 +4546,26 @@ impl NativeAbiCodec for BluetoothGattDescriptorDescriptorAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(BluetoothGattDescriptorDescriptorValue {
-            service_uuid: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.service_uuid)? },
-            characteristic_uuid: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.characteristic_uuid)? },
+            service_uuid: unsafe {
+                <NativeStringRef as NativeAbiCodec>::into_value(self.service_uuid)?
+            },
+            characteristic_uuid: unsafe {
+                <NativeStringRef as NativeAbiCodec>::into_value(self.characteristic_uuid)?
+            },
             uuid: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.uuid)? },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            service_uuid: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.service_uuid),
-            characteristic_uuid: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.characteristic_uuid),
+            service_uuid: <NativeStringRef as NativeAbiCodec>::from_value(
+                binding,
+                value.service_uuid,
+            ),
+            characteristic_uuid: <NativeStringRef as NativeAbiCodec>::from_value(
+                binding,
+                value.characteristic_uuid,
+            ),
             uuid: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.uuid),
         }
     }
@@ -2122,18 +4574,33 @@ impl NativeAbiCodec for BluetoothGattDescriptorDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for BluetoothGattDescriptorDescriptorAbi<VmAbi> {
     type Value = BluetoothGattDescriptorDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothGattDescriptorDescriptorValue {
             service_uuid: <vm::StringHandle as VmAbiCodec>::into_value(self.service_uuid, context)?,
-            characteristic_uuid: <vm::StringHandle as VmAbiCodec>::into_value(self.characteristic_uuid, context)?,
+            characteristic_uuid: <vm::StringHandle as VmAbiCodec>::into_value(
+                self.characteristic_uuid,
+                context,
+            )?,
             uuid: <vm::StringHandle as VmAbiCodec>::into_value(self.uuid, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
-            service_uuid: <vm::StringHandle as VmAbiCodec>::from_value(context, value.service_uuid)?,
-            characteristic_uuid: <vm::StringHandle as VmAbiCodec>::from_value(context, value.characteristic_uuid)?,
+            service_uuid: <vm::StringHandle as VmAbiCodec>::from_value(
+                context,
+                value.service_uuid,
+            )?,
+            characteristic_uuid: <vm::StringHandle as VmAbiCodec>::from_value(
+                context,
+                value.characteristic_uuid,
+            )?,
             uuid: <vm::StringHandle as VmAbiCodec>::from_value(context, value.uuid)?,
         })
     }
@@ -2153,29 +4620,49 @@ pub type BluetoothGattServiceDescriptorVm = BluetoothGattServiceDescriptorAbi<Vm
 
 impl<A: BindingAbi> std::fmt::Debug for BluetoothGattServiceDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("BluetoothGattServiceDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("BluetoothGattServiceDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for BluetoothGattServiceDescriptorAbi<NativeAbi> {}
 impl Clone for BluetoothGattServiceDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for BluetoothGattServiceDescriptorAbi<VmAbi> {}
 impl Clone for BluetoothGattServiceDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for BluetoothGattServiceDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "BluetoothGattServiceDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothGattServiceDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_uuid = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_uuid =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             uuid: field_uuid,
@@ -2183,12 +4670,17 @@ impl VmAggregateCodec for BluetoothGattServiceDescriptorAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uuid, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2222,14 +4714,20 @@ impl NativeAbiCodec for BluetoothGattServiceDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for BluetoothGattServiceDescriptorAbi<VmAbi> {
     type Value = BluetoothGattServiceDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothGattServiceDescriptorValue {
             uuid: <vm::StringHandle as VmAbiCodec>::into_value(self.uuid, context)?,
             primary: <bool as VmAbiCodec>::into_value(self.primary, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             uuid: <vm::StringHandle as VmAbiCodec>::from_value(context, value.uuid)?,
             primary: <bool as VmAbiCodec>::from_value(context, value.primary)?,
@@ -2255,32 +4753,54 @@ pub type BluetoothGattValueEventVm = BluetoothGattValueEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for BluetoothGattValueEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("BluetoothGattValueEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("BluetoothGattValueEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for BluetoothGattValueEventAbi<NativeAbi> {}
 impl Clone for BluetoothGattValueEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for BluetoothGattValueEventAbi<VmAbi> {}
 impl Clone for BluetoothGattValueEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for BluetoothGattValueEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "BluetoothGattValueEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothGattValueEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
         let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_service_uuid = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_characteristic_uuid = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_value = <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_service_uuid =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_characteristic_uuid =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_value =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             service_uuid: field_service_uuid,
@@ -2289,14 +4809,25 @@ impl VmAggregateCodec for BluetoothGattValueEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service_uuid, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.characteristic_uuid, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.service_uuid,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.characteristic_uuid,
+                context,
+            )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.value, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2319,8 +4850,12 @@ impl NativeAbiCodec for BluetoothGattValueEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(BluetoothGattValueEventValue {
             timestamp_ns: unsafe { <u64 as NativeAbiCodec>::into_value(self.timestamp_ns)? },
-            service_uuid: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.service_uuid)? },
-            characteristic_uuid: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.characteristic_uuid)? },
+            service_uuid: unsafe {
+                <NativeStringRef as NativeAbiCodec>::into_value(self.service_uuid)?
+            },
+            characteristic_uuid: unsafe {
+                <NativeStringRef as NativeAbiCodec>::into_value(self.characteristic_uuid)?
+            },
             value: unsafe { <NativeSlice<u8> as NativeAbiCodec>::into_value(self.value)? },
         })
     }
@@ -2328,8 +4863,14 @@ impl NativeAbiCodec for BluetoothGattValueEventAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             timestamp_ns: <u64 as NativeAbiCodec>::from_value(binding, value.timestamp_ns),
-            service_uuid: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.service_uuid),
-            characteristic_uuid: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.characteristic_uuid),
+            service_uuid: <NativeStringRef as NativeAbiCodec>::from_value(
+                binding,
+                value.service_uuid,
+            ),
+            characteristic_uuid: <NativeStringRef as NativeAbiCodec>::from_value(
+                binding,
+                value.characteristic_uuid,
+            ),
             value: <NativeSlice<u8> as NativeAbiCodec>::from_value(binding, value.value),
         }
     }
@@ -2338,21 +4879,331 @@ impl NativeAbiCodec for BluetoothGattValueEventAbi<NativeAbi> {
 impl VmAbiCodec for BluetoothGattValueEventAbi<VmAbi> {
     type Value = BluetoothGattValueEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothGattValueEventValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
             service_uuid: <vm::StringHandle as VmAbiCodec>::into_value(self.service_uuid, context)?,
-            characteristic_uuid: <vm::StringHandle as VmAbiCodec>::into_value(self.characteristic_uuid, context)?,
+            characteristic_uuid: <vm::StringHandle as VmAbiCodec>::into_value(
+                self.characteristic_uuid,
+                context,
+            )?,
             value: <VmSlice<u8> as VmAbiCodec>::into_value(self.value, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             timestamp_ns: <u64 as VmAbiCodec>::from_value(context, value.timestamp_ns)?,
-            service_uuid: <vm::StringHandle as VmAbiCodec>::from_value(context, value.service_uuid)?,
-            characteristic_uuid: <vm::StringHandle as VmAbiCodec>::from_value(context, value.characteristic_uuid)?,
+            service_uuid: <vm::StringHandle as VmAbiCodec>::from_value(
+                context,
+                value.service_uuid,
+            )?,
+            characteristic_uuid: <vm::StringHandle as VmAbiCodec>::from_value(
+                context,
+                value.characteristic_uuid,
+            )?,
             value: <VmSlice<u8> as VmAbiCodec>::from_value(context, value.value)?,
+        })
+    }
+}
+
+/// ABI struct for BluetoothScanDiscoveredEvent.
+#[repr(C)]
+pub struct BluetoothScanDiscoveredEventAbi<A: BindingAbi> {
+    /// Discriminator for this Bluetooth scan event variant.
+    pub kind: A::String,
+    /// Shared event metadata.
+    pub metadata: platform_device::BluetoothScanEventMetadataAbi<A>,
+}
+
+pub type BluetoothScanDiscoveredEvent = BluetoothScanDiscoveredEventAbi<NativeAbi>;
+pub type BluetoothScanDiscoveredEventVm = BluetoothScanDiscoveredEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for BluetoothScanDiscoveredEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("BluetoothScanDiscoveredEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for BluetoothScanDiscoveredEventAbi<NativeAbi> {}
+impl Clone for BluetoothScanDiscoveredEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for BluetoothScanDiscoveredEventAbi<VmAbi> {}
+impl Clone for BluetoothScanDiscoveredEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for BluetoothScanDiscoveredEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothScanDiscoveredEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <BluetoothScanEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <BluetoothScanEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BluetoothScanDiscoveredEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothScanDiscoveredEventValue {
+    /// Discriminator for this Bluetooth scan event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: BluetoothScanEventMetadataValue,
+}
+
+impl NativeAbiCodec for BluetoothScanDiscoveredEventAbi<NativeAbi> {
+    type Value = BluetoothScanDiscoveredEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(BluetoothScanDiscoveredEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe {
+                <BluetoothScanEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <BluetoothScanEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for BluetoothScanDiscoveredEventAbi<VmAbi> {
+    type Value = BluetoothScanDiscoveredEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(BluetoothScanDiscoveredEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <BluetoothScanEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <BluetoothScanEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for BluetoothScanEventMetadata.
+#[repr(C)]
+pub struct BluetoothScanEventMetadataAbi<A: BindingAbi> {
+    /// Event timestamp in nanoseconds.
+    pub timestamp_ns: u64,
+    /// Monotonic sequence number for this scan stream.
+    pub sequence: u64,
+    /// Device descriptor payload for this event.
+    pub device: platform_device::BluetoothDeviceDescriptorAbi<A>,
+}
+
+pub type BluetoothScanEventMetadata = BluetoothScanEventMetadataAbi<NativeAbi>;
+pub type BluetoothScanEventMetadataVm = BluetoothScanEventMetadataAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for BluetoothScanEventMetadataAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("BluetoothScanEventMetadataAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for BluetoothScanEventMetadataAbi<NativeAbi> {}
+impl Clone for BluetoothScanEventMetadataAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for BluetoothScanEventMetadataAbi<VmAbi> {}
+impl Clone for BluetoothScanEventMetadataAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for BluetoothScanEventMetadataAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothScanEventMetadata",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_device = <BluetoothDeviceDescriptorVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        Ok(Self {
+            timestamp_ns: field_timestamp_ns,
+            sequence: field_sequence,
+            device: field_device,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+            <BluetoothDeviceDescriptorVm as VmAggregateCodec>::encode_with_context(
+                self.device,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BluetoothScanEventMetadata.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothScanEventMetadataValue {
+    /// Event timestamp in nanoseconds.
+    pub timestamp_ns: u64,
+    /// Monotonic sequence number for this scan stream.
+    pub sequence: u64,
+    /// Device descriptor payload for this event.
+    pub device: BluetoothDeviceDescriptorValue,
+}
+
+impl NativeAbiCodec for BluetoothScanEventMetadataAbi<NativeAbi> {
+    type Value = BluetoothScanEventMetadataValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(BluetoothScanEventMetadataValue {
+            timestamp_ns: unsafe { <u64 as NativeAbiCodec>::into_value(self.timestamp_ns)? },
+            sequence: unsafe { <u64 as NativeAbiCodec>::into_value(self.sequence)? },
+            device: unsafe {
+                <BluetoothDeviceDescriptor as NativeAbiCodec>::into_value(self.device)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            timestamp_ns: <u64 as NativeAbiCodec>::from_value(binding, value.timestamp_ns),
+            sequence: <u64 as NativeAbiCodec>::from_value(binding, value.sequence),
+            device: <BluetoothDeviceDescriptor as NativeAbiCodec>::from_value(
+                binding,
+                value.device,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for BluetoothScanEventMetadataAbi<VmAbi> {
+    type Value = BluetoothScanEventMetadataValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(BluetoothScanEventMetadataValue {
+            timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
+            sequence: <u64 as VmAbiCodec>::into_value(self.sequence, context)?,
+            device: <BluetoothDeviceDescriptorVm as VmAbiCodec>::into_value(self.device, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            timestamp_ns: <u64 as VmAbiCodec>::from_value(context, value.timestamp_ns)?,
+            sequence: <u64 as VmAbiCodec>::from_value(context, value.sequence)?,
+            device: <BluetoothDeviceDescriptorVm as VmAbiCodec>::from_value(context, value.device)?,
         })
     }
 }
@@ -2383,36 +5234,68 @@ pub type BluetoothScanFilterVm = BluetoothScanFilterAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for BluetoothScanFilterAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("BluetoothScanFilterAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("BluetoothScanFilterAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for BluetoothScanFilterAbi<NativeAbi> {}
 impl Clone for BluetoothScanFilterAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for BluetoothScanFilterAbi<VmAbi> {}
 impl Clone for BluetoothScanFilterAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for BluetoothScanFilterAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "BluetoothScanFilter")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothScanFilter",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 8 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 8 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 8 fields",
+            ))
+            .boxed());
         }
-        let field_service_uuids = <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_name_prefix = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_allow_duplicates = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_minimum_rssi = <Option<i32> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_transport = <Option<BluetoothTransport> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_scan_mode = <Option<BluetoothScanMode> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_primary_phy = <Option<BluetoothPhy> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_secondary_phy = <Option<BluetoothPhy> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_service_uuids =
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_name_prefix =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_allow_duplicates =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_minimum_rssi =
+            <Option<i32> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_transport =
+            <Option<BluetoothTransport> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        let field_scan_mode = <Option<BluetoothScanMode> as VmAggregateCodec>::decode_with_context(
+            context, slots[5],
+        )?;
+        let field_primary_phy =
+            <Option<BluetoothPhy> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_secondary_phy =
+            <Option<BluetoothPhy> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         Ok(Self {
             service_uuids: field_service_uuids,
             name_prefix: field_name_prefix,
@@ -2425,18 +5308,41 @@ impl VmAggregateCodec for BluetoothScanFilterAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.service_uuids, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.name_prefix, context)?,
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.service_uuids,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name_prefix,
+                context,
+            )?,
             <bool as VmAggregateCodec>::encode_with_context(self.allow_duplicates, context)?,
             <Option<i32> as VmAggregateCodec>::encode_with_context(self.minimum_rssi, context)?,
-            <Option<BluetoothTransport> as VmAggregateCodec>::encode_with_context(self.transport, context)?,
-            <Option<BluetoothScanMode> as VmAggregateCodec>::encode_with_context(self.scan_mode, context)?,
-            <Option<BluetoothPhy> as VmAggregateCodec>::encode_with_context(self.primary_phy, context)?,
-            <Option<BluetoothPhy> as VmAggregateCodec>::encode_with_context(self.secondary_phy, context)?,
+            <Option<BluetoothTransport> as VmAggregateCodec>::encode_with_context(
+                self.transport,
+                context,
+            )?,
+            <Option<BluetoothScanMode> as VmAggregateCodec>::encode_with_context(
+                self.scan_mode,
+                context,
+            )?,
+            <Option<BluetoothPhy> as VmAggregateCodec>::encode_with_context(
+                self.primary_phy,
+                context,
+            )?,
+            <Option<BluetoothPhy> as VmAggregateCodec>::encode_with_context(
+                self.secondary_phy,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2466,27 +5372,61 @@ impl NativeAbiCodec for BluetoothScanFilterAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(BluetoothScanFilterValue {
-            service_uuids: unsafe { <NativeArray<NativeStringRef> as NativeAbiCodec>::into_value(self.service_uuids)? },
-            name_prefix: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name_prefix)? },
-            allow_duplicates: unsafe { <bool as NativeAbiCodec>::into_value(self.allow_duplicates)? },
-            minimum_rssi: unsafe { <Option<i32> as NativeAbiCodec>::into_value(self.minimum_rssi)? },
-            transport: unsafe { <Option<BluetoothTransport> as NativeAbiCodec>::into_value(self.transport)? },
-            scan_mode: unsafe { <Option<BluetoothScanMode> as NativeAbiCodec>::into_value(self.scan_mode)? },
-            primary_phy: unsafe { <Option<BluetoothPhy> as NativeAbiCodec>::into_value(self.primary_phy)? },
-            secondary_phy: unsafe { <Option<BluetoothPhy> as NativeAbiCodec>::into_value(self.secondary_phy)? },
+            service_uuids: unsafe {
+                <NativeArray<NativeStringRef> as NativeAbiCodec>::into_value(self.service_uuids)?
+            },
+            name_prefix: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name_prefix)?
+            },
+            allow_duplicates: unsafe {
+                <bool as NativeAbiCodec>::into_value(self.allow_duplicates)?
+            },
+            minimum_rssi: unsafe {
+                <Option<i32> as NativeAbiCodec>::into_value(self.minimum_rssi)?
+            },
+            transport: unsafe {
+                <Option<BluetoothTransport> as NativeAbiCodec>::into_value(self.transport)?
+            },
+            scan_mode: unsafe {
+                <Option<BluetoothScanMode> as NativeAbiCodec>::into_value(self.scan_mode)?
+            },
+            primary_phy: unsafe {
+                <Option<BluetoothPhy> as NativeAbiCodec>::into_value(self.primary_phy)?
+            },
+            secondary_phy: unsafe {
+                <Option<BluetoothPhy> as NativeAbiCodec>::into_value(self.secondary_phy)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            service_uuids: <NativeArray<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.service_uuids),
-            name_prefix: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.name_prefix),
+            service_uuids: <NativeArray<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.service_uuids,
+            ),
+            name_prefix: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.name_prefix,
+            ),
             allow_duplicates: <bool as NativeAbiCodec>::from_value(binding, value.allow_duplicates),
             minimum_rssi: <Option<i32> as NativeAbiCodec>::from_value(binding, value.minimum_rssi),
-            transport: <Option<BluetoothTransport> as NativeAbiCodec>::from_value(binding, value.transport),
-            scan_mode: <Option<BluetoothScanMode> as NativeAbiCodec>::from_value(binding, value.scan_mode),
-            primary_phy: <Option<BluetoothPhy> as NativeAbiCodec>::from_value(binding, value.primary_phy),
-            secondary_phy: <Option<BluetoothPhy> as NativeAbiCodec>::from_value(binding, value.secondary_phy),
+            transport: <Option<BluetoothTransport> as NativeAbiCodec>::from_value(
+                binding,
+                value.transport,
+            ),
+            scan_mode: <Option<BluetoothScanMode> as NativeAbiCodec>::from_value(
+                binding,
+                value.scan_mode,
+            ),
+            primary_phy: <Option<BluetoothPhy> as NativeAbiCodec>::from_value(
+                binding,
+                value.primary_phy,
+            ),
+            secondary_phy: <Option<BluetoothPhy> as NativeAbiCodec>::from_value(
+                binding,
+                value.secondary_phy,
+            ),
         }
     }
 }
@@ -2494,96 +5434,589 @@ impl NativeAbiCodec for BluetoothScanFilterAbi<NativeAbi> {
 impl VmAbiCodec for BluetoothScanFilterAbi<VmAbi> {
     type Value = BluetoothScanFilterValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(BluetoothScanFilterValue {
-            service_uuids: <VmArray<vm::StringHandle> as VmAbiCodec>::into_value(self.service_uuids, context)?,
-            name_prefix: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.name_prefix, context)?,
+            service_uuids: <VmArray<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.service_uuids,
+                context,
+            )?,
+            name_prefix: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.name_prefix,
+                context,
+            )?,
             allow_duplicates: <bool as VmAbiCodec>::into_value(self.allow_duplicates, context)?,
             minimum_rssi: <Option<i32> as VmAbiCodec>::into_value(self.minimum_rssi, context)?,
-            transport: <Option<BluetoothTransport> as VmAbiCodec>::into_value(self.transport, context)?,
-            scan_mode: <Option<BluetoothScanMode> as VmAbiCodec>::into_value(self.scan_mode, context)?,
-            primary_phy: <Option<BluetoothPhy> as VmAbiCodec>::into_value(self.primary_phy, context)?,
-            secondary_phy: <Option<BluetoothPhy> as VmAbiCodec>::into_value(self.secondary_phy, context)?,
+            transport: <Option<BluetoothTransport> as VmAbiCodec>::into_value(
+                self.transport,
+                context,
+            )?,
+            scan_mode: <Option<BluetoothScanMode> as VmAbiCodec>::into_value(
+                self.scan_mode,
+                context,
+            )?,
+            primary_phy: <Option<BluetoothPhy> as VmAbiCodec>::into_value(
+                self.primary_phy,
+                context,
+            )?,
+            secondary_phy: <Option<BluetoothPhy> as VmAbiCodec>::into_value(
+                self.secondary_phy,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
-            service_uuids: <VmArray<vm::StringHandle> as VmAbiCodec>::from_value(context, value.service_uuids)?,
-            name_prefix: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.name_prefix)?,
+            service_uuids: <VmArray<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.service_uuids,
+            )?,
+            name_prefix: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.name_prefix,
+            )?,
             allow_duplicates: <bool as VmAbiCodec>::from_value(context, value.allow_duplicates)?,
             minimum_rssi: <Option<i32> as VmAbiCodec>::from_value(context, value.minimum_rssi)?,
-            transport: <Option<BluetoothTransport> as VmAbiCodec>::from_value(context, value.transport)?,
-            scan_mode: <Option<BluetoothScanMode> as VmAbiCodec>::from_value(context, value.scan_mode)?,
-            primary_phy: <Option<BluetoothPhy> as VmAbiCodec>::from_value(context, value.primary_phy)?,
-            secondary_phy: <Option<BluetoothPhy> as VmAbiCodec>::from_value(context, value.secondary_phy)?,
+            transport: <Option<BluetoothTransport> as VmAbiCodec>::from_value(
+                context,
+                value.transport,
+            )?,
+            scan_mode: <Option<BluetoothScanMode> as VmAbiCodec>::from_value(
+                context,
+                value.scan_mode,
+            )?,
+            primary_phy: <Option<BluetoothPhy> as VmAbiCodec>::from_value(
+                context,
+                value.primary_phy,
+            )?,
+            secondary_phy: <Option<BluetoothPhy> as VmAbiCodec>::from_value(
+                context,
+                value.secondary_phy,
+            )?,
         })
     }
 }
 
-/// ABI struct for CameraControlRange.
+/// ABI struct for BluetoothScanLostEvent.
+#[repr(C)]
+pub struct BluetoothScanLostEventAbi<A: BindingAbi> {
+    /// Discriminator for this Bluetooth scan event variant.
+    pub kind: A::String,
+    /// Shared event metadata.
+    pub metadata: platform_device::BluetoothScanEventMetadataAbi<A>,
+}
+
+pub type BluetoothScanLostEvent = BluetoothScanLostEventAbi<NativeAbi>;
+pub type BluetoothScanLostEventVm = BluetoothScanLostEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for BluetoothScanLostEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("BluetoothScanLostEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for BluetoothScanLostEventAbi<NativeAbi> {}
+impl Clone for BluetoothScanLostEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for BluetoothScanLostEventAbi<VmAbi> {}
+impl Clone for BluetoothScanLostEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for BluetoothScanLostEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothScanLostEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <BluetoothScanEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <BluetoothScanEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BluetoothScanLostEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothScanLostEventValue {
+    /// Discriminator for this Bluetooth scan event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: BluetoothScanEventMetadataValue,
+}
+
+impl NativeAbiCodec for BluetoothScanLostEventAbi<NativeAbi> {
+    type Value = BluetoothScanLostEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(BluetoothScanLostEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe {
+                <BluetoothScanEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <BluetoothScanEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for BluetoothScanLostEventAbi<VmAbi> {
+    type Value = BluetoothScanLostEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(BluetoothScanLostEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <BluetoothScanEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <BluetoothScanEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for BluetoothScanUpdatedEvent.
+#[repr(C)]
+pub struct BluetoothScanUpdatedEventAbi<A: BindingAbi> {
+    /// Discriminator for this Bluetooth scan event variant.
+    pub kind: A::String,
+    /// Shared event metadata.
+    pub metadata: platform_device::BluetoothScanEventMetadataAbi<A>,
+}
+
+pub type BluetoothScanUpdatedEvent = BluetoothScanUpdatedEventAbi<NativeAbi>;
+pub type BluetoothScanUpdatedEventVm = BluetoothScanUpdatedEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for BluetoothScanUpdatedEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("BluetoothScanUpdatedEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for BluetoothScanUpdatedEventAbi<NativeAbi> {}
+impl Clone for BluetoothScanUpdatedEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for BluetoothScanUpdatedEventAbi<VmAbi> {}
+impl Clone for BluetoothScanUpdatedEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for BluetoothScanUpdatedEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothScanUpdatedEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <BluetoothScanEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <BluetoothScanEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BluetoothScanUpdatedEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothScanUpdatedEventValue {
+    /// Discriminator for this Bluetooth scan event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: BluetoothScanEventMetadataValue,
+}
+
+impl NativeAbiCodec for BluetoothScanUpdatedEventAbi<NativeAbi> {
+    type Value = BluetoothScanUpdatedEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(BluetoothScanUpdatedEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe {
+                <BluetoothScanEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <BluetoothScanEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for BluetoothScanUpdatedEventAbi<VmAbi> {
+    type Value = BluetoothScanUpdatedEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(BluetoothScanUpdatedEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <BluetoothScanEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <BluetoothScanEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for BluetoothSessionDisconnectedEvent.
+#[repr(C)]
+pub struct BluetoothSessionDisconnectedEventAbi<A: BindingAbi> {
+    /// Discriminator for this Bluetooth session event variant.
+    pub kind: A::String,
+    /// Shared event metadata.
+    pub metadata: BluetoothSessionEventMetadata,
+    /// Session event payload.
+    pub payload: BluetoothSessionDisconnectedPayload,
+}
+
+pub type BluetoothSessionDisconnectedEvent = BluetoothSessionDisconnectedEventAbi<NativeAbi>;
+pub type BluetoothSessionDisconnectedEventVm = BluetoothSessionDisconnectedEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for BluetoothSessionDisconnectedEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("BluetoothSessionDisconnectedEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for BluetoothSessionDisconnectedEventAbi<NativeAbi> {}
+impl Clone for BluetoothSessionDisconnectedEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for BluetoothSessionDisconnectedEventAbi<VmAbi> {}
+impl Clone for BluetoothSessionDisconnectedEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for BluetoothSessionDisconnectedEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothSessionDisconnectedEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <BluetoothSessionEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_payload =
+            <BluetoothSessionDisconnectedPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <BluetoothSessionEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <BluetoothSessionDisconnectedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BluetoothSessionDisconnectedEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothSessionDisconnectedEventValue {
+    /// Discriminator for this Bluetooth session event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: BluetoothSessionEventMetadata,
+    /// Session event payload.
+    pub payload: BluetoothSessionDisconnectedPayload,
+}
+
+impl NativeAbiCodec for BluetoothSessionDisconnectedEventAbi<NativeAbi> {
+    type Value = BluetoothSessionDisconnectedEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(BluetoothSessionDisconnectedEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe {
+                <BluetoothSessionEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <BluetoothSessionDisconnectedPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <BluetoothSessionEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
+            payload: <BluetoothSessionDisconnectedPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for BluetoothSessionDisconnectedEventAbi<VmAbi> {
+    type Value = BluetoothSessionDisconnectedEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(BluetoothSessionDisconnectedEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <BluetoothSessionEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
+            payload: <BluetoothSessionDisconnectedPayloadVm as VmAbiCodec>::into_value(
+                self.payload,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <BluetoothSessionEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
+            payload: <BluetoothSessionDisconnectedPayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for BluetoothSessionDisconnectedPayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct CameraControlRange {
-    /// Control selector.
-    pub control: CameraControl,
-    /// Minimum normalized control value.
-    pub minimum: f64,
-    /// Maximum normalized control value.
-    pub maximum: f64,
-    /// Default normalized control value.
-    pub default_value: f64,
-    /// Step size for discrete controls, zero for continuous controls.
-    pub step: f64,
-    /// Whether host auto mode is supported for this control.
-    pub auto_supported: bool,
-}
+pub struct BluetoothSessionDisconnectedPayload {}
 
-pub type CameraControlRangeVm = CameraControlRange;
+pub type BluetoothSessionDisconnectedPayloadVm = BluetoothSessionDisconnectedPayload;
 
-impl VmAggregateCodec for CameraControlRange {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+impl VmAggregateCodec for BluetoothSessionDisconnectedPayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "CameraControlRange")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothSessionDisconnectedPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 6 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 0 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 0 fields",
+            ))
+            .boxed());
         }
-        let field_control = <CameraControl as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_minimum = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_maximum = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_default_value = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_step = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_auto_supported = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        Ok(Self {
-            control: field_control,
-            minimum: field_minimum,
-            maximum: field_maximum,
-            default_value: field_default_value,
-            step: field_step,
-            auto_supported: field_auto_supported,
-        })
+        Ok(Self {})
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <CameraControl as VmAggregateCodec>::encode_with_context(self.control, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.minimum, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.maximum, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.default_value, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.step, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.auto_supported, context)?,
-        ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
-/// Value type for CameraControlRange.
-pub type CameraControlRangeValue = CameraControlRange;
+/// Value type for BluetoothSessionDisconnectedPayload.
+pub type BluetoothSessionDisconnectedPayloadValue = BluetoothSessionDisconnectedPayload;
 
-impl NativeAbiCodec for CameraControlRange {
-    type Value = CameraControlRangeValue;
+impl NativeAbiCodec for BluetoothSessionDisconnectedPayload {
+    type Value = BluetoothSessionDisconnectedPayloadValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -2594,14 +6027,374 @@ impl NativeAbiCodec for CameraControlRange {
     }
 }
 
-impl VmAbiCodec for CameraControlRange {
-    type Value = CameraControlRangeValue;
+impl VmAbiCodec for BluetoothSessionDisconnectedPayload {
+    type Value = BluetoothSessionDisconnectedPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI struct for BluetoothSessionEventMetadata.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothSessionEventMetadata {
+    /// Event timestamp in nanoseconds.
+    pub timestamp_ns: u64,
+    /// Monotonic sequence number for this session event stream.
+    pub sequence: u64,
+}
+
+pub type BluetoothSessionEventMetadataVm = BluetoothSessionEventMetadata;
+
+impl VmAggregateCodec for BluetoothSessionEventMetadata {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothSessionEventMetadata",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            timestamp_ns: field_timestamp_ns,
+            sequence: field_sequence,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BluetoothSessionEventMetadata.
+pub type BluetoothSessionEventMetadataValue = BluetoothSessionEventMetadata;
+
+impl NativeAbiCodec for BluetoothSessionEventMetadata {
+    type Value = BluetoothSessionEventMetadataValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BluetoothSessionEventMetadata {
+    type Value = BluetoothSessionEventMetadataValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI struct for BluetoothSessionPairStateChangedEvent.
+#[repr(C)]
+pub struct BluetoothSessionPairStateChangedEventAbi<A: BindingAbi> {
+    /// Discriminator for this Bluetooth session event variant.
+    pub kind: A::String,
+    /// Shared event metadata.
+    pub metadata: BluetoothSessionEventMetadata,
+    /// Session event payload.
+    pub payload: BluetoothSessionPairStateChangedPayload,
+}
+
+pub type BluetoothSessionPairStateChangedEvent =
+    BluetoothSessionPairStateChangedEventAbi<NativeAbi>;
+pub type BluetoothSessionPairStateChangedEventVm = BluetoothSessionPairStateChangedEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for BluetoothSessionPairStateChangedEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("BluetoothSessionPairStateChangedEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for BluetoothSessionPairStateChangedEventAbi<NativeAbi> {}
+impl Clone for BluetoothSessionPairStateChangedEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for BluetoothSessionPairStateChangedEventAbi<VmAbi> {}
+impl Clone for BluetoothSessionPairStateChangedEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for BluetoothSessionPairStateChangedEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothSessionPairStateChangedEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <BluetoothSessionEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_payload =
+            <BluetoothSessionPairStateChangedPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <BluetoothSessionEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <BluetoothSessionPairStateChangedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BluetoothSessionPairStateChangedEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothSessionPairStateChangedEventValue {
+    /// Discriminator for this Bluetooth session event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: BluetoothSessionEventMetadata,
+    /// Session event payload.
+    pub payload: BluetoothSessionPairStateChangedPayload,
+}
+
+impl NativeAbiCodec for BluetoothSessionPairStateChangedEventAbi<NativeAbi> {
+    type Value = BluetoothSessionPairStateChangedEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(BluetoothSessionPairStateChangedEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe {
+                <BluetoothSessionEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <BluetoothSessionPairStateChangedPayload as NativeAbiCodec>::into_value(
+                    self.payload,
+                )?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <BluetoothSessionEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
+            payload: <BluetoothSessionPairStateChangedPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for BluetoothSessionPairStateChangedEventAbi<VmAbi> {
+    type Value = BluetoothSessionPairStateChangedEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(BluetoothSessionPairStateChangedEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <BluetoothSessionEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
+            payload: <BluetoothSessionPairStateChangedPayloadVm as VmAbiCodec>::into_value(
+                self.payload,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <BluetoothSessionEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
+            payload: <BluetoothSessionPairStateChangedPayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for BluetoothSessionPairStateChangedPayload.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothSessionPairStateChangedPayload {
+    /// Current pairing state.
+    pub pair_state: BluetoothPairState,
+}
+
+pub type BluetoothSessionPairStateChangedPayloadVm = BluetoothSessionPairStateChangedPayload;
+
+impl VmAggregateCodec for BluetoothSessionPairStateChangedPayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BluetoothSessionPairStateChangedPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_pair_state =
+            <BluetoothPairState as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self {
+            pair_state: field_pair_state,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <BluetoothPairState as VmAggregateCodec>::encode_with_context(
+                self.pair_state,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for BluetoothSessionPairStateChangedPayload.
+pub type BluetoothSessionPairStateChangedPayloadValue = BluetoothSessionPairStateChangedPayload;
+
+impl NativeAbiCodec for BluetoothSessionPairStateChangedPayload {
+    type Value = BluetoothSessionPairStateChangedPayloadValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for BluetoothSessionPairStateChangedPayload {
+    type Value = BluetoothSessionPairStateChangedPayloadValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -2611,12 +6404,14 @@ impl VmAbiCodec for CameraControlRange {
 pub struct CameraDeviceDescriptorAbi<A: BindingAbi> {
     /// Stable camera endpoint identifier.
     pub id: A::String,
+    /// Shared physical-device group identifier when available.
+    pub group_id: Option<A::String>,
     /// Host-visible endpoint name.
     pub name: A::String,
     /// Host-visible endpoint manufacturer string when available.
     pub manufacturer: Option<A::String>,
-    /// Whether the endpoint is front-facing.
-    pub front_facing: bool,
+    /// Host-reported facing mode.
+    pub facing_mode: CameraFacingMode,
     /// Whether the endpoint is depth-capable.
     pub depth_capable: bool,
 }
@@ -2626,51 +6421,90 @@ pub type CameraDeviceDescriptorVm = CameraDeviceDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for CameraDeviceDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("CameraDeviceDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("CameraDeviceDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for CameraDeviceDescriptorAbi<NativeAbi> {}
 impl Clone for CameraDeviceDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for CameraDeviceDescriptorAbi<VmAbi> {}
 impl Clone for CameraDeviceDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for CameraDeviceDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "CameraDeviceDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CameraDeviceDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 6 fields",
+            ))
+            .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_manufacturer = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_front_facing = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_depth_capable = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_group_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_manufacturer =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_facing_mode =
+            <CameraFacingMode as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_depth_capable =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         Ok(Self {
             id: field_id,
+            group_id: field_group_id,
             name: field_name,
             manufacturer: field_manufacturer,
-            front_facing: field_front_facing,
+            facing_mode: field_facing_mode,
             depth_capable: field_depth_capable,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.group_id,
+                context,
+            )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.manufacturer, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.front_facing, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.manufacturer,
+                context,
+            )?,
+            <CameraFacingMode as VmAggregateCodec>::encode_with_context(self.facing_mode, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.depth_capable, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2679,12 +6513,14 @@ impl VmAggregateCodec for CameraDeviceDescriptorAbi<VmAbi> {
 pub struct CameraDeviceDescriptorValue {
     /// Stable camera endpoint identifier.
     pub id: String,
+    /// Shared physical-device group identifier when available.
+    pub group_id: Option<String>,
     /// Host-visible endpoint name.
     pub name: String,
     /// Host-visible endpoint manufacturer string when available.
     pub manufacturer: Option<String>,
-    /// Whether the endpoint is front-facing.
-    pub front_facing: bool,
+    /// Host-reported facing mode.
+    pub facing_mode: CameraFacingMode,
     /// Whether the endpoint is depth-capable.
     pub depth_capable: bool,
 }
@@ -2695,9 +6531,16 @@ impl NativeAbiCodec for CameraDeviceDescriptorAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(CameraDeviceDescriptorValue {
             id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.id)? },
+            group_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.group_id)?
+            },
             name: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.name)? },
-            manufacturer: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)? },
-            front_facing: unsafe { <bool as NativeAbiCodec>::into_value(self.front_facing)? },
+            manufacturer: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)?
+            },
+            facing_mode: unsafe {
+                <CameraFacingMode as NativeAbiCodec>::into_value(self.facing_mode)?
+            },
             depth_capable: unsafe { <bool as NativeAbiCodec>::into_value(self.depth_capable)? },
         })
     }
@@ -2705,9 +6548,19 @@ impl NativeAbiCodec for CameraDeviceDescriptorAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.id),
+            group_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.group_id,
+            ),
             name: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.name),
-            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.manufacturer),
-            front_facing: <bool as NativeAbiCodec>::from_value(binding, value.front_facing),
+            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.manufacturer,
+            ),
+            facing_mode: <CameraFacingMode as NativeAbiCodec>::from_value(
+                binding,
+                value.facing_mode,
+            ),
             depth_capable: <bool as NativeAbiCodec>::from_value(binding, value.depth_capable),
         }
     }
@@ -2716,24 +6569,255 @@ impl NativeAbiCodec for CameraDeviceDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for CameraDeviceDescriptorAbi<VmAbi> {
     type Value = CameraDeviceDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraDeviceDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
+            group_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.group_id, context)?,
             name: <vm::StringHandle as VmAbiCodec>::into_value(self.name, context)?,
-            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.manufacturer, context)?,
-            front_facing: <bool as VmAbiCodec>::into_value(self.front_facing, context)?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.manufacturer,
+                context,
+            )?,
+            facing_mode: <CameraFacingMode as VmAbiCodec>::into_value(self.facing_mode, context)?,
             depth_capable: <bool as VmAbiCodec>::into_value(self.depth_capable, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
+            group_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.group_id,
+            )?,
             name: <vm::StringHandle as VmAbiCodec>::from_value(context, value.name)?,
-            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.manufacturer)?,
-            front_facing: <bool as VmAbiCodec>::from_value(context, value.front_facing)?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.manufacturer,
+            )?,
+            facing_mode: <CameraFacingMode as VmAbiCodec>::from_value(context, value.facing_mode)?,
             depth_capable: <bool as VmAbiCodec>::from_value(context, value.depth_capable)?,
         })
+    }
+}
+
+/// ABI struct for CameraExposureCompensationRange.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CameraExposureCompensationRange {
+    /// Minimum supported compensation in EV units.
+    pub minimum_ev: f64,
+    /// Maximum supported compensation in EV units.
+    pub maximum_ev: f64,
+    /// Default compensation in EV units.
+    pub default_ev: f64,
+    /// Step size in EV units, zero for continuous controls.
+    pub step_ev: f64,
+    /// Whether host auto exposure is supported.
+    pub auto_supported: bool,
+}
+
+pub type CameraExposureCompensationRangeVm = CameraExposureCompensationRange;
+
+impl VmAggregateCodec for CameraExposureCompensationRange {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CameraExposureCompensationRange",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_minimum_ev = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_maximum_ev = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_default_ev = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_step_ev = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_auto_supported =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            minimum_ev: field_minimum_ev,
+            maximum_ev: field_maximum_ev,
+            default_ev: field_default_ev,
+            step_ev: field_step_ev,
+            auto_supported: field_auto_supported,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <f64 as VmAggregateCodec>::encode_with_context(self.minimum_ev, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.maximum_ev, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.default_ev, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.step_ev, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.auto_supported, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for CameraExposureCompensationRange.
+pub type CameraExposureCompensationRangeValue = CameraExposureCompensationRange;
+
+impl NativeAbiCodec for CameraExposureCompensationRange {
+    type Value = CameraExposureCompensationRangeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CameraExposureCompensationRange {
+    type Value = CameraExposureCompensationRangeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI struct for CameraFocusDistanceRange.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CameraFocusDistanceRange {
+    /// Minimum supported focus distance in diopters.
+    pub minimum_diopters: f64,
+    /// Maximum supported focus distance in diopters.
+    pub maximum_diopters: f64,
+    /// Default focus distance in diopters.
+    pub default_diopters: f64,
+    /// Step size in diopters, zero for continuous controls.
+    pub step_diopters: f64,
+    /// Whether host auto focus is supported.
+    pub auto_supported: bool,
+}
+
+pub type CameraFocusDistanceRangeVm = CameraFocusDistanceRange;
+
+impl VmAggregateCodec for CameraFocusDistanceRange {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CameraFocusDistanceRange",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_minimum_diopters =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_maximum_diopters =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_default_diopters =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_step_diopters =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_auto_supported =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            minimum_diopters: field_minimum_diopters,
+            maximum_diopters: field_maximum_diopters,
+            default_diopters: field_default_diopters,
+            step_diopters: field_step_diopters,
+            auto_supported: field_auto_supported,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <f64 as VmAggregateCodec>::encode_with_context(self.minimum_diopters, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.maximum_diopters, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.default_diopters, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.step_diopters, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.auto_supported, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for CameraFocusDistanceRange.
+pub type CameraFocusDistanceRangeValue = CameraFocusDistanceRange;
+
+impl NativeAbiCodec for CameraFocusDistanceRange {
+    type Value = CameraFocusDistanceRangeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CameraFocusDistanceRange {
+    type Value = CameraFocusDistanceRangeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -2748,8 +6832,8 @@ pub struct CameraFrameAbi<A: BindingAbi> {
     pub width: u32,
     /// Frame height in pixels.
     pub height: u32,
-    /// Frame pixel format.
-    pub format: CameraPixelFormat,
+    /// Frame pixel-format descriptor.
+    pub pixel_format: CameraPixelFormatDescriptor,
     /// Frame color-space metadata.
     pub color_space: CameraColorSpace,
     /// Plane layout descriptors for this frame.
@@ -2766,43 +6850,70 @@ pub type CameraFrameVm = CameraFrameAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for CameraFrameAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("CameraFrameAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("CameraFrameAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for CameraFrameAbi<NativeAbi> {}
 impl Clone for CameraFrameAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for CameraFrameAbi<VmAbi> {}
 impl Clone for CameraFrameAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for CameraFrameAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "CameraFrame")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CameraFrame",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 9 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 9 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 9 fields",
+            ))
+            .boxed());
         }
         let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_format = <CameraPixelFormat as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_color_space = <CameraColorSpace as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_planes = <VmSlice<CameraPlaneLayoutVm> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_metadata = <CameraFrameMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_pixel_format =
+            <CameraPixelFormatDescriptorVm as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        let field_color_space =
+            <CameraColorSpace as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_planes = <VmSlice<CameraPlaneLayoutVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[6],
+        )?;
+        let field_metadata =
+            <CameraFrameMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
             width: field_width,
             height: field_height,
-            format: field_format,
+            pixel_format: field_pixel_format,
             color_space: field_color_space,
             planes: field_planes,
             metadata: field_metadata,
@@ -2810,19 +6921,33 @@ impl VmAggregateCodec for CameraFrameAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
-            <CameraPixelFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <CameraPixelFormatDescriptorVm as VmAggregateCodec>::encode_with_context(
+                self.pixel_format,
+                context,
+            )?,
             <CameraColorSpace as VmAggregateCodec>::encode_with_context(self.color_space, context)?,
-            <VmSlice<CameraPlaneLayoutVm> as VmAggregateCodec>::encode_with_context(self.planes, context)?,
-            <CameraFrameMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <VmSlice<CameraPlaneLayoutVm> as VmAggregateCodec>::encode_with_context(
+                self.planes,
+                context,
+            )?,
+            <CameraFrameMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2837,8 +6962,8 @@ pub struct CameraFrameValue {
     pub width: u32,
     /// Frame height in pixels.
     pub height: u32,
-    /// Frame pixel format.
-    pub format: CameraPixelFormat,
+    /// Frame pixel-format descriptor.
+    pub pixel_format: CameraPixelFormatDescriptor,
     /// Frame color-space metadata.
     pub color_space: CameraColorSpace,
     /// Plane layout descriptors for this frame.
@@ -2859,10 +6984,18 @@ impl NativeAbiCodec for CameraFrameAbi<NativeAbi> {
             sequence: unsafe { <u64 as NativeAbiCodec>::into_value(self.sequence)? },
             width: unsafe { <u32 as NativeAbiCodec>::into_value(self.width)? },
             height: unsafe { <u32 as NativeAbiCodec>::into_value(self.height)? },
-            format: unsafe { <CameraPixelFormat as NativeAbiCodec>::into_value(self.format)? },
-            color_space: unsafe { <CameraColorSpace as NativeAbiCodec>::into_value(self.color_space)? },
-            planes: unsafe { <NativeSlice<CameraPlaneLayout> as NativeAbiCodec>::into_value(self.planes)? },
-            metadata: unsafe { <CameraFrameMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            pixel_format: unsafe {
+                <CameraPixelFormatDescriptor as NativeAbiCodec>::into_value(self.pixel_format)?
+            },
+            color_space: unsafe {
+                <CameraColorSpace as NativeAbiCodec>::into_value(self.color_space)?
+            },
+            planes: unsafe {
+                <NativeSlice<CameraPlaneLayout> as NativeAbiCodec>::into_value(self.planes)?
+            },
+            metadata: unsafe {
+                <CameraFrameMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
             bytes: unsafe { <NativeSlice<u8> as NativeAbiCodec>::into_value(self.bytes)? },
         })
     }
@@ -2873,9 +7006,18 @@ impl NativeAbiCodec for CameraFrameAbi<NativeAbi> {
             sequence: <u64 as NativeAbiCodec>::from_value(binding, value.sequence),
             width: <u32 as NativeAbiCodec>::from_value(binding, value.width),
             height: <u32 as NativeAbiCodec>::from_value(binding, value.height),
-            format: <CameraPixelFormat as NativeAbiCodec>::from_value(binding, value.format),
-            color_space: <CameraColorSpace as NativeAbiCodec>::from_value(binding, value.color_space),
-            planes: <NativeSlice<CameraPlaneLayout> as NativeAbiCodec>::from_value(binding, value.planes),
+            pixel_format: <CameraPixelFormatDescriptor as NativeAbiCodec>::from_value(
+                binding,
+                value.pixel_format,
+            ),
+            color_space: <CameraColorSpace as NativeAbiCodec>::from_value(
+                binding,
+                value.color_space,
+            ),
+            planes: <NativeSlice<CameraPlaneLayout> as NativeAbiCodec>::from_value(
+                binding,
+                value.planes,
+            ),
             metadata: <CameraFrameMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
             bytes: <NativeSlice<u8> as NativeAbiCodec>::from_value(binding, value.bytes),
         }
@@ -2885,13 +7027,19 @@ impl NativeAbiCodec for CameraFrameAbi<NativeAbi> {
 impl VmAbiCodec for CameraFrameAbi<VmAbi> {
     type Value = CameraFrameValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(CameraFrameValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
             sequence: <u64 as VmAbiCodec>::into_value(self.sequence, context)?,
             width: <u32 as VmAbiCodec>::into_value(self.width, context)?,
             height: <u32 as VmAbiCodec>::into_value(self.height, context)?,
-            format: <CameraPixelFormat as VmAbiCodec>::into_value(self.format, context)?,
+            pixel_format: <CameraPixelFormatDescriptorVm as VmAbiCodec>::into_value(
+                self.pixel_format,
+                context,
+            )?,
             color_space: <CameraColorSpace as VmAbiCodec>::into_value(self.color_space, context)?,
             planes: <VmSlice<CameraPlaneLayoutVm> as VmAbiCodec>::into_value(self.planes, context)?,
             metadata: <CameraFrameMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -2899,15 +7047,24 @@ impl VmAbiCodec for CameraFrameAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             timestamp_ns: <u64 as VmAbiCodec>::from_value(context, value.timestamp_ns)?,
             sequence: <u64 as VmAbiCodec>::from_value(context, value.sequence)?,
             width: <u32 as VmAbiCodec>::from_value(context, value.width)?,
             height: <u32 as VmAbiCodec>::from_value(context, value.height)?,
-            format: <CameraPixelFormat as VmAbiCodec>::from_value(context, value.format)?,
+            pixel_format: <CameraPixelFormatDescriptorVm as VmAbiCodec>::from_value(
+                context,
+                value.pixel_format,
+            )?,
             color_space: <CameraColorSpace as VmAbiCodec>::from_value(context, value.color_space)?,
-            planes: <VmSlice<CameraPlaneLayoutVm> as VmAbiCodec>::from_value(context, value.planes)?,
+            planes: <VmSlice<CameraPlaneLayoutVm> as VmAbiCodec>::from_value(
+                context,
+                value.planes,
+            )?,
             metadata: <CameraFrameMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
             bytes: <VmSlice<u8> as VmAbiCodec>::from_value(context, value.bytes)?,
         })
@@ -2933,19 +7090,37 @@ pub struct CameraFrameMetadata {
 pub type CameraFrameMetadataVm = CameraFrameMetadata;
 
 impl VmAggregateCodec for CameraFrameMetadata {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "CameraFrameMetadata")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CameraFrameMetadata",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_exposure_time_ns = <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_sensor_iso = <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_white_balance_kelvin = <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_focus_distance_diopters = <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_zoom_ratio = <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_exposure_time_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sensor_iso =
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_white_balance_kelvin =
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_focus_distance_diopters =
+            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_zoom_ratio =
+            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             exposure_time_ns: field_exposure_time_ns,
             sensor_iso: field_sensor_iso,
@@ -2955,15 +7130,26 @@ impl VmAggregateCodec for CameraFrameMetadata {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <Option<u64> as VmAggregateCodec>::encode_with_context(self.exposure_time_ns, context)?,
             <Option<u32> as VmAggregateCodec>::encode_with_context(self.sensor_iso, context)?,
-            <Option<u32> as VmAggregateCodec>::encode_with_context(self.white_balance_kelvin, context)?,
-            <Option<f64> as VmAggregateCodec>::encode_with_context(self.focus_distance_diopters, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(
+                self.white_balance_kelvin,
+                context,
+            )?,
+            <Option<f64> as VmAggregateCodec>::encode_with_context(
+                self.focus_distance_diopters,
+                context,
+            )?,
             <Option<f64> as VmAggregateCodec>::encode_with_context(self.zoom_ratio, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2985,11 +7171,116 @@ impl NativeAbiCodec for CameraFrameMetadata {
 impl VmAbiCodec for CameraFrameMetadata {
     type Value = CameraFrameMetadataValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI struct for CameraPixelFormatDescriptor.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CameraPixelFormatDescriptor {
+    /// Specific pixel format selector.
+    pub format: CameraPixelFormat,
+    /// Higher-level pixel-format family.
+    pub family: CameraPixelFormatFamily,
+    /// Whether the pixel payload is compressed or encoded.
+    pub compressed: bool,
+}
+
+pub type CameraPixelFormatDescriptorVm = CameraPixelFormatDescriptor;
+
+impl VmAggregateCodec for CameraPixelFormatDescriptor {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CameraPixelFormatDescriptor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_format =
+            <CameraPixelFormat as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_family =
+            <CameraPixelFormatFamily as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_compressed = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            format: field_format,
+            family: field_family,
+            compressed: field_compressed,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CameraPixelFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <CameraPixelFormatFamily as VmAggregateCodec>::encode_with_context(
+                self.family,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.compressed, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for CameraPixelFormatDescriptor.
+pub type CameraPixelFormatDescriptorValue = CameraPixelFormatDescriptor;
+
+impl NativeAbiCodec for CameraPixelFormatDescriptor {
+    type Value = CameraPixelFormatDescriptorValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CameraPixelFormatDescriptor {
+    type Value = CameraPixelFormatDescriptorValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -3011,18 +7302,33 @@ pub struct CameraPlaneLayout {
 pub type CameraPlaneLayoutVm = CameraPlaneLayout;
 
 impl VmAggregateCodec for CameraPlaneLayout {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "CameraPlaneLayout")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CameraPlaneLayout",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
         let field_offset_bytes = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_length_bytes = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_row_stride_bytes = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_pixel_stride_bytes = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_row_stride_bytes =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_pixel_stride_bytes =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             offset_bytes: field_offset_bytes,
             length_bytes: field_length_bytes,
@@ -3031,14 +7337,19 @@ impl VmAggregateCodec for CameraPlaneLayout {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.offset_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.length_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.row_stride_bytes, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.pixel_stride_bytes, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3060,92 +7371,249 @@ impl NativeAbiCodec for CameraPlaneLayout {
 impl VmAbiCodec for CameraPlaneLayout {
     type Value = CameraPlaneLayoutValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
 
 /// ABI struct for CameraStreamCapability.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct CameraStreamCapability {
+pub struct CameraStreamCapabilityAbi<A: BindingAbi> {
     /// Stream configuration payload.
     pub config: CameraStreamConfig,
     /// Minimum supported frame rate in milli-frames-per-second.
     pub minimum_frame_rate_milli_hz: u32,
     /// Maximum supported frame rate in milli-frames-per-second.
     pub maximum_frame_rate_milli_hz: u32,
-    /// Dynamic-range mode bitmask.
-    pub dynamic_range_mask: u32,
-    /// Stabilization-mode bitmask.
-    pub stabilization_mode_mask: u32,
+    /// Supported dynamic-range modes.
+    pub dynamic_ranges: A::Slice<CameraDynamicRange>,
+    /// Supported stabilization modes.
+    pub stabilization_modes: A::Slice<CameraStabilizationMode>,
 }
 
-pub type CameraStreamCapabilityVm = CameraStreamCapability;
+pub type CameraStreamCapability = CameraStreamCapabilityAbi<NativeAbi>;
+pub type CameraStreamCapabilityVm = CameraStreamCapabilityAbi<VmAbi>;
 
-impl VmAggregateCodec for CameraStreamCapability {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+impl<A: BindingAbi> std::fmt::Debug for CameraStreamCapabilityAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CameraStreamCapabilityAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CameraStreamCapabilityAbi<NativeAbi> {}
+impl Clone for CameraStreamCapabilityAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CameraStreamCapabilityAbi<VmAbi> {}
+impl Clone for CameraStreamCapabilityAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CameraStreamCapabilityAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "CameraStreamCapability")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CameraStreamCapability",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_config = <CameraStreamConfigVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_minimum_frame_rate_milli_hz = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_maximum_frame_rate_milli_hz = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_dynamic_range_mask = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_stabilization_mode_mask = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_config =
+            <CameraStreamConfigVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_minimum_frame_rate_milli_hz =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_maximum_frame_rate_milli_hz =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_dynamic_ranges =
+            <VmSlice<CameraDynamicRange> as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
+        let field_stabilization_modes =
+            <VmSlice<CameraStabilizationMode> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
         Ok(Self {
             config: field_config,
             minimum_frame_rate_milli_hz: field_minimum_frame_rate_milli_hz,
             maximum_frame_rate_milli_hz: field_maximum_frame_rate_milli_hz,
-            dynamic_range_mask: field_dynamic_range_mask,
-            stabilization_mode_mask: field_stabilization_mode_mask,
+            dynamic_ranges: field_dynamic_ranges,
+            stabilization_modes: field_stabilization_modes,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <CameraStreamConfigVm as VmAggregateCodec>::encode_with_context(self.config, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.minimum_frame_rate_milli_hz, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.maximum_frame_rate_milli_hz, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.dynamic_range_mask, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.stabilization_mode_mask, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.minimum_frame_rate_milli_hz,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(
+                self.maximum_frame_rate_milli_hz,
+                context,
+            )?,
+            <VmSlice<CameraDynamicRange> as VmAggregateCodec>::encode_with_context(
+                self.dynamic_ranges,
+                context,
+            )?,
+            <VmSlice<CameraStabilizationMode> as VmAggregateCodec>::encode_with_context(
+                self.stabilization_modes,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
 /// Value type for CameraStreamCapability.
-pub type CameraStreamCapabilityValue = CameraStreamCapability;
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CameraStreamCapabilityValue {
+    /// Stream configuration payload.
+    pub config: CameraStreamConfig,
+    /// Minimum supported frame rate in milli-frames-per-second.
+    pub minimum_frame_rate_milli_hz: u32,
+    /// Maximum supported frame rate in milli-frames-per-second.
+    pub maximum_frame_rate_milli_hz: u32,
+    /// Supported dynamic-range modes.
+    pub dynamic_ranges: Vec<CameraDynamicRange>,
+    /// Supported stabilization modes.
+    pub stabilization_modes: Vec<CameraStabilizationMode>,
+}
 
-impl NativeAbiCodec for CameraStreamCapability {
+impl NativeAbiCodec for CameraStreamCapabilityAbi<NativeAbi> {
     type Value = CameraStreamCapabilityValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
+        Ok(CameraStreamCapabilityValue {
+            config: unsafe { <CameraStreamConfig as NativeAbiCodec>::into_value(self.config)? },
+            minimum_frame_rate_milli_hz: unsafe {
+                <u32 as NativeAbiCodec>::into_value(self.minimum_frame_rate_milli_hz)?
+            },
+            maximum_frame_rate_milli_hz: unsafe {
+                <u32 as NativeAbiCodec>::into_value(self.maximum_frame_rate_milli_hz)?
+            },
+            dynamic_ranges: unsafe {
+                <NativeSlice<CameraDynamicRange> as NativeAbiCodec>::into_value(
+                    self.dynamic_ranges,
+                )?
+            },
+            stabilization_modes: unsafe {
+                <NativeSlice<CameraStabilizationMode> as NativeAbiCodec>::into_value(
+                    self.stabilization_modes,
+                )?
+            },
+        })
     }
 
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            config: <CameraStreamConfig as NativeAbiCodec>::from_value(binding, value.config),
+            minimum_frame_rate_milli_hz: <u32 as NativeAbiCodec>::from_value(
+                binding,
+                value.minimum_frame_rate_milli_hz,
+            ),
+            maximum_frame_rate_milli_hz: <u32 as NativeAbiCodec>::from_value(
+                binding,
+                value.maximum_frame_rate_milli_hz,
+            ),
+            dynamic_ranges: <NativeSlice<CameraDynamicRange> as NativeAbiCodec>::from_value(
+                binding,
+                value.dynamic_ranges,
+            ),
+            stabilization_modes:
+                <NativeSlice<CameraStabilizationMode> as NativeAbiCodec>::from_value(
+                    binding,
+                    value.stabilization_modes,
+                ),
+        }
     }
 }
 
-impl VmAbiCodec for CameraStreamCapability {
+impl VmAbiCodec for CameraStreamCapabilityAbi<VmAbi> {
     type Value = CameraStreamCapabilityValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(CameraStreamCapabilityValue {
+            config: <CameraStreamConfigVm as VmAbiCodec>::into_value(self.config, context)?,
+            minimum_frame_rate_milli_hz: <u32 as VmAbiCodec>::into_value(
+                self.minimum_frame_rate_milli_hz,
+                context,
+            )?,
+            maximum_frame_rate_milli_hz: <u32 as VmAbiCodec>::into_value(
+                self.maximum_frame_rate_milli_hz,
+                context,
+            )?,
+            dynamic_ranges: <VmSlice<CameraDynamicRange> as VmAbiCodec>::into_value(
+                self.dynamic_ranges,
+                context,
+            )?,
+            stabilization_modes: <VmSlice<CameraStabilizationMode> as VmAbiCodec>::into_value(
+                self.stabilization_modes,
+                context,
+            )?,
+        })
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
-        Ok(value)
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            config: <CameraStreamConfigVm as VmAbiCodec>::from_value(context, value.config)?,
+            minimum_frame_rate_milli_hz: <u32 as VmAbiCodec>::from_value(
+                context,
+                value.minimum_frame_rate_milli_hz,
+            )?,
+            maximum_frame_rate_milli_hz: <u32 as VmAbiCodec>::from_value(
+                context,
+                value.maximum_frame_rate_milli_hz,
+            )?,
+            dynamic_ranges: <VmSlice<CameraDynamicRange> as VmAbiCodec>::from_value(
+                context,
+                value.dynamic_ranges,
+            )?,
+            stabilization_modes: <VmSlice<CameraStabilizationMode> as VmAbiCodec>::from_value(
+                context,
+                value.stabilization_modes,
+            )?,
+        })
     }
 }
 
@@ -3159,41 +7627,66 @@ pub struct CameraStreamConfig {
     pub height: u32,
     /// Frame rate in milli-frames-per-second.
     pub frame_rate_milli_hz: u32,
-    /// Pixel format selector.
-    pub format: CameraPixelFormat,
+    /// Pixel format descriptor.
+    pub pixel_format: CameraPixelFormatDescriptor,
 }
 
 pub type CameraStreamConfigVm = CameraStreamConfig;
 
 impl VmAggregateCodec for CameraStreamConfig {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "CameraStreamConfig")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CameraStreamConfig",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
         let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_frame_rate_milli_hz = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_format = <CameraPixelFormat as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_frame_rate_milli_hz =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_pixel_format =
+            <CameraPixelFormatDescriptorVm as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
         Ok(Self {
             width: field_width,
             height: field_height,
             frame_rate_milli_hz: field_frame_rate_milli_hz,
-            format: field_format,
+            pixel_format: field_pixel_format,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.frame_rate_milli_hz, context)?,
-            <CameraPixelFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <CameraPixelFormatDescriptorVm as VmAggregateCodec>::encode_with_context(
+                self.pixel_format,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3215,11 +7708,227 @@ impl NativeAbiCodec for CameraStreamConfig {
 impl VmAbiCodec for CameraStreamConfig {
     type Value = CameraStreamConfigValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI struct for CameraWhiteBalanceRange.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CameraWhiteBalanceRange {
+    /// Minimum supported white-balance value in kelvin.
+    pub minimum_kelvin: u32,
+    /// Maximum supported white-balance value in kelvin.
+    pub maximum_kelvin: u32,
+    /// Default white-balance value in kelvin.
+    pub default_kelvin: u32,
+    /// Step size in kelvin, zero for continuous controls.
+    pub step_kelvin: u32,
+    /// Whether host auto white-balance is supported.
+    pub auto_supported: bool,
+}
+
+pub type CameraWhiteBalanceRangeVm = CameraWhiteBalanceRange;
+
+impl VmAggregateCodec for CameraWhiteBalanceRange {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CameraWhiteBalanceRange",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_minimum_kelvin =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_maximum_kelvin =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_default_kelvin =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_step_kelvin = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_auto_supported =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            minimum_kelvin: field_minimum_kelvin,
+            maximum_kelvin: field_maximum_kelvin,
+            default_kelvin: field_default_kelvin,
+            step_kelvin: field_step_kelvin,
+            auto_supported: field_auto_supported,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u32 as VmAggregateCodec>::encode_with_context(self.minimum_kelvin, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.maximum_kelvin, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.default_kelvin, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.step_kelvin, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.auto_supported, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for CameraWhiteBalanceRange.
+pub type CameraWhiteBalanceRangeValue = CameraWhiteBalanceRange;
+
+impl NativeAbiCodec for CameraWhiteBalanceRange {
+    type Value = CameraWhiteBalanceRangeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CameraWhiteBalanceRange {
+    type Value = CameraWhiteBalanceRangeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI struct for CameraZoomRatioRange.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CameraZoomRatioRange {
+    /// Minimum supported zoom ratio.
+    pub minimum_ratio: f64,
+    /// Maximum supported zoom ratio.
+    pub maximum_ratio: f64,
+    /// Default zoom ratio.
+    pub default_ratio: f64,
+    /// Step size for discrete zoom ratios, zero for continuous controls.
+    pub step_ratio: f64,
+}
+
+pub type CameraZoomRatioRangeVm = CameraZoomRatioRange;
+
+impl VmAggregateCodec for CameraZoomRatioRange {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CameraZoomRatioRange",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_minimum_ratio =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_maximum_ratio =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_default_ratio =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_step_ratio = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            minimum_ratio: field_minimum_ratio,
+            maximum_ratio: field_maximum_ratio,
+            default_ratio: field_default_ratio,
+            step_ratio: field_step_ratio,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <f64 as VmAggregateCodec>::encode_with_context(self.minimum_ratio, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.maximum_ratio, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.default_ratio, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.step_ratio, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for CameraZoomRatioRange.
+pub type CameraZoomRatioRangeValue = CameraZoomRatioRange;
+
+impl NativeAbiCodec for CameraZoomRatioRange {
+    type Value = CameraZoomRatioRangeValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for CameraZoomRatioRange {
+    type Value = CameraZoomRatioRangeValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -3238,42 +7947,68 @@ pub type OsPathBytesVm = OsPathBytesAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for OsPathBytesAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("OsPathBytesAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("OsPathBytesAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for OsPathBytesAbi<NativeAbi> {}
 impl Clone for OsPathBytesAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for OsPathBytesAbi<VmAbi> {}
 impl Clone for OsPathBytesAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "OsPathBytes")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "OsPathBytes",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_bytes = <fs::PathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_bytes =
+            <fs::PathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             bytes: field_bytes,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3307,14 +8042,20 @@ impl NativeAbiCodec for OsPathBytesAbi<NativeAbi> {
 impl VmAbiCodec for OsPathBytesAbi<VmAbi> {
     type Value = OsPathBytesValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(OsPathBytesValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             bytes: <fs::PathBytesVm as VmAbiCodec>::into_value(self.bytes, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             bytes: <fs::PathBytesVm as VmAbiCodec>::from_value(context, value.bytes)?,
@@ -3336,42 +8077,68 @@ pub type OsPathUtf16Vm = OsPathUtf16Abi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for OsPathUtf16Abi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("OsPathUtf16Abi").finish_non_exhaustive()
+        formatter
+            .debug_struct("OsPathUtf16Abi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for OsPathUtf16Abi<NativeAbi> {}
 impl Clone for OsPathUtf16Abi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for OsPathUtf16Abi<VmAbi> {}
 impl Clone for OsPathUtf16Abi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "OsPathUtf16")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "OsPathUtf16",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_utf16 = <fs::PathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_utf16 =
+            <fs::PathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
             utf16: field_utf16,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3405,18 +8172,262 @@ impl NativeAbiCodec for OsPathUtf16Abi<NativeAbi> {
 impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
     type Value = OsPathUtf16Value;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(OsPathUtf16Value {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             utf16: <fs::PathUtf16Vm as VmAbiCodec>::into_value(self.utf16, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             utf16: <fs::PathUtf16Vm as VmAbiCodec>::from_value(context, value.utf16)?,
         })
+    }
+}
+
+/// ABI struct for SerialDisconnectedEvent.
+#[repr(C)]
+pub struct SerialDisconnectedEventAbi<A: BindingAbi> {
+    /// Discriminator for this serial event variant.
+    pub kind: A::String,
+    /// Shared event metadata.
+    pub metadata: SerialEventMetadata,
+    /// Disconnected payload.
+    pub payload: SerialDisconnectedPayload,
+}
+
+pub type SerialDisconnectedEvent = SerialDisconnectedEventAbi<NativeAbi>;
+pub type SerialDisconnectedEventVm = SerialDisconnectedEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for SerialDisconnectedEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SerialDisconnectedEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for SerialDisconnectedEventAbi<NativeAbi> {}
+impl Clone for SerialDisconnectedEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for SerialDisconnectedEventAbi<VmAbi> {}
+impl Clone for SerialDisconnectedEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for SerialDisconnectedEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialDisconnectedEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload = <SerialDisconnectedPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <SerialDisconnectedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for SerialDisconnectedEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerialDisconnectedEventValue {
+    /// Discriminator for this serial event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: SerialEventMetadata,
+    /// Disconnected payload.
+    pub payload: SerialDisconnectedPayload,
+}
+
+impl NativeAbiCodec for SerialDisconnectedEventAbi<NativeAbi> {
+    type Value = SerialDisconnectedEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(SerialDisconnectedEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe {
+                <SerialEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <SerialDisconnectedPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <SerialEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
+            payload: <SerialDisconnectedPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for SerialDisconnectedEventAbi<VmAbi> {
+    type Value = SerialDisconnectedEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(SerialDisconnectedEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <SerialEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
+            payload: <SerialDisconnectedPayloadVm as VmAbiCodec>::into_value(
+                self.payload,
+                context,
+            )?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <SerialEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
+            payload: <SerialDisconnectedPayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for SerialDisconnectedPayload.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SerialDisconnectedPayload {}
+
+pub type SerialDisconnectedPayloadVm = SerialDisconnectedPayload;
+
+impl VmAggregateCodec for SerialDisconnectedPayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialDisconnectedPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 0 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 0 fields",
+            ))
+            .boxed());
+        }
+        Ok(Self {})
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for SerialDisconnectedPayload.
+pub type SerialDisconnectedPayloadValue = SerialDisconnectedPayload;
+
+impl NativeAbiCodec for SerialDisconnectedPayload {
+    type Value = SerialDisconnectedPayloadValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SerialDisconnectedPayload {
+    type Value = SerialDisconnectedPayloadValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -3436,31 +8447,53 @@ pub type SerialErrorEventVm = SerialErrorEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SerialErrorEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SerialErrorEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SerialErrorEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for SerialErrorEventAbi<NativeAbi> {}
 impl Clone for SerialErrorEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SerialErrorEventAbi<VmAbi> {}
 impl Clone for SerialErrorEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for SerialErrorEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SerialErrorEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialErrorEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <SerialErrorPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <SerialErrorPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -3468,13 +8501,21 @@ impl VmAggregateCodec for SerialErrorEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
             <SerialErrorPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3495,7 +8536,9 @@ impl NativeAbiCodec for SerialErrorEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(SerialErrorEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <SerialEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <SerialEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
             payload: unsafe { <SerialErrorPayload as NativeAbiCodec>::into_value(self.payload)? },
         })
     }
@@ -3512,7 +8555,10 @@ impl NativeAbiCodec for SerialErrorEventAbi<NativeAbi> {
 impl VmAbiCodec for SerialErrorEventAbi<VmAbi> {
     type Value = SerialErrorEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialErrorEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <SerialEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -3520,7 +8566,10 @@ impl VmAbiCodec for SerialErrorEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <SerialEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -3533,37 +8582,63 @@ impl VmAbiCodec for SerialErrorEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SerialErrorPayload {
-    /// Backend-specific error code.
-    pub code: i32,
-    /// Backend-specific detail value.
-    pub detail: i32,
+    /// Normalized error classification.
+    pub kind: SerialErrorKind,
+    /// Backend-specific error code when available.
+    pub backend_code: Option<i32>,
+    /// Backend-specific detail value when available.
+    pub backend_detail: Option<i32>,
 }
 
 pub type SerialErrorPayloadVm = SerialErrorPayload;
 
 impl VmAggregateCodec for SerialErrorPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SerialErrorPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialErrorPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_code = <i32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_detail = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <SerialErrorKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_code =
+            <Option<i32> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_backend_detail =
+            <Option<i32> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
-            code: field_code,
-            detail: field_detail,
+            kind: field_kind,
+            backend_code: field_backend_code,
+            backend_detail: field_backend_detail,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <i32 as VmAggregateCodec>::encode_with_context(self.code, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.detail, context)?,
+            <SerialErrorKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <Option<i32> as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
+            <Option<i32> as VmAggregateCodec>::encode_with_context(self.backend_detail, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3585,11 +8660,17 @@ impl NativeAbiCodec for SerialErrorPayload {
 impl VmAbiCodec for SerialErrorPayload {
     type Value = SerialErrorPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -3607,13 +8688,26 @@ pub struct SerialEventMetadata {
 pub type SerialEventMetadataVm = SerialEventMetadata;
 
 impl VmAggregateCodec for SerialEventMetadata {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SerialEventMetadata")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialEventMetadata",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
         let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
@@ -3623,12 +8717,17 @@ impl VmAggregateCodec for SerialEventMetadata {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3650,11 +8749,571 @@ impl NativeAbiCodec for SerialEventMetadata {
 impl VmAbiCodec for SerialEventMetadata {
     type Value = SerialEventMetadataValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI struct for SerialFlowControl.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SerialFlowControl {
+    /// Whether RTS or CTS hardware flow control is enabled.
+    pub request_to_send_clear_to_send_enabled: bool,
+    /// Whether DTR or DSR hardware flow control is enabled.
+    pub data_terminal_ready_data_set_ready_enabled: bool,
+    /// Whether XON or XOFF software flow control is enabled.
+    pub xon_xoff_enabled: bool,
+}
+
+pub type SerialFlowControlVm = SerialFlowControl;
+
+impl VmAggregateCodec for SerialFlowControl {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialFlowControl",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_request_to_send_clear_to_send_enabled =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_data_terminal_ready_data_set_ready_enabled =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_xon_xoff_enabled =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            request_to_send_clear_to_send_enabled: field_request_to_send_clear_to_send_enabled,
+            data_terminal_ready_data_set_ready_enabled:
+                field_data_terminal_ready_data_set_ready_enabled,
+            xon_xoff_enabled: field_xon_xoff_enabled,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.request_to_send_clear_to_send_enabled,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.data_terminal_ready_data_set_ready_enabled,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.xon_xoff_enabled, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for SerialFlowControl.
+pub type SerialFlowControlValue = SerialFlowControl;
+
+impl NativeAbiCodec for SerialFlowControl {
+    type Value = SerialFlowControlValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SerialFlowControl {
+    type Value = SerialFlowControlValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI struct for SerialInputSignals.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SerialInputSignals {
+    /// Clear-to-send line state.
+    pub clear_to_send: bool,
+    /// Data-set-ready line state.
+    pub data_set_ready: bool,
+    /// Data-carrier-detect line state.
+    pub data_carrier_detect: bool,
+    /// Ring-indicator line state.
+    pub ring_indicator: bool,
+}
+
+pub type SerialInputSignalsVm = SerialInputSignals;
+
+impl VmAggregateCodec for SerialInputSignals {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialInputSignals",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_clear_to_send =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_data_set_ready =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_data_carrier_detect =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_ring_indicator =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            clear_to_send: field_clear_to_send,
+            data_set_ready: field_data_set_ready,
+            data_carrier_detect: field_data_carrier_detect,
+            ring_indicator: field_ring_indicator,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(self.clear_to_send, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.data_set_ready, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.data_carrier_detect, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.ring_indicator, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for SerialInputSignals.
+pub type SerialInputSignalsValue = SerialInputSignals;
+
+impl NativeAbiCodec for SerialInputSignals {
+    type Value = SerialInputSignalsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SerialInputSignals {
+    type Value = SerialInputSignalsValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI struct for SerialModemStatusChangedEvent.
+#[repr(C)]
+pub struct SerialModemStatusChangedEventAbi<A: BindingAbi> {
+    /// Discriminator for this serial event variant.
+    pub kind: A::String,
+    /// Shared event metadata.
+    pub metadata: SerialEventMetadata,
+    /// Modem-status payload.
+    pub payload: SerialModemStatusPayload,
+}
+
+pub type SerialModemStatusChangedEvent = SerialModemStatusChangedEventAbi<NativeAbi>;
+pub type SerialModemStatusChangedEventVm = SerialModemStatusChangedEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for SerialModemStatusChangedEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SerialModemStatusChangedEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for SerialModemStatusChangedEventAbi<NativeAbi> {}
+impl Clone for SerialModemStatusChangedEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for SerialModemStatusChangedEventAbi<VmAbi> {}
+impl Clone for SerialModemStatusChangedEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for SerialModemStatusChangedEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialModemStatusChangedEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload = <SerialModemStatusPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <SerialModemStatusPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for SerialModemStatusChangedEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerialModemStatusChangedEventValue {
+    /// Discriminator for this serial event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: SerialEventMetadata,
+    /// Modem-status payload.
+    pub payload: SerialModemStatusPayload,
+}
+
+impl NativeAbiCodec for SerialModemStatusChangedEventAbi<NativeAbi> {
+    type Value = SerialModemStatusChangedEventValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(SerialModemStatusChangedEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe {
+                <SerialEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <SerialModemStatusPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <SerialEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
+            payload: <SerialModemStatusPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
+        }
+    }
+}
+
+impl VmAbiCodec for SerialModemStatusChangedEventAbi<VmAbi> {
+    type Value = SerialModemStatusChangedEventValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(SerialModemStatusChangedEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <SerialEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
+            payload: <SerialModemStatusPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <SerialEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
+            payload: <SerialModemStatusPayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for SerialModemStatusPayload.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SerialModemStatusPayload {
+    /// Current serial input signal state.
+    pub signals: SerialInputSignals,
+}
+
+pub type SerialModemStatusPayloadVm = SerialModemStatusPayload;
+
+impl VmAggregateCodec for SerialModemStatusPayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialModemStatusPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_signals =
+            <SerialInputSignalsVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self {
+            signals: field_signals,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <SerialInputSignalsVm as VmAggregateCodec>::encode_with_context(self.signals, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for SerialModemStatusPayload.
+pub type SerialModemStatusPayloadValue = SerialModemStatusPayload;
+
+impl NativeAbiCodec for SerialModemStatusPayload {
+    type Value = SerialModemStatusPayloadValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SerialModemStatusPayload {
+    type Value = SerialModemStatusPayloadValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI struct for SerialOutputSignals.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SerialOutputSignals {
+    /// Data-terminal-ready output line state when updated.
+    pub data_terminal_ready: Option<bool>,
+    /// Request-to-send output line state when updated.
+    pub request_to_send: Option<bool>,
+    /// Break signaling state when updated.
+    pub break_condition_active: Option<bool>,
+}
+
+pub type SerialOutputSignalsVm = SerialOutputSignals;
+
+impl VmAggregateCodec for SerialOutputSignals {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialOutputSignals",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_data_terminal_ready =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_request_to_send =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_break_condition_active =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            data_terminal_ready: field_data_terminal_ready,
+            request_to_send: field_request_to_send,
+            break_condition_active: field_break_condition_active,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <Option<bool> as VmAggregateCodec>::encode_with_context(
+                self.data_terminal_ready,
+                context,
+            )?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.request_to_send, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(
+                self.break_condition_active,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for SerialOutputSignals.
+pub type SerialOutputSignalsValue = SerialOutputSignals;
+
+impl NativeAbiCodec for SerialOutputSignals {
+    type Value = SerialOutputSignalsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SerialOutputSignals {
+    type Value = SerialOutputSignalsValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -3666,59 +9325,74 @@ pub struct SerialPortConfig {
     /// Baud rate in symbols per second.
     pub baud_rate: u32,
     /// Number of data bits per frame.
-    pub data_bits: u8,
+    pub data_bits: SerialDataBits,
     /// Parity mode.
     pub parity: SerialParity,
     /// Stop-bit mode.
     pub stop_bits: SerialStopBits,
     /// Flow-control mode.
     pub flow_control: SerialFlowControl,
-    /// Read timeout in nanoseconds.
-    pub read_timeout_ns: u64,
-    /// Write timeout in nanoseconds.
-    pub write_timeout_ns: u64,
 }
 
 pub type SerialPortConfigVm = SerialPortConfig;
 
 impl VmAggregateCodec for SerialPortConfig {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SerialPortConfig")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialPortConfig",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 7 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
         let field_baud_rate = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_data_bits = <u8 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_parity = <SerialParity as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_stop_bits = <SerialStopBits as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_flow_control = <SerialFlowControl as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_read_timeout_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_write_timeout_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_data_bits =
+            <SerialDataBits as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_parity =
+            <SerialParity as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_stop_bits =
+            <SerialStopBits as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_flow_control =
+            <SerialFlowControlVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             baud_rate: field_baud_rate,
             data_bits: field_data_bits,
             parity: field_parity,
             stop_bits: field_stop_bits,
             flow_control: field_flow_control,
-            read_timeout_ns: field_read_timeout_ns,
-            write_timeout_ns: field_write_timeout_ns,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.baud_rate, context)?,
-            <u8 as VmAggregateCodec>::encode_with_context(self.data_bits, context)?,
+            <SerialDataBits as VmAggregateCodec>::encode_with_context(self.data_bits, context)?,
             <SerialParity as VmAggregateCodec>::encode_with_context(self.parity, context)?,
             <SerialStopBits as VmAggregateCodec>::encode_with_context(self.stop_bits, context)?,
-            <SerialFlowControl as VmAggregateCodec>::encode_with_context(self.flow_control, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.read_timeout_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.write_timeout_ns, context)?,
+            <SerialFlowControlVm as VmAggregateCodec>::encode_with_context(
+                self.flow_control,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3740,11 +9414,17 @@ impl NativeAbiCodec for SerialPortConfig {
 impl VmAbiCodec for SerialPortConfig {
     type Value = SerialPortConfigValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -3754,16 +9434,24 @@ impl VmAbiCodec for SerialPortConfig {
 pub struct SerialPortDescriptorAbi<A: BindingAbi> {
     /// Stable serial endpoint identifier.
     pub id: A::String,
+    /// Host-classified serial transport kind.
+    pub transport: SerialPortTransport,
     /// Host-visible endpoint name.
     pub name: A::String,
+    /// Host-visible manufacturer string when available.
+    pub manufacturer: Option<A::String>,
+    /// Host-visible product string when available.
+    pub product: Option<A::String>,
+    /// Host-visible device serial number when available.
+    pub serial_number: Option<A::String>,
     /// Device path for the endpoint.
     pub path: platform_fs::OsPathAbi<A>,
     /// USB vendor identifier when the endpoint is USB backed.
     pub usb_vendor_id: Option<u16>,
     /// USB product identifier when the endpoint is USB backed.
     pub usb_product_id: Option<u16>,
-    /// Whether the endpoint is USB backed.
-    pub usb_backed: bool,
+    /// Bluetooth service-class identifier when the endpoint is Bluetooth backed.
+    pub bluetooth_service_class_id: Option<A::String>,
 }
 
 pub type SerialPortDescriptor = SerialPortDescriptorAbi<NativeAbi>;
@@ -3771,54 +9459,115 @@ pub type SerialPortDescriptorVm = SerialPortDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SerialPortDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SerialPortDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SerialPortDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for SerialPortDescriptorAbi<NativeAbi> {}
 impl Clone for SerialPortDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SerialPortDescriptorAbi<VmAbi> {}
 impl Clone for SerialPortDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for SerialPortDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SerialPortDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialPortDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 6 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 10 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 10 fields",
+            ))
+            .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_path = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_usb_vendor_id = <Option<u16> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_usb_product_id = <Option<u16> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_usb_backed = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_transport =
+            <SerialPortTransport as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_manufacturer =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_product =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_serial_number =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_path =
+            <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_usb_vendor_id =
+            <Option<u16> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_usb_product_id =
+            <Option<u16> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_bluetooth_service_class_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         Ok(Self {
             id: field_id,
+            transport: field_transport,
             name: field_name,
+            manufacturer: field_manufacturer,
+            product: field_product,
+            serial_number: field_serial_number,
             path: field_path,
             usb_vendor_id: field_usb_vendor_id,
             usb_product_id: field_usb_product_id,
-            usb_backed: field_usb_backed,
+            bluetooth_service_class_id: field_bluetooth_service_class_id,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <SerialPortTransport as VmAggregateCodec>::encode_with_context(
+                self.transport,
+                context,
+            )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.manufacturer,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.product,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.serial_number,
+                context,
+            )?,
             <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
             <Option<u16> as VmAggregateCodec>::encode_with_context(self.usb_vendor_id, context)?,
             <Option<u16> as VmAggregateCodec>::encode_with_context(self.usb_product_id, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.usb_backed, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.bluetooth_service_class_id,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3827,16 +9576,24 @@ impl VmAggregateCodec for SerialPortDescriptorAbi<VmAbi> {
 pub struct SerialPortDescriptorValue {
     /// Stable serial endpoint identifier.
     pub id: String,
+    /// Host-classified serial transport kind.
+    pub transport: SerialPortTransport,
     /// Host-visible endpoint name.
     pub name: String,
+    /// Host-visible manufacturer string when available.
+    pub manufacturer: Option<String>,
+    /// Host-visible product string when available.
+    pub product: Option<String>,
+    /// Host-visible device serial number when available.
+    pub serial_number: Option<String>,
     /// Device path for the endpoint.
     pub path: platform_fs::abi_generated::OsPathValue,
     /// USB vendor identifier when the endpoint is USB backed.
     pub usb_vendor_id: Option<u16>,
     /// USB product identifier when the endpoint is USB backed.
     pub usb_product_id: Option<u16>,
-    /// Whether the endpoint is USB backed.
-    pub usb_backed: bool,
+    /// Bluetooth service-class identifier when the endpoint is Bluetooth backed.
+    pub bluetooth_service_class_id: Option<String>,
 }
 
 impl NativeAbiCodec for SerialPortDescriptorAbi<NativeAbi> {
@@ -3845,22 +9602,67 @@ impl NativeAbiCodec for SerialPortDescriptorAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(SerialPortDescriptorValue {
             id: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.id)? },
+            transport: unsafe {
+                <SerialPortTransport as NativeAbiCodec>::into_value(self.transport)?
+            },
             name: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.name)? },
+            manufacturer: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)?
+            },
+            product: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.product)?
+            },
+            serial_number: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.serial_number)?
+            },
             path: unsafe { <fs::OsPath as NativeAbiCodec>::into_value(self.path)? },
-            usb_vendor_id: unsafe { <Option<u16> as NativeAbiCodec>::into_value(self.usb_vendor_id)? },
-            usb_product_id: unsafe { <Option<u16> as NativeAbiCodec>::into_value(self.usb_product_id)? },
-            usb_backed: unsafe { <bool as NativeAbiCodec>::into_value(self.usb_backed)? },
+            usb_vendor_id: unsafe {
+                <Option<u16> as NativeAbiCodec>::into_value(self.usb_vendor_id)?
+            },
+            usb_product_id: unsafe {
+                <Option<u16> as NativeAbiCodec>::into_value(self.usb_product_id)?
+            },
+            bluetooth_service_class_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(
+                    self.bluetooth_service_class_id,
+                )?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             id: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.id),
+            transport: <SerialPortTransport as NativeAbiCodec>::from_value(
+                binding,
+                value.transport,
+            ),
             name: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.name),
+            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.manufacturer,
+            ),
+            product: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.product,
+            ),
+            serial_number: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.serial_number,
+            ),
             path: <fs::OsPath as NativeAbiCodec>::from_value(binding, value.path),
-            usb_vendor_id: <Option<u16> as NativeAbiCodec>::from_value(binding, value.usb_vendor_id),
-            usb_product_id: <Option<u16> as NativeAbiCodec>::from_value(binding, value.usb_product_id),
-            usb_backed: <bool as NativeAbiCodec>::from_value(binding, value.usb_backed),
+            usb_vendor_id: <Option<u16> as NativeAbiCodec>::from_value(
+                binding,
+                value.usb_vendor_id,
+            ),
+            usb_product_id: <Option<u16> as NativeAbiCodec>::from_value(
+                binding,
+                value.usb_product_id,
+            ),
+            bluetooth_service_class_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.bluetooth_service_class_id,
+            ),
         }
     }
 }
@@ -3868,26 +9670,164 @@ impl NativeAbiCodec for SerialPortDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for SerialPortDescriptorAbi<VmAbi> {
     type Value = SerialPortDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialPortDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
+            transport: <SerialPortTransport as VmAbiCodec>::into_value(self.transport, context)?,
             name: <vm::StringHandle as VmAbiCodec>::into_value(self.name, context)?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.manufacturer,
+                context,
+            )?,
+            product: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.product, context)?,
+            serial_number: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.serial_number,
+                context,
+            )?,
             path: <fs::OsPathVm as VmAbiCodec>::into_value(self.path, context)?,
             usb_vendor_id: <Option<u16> as VmAbiCodec>::into_value(self.usb_vendor_id, context)?,
             usb_product_id: <Option<u16> as VmAbiCodec>::into_value(self.usb_product_id, context)?,
-            usb_backed: <bool as VmAbiCodec>::into_value(self.usb_backed, context)?,
+            bluetooth_service_class_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.bluetooth_service_class_id,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
+            transport: <SerialPortTransport as VmAbiCodec>::from_value(context, value.transport)?,
             name: <vm::StringHandle as VmAbiCodec>::from_value(context, value.name)?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.manufacturer,
+            )?,
+            product: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.product)?,
+            serial_number: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.serial_number,
+            )?,
             path: <fs::OsPathVm as VmAbiCodec>::from_value(context, value.path)?,
             usb_vendor_id: <Option<u16> as VmAbiCodec>::from_value(context, value.usb_vendor_id)?,
             usb_product_id: <Option<u16> as VmAbiCodec>::from_value(context, value.usb_product_id)?,
-            usb_backed: <bool as VmAbiCodec>::from_value(context, value.usb_backed)?,
+            bluetooth_service_class_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.bluetooth_service_class_id,
+            )?,
         })
+    }
+}
+
+/// ABI struct for SerialPortOpenOptions.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SerialPortOpenOptions {
+    /// Serial line configuration to apply when opening.
+    pub config: SerialPortConfig,
+    /// Whether the open should request exclusive access.
+    pub exclusive: Option<bool>,
+    /// Preferred inbound host buffer size in bytes.
+    pub read_buffer_size: Option<u32>,
+    /// Preferred outbound host buffer size in bytes.
+    pub write_buffer_size: Option<u32>,
+}
+
+pub type SerialPortOpenOptionsVm = SerialPortOpenOptions;
+
+impl VmAggregateCodec for SerialPortOpenOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialPortOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_config =
+            <SerialPortConfigVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_exclusive =
+            <Option<bool> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_read_buffer_size =
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_write_buffer_size =
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            config: field_config,
+            exclusive: field_exclusive,
+            read_buffer_size: field_read_buffer_size,
+            write_buffer_size: field_write_buffer_size,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <SerialPortConfigVm as VmAggregateCodec>::encode_with_context(self.config, context)?,
+            <Option<bool> as VmAggregateCodec>::encode_with_context(self.exclusive, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(self.read_buffer_size, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(
+                self.write_buffer_size,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for SerialPortOpenOptions.
+pub type SerialPortOpenOptionsValue = SerialPortOpenOptions;
+
+impl NativeAbiCodec for SerialPortOpenOptions {
+    type Value = SerialPortOpenOptionsValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for SerialPortOpenOptions {
+    type Value = SerialPortOpenOptionsValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -3907,31 +9847,53 @@ pub type SerialReadReadyEventVm = SerialReadReadyEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SerialReadReadyEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SerialReadReadyEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SerialReadReadyEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for SerialReadReadyEventAbi<NativeAbi> {}
 impl Clone for SerialReadReadyEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SerialReadReadyEventAbi<VmAbi> {}
 impl Clone for SerialReadReadyEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for SerialReadReadyEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SerialReadReadyEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialReadReadyEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <SerialReadReadyPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <SerialReadReadyPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -3939,13 +9901,24 @@ impl VmAggregateCodec for SerialReadReadyEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <SerialReadReadyPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <SerialReadReadyPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3966,8 +9939,12 @@ impl NativeAbiCodec for SerialReadReadyEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(SerialReadReadyEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <SerialEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <SerialReadReadyPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <SerialEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <SerialReadReadyPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -3983,7 +9960,10 @@ impl NativeAbiCodec for SerialReadReadyEventAbi<NativeAbi> {
 impl VmAbiCodec for SerialReadReadyEventAbi<VmAbi> {
     type Value = SerialReadReadyEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SerialReadReadyEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <SerialEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
@@ -3991,7 +9971,10 @@ impl VmAbiCodec for SerialReadReadyEventAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <SerialEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
@@ -4005,31 +9988,51 @@ impl VmAbiCodec for SerialReadReadyEventAbi<VmAbi> {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SerialReadReadyPayload {
     /// Estimated number of readable bytes.
-    pub available_bytes: u32,
+    pub available_bytes: Option<u64>,
 }
 
 pub type SerialReadReadyPayloadVm = SerialReadReadyPayload;
 
 impl VmAggregateCodec for SerialReadReadyPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SerialReadReadyPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialReadReadyPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 1 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
         }
-        let field_available_bytes = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_available_bytes =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         Ok(Self {
             available_bytes: field_available_bytes,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.available_bytes, context)?,
-        ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<Option<u64> as VmAggregateCodec>::encode_with_context(
+            self.available_bytes,
+            context,
+        )?];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4051,56 +10054,85 @@ impl NativeAbiCodec for SerialReadReadyPayload {
 impl VmAbiCodec for SerialReadReadyPayload {
     type Value = SerialReadReadyPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
 
-/// ABI struct for SerialSignalsChangedEvent.
+/// ABI struct for SerialWriteDrainedEvent.
 #[repr(C)]
-pub struct SerialSignalsChangedEventAbi<A: BindingAbi> {
+pub struct SerialWriteDrainedEventAbi<A: BindingAbi> {
     /// Discriminator for this serial event variant.
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: SerialEventMetadata,
-    /// Signal-line payload.
-    pub payload: SerialSignalsChangedPayload,
+    /// Output-drained payload.
+    pub payload: SerialWriteDrainedPayload,
 }
 
-pub type SerialSignalsChangedEvent = SerialSignalsChangedEventAbi<NativeAbi>;
-pub type SerialSignalsChangedEventVm = SerialSignalsChangedEventAbi<VmAbi>;
+pub type SerialWriteDrainedEvent = SerialWriteDrainedEventAbi<NativeAbi>;
+pub type SerialWriteDrainedEventVm = SerialWriteDrainedEventAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for SerialSignalsChangedEventAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for SerialWriteDrainedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SerialSignalsChangedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SerialWriteDrainedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
-impl Copy for SerialSignalsChangedEventAbi<NativeAbi> {}
-impl Clone for SerialSignalsChangedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+impl Copy for SerialWriteDrainedEventAbi<NativeAbi> {}
+impl Clone for SerialWriteDrainedEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
 }
-impl Copy for SerialSignalsChangedEventAbi<VmAbi> {}
-impl Clone for SerialSignalsChangedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+impl Copy for SerialWriteDrainedEventAbi<VmAbi> {}
+impl Clone for SerialWriteDrainedEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
-impl VmAggregateCodec for SerialSignalsChangedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+impl VmAggregateCodec for SerialWriteDrainedEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SerialSignalsChangedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialWriteDrainedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <SerialSignalsChangedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload = <SerialWriteDrainedPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -4108,35 +10140,50 @@ impl VmAggregateCodec for SerialSignalsChangedEventAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <SerialSignalsChangedPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <SerialWriteDrainedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
-/// Value type for SerialSignalsChangedEvent.
+/// Value type for SerialWriteDrainedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SerialSignalsChangedEventValue {
+pub struct SerialWriteDrainedEventValue {
     /// Discriminator for this serial event variant.
     pub kind: String,
     /// Shared event metadata.
     pub metadata: SerialEventMetadata,
-    /// Signal-line payload.
-    pub payload: SerialSignalsChangedPayload,
+    /// Output-drained payload.
+    pub payload: SerialWriteDrainedPayload,
 }
 
-impl NativeAbiCodec for SerialSignalsChangedEventAbi<NativeAbi> {
-    type Value = SerialSignalsChangedEventValue;
+impl NativeAbiCodec for SerialWriteDrainedEventAbi<NativeAbi> {
+    type Value = SerialWriteDrainedEventValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(SerialSignalsChangedEventValue {
+        Ok(SerialWriteDrainedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <SerialEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <SerialSignalsChangedPayload as NativeAbiCodec>::into_value(self.payload)? },
+            metadata: unsafe {
+                <SerialEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
+            payload: unsafe {
+                <SerialWriteDrainedPayload as NativeAbiCodec>::into_value(self.payload)?
+            },
         })
     }
 
@@ -4144,69 +10191,94 @@ impl NativeAbiCodec for SerialSignalsChangedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <SerialEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <SerialSignalsChangedPayload as NativeAbiCodec>::from_value(binding, value.payload),
+            payload: <SerialWriteDrainedPayload as NativeAbiCodec>::from_value(
+                binding,
+                value.payload,
+            ),
         }
     }
 }
 
-impl VmAbiCodec for SerialSignalsChangedEventAbi<VmAbi> {
-    type Value = SerialSignalsChangedEventValue;
+impl VmAbiCodec for SerialWriteDrainedEventAbi<VmAbi> {
+    type Value = SerialWriteDrainedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(SerialSignalsChangedEventValue {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(SerialWriteDrainedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <SerialEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <SerialSignalsChangedPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
+            payload: <SerialWriteDrainedPayloadVm as VmAbiCodec>::into_value(
+                self.payload,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <SerialEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <SerialSignalsChangedPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
+            payload: <SerialWriteDrainedPayloadVm as VmAbiCodec>::from_value(
+                context,
+                value.payload,
+            )?,
         })
     }
 }
 
-/// ABI struct for SerialSignalsChangedPayload.
+/// ABI struct for SerialWriteDrainedPayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct SerialSignalsChangedPayload {
-    /// Current serial signal-line bitmask.
-    pub signal_bits: u32,
-}
+pub struct SerialWriteDrainedPayload {}
 
-pub type SerialSignalsChangedPayloadVm = SerialSignalsChangedPayload;
+pub type SerialWriteDrainedPayloadVm = SerialWriteDrainedPayload;
 
-impl VmAggregateCodec for SerialSignalsChangedPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+impl VmAggregateCodec for SerialWriteDrainedPayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SerialSignalsChangedPayload")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialWriteDrainedPayload",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 1 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 0 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 0 fields",
+            ))
+            .boxed());
         }
-        let field_signal_bits = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self {
-            signal_bits: field_signal_bits,
-        })
+        Ok(Self {})
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.signal_bits, context)?,
-        ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
-/// Value type for SerialSignalsChangedPayload.
-pub type SerialSignalsChangedPayloadValue = SerialSignalsChangedPayload;
+/// Value type for SerialWriteDrainedPayload.
+pub type SerialWriteDrainedPayloadValue = SerialWriteDrainedPayload;
 
-impl NativeAbiCodec for SerialSignalsChangedPayload {
-    type Value = SerialSignalsChangedPayloadValue;
+impl NativeAbiCodec for SerialWriteDrainedPayload {
+    type Value = SerialWriteDrainedPayloadValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -4217,184 +10289,189 @@ impl NativeAbiCodec for SerialSignalsChangedPayload {
     }
 }
 
-impl VmAbiCodec for SerialSignalsChangedPayload {
-    type Value = SerialSignalsChangedPayloadValue;
+impl VmAbiCodec for SerialWriteDrainedPayload {
+    type Value = SerialWriteDrainedPayloadValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
 
-/// ABI struct for SerialWriteReadyEvent.
+/// ABI struct for UsbBosCapabilityDescriptor.
 #[repr(C)]
-pub struct SerialWriteReadyEventAbi<A: BindingAbi> {
-    /// Discriminator for this serial event variant.
-    pub kind: A::String,
-    /// Shared event metadata.
-    pub metadata: SerialEventMetadata,
-    /// Write-ready payload.
-    pub payload: SerialWriteReadyPayload,
+pub struct UsbBosCapabilityDescriptorAbi<A: BindingAbi> {
+    /// Normalized BOS capability classification.
+    pub kind: UsbBosCapabilityKind,
+    /// Raw bDevCapabilityType value.
+    pub capability_type: u8,
+    /// Platform capability UUID when applicable.
+    pub platform_uuid: Option<A::String>,
+    /// Raw capability payload bytes.
+    pub bytes: A::Slice<u8>,
 }
 
-pub type SerialWriteReadyEvent = SerialWriteReadyEventAbi<NativeAbi>;
-pub type SerialWriteReadyEventVm = SerialWriteReadyEventAbi<VmAbi>;
+pub type UsbBosCapabilityDescriptor = UsbBosCapabilityDescriptorAbi<NativeAbi>;
+pub type UsbBosCapabilityDescriptorVm = UsbBosCapabilityDescriptorAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for SerialWriteReadyEventAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for UsbBosCapabilityDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SerialWriteReadyEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UsbBosCapabilityDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
-impl Copy for SerialWriteReadyEventAbi<NativeAbi> {}
-impl Clone for SerialWriteReadyEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+impl Copy for UsbBosCapabilityDescriptorAbi<NativeAbi> {}
+impl Clone for UsbBosCapabilityDescriptorAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
 }
-impl Copy for SerialWriteReadyEventAbi<VmAbi> {}
-impl Clone for SerialWriteReadyEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+impl Copy for UsbBosCapabilityDescriptorAbi<VmAbi> {}
+impl Clone for UsbBosCapabilityDescriptorAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
-impl VmAggregateCodec for SerialWriteReadyEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+impl VmAggregateCodec for UsbBosCapabilityDescriptorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SerialWriteReadyEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbBosCapabilityDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <SerialWriteReadyPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_kind =
+            <UsbBosCapabilityKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_capability_type =
+            <u8 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_platform_uuid =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             kind: field_kind,
-            metadata: field_metadata,
-            payload: field_payload,
+            capability_type: field_capability_type,
+            platform_uuid: field_platform_uuid,
+            bytes: field_bytes,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
-            <SerialWriteReadyPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <UsbBosCapabilityKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <u8 as VmAggregateCodec>::encode_with_context(self.capability_type, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.platform_uuid,
+                context,
+            )?,
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
-/// Value type for SerialWriteReadyEvent.
+/// Value type for UsbBosCapabilityDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SerialWriteReadyEventValue {
-    /// Discriminator for this serial event variant.
-    pub kind: String,
-    /// Shared event metadata.
-    pub metadata: SerialEventMetadata,
-    /// Write-ready payload.
-    pub payload: SerialWriteReadyPayload,
+pub struct UsbBosCapabilityDescriptorValue {
+    /// Normalized BOS capability classification.
+    pub kind: UsbBosCapabilityKind,
+    /// Raw bDevCapabilityType value.
+    pub capability_type: u8,
+    /// Platform capability UUID when applicable.
+    pub platform_uuid: Option<String>,
+    /// Raw capability payload bytes.
+    pub bytes: Vec<u8>,
 }
 
-impl NativeAbiCodec for SerialWriteReadyEventAbi<NativeAbi> {
-    type Value = SerialWriteReadyEventValue;
+impl NativeAbiCodec for UsbBosCapabilityDescriptorAbi<NativeAbi> {
+    type Value = UsbBosCapabilityDescriptorValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(SerialWriteReadyEventValue {
-            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <SerialEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe { <SerialWriteReadyPayload as NativeAbiCodec>::into_value(self.payload)? },
+        Ok(UsbBosCapabilityDescriptorValue {
+            kind: unsafe { <UsbBosCapabilityKind as NativeAbiCodec>::into_value(self.kind)? },
+            capability_type: unsafe { <u8 as NativeAbiCodec>::into_value(self.capability_type)? },
+            platform_uuid: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.platform_uuid)?
+            },
+            bytes: unsafe { <NativeSlice<u8> as NativeAbiCodec>::into_value(self.bytes)? },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <SerialEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <SerialWriteReadyPayload as NativeAbiCodec>::from_value(binding, value.payload),
+            kind: <UsbBosCapabilityKind as NativeAbiCodec>::from_value(binding, value.kind),
+            capability_type: <u8 as NativeAbiCodec>::from_value(binding, value.capability_type),
+            platform_uuid: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.platform_uuid,
+            ),
+            bytes: <NativeSlice<u8> as NativeAbiCodec>::from_value(binding, value.bytes),
         }
     }
 }
 
-impl VmAbiCodec for SerialWriteReadyEventAbi<VmAbi> {
-    type Value = SerialWriteReadyEventValue;
+impl VmAbiCodec for UsbBosCapabilityDescriptorAbi<VmAbi> {
+    type Value = UsbBosCapabilityDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(SerialWriteReadyEventValue {
-            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <SerialEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <SerialWriteReadyPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(UsbBosCapabilityDescriptorValue {
+            kind: <UsbBosCapabilityKind as VmAbiCodec>::into_value(self.kind, context)?,
+            capability_type: <u8 as VmAbiCodec>::into_value(self.capability_type, context)?,
+            platform_uuid: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.platform_uuid,
+                context,
+            )?,
+            bytes: <VmSlice<u8> as VmAbiCodec>::into_value(self.bytes, context)?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <SerialEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <SerialWriteReadyPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
+            kind: <UsbBosCapabilityKind as VmAbiCodec>::from_value(context, value.kind)?,
+            capability_type: <u8 as VmAbiCodec>::from_value(context, value.capability_type)?,
+            platform_uuid: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.platform_uuid,
+            )?,
+            bytes: <VmSlice<u8> as VmAbiCodec>::from_value(context, value.bytes)?,
         })
-    }
-}
-
-/// ABI struct for SerialWriteReadyPayload.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct SerialWriteReadyPayload {
-    /// Estimated number of writable bytes.
-    pub writable_bytes: u32,
-}
-
-pub type SerialWriteReadyPayloadVm = SerialWriteReadyPayload;
-
-impl VmAggregateCodec for SerialWriteReadyPayload {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "SerialWriteReadyPayload")).boxed());
-        }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 1 fields")).boxed());
-        }
-        let field_writable_bytes = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self {
-            writable_bytes: field_writable_bytes,
-        })
-    }
-
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.writable_bytes, context)?,
-        ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
-    }
-}
-
-/// Value type for SerialWriteReadyPayload.
-pub type SerialWriteReadyPayloadValue = SerialWriteReadyPayload;
-
-impl NativeAbiCodec for SerialWriteReadyPayload {
-    type Value = SerialWriteReadyPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for SerialWriteReadyPayload {
-    type Value = SerialWriteReadyPayloadValue;
-
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
-        Ok(value)
     }
 }
 
@@ -4403,8 +10480,12 @@ impl VmAbiCodec for SerialWriteReadyPayload {
 pub struct UsbConfigurationDescriptorAbi<A: BindingAbi> {
     /// Configuration value.
     pub value: u8,
-    /// Configuration attributes bitmask.
-    pub attributes: u8,
+    /// Configuration string descriptor when available.
+    pub name: Option<A::String>,
+    /// Whether this configuration is self-powered.
+    pub self_powered: bool,
+    /// Whether this configuration supports remote wakeup.
+    pub remote_wakeup: bool,
     /// Maximum bus power in milliamps.
     pub max_power_milli_amps: u16,
     /// Interface descriptors for this configuration.
@@ -4416,48 +10497,90 @@ pub type UsbConfigurationDescriptorVm = UsbConfigurationDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for UsbConfigurationDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UsbConfigurationDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UsbConfigurationDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UsbConfigurationDescriptorAbi<NativeAbi> {}
 impl Clone for UsbConfigurationDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UsbConfigurationDescriptorAbi<VmAbi> {}
 impl Clone for UsbConfigurationDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for UsbConfigurationDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "UsbConfigurationDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbConfigurationDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 6 fields",
+            ))
+            .boxed());
         }
         let field_value = <u8 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_attributes = <u8 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_max_power_milli_amps = <u16 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_interfaces = <VmSlice<UsbInterfaceDescriptorVm> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_self_powered =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_remote_wakeup =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_max_power_milli_amps =
+            <u16 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_interfaces =
+            <VmSlice<UsbInterfaceDescriptorVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
         Ok(Self {
             value: field_value,
-            attributes: field_attributes,
+            name: field_name,
+            self_powered: field_self_powered,
+            remote_wakeup: field_remote_wakeup,
             max_power_milli_amps: field_max_power_milli_amps,
             interfaces: field_interfaces,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u8 as VmAggregateCodec>::encode_with_context(self.value, context)?,
-            <u8 as VmAggregateCodec>::encode_with_context(self.attributes, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.self_powered, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.remote_wakeup, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.max_power_milli_amps, context)?,
-            <VmSlice<UsbInterfaceDescriptorVm> as VmAggregateCodec>::encode_with_context(self.interfaces, context)?,
+            <VmSlice<UsbInterfaceDescriptorVm> as VmAggregateCodec>::encode_with_context(
+                self.interfaces,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4466,8 +10589,12 @@ impl VmAggregateCodec for UsbConfigurationDescriptorAbi<VmAbi> {
 pub struct UsbConfigurationDescriptorValue {
     /// Configuration value.
     pub value: u8,
-    /// Configuration attributes bitmask.
-    pub attributes: u8,
+    /// Configuration string descriptor when available.
+    pub name: Option<String>,
+    /// Whether this configuration is self-powered.
+    pub self_powered: bool,
+    /// Whether this configuration supports remote wakeup.
+    pub remote_wakeup: bool,
     /// Maximum bus power in milliamps.
     pub max_power_milli_amps: u16,
     /// Interface descriptors for this configuration.
@@ -4480,18 +10607,34 @@ impl NativeAbiCodec for UsbConfigurationDescriptorAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(UsbConfigurationDescriptorValue {
             value: unsafe { <u8 as NativeAbiCodec>::into_value(self.value)? },
-            attributes: unsafe { <u8 as NativeAbiCodec>::into_value(self.attributes)? },
-            max_power_milli_amps: unsafe { <u16 as NativeAbiCodec>::into_value(self.max_power_milli_amps)? },
-            interfaces: unsafe { <NativeSlice<UsbInterfaceDescriptor> as NativeAbiCodec>::into_value(self.interfaces)? },
+            name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name)? },
+            self_powered: unsafe { <bool as NativeAbiCodec>::into_value(self.self_powered)? },
+            remote_wakeup: unsafe { <bool as NativeAbiCodec>::into_value(self.remote_wakeup)? },
+            max_power_milli_amps: unsafe {
+                <u16 as NativeAbiCodec>::into_value(self.max_power_milli_amps)?
+            },
+            interfaces: unsafe {
+                <NativeSlice<UsbInterfaceDescriptor> as NativeAbiCodec>::into_value(
+                    self.interfaces,
+                )?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             value: <u8 as NativeAbiCodec>::from_value(binding, value.value),
-            attributes: <u8 as NativeAbiCodec>::from_value(binding, value.attributes),
-            max_power_milli_amps: <u16 as NativeAbiCodec>::from_value(binding, value.max_power_milli_amps),
-            interfaces: <NativeSlice<UsbInterfaceDescriptor> as NativeAbiCodec>::from_value(binding, value.interfaces),
+            name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.name),
+            self_powered: <bool as NativeAbiCodec>::from_value(binding, value.self_powered),
+            remote_wakeup: <bool as NativeAbiCodec>::from_value(binding, value.remote_wakeup),
+            max_power_milli_amps: <u16 as NativeAbiCodec>::from_value(
+                binding,
+                value.max_power_milli_amps,
+            ),
+            interfaces: <NativeSlice<UsbInterfaceDescriptor> as NativeAbiCodec>::from_value(
+                binding,
+                value.interfaces,
+            ),
         }
     }
 }
@@ -4499,102 +10642,731 @@ impl NativeAbiCodec for UsbConfigurationDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for UsbConfigurationDescriptorAbi<VmAbi> {
     type Value = UsbConfigurationDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbConfigurationDescriptorValue {
             value: <u8 as VmAbiCodec>::into_value(self.value, context)?,
-            attributes: <u8 as VmAbiCodec>::into_value(self.attributes, context)?,
-            max_power_milli_amps: <u16 as VmAbiCodec>::into_value(self.max_power_milli_amps, context)?,
-            interfaces: <VmSlice<UsbInterfaceDescriptorVm> as VmAbiCodec>::into_value(self.interfaces, context)?,
+            name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.name, context)?,
+            self_powered: <bool as VmAbiCodec>::into_value(self.self_powered, context)?,
+            remote_wakeup: <bool as VmAbiCodec>::into_value(self.remote_wakeup, context)?,
+            max_power_milli_amps: <u16 as VmAbiCodec>::into_value(
+                self.max_power_milli_amps,
+                context,
+            )?,
+            interfaces: <VmSlice<UsbInterfaceDescriptorVm> as VmAbiCodec>::into_value(
+                self.interfaces,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             value: <u8 as VmAbiCodec>::from_value(context, value.value)?,
-            attributes: <u8 as VmAbiCodec>::from_value(context, value.attributes)?,
-            max_power_milli_amps: <u16 as VmAbiCodec>::from_value(context, value.max_power_milli_amps)?,
-            interfaces: <VmSlice<UsbInterfaceDescriptorVm> as VmAbiCodec>::from_value(context, value.interfaces)?,
+            name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.name)?,
+            self_powered: <bool as VmAbiCodec>::from_value(context, value.self_powered)?,
+            remote_wakeup: <bool as VmAbiCodec>::from_value(context, value.remote_wakeup)?,
+            max_power_milli_amps: <u16 as VmAbiCodec>::from_value(
+                context,
+                value.max_power_milli_amps,
+            )?,
+            interfaces: <VmSlice<UsbInterfaceDescriptorVm> as VmAbiCodec>::from_value(
+                context,
+                value.interfaces,
+            )?,
+        })
+    }
+}
+
+/// ABI struct for UsbControlDeviceTarget.
+#[repr(C)]
+pub struct UsbControlDeviceTargetAbi<A: BindingAbi> {
+    /// Discriminator for this control-target variant.
+    pub kind: A::String,
+}
+
+pub type UsbControlDeviceTarget = UsbControlDeviceTargetAbi<NativeAbi>;
+pub type UsbControlDeviceTargetVm = UsbControlDeviceTargetAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UsbControlDeviceTargetAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UsbControlDeviceTargetAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for UsbControlDeviceTargetAbi<NativeAbi> {}
+impl Clone for UsbControlDeviceTargetAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UsbControlDeviceTargetAbi<VmAbi> {}
+impl Clone for UsbControlDeviceTargetAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UsbControlDeviceTargetAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbControlDeviceTarget",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { kind: field_kind })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
+            self.kind, context,
+        )?];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for UsbControlDeviceTarget.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbControlDeviceTargetValue {
+    /// Discriminator for this control-target variant.
+    pub kind: String,
+}
+
+impl NativeAbiCodec for UsbControlDeviceTargetAbi<NativeAbi> {
+    type Value = UsbControlDeviceTargetValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(UsbControlDeviceTargetValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+        }
+    }
+}
+
+impl VmAbiCodec for UsbControlDeviceTargetAbi<VmAbi> {
+    type Value = UsbControlDeviceTargetValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(UsbControlDeviceTargetValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+        })
+    }
+}
+
+/// ABI struct for UsbControlEndpointTarget.
+#[repr(C)]
+pub struct UsbControlEndpointTargetAbi<A: BindingAbi> {
+    /// Discriminator for this control-target variant.
+    pub kind: A::String,
+    /// Endpoint selector.
+    pub endpoint: UsbEndpointSelector,
+}
+
+pub type UsbControlEndpointTarget = UsbControlEndpointTargetAbi<NativeAbi>;
+pub type UsbControlEndpointTargetVm = UsbControlEndpointTargetAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UsbControlEndpointTargetAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UsbControlEndpointTargetAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for UsbControlEndpointTargetAbi<NativeAbi> {}
+impl Clone for UsbControlEndpointTargetAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UsbControlEndpointTargetAbi<VmAbi> {}
+impl Clone for UsbControlEndpointTargetAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UsbControlEndpointTargetAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbControlEndpointTarget",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_endpoint =
+            <UsbEndpointSelectorVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            endpoint: field_endpoint,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <UsbEndpointSelectorVm as VmAggregateCodec>::encode_with_context(
+                self.endpoint,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for UsbControlEndpointTarget.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbControlEndpointTargetValue {
+    /// Discriminator for this control-target variant.
+    pub kind: String,
+    /// Endpoint selector.
+    pub endpoint: UsbEndpointSelector,
+}
+
+impl NativeAbiCodec for UsbControlEndpointTargetAbi<NativeAbi> {
+    type Value = UsbControlEndpointTargetValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(UsbControlEndpointTargetValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            endpoint: unsafe {
+                <UsbEndpointSelector as NativeAbiCodec>::into_value(self.endpoint)?
+            },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            endpoint: <UsbEndpointSelector as NativeAbiCodec>::from_value(binding, value.endpoint),
+        }
+    }
+}
+
+impl VmAbiCodec for UsbControlEndpointTargetAbi<VmAbi> {
+    type Value = UsbControlEndpointTargetValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(UsbControlEndpointTargetValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            endpoint: <UsbEndpointSelectorVm as VmAbiCodec>::into_value(self.endpoint, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            endpoint: <UsbEndpointSelectorVm as VmAbiCodec>::from_value(context, value.endpoint)?,
+        })
+    }
+}
+
+/// ABI struct for UsbControlInterfaceTarget.
+#[repr(C)]
+pub struct UsbControlInterfaceTargetAbi<A: BindingAbi> {
+    /// Discriminator for this control-target variant.
+    pub kind: A::String,
+    /// Interface number.
+    pub interface_number: u8,
+}
+
+pub type UsbControlInterfaceTarget = UsbControlInterfaceTargetAbi<NativeAbi>;
+pub type UsbControlInterfaceTargetVm = UsbControlInterfaceTargetAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UsbControlInterfaceTargetAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UsbControlInterfaceTargetAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for UsbControlInterfaceTargetAbi<NativeAbi> {}
+impl Clone for UsbControlInterfaceTargetAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UsbControlInterfaceTargetAbi<VmAbi> {}
+impl Clone for UsbControlInterfaceTargetAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UsbControlInterfaceTargetAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbControlInterfaceTarget",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_interface_number =
+            <u8 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            interface_number: field_interface_number,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <u8 as VmAggregateCodec>::encode_with_context(self.interface_number, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for UsbControlInterfaceTarget.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbControlInterfaceTargetValue {
+    /// Discriminator for this control-target variant.
+    pub kind: String,
+    /// Interface number.
+    pub interface_number: u8,
+}
+
+impl NativeAbiCodec for UsbControlInterfaceTargetAbi<NativeAbi> {
+    type Value = UsbControlInterfaceTargetValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(UsbControlInterfaceTargetValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            interface_number: unsafe { <u8 as NativeAbiCodec>::into_value(self.interface_number)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            interface_number: <u8 as NativeAbiCodec>::from_value(binding, value.interface_number),
+        }
+    }
+}
+
+impl VmAbiCodec for UsbControlInterfaceTargetAbi<VmAbi> {
+    type Value = UsbControlInterfaceTargetValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(UsbControlInterfaceTargetValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            interface_number: <u8 as VmAbiCodec>::into_value(self.interface_number, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            interface_number: <u8 as VmAbiCodec>::from_value(context, value.interface_number)?,
+        })
+    }
+}
+
+/// ABI struct for UsbControlOtherTarget.
+#[repr(C)]
+pub struct UsbControlOtherTargetAbi<A: BindingAbi> {
+    /// Discriminator for this control-target variant.
+    pub kind: A::String,
+    /// Raw recipient index value.
+    pub index: u16,
+}
+
+pub type UsbControlOtherTarget = UsbControlOtherTargetAbi<NativeAbi>;
+pub type UsbControlOtherTargetVm = UsbControlOtherTargetAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UsbControlOtherTargetAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UsbControlOtherTargetAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for UsbControlOtherTargetAbi<NativeAbi> {}
+impl Clone for UsbControlOtherTargetAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UsbControlOtherTargetAbi<VmAbi> {}
+impl Clone for UsbControlOtherTargetAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UsbControlOtherTargetAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbControlOtherTarget",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_index = <u16 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            index: field_index,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <u16 as VmAggregateCodec>::encode_with_context(self.index, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for UsbControlOtherTarget.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbControlOtherTargetValue {
+    /// Discriminator for this control-target variant.
+    pub kind: String,
+    /// Raw recipient index value.
+    pub index: u16,
+}
+
+impl NativeAbiCodec for UsbControlOtherTargetAbi<NativeAbi> {
+    type Value = UsbControlOtherTargetValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(UsbControlOtherTargetValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            index: unsafe { <u16 as NativeAbiCodec>::into_value(self.index)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            index: <u16 as NativeAbiCodec>::from_value(binding, value.index),
+        }
+    }
+}
+
+impl VmAbiCodec for UsbControlOtherTargetAbi<VmAbi> {
+    type Value = UsbControlOtherTargetValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(UsbControlOtherTargetValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            index: <u16 as VmAbiCodec>::into_value(self.index, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            index: <u16 as VmAbiCodec>::from_value(context, value.index)?,
         })
     }
 }
 
 /// ABI struct for UsbControlSetup.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct UsbControlSetup {
-    /// bmRequestType field.
-    pub request_type: u8,
+pub struct UsbControlSetupAbi<A: BindingAbi> {
+    /// USB control transfer type selector.
+    pub transfer_type: UsbControlTransferType,
+    /// USB control transfer target selector.
+    pub target: platform_device::UsbControlTargetAbi<A>,
     /// bRequest field.
     pub request: u8,
     /// wValue field.
     pub value: u16,
-    /// wIndex field.
-    pub index: u16,
     /// wLength field.
     pub length: u16,
 }
 
-pub type UsbControlSetupVm = UsbControlSetup;
+pub type UsbControlSetup = UsbControlSetupAbi<NativeAbi>;
+pub type UsbControlSetupVm = UsbControlSetupAbi<VmAbi>;
 
-impl VmAggregateCodec for UsbControlSetup {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+impl<A: BindingAbi> std::fmt::Debug for UsbControlSetupAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UsbControlSetupAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for UsbControlSetupAbi<NativeAbi> {}
+impl Clone for UsbControlSetupAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UsbControlSetupAbi<VmAbi> {}
+impl Clone for UsbControlSetupAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UsbControlSetupAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "UsbControlSetup")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbControlSetup",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 5 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 5 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_request_type = <u8 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_request = <u8 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_value = <u16 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_index = <u16 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_transfer_type =
+            <UsbControlTransferType as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_target =
+            <UsbControlTargetVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_request = <u8 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_value = <u16 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_length = <u16 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
-            request_type: field_request_type,
+            transfer_type: field_transfer_type,
+            target: field_target,
             request: field_request,
             value: field_value,
-            index: field_index,
             length: field_length,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u8 as VmAggregateCodec>::encode_with_context(self.request_type, context)?,
+            <UsbControlTransferType as VmAggregateCodec>::encode_with_context(
+                self.transfer_type,
+                context,
+            )?,
+            <UsbControlTargetVm as VmAggregateCodec>::encode_with_context(self.target, context)?,
             <u8 as VmAggregateCodec>::encode_with_context(self.request, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.value, context)?,
-            <u16 as VmAggregateCodec>::encode_with_context(self.index, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.length, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
 /// Value type for UsbControlSetup.
-pub type UsbControlSetupValue = UsbControlSetup;
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbControlSetupValue {
+    /// USB control transfer type selector.
+    pub transfer_type: UsbControlTransferType,
+    /// USB control transfer target selector.
+    pub target: UsbControlTargetValue,
+    /// bRequest field.
+    pub request: u8,
+    /// wValue field.
+    pub value: u16,
+    /// wLength field.
+    pub length: u16,
+}
 
-impl NativeAbiCodec for UsbControlSetup {
+impl NativeAbiCodec for UsbControlSetupAbi<NativeAbi> {
     type Value = UsbControlSetupValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
+        Ok(UsbControlSetupValue {
+            transfer_type: unsafe {
+                <UsbControlTransferType as NativeAbiCodec>::into_value(self.transfer_type)?
+            },
+            target: unsafe { <UsbControlTarget as NativeAbiCodec>::into_value(self.target)? },
+            request: unsafe { <u8 as NativeAbiCodec>::into_value(self.request)? },
+            value: unsafe { <u16 as NativeAbiCodec>::into_value(self.value)? },
+            length: unsafe { <u16 as NativeAbiCodec>::into_value(self.length)? },
+        })
     }
 
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            transfer_type: <UsbControlTransferType as NativeAbiCodec>::from_value(
+                binding,
+                value.transfer_type,
+            ),
+            target: <UsbControlTarget as NativeAbiCodec>::from_value(binding, value.target),
+            request: <u8 as NativeAbiCodec>::from_value(binding, value.request),
+            value: <u16 as NativeAbiCodec>::from_value(binding, value.value),
+            length: <u16 as NativeAbiCodec>::from_value(binding, value.length),
+        }
     }
 }
 
-impl VmAbiCodec for UsbControlSetup {
+impl VmAbiCodec for UsbControlSetupAbi<VmAbi> {
     type Value = UsbControlSetupValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(UsbControlSetupValue {
+            transfer_type: <UsbControlTransferType as VmAbiCodec>::into_value(
+                self.transfer_type,
+                context,
+            )?,
+            target: <UsbControlTargetVm as VmAbiCodec>::into_value(self.target, context)?,
+            request: <u8 as VmAbiCodec>::into_value(self.request, context)?,
+            value: <u16 as VmAbiCodec>::into_value(self.value, context)?,
+            length: <u16 as VmAbiCodec>::into_value(self.length, context)?,
+        })
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
-        Ok(value)
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            transfer_type: <UsbControlTransferType as VmAbiCodec>::from_value(
+                context,
+                value.transfer_type,
+            )?,
+            target: <UsbControlTargetVm as VmAbiCodec>::from_value(context, value.target)?,
+            request: <u8 as VmAbiCodec>::from_value(context, value.request)?,
+            value: <u16 as VmAbiCodec>::from_value(context, value.value)?,
+            length: <u16 as VmAbiCodec>::from_value(context, value.length)?,
+        })
     }
 }
 
@@ -4626,37 +11398,60 @@ pub type UsbDeviceDescriptorVm = UsbDeviceDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for UsbDeviceDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UsbDeviceDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UsbDeviceDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UsbDeviceDescriptorAbi<NativeAbi> {}
 impl Clone for UsbDeviceDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UsbDeviceDescriptorAbi<VmAbi> {}
 impl Clone for UsbDeviceDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for UsbDeviceDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "UsbDeviceDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbDeviceDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 9 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 9 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 9 fields",
+            ))
+            .boxed());
         }
-        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_vendor_id = <u16 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_product_id = <u16 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_class_code = <u8 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_subclass_code = <u8 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_protocol_code = <u8 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_manufacturer = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_product = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_serial_number = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_manufacturer =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_product =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_serial_number =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
             id: field_id,
             vendor_id: field_vendor_id,
@@ -4670,7 +11465,10 @@ impl VmAggregateCodec for UsbDeviceDescriptorAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
             <u16 as VmAggregateCodec>::encode_with_context(self.vendor_id, context)?,
@@ -4678,11 +11476,22 @@ impl VmAggregateCodec for UsbDeviceDescriptorAbi<VmAbi> {
             <u8 as VmAggregateCodec>::encode_with_context(self.class_code, context)?,
             <u8 as VmAggregateCodec>::encode_with_context(self.subclass_code, context)?,
             <u8 as VmAggregateCodec>::encode_with_context(self.protocol_code, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.manufacturer, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.product, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.serial_number, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.manufacturer,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.product,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.serial_number,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4720,9 +11529,15 @@ impl NativeAbiCodec for UsbDeviceDescriptorAbi<NativeAbi> {
             class_code: unsafe { <u8 as NativeAbiCodec>::into_value(self.class_code)? },
             subclass_code: unsafe { <u8 as NativeAbiCodec>::into_value(self.subclass_code)? },
             protocol_code: unsafe { <u8 as NativeAbiCodec>::into_value(self.protocol_code)? },
-            manufacturer: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)? },
-            product: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.product)? },
-            serial_number: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.serial_number)? },
+            manufacturer: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)?
+            },
+            product: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.product)?
+            },
+            serial_number: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.serial_number)?
+            },
         })
     }
 
@@ -4734,9 +11549,18 @@ impl NativeAbiCodec for UsbDeviceDescriptorAbi<NativeAbi> {
             class_code: <u8 as NativeAbiCodec>::from_value(binding, value.class_code),
             subclass_code: <u8 as NativeAbiCodec>::from_value(binding, value.subclass_code),
             protocol_code: <u8 as NativeAbiCodec>::from_value(binding, value.protocol_code),
-            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.manufacturer),
-            product: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.product),
-            serial_number: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.serial_number),
+            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.manufacturer,
+            ),
+            product: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.product,
+            ),
+            serial_number: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.serial_number,
+            ),
         }
     }
 }
@@ -4744,7 +11568,10 @@ impl NativeAbiCodec for UsbDeviceDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for UsbDeviceDescriptorAbi<VmAbi> {
     type Value = UsbDeviceDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbDeviceDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
             vendor_id: <u16 as VmAbiCodec>::into_value(self.vendor_id, context)?,
@@ -4752,13 +11579,22 @@ impl VmAbiCodec for UsbDeviceDescriptorAbi<VmAbi> {
             class_code: <u8 as VmAbiCodec>::into_value(self.class_code, context)?,
             subclass_code: <u8 as VmAbiCodec>::into_value(self.subclass_code, context)?,
             protocol_code: <u8 as VmAbiCodec>::into_value(self.protocol_code, context)?,
-            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.manufacturer, context)?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.manufacturer,
+                context,
+            )?,
             product: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.product, context)?,
-            serial_number: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.serial_number, context)?,
+            serial_number: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.serial_number,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             id: <vm::StringHandle as VmAbiCodec>::from_value(context, value.id)?,
             vendor_id: <u16 as VmAbiCodec>::from_value(context, value.vendor_id)?,
@@ -4766,9 +11602,15 @@ impl VmAbiCodec for UsbDeviceDescriptorAbi<VmAbi> {
             class_code: <u8 as VmAbiCodec>::from_value(context, value.class_code)?,
             subclass_code: <u8 as VmAbiCodec>::from_value(context, value.subclass_code)?,
             protocol_code: <u8 as VmAbiCodec>::from_value(context, value.protocol_code)?,
-            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.manufacturer)?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.manufacturer,
+            )?,
             product: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.product)?,
-            serial_number: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.serial_number)?,
+            serial_number: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.serial_number,
+            )?,
         })
     }
 }
@@ -4777,10 +11619,12 @@ impl VmAbiCodec for UsbDeviceDescriptorAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct UsbEndpointDescriptor {
-    /// Endpoint address.
-    pub address: u8,
-    /// Endpoint transfer type code.
-    pub transfer_type: u8,
+    /// Endpoint number.
+    pub endpoint_number: u8,
+    /// Endpoint transfer direction.
+    pub direction: UsbEndpointDirection,
+    /// Endpoint transfer type.
+    pub transfer_type: UsbEndpointTransferType,
     /// Endpoint max-packet size in bytes.
     pub max_packet_size: u16,
     /// Endpoint polling interval.
@@ -4790,34 +11634,65 @@ pub struct UsbEndpointDescriptor {
 pub type UsbEndpointDescriptorVm = UsbEndpointDescriptor;
 
 impl VmAggregateCodec for UsbEndpointDescriptor {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "UsbEndpointDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbEndpointDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
         }
-        let field_address = <u8 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_transfer_type = <u8 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_max_packet_size = <u16 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_interval = <u8 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_endpoint_number =
+            <u8 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_direction =
+            <UsbEndpointDirection as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_transfer_type =
+            <UsbEndpointTransferType as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_max_packet_size =
+            <u16 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_interval = <u8 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
-            address: field_address,
+            endpoint_number: field_endpoint_number,
+            direction: field_direction,
             transfer_type: field_transfer_type,
             max_packet_size: field_max_packet_size,
             interval: field_interval,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u8 as VmAggregateCodec>::encode_with_context(self.address, context)?,
-            <u8 as VmAggregateCodec>::encode_with_context(self.transfer_type, context)?,
+            <u8 as VmAggregateCodec>::encode_with_context(self.endpoint_number, context)?,
+            <UsbEndpointDirection as VmAggregateCodec>::encode_with_context(
+                self.direction,
+                context,
+            )?,
+            <UsbEndpointTransferType as VmAggregateCodec>::encode_with_context(
+                self.transfer_type,
+                context,
+            )?,
             <u16 as VmAggregateCodec>::encode_with_context(self.max_packet_size, context)?,
             <u8 as VmAggregateCodec>::encode_with_context(self.interval, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4839,11 +11714,110 @@ impl NativeAbiCodec for UsbEndpointDescriptor {
 impl VmAbiCodec for UsbEndpointDescriptor {
     type Value = UsbEndpointDescriptorValue;
 
-    fn into_value(self, _context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
-    fn from_value(_context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
+    }
+}
+
+/// ABI struct for UsbEndpointSelector.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct UsbEndpointSelector {
+    /// Endpoint number.
+    pub number: u8,
+    /// Endpoint transfer direction.
+    pub direction: UsbEndpointDirection,
+}
+
+pub type UsbEndpointSelectorVm = UsbEndpointSelector;
+
+impl VmAggregateCodec for UsbEndpointSelector {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbEndpointSelector",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_number = <u8 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_direction =
+            <UsbEndpointDirection as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            number: field_number,
+            direction: field_direction,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u8 as VmAggregateCodec>::encode_with_context(self.number, context)?,
+            <UsbEndpointDirection as VmAggregateCodec>::encode_with_context(
+                self.direction,
+                context,
+            )?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for UsbEndpointSelector.
+pub type UsbEndpointSelectorValue = UsbEndpointSelector;
+
+impl NativeAbiCodec for UsbEndpointSelector {
+    type Value = UsbEndpointSelectorValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UsbEndpointSelector {
+    type Value = UsbEndpointSelectorValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
@@ -4862,42 +11836,72 @@ pub type UsbHotplugAttachedEventVm = UsbHotplugAttachedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for UsbHotplugAttachedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UsbHotplugAttachedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UsbHotplugAttachedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UsbHotplugAttachedEventAbi<NativeAbi> {}
 impl Clone for UsbHotplugAttachedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UsbHotplugAttachedEventAbi<VmAbi> {}
 impl Clone for UsbHotplugAttachedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for UsbHotplugAttachedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "UsbHotplugAttachedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbHotplugAttachedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <UsbHotplugEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata = <UsbHotplugEventMetadataVm as VmAggregateCodec>::decode_with_context(
+            context, slots[1],
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <UsbHotplugEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <UsbHotplugEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4916,14 +11920,19 @@ impl NativeAbiCodec for UsbHotplugAttachedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(UsbHotplugAttachedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <UsbHotplugEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <UsbHotplugEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <UsbHotplugEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
+            metadata: <UsbHotplugEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
         }
     }
 }
@@ -4931,17 +11940,29 @@ impl NativeAbiCodec for UsbHotplugAttachedEventAbi<NativeAbi> {
 impl VmAbiCodec for UsbHotplugAttachedEventAbi<VmAbi> {
     type Value = UsbHotplugAttachedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbHotplugAttachedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <UsbHotplugEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
+            metadata: <UsbHotplugEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <UsbHotplugEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
+            metadata: <UsbHotplugEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
         })
     }
 }
@@ -4960,42 +11981,72 @@ pub type UsbHotplugDetachedEventVm = UsbHotplugDetachedEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for UsbHotplugDetachedEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UsbHotplugDetachedEventAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UsbHotplugDetachedEventAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UsbHotplugDetachedEventAbi<NativeAbi> {}
 impl Clone for UsbHotplugDetachedEventAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UsbHotplugDetachedEventAbi<VmAbi> {}
 impl Clone for UsbHotplugDetachedEventAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for UsbHotplugDetachedEventAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "UsbHotplugDetachedEvent")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbHotplugDetachedEvent",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 2 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata = <UsbHotplugEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata = <UsbHotplugEventMetadataVm as VmAggregateCodec>::decode_with_context(
+            context, slots[1],
+        )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <UsbHotplugEventMetadataVm as VmAggregateCodec>::encode_with_context(self.metadata, context)?,
+            <UsbHotplugEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5014,14 +12065,19 @@ impl NativeAbiCodec for UsbHotplugDetachedEventAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(UsbHotplugDetachedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <UsbHotplugEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
+            metadata: unsafe {
+                <UsbHotplugEventMetadata as NativeAbiCodec>::into_value(self.metadata)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <UsbHotplugEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
+            metadata: <UsbHotplugEventMetadata as NativeAbiCodec>::from_value(
+                binding,
+                value.metadata,
+            ),
         }
     }
 }
@@ -5029,17 +12085,29 @@ impl NativeAbiCodec for UsbHotplugDetachedEventAbi<NativeAbi> {
 impl VmAbiCodec for UsbHotplugDetachedEventAbi<VmAbi> {
     type Value = UsbHotplugDetachedEventValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbHotplugDetachedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <UsbHotplugEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
+            metadata: <UsbHotplugEventMetadataVm as VmAbiCodec>::into_value(
+                self.metadata,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <UsbHotplugEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
+            metadata: <UsbHotplugEventMetadataVm as VmAbiCodec>::from_value(
+                context,
+                value.metadata,
+            )?,
         })
     }
 }
@@ -5060,31 +12128,51 @@ pub type UsbHotplugEventMetadataVm = UsbHotplugEventMetadataAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for UsbHotplugEventMetadataAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UsbHotplugEventMetadataAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UsbHotplugEventMetadataAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UsbHotplugEventMetadataAbi<NativeAbi> {}
 impl Clone for UsbHotplugEventMetadataAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UsbHotplugEventMetadataAbi<VmAbi> {}
 impl Clone for UsbHotplugEventMetadataAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for UsbHotplugEventMetadataAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "UsbHotplugEventMetadata")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbHotplugEventMetadata",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
         }
         let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_device = <UsbDeviceDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_device =
+            <UsbDeviceDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -5092,13 +12180,18 @@ impl VmAggregateCodec for UsbHotplugEventMetadataAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <UsbDeviceDescriptorVm as VmAggregateCodec>::encode_with_context(self.device, context)?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5136,7 +12229,10 @@ impl NativeAbiCodec for UsbHotplugEventMetadataAbi<NativeAbi> {
 impl VmAbiCodec for UsbHotplugEventMetadataAbi<VmAbi> {
     type Value = UsbHotplugEventMetadataValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbHotplugEventMetadataValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
             sequence: <u64 as VmAbiCodec>::into_value(self.sequence, context)?,
@@ -5144,11 +12240,144 @@ impl VmAbiCodec for UsbHotplugEventMetadataAbi<VmAbi> {
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             timestamp_ns: <u64 as VmAbiCodec>::from_value(context, value.timestamp_ns)?,
             sequence: <u64 as VmAbiCodec>::from_value(context, value.sequence)?,
             device: <UsbDeviceDescriptorVm as VmAbiCodec>::from_value(context, value.device)?,
+        })
+    }
+}
+
+/// ABI struct for UsbInTransferResult.
+#[repr(C)]
+pub struct UsbInTransferResultAbi<A: BindingAbi> {
+    /// Transfer completion status.
+    pub status: UsbTransferStatus,
+    /// Transfer payload bytes.
+    pub bytes: A::Slice<u8>,
+}
+
+pub type UsbInTransferResult = UsbInTransferResultAbi<NativeAbi>;
+pub type UsbInTransferResultVm = UsbInTransferResultAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UsbInTransferResultAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UsbInTransferResultAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for UsbInTransferResultAbi<NativeAbi> {}
+impl Clone for UsbInTransferResultAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UsbInTransferResultAbi<VmAbi> {}
+impl Clone for UsbInTransferResultAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UsbInTransferResultAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbInTransferResult",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_status =
+            <UsbTransferStatus as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            status: field_status,
+            bytes: field_bytes,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <UsbTransferStatus as VmAggregateCodec>::encode_with_context(self.status, context)?,
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for UsbInTransferResult.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbInTransferResultValue {
+    /// Transfer completion status.
+    pub status: UsbTransferStatus,
+    /// Transfer payload bytes.
+    pub bytes: Vec<u8>,
+}
+
+impl NativeAbiCodec for UsbInTransferResultAbi<NativeAbi> {
+    type Value = UsbInTransferResultValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(UsbInTransferResultValue {
+            status: unsafe { <UsbTransferStatus as NativeAbiCodec>::into_value(self.status)? },
+            bytes: unsafe { <NativeSlice<u8> as NativeAbiCodec>::into_value(self.bytes)? },
+        })
+    }
+
+    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        Self {
+            status: <UsbTransferStatus as NativeAbiCodec>::from_value(binding, value.status),
+            bytes: <NativeSlice<u8> as NativeAbiCodec>::from_value(binding, value.bytes),
+        }
+    }
+}
+
+impl VmAbiCodec for UsbInTransferResultAbi<VmAbi> {
+    type Value = UsbInTransferResultValue;
+
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(UsbInTransferResultValue {
+            status: <UsbTransferStatus as VmAbiCodec>::into_value(self.status, context)?,
+            bytes: <VmSlice<u8> as VmAbiCodec>::into_value(self.bytes, context)?,
+        })
+    }
+
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self {
+            status: <UsbTransferStatus as VmAbiCodec>::from_value(context, value.status)?,
+            bytes: <VmSlice<u8> as VmAbiCodec>::from_value(context, value.bytes)?,
         })
     }
 }
@@ -5166,6 +12395,8 @@ pub struct UsbInterfaceDescriptorAbi<A: BindingAbi> {
     pub subclass_code: u8,
     /// Interface protocol code.
     pub protocol_code: u8,
+    /// Interface string descriptor when available.
+    pub name: Option<A::String>,
     /// Endpoints for this interface.
     pub endpoints: A::Slice<UsbEndpointDescriptor>,
 }
@@ -5175,54 +12406,91 @@ pub type UsbInterfaceDescriptorVm = UsbInterfaceDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for UsbInterfaceDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UsbInterfaceDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UsbInterfaceDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UsbInterfaceDescriptorAbi<NativeAbi> {}
 impl Clone for UsbInterfaceDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UsbInterfaceDescriptorAbi<VmAbi> {}
 impl Clone for UsbInterfaceDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for UsbInterfaceDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "UsbInterfaceDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbInterfaceDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 6 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
         }
         let field_number = <u8 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_alternate_setting = <u8 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_alternate_setting =
+            <u8 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_class_code = <u8 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_subclass_code = <u8 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_protocol_code = <u8 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_endpoints = <VmSlice<UsbEndpointDescriptorVm> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_name =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_endpoints =
+            <VmSlice<UsbEndpointDescriptorVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[6],
+            )?;
         Ok(Self {
             number: field_number,
             alternate_setting: field_alternate_setting,
             class_code: field_class_code,
             subclass_code: field_subclass_code,
             protocol_code: field_protocol_code,
+            name: field_name,
             endpoints: field_endpoints,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u8 as VmAggregateCodec>::encode_with_context(self.number, context)?,
             <u8 as VmAggregateCodec>::encode_with_context(self.alternate_setting, context)?,
             <u8 as VmAggregateCodec>::encode_with_context(self.class_code, context)?,
             <u8 as VmAggregateCodec>::encode_with_context(self.subclass_code, context)?,
             <u8 as VmAggregateCodec>::encode_with_context(self.protocol_code, context)?,
-            <VmSlice<UsbEndpointDescriptorVm> as VmAggregateCodec>::encode_with_context(self.endpoints, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.name, context,
+            )?,
+            <VmSlice<UsbEndpointDescriptorVm> as VmAggregateCodec>::encode_with_context(
+                self.endpoints,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5239,6 +12507,8 @@ pub struct UsbInterfaceDescriptorValue {
     pub subclass_code: u8,
     /// Interface protocol code.
     pub protocol_code: u8,
+    /// Interface string descriptor when available.
+    pub name: Option<String>,
     /// Endpoints for this interface.
     pub endpoints: Vec<UsbEndpointDescriptor>,
 }
@@ -5249,11 +12519,16 @@ impl NativeAbiCodec for UsbInterfaceDescriptorAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(UsbInterfaceDescriptorValue {
             number: unsafe { <u8 as NativeAbiCodec>::into_value(self.number)? },
-            alternate_setting: unsafe { <u8 as NativeAbiCodec>::into_value(self.alternate_setting)? },
+            alternate_setting: unsafe {
+                <u8 as NativeAbiCodec>::into_value(self.alternate_setting)?
+            },
             class_code: unsafe { <u8 as NativeAbiCodec>::into_value(self.class_code)? },
             subclass_code: unsafe { <u8 as NativeAbiCodec>::into_value(self.subclass_code)? },
             protocol_code: unsafe { <u8 as NativeAbiCodec>::into_value(self.protocol_code)? },
-            endpoints: unsafe { <NativeSlice<UsbEndpointDescriptor> as NativeAbiCodec>::into_value(self.endpoints)? },
+            name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name)? },
+            endpoints: unsafe {
+                <NativeSlice<UsbEndpointDescriptor> as NativeAbiCodec>::into_value(self.endpoints)?
+            },
         })
     }
 
@@ -5264,7 +12539,11 @@ impl NativeAbiCodec for UsbInterfaceDescriptorAbi<NativeAbi> {
             class_code: <u8 as NativeAbiCodec>::from_value(binding, value.class_code),
             subclass_code: <u8 as NativeAbiCodec>::from_value(binding, value.subclass_code),
             protocol_code: <u8 as NativeAbiCodec>::from_value(binding, value.protocol_code),
-            endpoints: <NativeSlice<UsbEndpointDescriptor> as NativeAbiCodec>::from_value(binding, value.endpoints),
+            name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.name),
+            endpoints: <NativeSlice<UsbEndpointDescriptor> as NativeAbiCodec>::from_value(
+                binding,
+                value.endpoints,
+            ),
         }
     }
 }
@@ -5272,26 +12551,131 @@ impl NativeAbiCodec for UsbInterfaceDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for UsbInterfaceDescriptorAbi<VmAbi> {
     type Value = UsbInterfaceDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbInterfaceDescriptorValue {
             number: <u8 as VmAbiCodec>::into_value(self.number, context)?,
             alternate_setting: <u8 as VmAbiCodec>::into_value(self.alternate_setting, context)?,
             class_code: <u8 as VmAbiCodec>::into_value(self.class_code, context)?,
             subclass_code: <u8 as VmAbiCodec>::into_value(self.subclass_code, context)?,
             protocol_code: <u8 as VmAbiCodec>::into_value(self.protocol_code, context)?,
-            endpoints: <VmSlice<UsbEndpointDescriptorVm> as VmAbiCodec>::into_value(self.endpoints, context)?,
+            name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.name, context)?,
+            endpoints: <VmSlice<UsbEndpointDescriptorVm> as VmAbiCodec>::into_value(
+                self.endpoints,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             number: <u8 as VmAbiCodec>::from_value(context, value.number)?,
             alternate_setting: <u8 as VmAbiCodec>::from_value(context, value.alternate_setting)?,
             class_code: <u8 as VmAbiCodec>::from_value(context, value.class_code)?,
             subclass_code: <u8 as VmAbiCodec>::from_value(context, value.subclass_code)?,
             protocol_code: <u8 as VmAbiCodec>::from_value(context, value.protocol_code)?,
-            endpoints: <VmSlice<UsbEndpointDescriptorVm> as VmAbiCodec>::from_value(context, value.endpoints)?,
+            name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.name)?,
+            endpoints: <VmSlice<UsbEndpointDescriptorVm> as VmAbiCodec>::from_value(
+                context,
+                value.endpoints,
+            )?,
         })
+    }
+}
+
+/// ABI struct for UsbIsochronousPacketResult.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct UsbIsochronousPacketResult {
+    /// Packet completion status.
+    pub status: UsbTransferStatus,
+    /// Packet transfer length in bytes.
+    pub actual_length: u32,
+}
+
+pub type UsbIsochronousPacketResultVm = UsbIsochronousPacketResult;
+
+impl VmAggregateCodec for UsbIsochronousPacketResult {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbIsochronousPacketResult",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_status =
+            <UsbTransferStatus as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_actual_length =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            status: field_status,
+            actual_length: field_actual_length,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <UsbTransferStatus as VmAggregateCodec>::encode_with_context(self.status, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.actual_length, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for UsbIsochronousPacketResult.
+pub type UsbIsochronousPacketResultValue = UsbIsochronousPacketResult;
+
+impl NativeAbiCodec for UsbIsochronousPacketResult {
+    type Value = UsbIsochronousPacketResultValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UsbIsochronousPacketResult {
+    type Value = UsbIsochronousPacketResultValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -5300,10 +12684,8 @@ impl VmAbiCodec for UsbInterfaceDescriptorAbi<VmAbi> {
 pub struct UsbIsochronousTransferResultAbi<A: BindingAbi> {
     /// Flattened transfer bytes for all packets.
     pub bytes: A::Slice<u8>,
-    /// Per-packet actual transfer lengths.
-    pub packet_actual_lengths: A::Slice<u32>,
-    /// Per-packet backend status codes.
-    pub packet_statuses: A::Slice<i32>,
+    /// Per-packet transfer results.
+    pub packets: A::Slice<UsbIsochronousPacketResult>,
 }
 
 pub type UsbIsochronousTransferResult = UsbIsochronousTransferResultAbi<NativeAbi>;
@@ -5311,45 +12693,73 @@ pub type UsbIsochronousTransferResultVm = UsbIsochronousTransferResultAbi<VmAbi>
 
 impl<A: BindingAbi> std::fmt::Debug for UsbIsochronousTransferResultAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UsbIsochronousTransferResultAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UsbIsochronousTransferResultAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UsbIsochronousTransferResultAbi<NativeAbi> {}
 impl Clone for UsbIsochronousTransferResultAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UsbIsochronousTransferResultAbi<VmAbi> {}
 impl Clone for UsbIsochronousTransferResultAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for UsbIsochronousTransferResultAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "UsbIsochronousTransferResult")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbIsochronousTransferResult",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 3 fields")).boxed());
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
         }
-        let field_bytes = <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_packet_actual_lengths = <VmSlice<u32> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_packet_statuses = <VmSlice<i32> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_packets =
+            <VmSlice<UsbIsochronousPacketResultVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         Ok(Self {
             bytes: field_bytes,
-            packet_actual_lengths: field_packet_actual_lengths,
-            packet_statuses: field_packet_statuses,
+            packets: field_packets,
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
-            <VmSlice<u32> as VmAggregateCodec>::encode_with_context(self.packet_actual_lengths, context)?,
-            <VmSlice<i32> as VmAggregateCodec>::encode_with_context(self.packet_statuses, context)?,
+            <VmSlice<UsbIsochronousPacketResultVm> as VmAggregateCodec>::encode_with_context(
+                self.packets,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5358,10 +12768,8 @@ impl VmAggregateCodec for UsbIsochronousTransferResultAbi<VmAbi> {
 pub struct UsbIsochronousTransferResultValue {
     /// Flattened transfer bytes for all packets.
     pub bytes: Vec<u8>,
-    /// Per-packet actual transfer lengths.
-    pub packet_actual_lengths: Vec<u32>,
-    /// Per-packet backend status codes.
-    pub packet_statuses: Vec<i32>,
+    /// Per-packet transfer results.
+    pub packets: Vec<UsbIsochronousPacketResult>,
 }
 
 impl NativeAbiCodec for UsbIsochronousTransferResultAbi<NativeAbi> {
@@ -5370,16 +12778,21 @@ impl NativeAbiCodec for UsbIsochronousTransferResultAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(UsbIsochronousTransferResultValue {
             bytes: unsafe { <NativeSlice<u8> as NativeAbiCodec>::into_value(self.bytes)? },
-            packet_actual_lengths: unsafe { <NativeSlice<u32> as NativeAbiCodec>::into_value(self.packet_actual_lengths)? },
-            packet_statuses: unsafe { <NativeSlice<i32> as NativeAbiCodec>::into_value(self.packet_statuses)? },
+            packets: unsafe {
+                <NativeSlice<UsbIsochronousPacketResult> as NativeAbiCodec>::into_value(
+                    self.packets,
+                )?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             bytes: <NativeSlice<u8> as NativeAbiCodec>::from_value(binding, value.bytes),
-            packet_actual_lengths: <NativeSlice<u32> as NativeAbiCodec>::from_value(binding, value.packet_actual_lengths),
-            packet_statuses: <NativeSlice<i32> as NativeAbiCodec>::from_value(binding, value.packet_statuses),
+            packets: <NativeSlice<UsbIsochronousPacketResult> as NativeAbiCodec>::from_value(
+                binding,
+                value.packets,
+            ),
         }
     }
 }
@@ -5387,20 +12800,121 @@ impl NativeAbiCodec for UsbIsochronousTransferResultAbi<NativeAbi> {
 impl VmAbiCodec for UsbIsochronousTransferResultAbi<VmAbi> {
     type Value = UsbIsochronousTransferResultValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbIsochronousTransferResultValue {
             bytes: <VmSlice<u8> as VmAbiCodec>::into_value(self.bytes, context)?,
-            packet_actual_lengths: <VmSlice<u32> as VmAbiCodec>::into_value(self.packet_actual_lengths, context)?,
-            packet_statuses: <VmSlice<i32> as VmAbiCodec>::into_value(self.packet_statuses, context)?,
+            packets: <VmSlice<UsbIsochronousPacketResultVm> as VmAbiCodec>::into_value(
+                self.packets,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             bytes: <VmSlice<u8> as VmAbiCodec>::from_value(context, value.bytes)?,
-            packet_actual_lengths: <VmSlice<u32> as VmAbiCodec>::from_value(context, value.packet_actual_lengths)?,
-            packet_statuses: <VmSlice<i32> as VmAbiCodec>::from_value(context, value.packet_statuses)?,
+            packets: <VmSlice<UsbIsochronousPacketResultVm> as VmAbiCodec>::from_value(
+                context,
+                value.packets,
+            )?,
         })
+    }
+}
+
+/// ABI struct for UsbOutTransferResult.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct UsbOutTransferResult {
+    /// Transfer completion status.
+    pub status: UsbTransferStatus,
+    /// Number of bytes accepted by the host transfer.
+    pub bytes_written: u32,
+}
+
+pub type UsbOutTransferResultVm = UsbOutTransferResult;
+
+impl VmAggregateCodec for UsbOutTransferResult {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbOutTransferResult",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_status =
+            <UsbTransferStatus as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_bytes_written =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            status: field_status,
+            bytes_written: field_bytes_written,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <UsbTransferStatus as VmAggregateCodec>::encode_with_context(self.status, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.bytes_written, context)?,
+        ];
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
+    }
+}
+
+/// Value type for UsbOutTransferResult.
+pub type UsbOutTransferResultValue = UsbOutTransferResult;
+
+impl NativeAbiCodec for UsbOutTransferResult {
+    type Value = UsbOutTransferResultValue;
+
+    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
+        value
+    }
+}
+
+impl VmAbiCodec for UsbOutTransferResult {
+    type Value = UsbOutTransferResultValue;
+
+    fn into_value(
+        self,
+        _context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+        Ok(self)
+    }
+
+    fn from_value(
+        _context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(value)
     }
 }
 
@@ -5422,32 +12936,54 @@ pub type UsbStringDescriptorVm = UsbStringDescriptorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for UsbStringDescriptorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UsbStringDescriptorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UsbStringDescriptorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UsbStringDescriptorAbi<NativeAbi> {}
 impl Clone for UsbStringDescriptorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UsbStringDescriptorAbi<VmAbi> {}
 impl Clone for UsbStringDescriptorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl VmAggregateCodec for UsbStringDescriptorAbi<VmAbi> {
-    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type("value", "UsbStringDescriptor")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbStringDescriptor",
+            ))
+            .boxed());
         }
-        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "expected 4 fields")).boxed());
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
         }
         let field_language_id = <u16 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_manufacturer = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_product = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_serial_number = <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_manufacturer =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_product =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_serial_number =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             language_id: field_language_id,
             manufacturer: field_manufacturer,
@@ -5456,14 +12992,28 @@ impl VmAggregateCodec for UsbStringDescriptorAbi<VmAbi> {
         })
     }
 
-    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u16 as VmAggregateCodec>::encode_with_context(self.language_id, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.manufacturer, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.product, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.serial_number, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.manufacturer,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.product,
+                context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.serial_number,
+                context,
+            )?,
         ];
-        context.allocate_aggregate(slots).map_err(Box::<RuntimeError>::from)
+        context
+            .allocate_aggregate(slots)
+            .map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5486,18 +13036,33 @@ impl NativeAbiCodec for UsbStringDescriptorAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(UsbStringDescriptorValue {
             language_id: unsafe { <u16 as NativeAbiCodec>::into_value(self.language_id)? },
-            manufacturer: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)? },
-            product: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.product)? },
-            serial_number: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.serial_number)? },
+            manufacturer: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.manufacturer)?
+            },
+            product: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.product)?
+            },
+            serial_number: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.serial_number)?
+            },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             language_id: <u16 as NativeAbiCodec>::from_value(binding, value.language_id),
-            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.manufacturer),
-            product: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.product),
-            serial_number: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.serial_number),
+            manufacturer: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.manufacturer,
+            ),
+            product: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.product,
+            ),
+            serial_number: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.serial_number,
+            ),
         }
     }
 }
@@ -5505,21 +13070,39 @@ impl NativeAbiCodec for UsbStringDescriptorAbi<NativeAbi> {
 impl VmAbiCodec for UsbStringDescriptorAbi<VmAbi> {
     type Value = UsbStringDescriptorValue;
 
-    fn into_value(self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
+    fn into_value(
+        self,
+        context: &vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UsbStringDescriptorValue {
             language_id: <u16 as VmAbiCodec>::into_value(self.language_id, context)?,
-            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.manufacturer, context)?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.manufacturer,
+                context,
+            )?,
             product: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.product, context)?,
-            serial_number: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.serial_number, context)?,
+            serial_number: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.serial_number,
+                context,
+            )?,
         })
     }
 
-    fn from_value(context: &mut vm::ExternalCallContext<'_>, value: <Self as VmAbiCodec>::Value) -> RuntimeResult<Self> {
+    fn from_value(
+        context: &mut vm::ExternalCallContext<'_>,
+        value: <Self as VmAbiCodec>::Value,
+    ) -> RuntimeResult<Self> {
         Ok(Self {
             language_id: <u16 as VmAbiCodec>::from_value(context, value.language_id)?,
-            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.manufacturer)?,
+            manufacturer: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.manufacturer,
+            )?,
             product: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.product)?,
-            serial_number: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.serial_number)?,
+            serial_number: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.serial_number,
+            )?,
         })
     }
 }
@@ -5533,8 +13116,12 @@ pub struct BluetoothadapterdescriptorReplayRecord {
     pub name: String,
     /// Whether the adapter is powered.
     pub powered: bool,
-    /// Whether the adapter supports Low Energy mode.
-    pub low_energy: bool,
+    /// Whether the adapter is currently discoverable when known.
+    pub discoverable: Option<bool>,
+    /// Whether the adapter is currently scanning or discovering when known.
+    pub discovering: Option<bool>,
+    /// Adapter capability descriptor.
+    pub capabilities: BluetoothAdapterCapabilities,
 }
 
 /// Replay struct for BluetoothAdvertisementData.
@@ -5589,6 +13176,8 @@ pub struct BluetoothdevicedescriptorReplayRecord {
     pub connected: bool,
     /// Whether this advertisement indicates connectable state.
     pub connectable: bool,
+    /// Host-reported transport classification when available.
+    pub transport: Option<BluetoothTransport>,
     /// Advertisement payload.
     pub advertisement: BluetoothadvertisementdataReplayRecord,
 }
@@ -5600,8 +13189,8 @@ pub struct BluetoothgattcharacteristicdescriptorReplayRecord {
     pub service_uuid: String,
     /// Characteristic UUID.
     pub uuid: String,
-    /// Characteristic property bitmask.
-    pub properties: u32,
+    /// Characteristic property set.
+    pub properties: BluetoothGattCharacteristicProperties,
 }
 
 /// Replay struct for BluetoothGattDescriptorDescriptor.
@@ -5637,6 +13226,26 @@ pub struct BluetoothgattvalueeventReplayRecord {
     pub value: Vec<u8>,
 }
 
+/// Replay struct for BluetoothScanDiscoveredEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothscandiscoveredeventReplayRecord {
+    /// Discriminator for this Bluetooth scan event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: BluetoothscaneventmetadataReplayRecord,
+}
+
+/// Replay struct for BluetoothScanEventMetadata.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothscaneventmetadataReplayRecord {
+    /// Event timestamp in nanoseconds.
+    pub timestamp_ns: u64,
+    /// Monotonic sequence number for this scan stream.
+    pub sequence: u64,
+    /// Device descriptor payload for this event.
+    pub device: BluetoothdevicedescriptorReplayRecord,
+}
+
 /// Replay struct for BluetoothScanFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothscanfilterReplayRecord {
@@ -5658,17 +13267,59 @@ pub struct BluetoothscanfilterReplayRecord {
     pub secondary_phy: Option<BluetoothPhy>,
 }
 
+/// Replay struct for BluetoothScanLostEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothscanlosteventReplayRecord {
+    /// Discriminator for this Bluetooth scan event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: BluetoothscaneventmetadataReplayRecord,
+}
+
+/// Replay struct for BluetoothScanUpdatedEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothscanupdatedeventReplayRecord {
+    /// Discriminator for this Bluetooth scan event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: BluetoothscaneventmetadataReplayRecord,
+}
+
+/// Replay struct for BluetoothSessionDisconnectedEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothsessiondisconnectedeventReplayRecord {
+    /// Discriminator for this Bluetooth session event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: BluetoothSessionEventMetadata,
+    /// Session event payload.
+    pub payload: BluetoothSessionDisconnectedPayload,
+}
+
+/// Replay struct for BluetoothSessionPairStateChangedEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BluetoothsessionpairstatechangedeventReplayRecord {
+    /// Discriminator for this Bluetooth session event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: BluetoothSessionEventMetadata,
+    /// Session event payload.
+    pub payload: BluetoothSessionPairStateChangedPayload,
+}
+
 /// Replay struct for CameraDeviceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CameradevicedescriptorReplayRecord {
     /// Stable camera endpoint identifier.
     pub id: String,
+    /// Shared physical-device group identifier when available.
+    pub group_id: Option<String>,
     /// Host-visible endpoint name.
     pub name: String,
     /// Host-visible endpoint manufacturer string when available.
     pub manufacturer: Option<String>,
-    /// Whether the endpoint is front-facing.
-    pub front_facing: bool,
+    /// Host-reported facing mode.
+    pub facing_mode: CameraFacingMode,
     /// Whether the endpoint is depth-capable.
     pub depth_capable: bool,
 }
@@ -5684,8 +13335,8 @@ pub struct CameraframeReplayRecord {
     pub width: u32,
     /// Frame height in pixels.
     pub height: u32,
-    /// Frame pixel format.
-    pub format: CameraPixelFormat,
+    /// Frame pixel-format descriptor.
+    pub pixel_format: CameraPixelFormatDescriptor,
     /// Frame color-space metadata.
     pub color_space: CameraColorSpace,
     /// Plane layout descriptors for this frame.
@@ -5695,6 +13346,21 @@ pub struct CameraframeReplayRecord {
     pub metadata: CameraFrameMetadata,
     /// Frame byte payload.
     pub bytes: Vec<u8>,
+}
+
+/// Replay struct for CameraStreamCapability.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CamerastreamcapabilityReplayRecord {
+    /// Stream configuration payload.
+    pub config: CameraStreamConfig,
+    /// Minimum supported frame rate in milli-frames-per-second.
+    pub minimum_frame_rate_milli_hz: u32,
+    /// Maximum supported frame rate in milli-frames-per-second.
+    pub maximum_frame_rate_milli_hz: u32,
+    /// Supported dynamic-range modes.
+    pub dynamic_ranges: Vec<CameraDynamicRange>,
+    /// Supported stabilization modes.
+    pub stabilization_modes: Vec<CameraStabilizationMode>,
 }
 
 /// Replay struct for OsPathBytes.
@@ -5715,6 +13381,17 @@ pub struct Ospathutf16ReplayRecord {
     pub utf16: Vec<u16>,
 }
 
+/// Replay struct for SerialDisconnectedEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerialdisconnectedeventReplayRecord {
+    /// Discriminator for this serial event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: SerialEventMetadata,
+    /// Disconnected payload.
+    pub payload: SerialDisconnectedPayload,
+}
+
 /// Replay struct for SerialErrorEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SerialerroreventReplayRecord {
@@ -5726,21 +13403,40 @@ pub struct SerialerroreventReplayRecord {
     pub payload: SerialErrorPayload,
 }
 
+/// Replay struct for SerialModemStatusChangedEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerialmodemstatuschangedeventReplayRecord {
+    /// Discriminator for this serial event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: SerialEventMetadata,
+    /// Modem-status payload.
+    pub payload: SerialModemStatusPayload,
+}
+
 /// Replay struct for SerialPortDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SerialportdescriptorReplayRecord {
     /// Stable serial endpoint identifier.
     pub id: String,
+    /// Host-classified serial transport kind.
+    pub transport: SerialPortTransport,
     /// Host-visible endpoint name.
     pub name: String,
+    /// Host-visible manufacturer string when available.
+    pub manufacturer: Option<String>,
+    /// Host-visible product string when available.
+    pub product: Option<String>,
+    /// Host-visible device serial number when available.
+    pub serial_number: Option<String>,
     /// Device path for the endpoint.
     pub path: fs::OspathReplayRecord,
     /// USB vendor identifier when the endpoint is USB backed.
     pub usb_vendor_id: Option<u16>,
     /// USB product identifier when the endpoint is USB backed.
     pub usb_product_id: Option<u16>,
-    /// Whether the endpoint is USB backed.
-    pub usb_backed: bool,
+    /// Bluetooth service-class identifier when the endpoint is Bluetooth backed.
+    pub bluetooth_service_class_id: Option<String>,
 }
 
 /// Replay struct for SerialReadReadyEvent.
@@ -5754,26 +13450,28 @@ pub struct SerialreadreadyeventReplayRecord {
     pub payload: SerialReadReadyPayload,
 }
 
-/// Replay struct for SerialSignalsChangedEvent.
+/// Replay struct for SerialWriteDrainedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SerialsignalschangedeventReplayRecord {
+pub struct SerialwritedrainedeventReplayRecord {
     /// Discriminator for this serial event variant.
     pub kind: String,
     /// Shared event metadata.
     pub metadata: SerialEventMetadata,
-    /// Signal-line payload.
-    pub payload: SerialSignalsChangedPayload,
+    /// Output-drained payload.
+    pub payload: SerialWriteDrainedPayload,
 }
 
-/// Replay struct for SerialWriteReadyEvent.
+/// Replay struct for UsbBosCapabilityDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SerialwritereadyeventReplayRecord {
-    /// Discriminator for this serial event variant.
-    pub kind: String,
-    /// Shared event metadata.
-    pub metadata: SerialEventMetadata,
-    /// Write-ready payload.
-    pub payload: SerialWriteReadyPayload,
+pub struct UsbboscapabilitydescriptorReplayRecord {
+    /// Normalized BOS capability classification.
+    pub kind: UsbBosCapabilityKind,
+    /// Raw bDevCapabilityType value.
+    pub capability_type: u8,
+    /// Platform capability UUID when applicable.
+    pub platform_uuid: Option<String>,
+    /// Raw capability payload bytes.
+    pub bytes: Vec<u8>,
 }
 
 /// Replay struct for UsbConfigurationDescriptor.
@@ -5781,12 +13479,65 @@ pub struct SerialwritereadyeventReplayRecord {
 pub struct UsbconfigurationdescriptorReplayRecord {
     /// Configuration value.
     pub value: u8,
-    /// Configuration attributes bitmask.
-    pub attributes: u8,
+    /// Configuration string descriptor when available.
+    pub name: Option<String>,
+    /// Whether this configuration is self-powered.
+    pub self_powered: bool,
+    /// Whether this configuration supports remote wakeup.
+    pub remote_wakeup: bool,
     /// Maximum bus power in milliamps.
     pub max_power_milli_amps: u16,
     /// Interface descriptors for this configuration.
     pub interfaces: Vec<UsbinterfacedescriptorReplayRecord>,
+}
+
+/// Replay struct for UsbControlDeviceTarget.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbcontroldevicetargetReplayRecord {
+    /// Discriminator for this control-target variant.
+    pub kind: String,
+}
+
+/// Replay struct for UsbControlEndpointTarget.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbcontrolendpointtargetReplayRecord {
+    /// Discriminator for this control-target variant.
+    pub kind: String,
+    /// Endpoint selector.
+    pub endpoint: UsbEndpointSelector,
+}
+
+/// Replay struct for UsbControlInterfaceTarget.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbcontrolinterfacetargetReplayRecord {
+    /// Discriminator for this control-target variant.
+    pub kind: String,
+    /// Interface number.
+    pub interface_number: u8,
+}
+
+/// Replay struct for UsbControlOtherTarget.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbcontrolothertargetReplayRecord {
+    /// Discriminator for this control-target variant.
+    pub kind: String,
+    /// Raw recipient index value.
+    pub index: u16,
+}
+
+/// Replay struct for UsbControlSetup.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbcontrolsetupReplayRecord {
+    /// USB control transfer type selector.
+    pub transfer_type: UsbControlTransferType,
+    /// USB control transfer target selector.
+    pub target: UsbcontroltargetReplayRecord,
+    /// bRequest field.
+    pub request: u8,
+    /// wValue field.
+    pub value: u16,
+    /// wLength field.
+    pub length: u16,
 }
 
 /// Replay struct for UsbDeviceDescriptor.
@@ -5841,6 +13592,15 @@ pub struct UsbhotplugeventmetadataReplayRecord {
     pub device: UsbdevicedescriptorReplayRecord,
 }
 
+/// Replay struct for UsbInTransferResult.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbintransferresultReplayRecord {
+    /// Transfer completion status.
+    pub status: UsbTransferStatus,
+    /// Transfer payload bytes.
+    pub bytes: Vec<u8>,
+}
+
 /// Replay struct for UsbInterfaceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbinterfacedescriptorReplayRecord {
@@ -5854,6 +13614,8 @@ pub struct UsbinterfacedescriptorReplayRecord {
     pub subclass_code: u8,
     /// Interface protocol code.
     pub protocol_code: u8,
+    /// Interface string descriptor when available.
+    pub name: Option<String>,
     /// Endpoints for this interface.
     pub endpoints: Vec<UsbEndpointDescriptor>,
 }
@@ -5863,10 +13625,8 @@ pub struct UsbinterfacedescriptorReplayRecord {
 pub struct UsbisochronoustransferresultReplayRecord {
     /// Flattened transfer bytes for all packets.
     pub bytes: Vec<u8>,
-    /// Per-packet actual transfer lengths.
-    pub packet_actual_lengths: Vec<u32>,
-    /// Per-packet backend status codes.
-    pub packet_statuses: Vec<i32>,
+    /// Per-packet transfer results.
+    pub packets: Vec<UsbIsochronousPacketResult>,
 }
 
 /// Replay struct for UsbStringDescriptor.
@@ -5882,6 +13642,26 @@ pub struct UsbstringdescriptorReplayRecord {
     pub serial_number: Option<String>,
 }
 
+/// Replay enum for BluetoothScanEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum BluetoothscaneventReplayRecord {
+    /// BluetoothScanDiscoveredEvent variant.
+    BluetoothScanDiscoveredEvent(BluetoothscandiscoveredeventReplayRecord),
+    /// BluetoothScanLostEvent variant.
+    BluetoothScanLostEvent(BluetoothscanlosteventReplayRecord),
+    /// BluetoothScanUpdatedEvent variant.
+    BluetoothScanUpdatedEvent(BluetoothscanupdatedeventReplayRecord),
+}
+
+/// Replay enum for BluetoothSessionEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum BluetoothsessioneventReplayRecord {
+    /// BluetoothSessionDisconnectedEvent variant.
+    BluetoothSessionDisconnectedEvent(BluetoothsessiondisconnectedeventReplayRecord),
+    /// BluetoothSessionPairStateChangedEvent variant.
+    BluetoothSessionPairStateChangedEvent(BluetoothsessionpairstatechangedeventReplayRecord),
+}
+
 /// Replay enum for OsPath.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OspathReplayRecord {
@@ -5894,14 +13674,29 @@ pub enum OspathReplayRecord {
 /// Replay enum for SerialEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SerialeventReplayRecord {
+    /// SerialDisconnectedEvent variant.
+    SerialDisconnectedEvent(SerialdisconnectedeventReplayRecord),
     /// SerialErrorEvent variant.
     SerialErrorEvent(SerialerroreventReplayRecord),
+    /// SerialModemStatusChangedEvent variant.
+    SerialModemStatusChangedEvent(SerialmodemstatuschangedeventReplayRecord),
     /// SerialReadReadyEvent variant.
     SerialReadReadyEvent(SerialreadreadyeventReplayRecord),
-    /// SerialSignalsChangedEvent variant.
-    SerialSignalsChangedEvent(SerialsignalschangedeventReplayRecord),
-    /// SerialWriteReadyEvent variant.
-    SerialWriteReadyEvent(SerialwritereadyeventReplayRecord),
+    /// SerialWriteDrainedEvent variant.
+    SerialWriteDrainedEvent(SerialwritedrainedeventReplayRecord),
+}
+
+/// Replay enum for UsbControlTarget.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum UsbcontroltargetReplayRecord {
+    /// UsbControlDeviceTarget variant.
+    UsbControlDeviceTarget(UsbcontroldevicetargetReplayRecord),
+    /// UsbControlEndpointTarget variant.
+    UsbControlEndpointTarget(UsbcontrolendpointtargetReplayRecord),
+    /// UsbControlInterfaceTarget variant.
+    UsbControlInterfaceTarget(UsbcontrolinterfacetargetReplayRecord),
+    /// UsbControlOtherTarget variant.
+    UsbControlOtherTarget(UsbcontrolothertargetReplayRecord),
 }
 
 /// Replay enum for UsbHotplugEvent.

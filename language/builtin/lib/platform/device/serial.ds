@@ -130,7 +130,7 @@ export struct SerialOutputSignals {
     /// Request-to-send output line state when updated.
     requestToSend?: boolean;
     /// Break signaling state when updated.
-    break?: boolean;
+    breakConditionActive?: boolean;
 }
 
 /// Serial error kind.

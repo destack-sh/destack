@@ -4,12 +4,16 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::device::{
     BluetoothAdapterDescriptorVm, BluetoothDeviceDescriptorVm,
     BluetoothGattCharacteristicDescriptorVm, BluetoothGattDescriptorDescriptorVm,
-    BluetoothGattServiceDescriptorVm, BluetoothGattValueEventVm, BluetoothScanFilterVm,
-    CameraControl, CameraControlRangeVm, CameraDeviceDescriptorVm, CameraExposureMode,
+    BluetoothGattServiceDescriptorVm, BluetoothGattValueEventVm, BluetoothGattWriteMode,
+    BluetoothScanEventVm, BluetoothScanFilterVm, BluetoothSessionEventVm, CameraDeviceDescriptorVm,
+    CameraExposureCompensationRangeVm, CameraExposureMode, CameraFocusDistanceRangeVm,
     CameraFrameVm, CameraStabilizationMode, CameraStreamCapabilityVm, CameraStreamConfigVm,
-    CameraTorchMode, SerialEventVm, SerialPortConfigVm, SerialPortDescriptorVm,
-    UsbConfigurationDescriptorVm, UsbControlSetupVm, UsbDeviceDescriptorVm, UsbHotplugEventVm,
-    UsbIsochronousTransferResultVm, UsbStringDescriptorVm,
+    CameraTorchMode, CameraWhiteBalanceRangeVm, CameraZoomRatioRangeVm, SerialEventVm,
+    SerialInputSignalsVm, SerialOutputSignalsVm, SerialPortConfigVm, SerialPortDescriptorVm,
+    SerialPortOpenOptionsVm, UsbBosCapabilityDescriptorVm, UsbConfigurationDescriptorVm,
+    UsbControlSetupVm, UsbDeviceDescriptorVm, UsbEndpointSelectorVm, UsbHotplugEventVm,
+    UsbInTransferResultVm, UsbIsochronousTransferResultVm, UsbOutTransferResultVm,
+    UsbStringDescriptorVm,
 };
 use crate::platform::{PlatformError, VmSlice, resource};
 use crate::runtime::BindingCallContext;
@@ -372,7 +376,7 @@ pub(crate) fn destack_device_bluetooth_gatt_unsubscribe(
 
 /// Write one GATT characteristic value.
 ///
-/// Write one characteristic value on one connected Bluetooth device session.
+/// Write one characteristic value on one connected Bluetooth device session with one explicit ATT write mode.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -393,7 +397,7 @@ pub(crate) fn destack_device_bluetooth_gatt_write(
     serviceuuid: vm::StringHandle,
     characteristicuuid: vm::StringHandle,
     argument_value: VmSlice<u8>,
-    withresponse: bool,
+    mode: BluetoothGattWriteMode,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (
@@ -401,7 +405,7 @@ pub(crate) fn destack_device_bluetooth_gatt_write(
         serviceuuid,
         characteristicuuid,
         argument_value,
-        withresponse,
+        mode,
         timeoutns,
     );
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -498,7 +502,7 @@ pub(crate) fn destack_device_bluetooth_scan_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     adapterid: vm::StringHandle,
-    filter: BluetoothScanFilterVm,
+    filter: Option<BluetoothScanFilterVm>,
 ) -> RuntimeResult<resource::BluetoothScanHandle> {
     let _ = (adapterid, filter);
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -536,6 +540,35 @@ pub(crate) fn destack_device_bluetooth_scan_read(
     .boxed())
 }
 
+/// Wait for one Bluetooth scan event.
+///
+/// Wait for one typed scan event from one opened scan session.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host Bluetooth scan event queues.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_bluetooth_scan_read_event(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::BluetoothScanHandle,
+    timeoutns: u64,
+) -> RuntimeResult<BluetoothScanEventVm> {
+    let _ = (handle, timeoutns);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.scan.readEvent is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Poll one scanned device without blocking.
 ///
 /// Poll one scanned device advertisement from one opened scan session without waiting.
@@ -560,6 +593,34 @@ pub(crate) fn destack_device_bluetooth_scan_try_read(
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.scan.tryRead is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Poll one Bluetooth scan event without blocking.
+///
+/// Poll one typed scan event from one opened scan session without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host nonblocking Bluetooth scan event reads.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_bluetooth_scan_try_read_event(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::BluetoothScanHandle,
+) -> RuntimeResult<BluetoothScanEventVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.scan.tryReadEvent is not available in the VM yet",
     ))
     .boxed())
 }
@@ -650,6 +711,35 @@ pub(crate) fn destack_device_bluetooth_pair(
     .boxed())
 }
 
+/// Wait for one Bluetooth session event.
+///
+/// Wait for one typed session event from one opened Bluetooth device session.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host Bluetooth link-state and pairing event queues where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_bluetooth_session_read_event(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::BluetoothDeviceHandle,
+    timeoutns: u64,
+) -> RuntimeResult<BluetoothSessionEventVm> {
+    let _ = (handle, timeoutns);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.session.readEvent is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Read link RSSI for one Bluetooth device session.
 ///
 /// Read current received signal strength indicator for one connected device session.
@@ -675,6 +765,34 @@ pub(crate) fn destack_device_bluetooth_read_rssi(
     let _ = (handle, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.session.rssi is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Poll one Bluetooth session event without blocking.
+///
+/// Poll one typed session event from one opened Bluetooth device session without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host nonblocking Bluetooth session event reads where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_bluetooth_session_try_read_event(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::BluetoothDeviceHandle,
+) -> RuntimeResult<BluetoothSessionEventVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.session.tryReadEvent is not available in the VM yet",
     ))
     .boxed())
 }
@@ -874,13 +992,69 @@ pub(crate) fn destack_device_camera_stream_close(
     .boxed())
 }
 
-/// Read one camera control range.
+/// Read current camera stream configuration.
 ///
-/// Read one normalized camera control range descriptor for one opened stream.
+/// Read one active stream-configuration snapshot for one opened camera stream.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend camera control capability query APIs where available.
+/// Uses backend stream settings and active-format query APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_config(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraStreamConfigVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.config is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read camera exposure compensation.
+///
+/// Read one exposure-compensation value in EV units from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend exposure-compensation query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_exposure_compensation(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<f64> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.exposureCompensation is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read exposure-compensation range.
+///
+/// Read one exposure-compensation range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend exposure-compensation capability query APIs where available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -890,15 +1064,14 @@ pub(crate) fn destack_device_camera_stream_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_device_camera_stream_control_range(
+pub(crate) fn destack_device_camera_stream_exposure_compensation_range(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
-    control: CameraControl,
-) -> RuntimeResult<CameraControlRangeVm> {
-    let _ = (handle, control);
+) -> RuntimeResult<CameraExposureCompensationRangeVm> {
+    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.controlRange is not available in the VM yet",
+        "destack.device.camera.stream.exposureCompensationRange is not available in the VM yet",
     ))
     .boxed())
 }
@@ -931,13 +1104,13 @@ pub(crate) fn destack_device_camera_stream_exposure_mode(
     .boxed())
 }
 
-/// Read one camera control value.
+/// Read camera focus distance.
 ///
-/// Read one normalized camera control value from one running stream.
+/// Read one focus-distance value in diopters from one opened camera stream.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend camera control query APIs where available.
+/// Uses backend focus-distance query APIs where available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -947,15 +1120,42 @@ pub(crate) fn destack_device_camera_stream_exposure_mode(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_device_camera_stream_get_control(
+pub(crate) fn destack_device_camera_stream_focus_distance_diopters(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
-    control: CameraControl,
 ) -> RuntimeResult<f64> {
-    let _ = (handle, control);
+    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.getControl is not available in the VM yet",
+        "destack.device.camera.stream.focusDistanceDiopters is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read focus-distance range.
+///
+/// Read one focus-distance range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend focus-distance capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_focus_distance_range(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraFocusDistanceRangeVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.focusDistanceRange is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1018,13 +1218,13 @@ pub(crate) fn destack_device_camera_stream_read(
     .boxed())
 }
 
-/// Set one camera control value.
+/// Set camera exposure compensation.
 ///
-/// Apply one normalized camera control value in one running stream.
+/// Apply one exposure-compensation value in EV units on one opened camera stream.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend camera control APIs where available.
+/// Uses backend exposure-compensation control APIs where available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1034,16 +1234,15 @@ pub(crate) fn destack_device_camera_stream_read(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_device_camera_stream_set_control(
+pub(crate) fn destack_device_camera_stream_set_exposure_compensation(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CameraStreamHandle,
-    control: CameraControl,
-    argument_value: f64,
+    valueev: f64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, control, argument_value);
+    let _ = (handle, valueev);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setControl is not available in the VM yet",
+        "destack.device.camera.stream.setExposureCompensation is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1073,6 +1272,35 @@ pub(crate) fn destack_device_camera_stream_set_exposure_mode(
     let _ = (handle, mode);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.setExposureMode is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Set camera focus distance.
+///
+/// Apply one focus-distance value in diopters on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend focus-distance control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_focus_distance_diopters(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    diopters: f64,
+) -> RuntimeResult<()> {
+    let _ = (handle, diopters);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setFocusDistanceDiopters is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1131,6 +1359,64 @@ pub(crate) fn destack_device_camera_stream_set_torch_mode(
     let _ = (handle, mode);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.setTorchMode is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Set camera white balance.
+///
+/// Apply one white-balance value in kelvin on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend white-balance control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_white_balance_kelvin(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    kelvin: u32,
+) -> RuntimeResult<()> {
+    let _ = (handle, kelvin);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setWhiteBalanceKelvin is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Set camera zoom ratio.
+///
+/// Apply one digital zoom ratio on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend zoom control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_zoom_ratio(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    ratio: f64,
+) -> RuntimeResult<()> {
+    let _ = (handle, ratio);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setZoomRatio is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1275,6 +1561,118 @@ pub(crate) fn destack_device_camera_stream_try_read(
     .boxed())
 }
 
+/// Read camera white balance.
+///
+/// Read one white-balance value in kelvin from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend white-balance query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_white_balance_kelvin(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<u32> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.whiteBalanceKelvin is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read white-balance range.
+///
+/// Read one white-balance range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend white-balance capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_white_balance_range(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraWhiteBalanceRangeVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.whiteBalanceRange is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read camera zoom ratio.
+///
+/// Read one digital zoom ratio from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend zoom query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_zoom_ratio(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<f64> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.zoomRatio is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read zoom-ratio range.
+///
+/// Read one zoom-ratio range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend zoom capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_zoom_ratio_range(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraZoomRatioRangeVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.zoomRatioRange is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Close serial endpoint.
 ///
 /// Close one opened serial endpoint and release host resources.
@@ -1299,6 +1697,34 @@ pub(crate) fn destack_device_serial_close(
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.close is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read serial endpoint configuration.
+///
+/// Read one line-configuration snapshot for one opened serial endpoint.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend serial line-configuration queries.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.serial.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_serial_config(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::SerialPortHandle,
+) -> RuntimeResult<SerialPortConfigVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.serial.config is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1328,6 +1754,34 @@ pub(crate) fn destack_device_serial_configure(
     let _ = (handle, config);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.configure is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read serial endpoint descriptor.
+///
+/// Read one stable descriptor snapshot for one opened serial endpoint.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend descriptor and device-metadata queries.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.serial.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_serial_descriptor(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::SerialPortHandle,
+) -> RuntimeResult<SerialPortDescriptorVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.serial.descriptor is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1388,13 +1842,13 @@ pub(crate) fn destack_device_serial_discard_output(
     .boxed())
 }
 
-/// Flush serial output.
+/// Drain serial output.
 ///
-/// Drain queued outbound bytes on one opened serial endpoint.
+/// Wait until queued outbound bytes drain on one opened serial endpoint.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend serial flush operations.
+/// Uses backend serial drain operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1404,14 +1858,42 @@ pub(crate) fn destack_device_serial_discard_output(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_device_serial_flush(
+pub(crate) fn destack_device_serial_drain(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.serial.flush is not available in the VM yet",
+        "destack.device.serial.drain is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read serial input signal state.
+///
+/// Return current serial input signal state for one opened endpoint.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend modem-status APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.serial.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_serial_get_signals(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::SerialPortHandle,
+) -> RuntimeResult<SerialInputSignalsVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.serial.getSignals is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1445,7 +1927,7 @@ pub(crate) fn destack_device_serial_list(
 
 /// Open serial endpoint.
 ///
-/// Open one serial endpoint with explicit line configuration.
+/// Open one serial endpoint with explicit line configuration and host open policy.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1463,41 +1945,11 @@ pub(crate) fn destack_device_serial_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
-    config: SerialPortConfigVm,
+    options: SerialPortOpenOptionsVm,
 ) -> RuntimeResult<resource::SerialPortHandle> {
-    let _ = (id, config);
+    let _ = (id, options);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.open is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Read serial bytes.
-///
-/// Read up to `maxBytes` from one opened serial endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend read operations with timeout handling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.serial.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_device_serial_read(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SerialPortHandle,
-    maxbytes: u32,
-    timeoutns: u64,
-) -> RuntimeResult<VmSlice<u8>> {
-    let _ = (handle, maxbytes, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.serial.read is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1531,38 +1983,40 @@ pub(crate) fn destack_device_serial_read_event(
     .boxed())
 }
 
-/// Set serial break state.
+/// Read serial bytes.
 ///
-/// Apply break signaling state for one opened serial endpoint.
+/// Read bytes into caller memory from one opened serial endpoint.
+/// Partial reads are preserved exactly as reported by the host backend.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend serial break-control APIs.
+/// Uses backend read operations with timeout handling.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
 ///
 /// # Security
-/// Requires `device.serial.control`.
+/// Requires `device.serial.read`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_device_serial_set_break(
+pub(crate) fn destack_device_serial_read_into(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
-    enabled: bool,
-) -> RuntimeResult<()> {
-    let _ = (handle, enabled);
+    buffer: VmSlice<u8>,
+    timeoutns: u64,
+) -> RuntimeResult<u64> {
+    let _ = (handle, buffer, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.serial.setBreak is not available in the VM yet",
+        "destack.device.serial.readInto is not available in the VM yet",
     ))
     .boxed())
 }
 
-/// Set DTR and RTS control lines.
+/// Update serial output signal state.
 ///
-/// Apply DTR and RTS line state for one opened endpoint.
+/// Apply one partial output signal update for one opened endpoint.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1576,44 +2030,15 @@ pub(crate) fn destack_device_serial_set_break(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_device_serial_set_control_lines(
+pub(crate) fn destack_device_serial_set_signals(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
-    dtr: bool,
-    rts: bool,
+    signals: SerialOutputSignalsVm,
 ) -> RuntimeResult<()> {
-    let _ = (handle, dtr, rts);
+    let _ = (handle, signals);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.serial.setControlLines is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Read serial signal lines.
-///
-/// Return current serial signal-line bitmask for one opened endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend modem-status APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_device_serial_signal_bits(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SerialPortHandle,
-) -> RuntimeResult<u32> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.serial.signalBits is not available in the VM yet",
+        "destack.device.serial.setSignals is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1648,7 +2073,8 @@ pub(crate) fn destack_device_serial_try_event(
 
 /// Poll serial bytes without blocking.
 ///
-/// Read up to `maxBytes` from one opened serial endpoint without waiting.
+/// Read bytes into caller memory from one opened serial endpoint without waiting.
+/// Empty queue state is reported through ioWouldBlock.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1662,15 +2088,15 @@ pub(crate) fn destack_device_serial_try_event(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_device_serial_try_read(
+pub(crate) fn destack_device_serial_try_read_into(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SerialPortHandle,
-    maxbytes: u32,
-) -> RuntimeResult<VmSlice<u8>> {
-    let _ = (handle, maxbytes);
+    buffer: VmSlice<u8>,
+) -> RuntimeResult<u64> {
+    let _ = (handle, buffer);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.serial.tryRead is not available in the VM yet",
+        "destack.device.serial.tryReadInto is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1697,7 +2123,7 @@ pub(crate) fn destack_device_serial_write(
     handle: resource::SerialPortHandle,
     data: VmSlice<u8>,
     timeoutns: u64,
-) -> RuntimeResult<u32> {
+) -> RuntimeResult<u64> {
     let _ = (handle, data, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.write is not available in the VM yet",
@@ -1705,9 +2131,37 @@ pub(crate) fn destack_device_serial_write(
     .boxed())
 }
 
+/// List USB BOS capabilities.
+///
+/// Enumerate BOS capability descriptors for one opened USB device.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host BOS or device-capability descriptor query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.usb.enumerate`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_usb_bos_capability_list(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::UsbDeviceHandle,
+) -> RuntimeResult<VmSlice<UsbBosCapabilityDescriptorVm>> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.usb.bosCapabilityList is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Read bulk endpoint bytes.
 ///
-/// Read up to `maxBytes` from one bulk IN endpoint.
+/// Read up to `maxBytes` from one bulk IN endpoint and return transfer status.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1725,11 +2179,11 @@ pub(crate) fn destack_device_usb_bulk_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelectorVm,
     maxbytes: u32,
     timeoutns: u64,
-) -> RuntimeResult<VmSlice<u8>> {
-    let _ = (handle, endpointaddress, maxbytes, timeoutns);
+) -> RuntimeResult<UsbInTransferResultVm> {
+    let _ = (handle, endpoint, maxbytes, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.bulkRead is not available in the VM yet",
     ))
@@ -1738,7 +2192,7 @@ pub(crate) fn destack_device_usb_bulk_read(
 
 /// Write bulk endpoint bytes.
 ///
-/// Write bytes to one bulk OUT endpoint and return transferred byte count.
+/// Write bytes to one bulk OUT endpoint and return transfer status with transferred byte count.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1756,11 +2210,11 @@ pub(crate) fn destack_device_usb_bulk_write(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelectorVm,
     argument_bytes: VmSlice<u8>,
     timeoutns: u64,
-) -> RuntimeResult<u32> {
-    let _ = (handle, endpointaddress, argument_bytes, timeoutns);
+) -> RuntimeResult<UsbOutTransferResultVm> {
+    let _ = (handle, endpoint, argument_bytes, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.bulkWrite is not available in the VM yet",
     ))
@@ -1816,9 +2270,9 @@ pub(crate) fn destack_device_usb_clear_halt(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelectorVm,
 ) -> RuntimeResult<()> {
-    let _ = (handle, endpointaddress);
+    let _ = (handle, endpoint);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.clearHalt is not available in the VM yet",
     ))
@@ -1940,7 +2394,7 @@ pub(crate) fn destack_device_usb_configuration_set(
 
 /// Read control-transfer response bytes.
 ///
-/// Execute one control-transfer read and return response bytes.
+/// Execute one control-transfer read and return transfer status with response bytes.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1960,7 +2414,7 @@ pub(crate) fn destack_device_usb_control_read(
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetupVm,
     timeoutns: u64,
-) -> RuntimeResult<VmSlice<u8>> {
+) -> RuntimeResult<UsbInTransferResultVm> {
     let _ = (handle, setup, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.controlRead is not available in the VM yet",
@@ -1970,7 +2424,7 @@ pub(crate) fn destack_device_usb_control_read(
 
 /// Write control-transfer request bytes.
 ///
-/// Execute one control-transfer write and return transferred byte count.
+/// Execute one control-transfer write and return transfer status with transferred byte count.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1991,7 +2445,7 @@ pub(crate) fn destack_device_usb_control_write(
     setup: UsbControlSetupVm,
     argument_bytes: VmSlice<u8>,
     timeoutns: u64,
-) -> RuntimeResult<u32> {
+) -> RuntimeResult<UsbOutTransferResultVm> {
     let _ = (handle, setup, argument_bytes, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.controlWrite is not available in the VM yet",
@@ -2029,7 +2483,7 @@ pub(crate) fn destack_device_usb_descriptor(
 
 /// Read interrupt endpoint bytes.
 ///
-/// Read up to `maxBytes` from one interrupt IN endpoint.
+/// Read up to `maxBytes` from one interrupt IN endpoint and return transfer status.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2047,11 +2501,11 @@ pub(crate) fn destack_device_usb_interrupt_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelectorVm,
     maxbytes: u32,
     timeoutns: u64,
-) -> RuntimeResult<VmSlice<u8>> {
-    let _ = (handle, endpointaddress, maxbytes, timeoutns);
+) -> RuntimeResult<UsbInTransferResultVm> {
+    let _ = (handle, endpoint, maxbytes, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.interruptRead is not available in the VM yet",
     ))
@@ -2060,7 +2514,7 @@ pub(crate) fn destack_device_usb_interrupt_read(
 
 /// Write interrupt endpoint bytes.
 ///
-/// Write bytes to one interrupt OUT endpoint and return transferred byte count.
+/// Write bytes to one interrupt OUT endpoint and return transfer status with transferred byte count.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2078,11 +2532,11 @@ pub(crate) fn destack_device_usb_interrupt_write(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelectorVm,
     argument_bytes: VmSlice<u8>,
     timeoutns: u64,
-) -> RuntimeResult<u32> {
-    let _ = (handle, endpointaddress, argument_bytes, timeoutns);
+) -> RuntimeResult<UsbOutTransferResultVm> {
+    let _ = (handle, endpoint, argument_bytes, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.interruptWrite is not available in the VM yet",
     ))
@@ -2091,7 +2545,7 @@ pub(crate) fn destack_device_usb_interrupt_write(
 
 /// Read one isochronous transfer.
 ///
-/// Read one isochronous transfer and return flattened bytes with per-packet status and length metadata.
+/// Read one isochronous transfer and return flattened bytes with per-packet transfer results.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2109,11 +2563,11 @@ pub(crate) fn destack_device_usb_isochronous_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelectorVm,
     packetsizes: VmSlice<u32>,
     timeoutns: u64,
 ) -> RuntimeResult<UsbIsochronousTransferResultVm> {
-    let _ = (handle, endpointaddress, packetsizes, timeoutns);
+    let _ = (handle, endpoint, packetsizes, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.isochronousRead is not available in the VM yet",
     ))
@@ -2122,7 +2576,7 @@ pub(crate) fn destack_device_usb_isochronous_read(
 
 /// Write one isochronous transfer.
 ///
-/// Write one flattened isochronous transfer and return per-packet status and length metadata.
+/// Write one flattened isochronous transfer and return per-packet transfer results.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2140,18 +2594,12 @@ pub(crate) fn destack_device_usb_isochronous_write(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelectorVm,
     argument_bytes: VmSlice<u8>,
     packetsizes: VmSlice<u32>,
     timeoutns: u64,
 ) -> RuntimeResult<UsbIsochronousTransferResultVm> {
-    let _ = (
-        handle,
-        endpointaddress,
-        argument_bytes,
-        packetsizes,
-        timeoutns,
-    );
+    let _ = (handle, endpoint, argument_bytes, packetsizes, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.isochronousWrite is not available in the VM yet",
     ))
@@ -2463,9 +2911,9 @@ pub(crate) fn destack_device_usb_transfer_cancel(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelectorVm,
 ) -> RuntimeResult<()> {
-    let _ = (handle, endpointaddress);
+    let _ = (handle, endpoint);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.transferCancel is not available in the VM yet",
     ))

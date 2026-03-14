@@ -2728,4 +2728,3 @@ pub(crate) unsafe fn destack_os_suspend(_binding: &BindingCallContext) -> Runtim
     ))
     .boxed())
 }
-

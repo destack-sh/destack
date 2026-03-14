@@ -9,11 +9,14 @@ use crate::runtime::BindingCallContext;
 use crate::platform::device::{
     BluetoothAdapterDescriptor, BluetoothDeviceDescriptor, BluetoothGattCharacteristicDescriptor,
     BluetoothGattDescriptorDescriptor, BluetoothGattServiceDescriptor, BluetoothGattValueEvent,
-    BluetoothScanFilter, CameraControl, CameraControlRange, CameraDeviceDescriptor,
-    CameraExposureMode, CameraFrame, CameraStabilizationMode, CameraStreamCapability,
-    CameraStreamConfig, CameraTorchMode, SerialEvent, SerialPortConfig, SerialPortDescriptor,
-    UsbConfigurationDescriptor, UsbControlSetup, UsbDeviceDescriptor, UsbHotplugEvent,
-    UsbIsochronousTransferResult, UsbStringDescriptor,
+    BluetoothGattWriteMode, BluetoothScanEvent, BluetoothScanFilter, BluetoothSessionEvent,
+    CameraDeviceDescriptor, CameraExposureCompensationRange, CameraExposureMode,
+    CameraFocusDistanceRange, CameraFrame, CameraStabilizationMode, CameraStreamCapability,
+    CameraStreamConfig, CameraTorchMode, CameraWhiteBalanceRange, CameraZoomRatioRange,
+    SerialEvent, SerialInputSignals, SerialOutputSignals, SerialPortConfig, SerialPortDescriptor,
+    SerialPortOpenOptions, UsbBosCapabilityDescriptor, UsbConfigurationDescriptor, UsbControlSetup,
+    UsbDeviceDescriptor, UsbEndpointSelector, UsbHotplugEvent, UsbInTransferResult,
+    UsbIsochronousTransferResult, UsbOutTransferResult, UsbStringDescriptor,
 };
 use crate::platform::resource;
 
@@ -420,7 +423,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_unsubscribe(
 
 /// Write one GATT characteristic value.
 ///
-/// Write one characteristic value on one connected Bluetooth device session.
+/// Write one characteristic value on one connected Bluetooth device session with one explicit ATT write mode.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -440,7 +443,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_write(
     serviceuuid: NativeStringRef,
     characteristicuuid: NativeStringRef,
     argument_value: NativeSlice<u8>,
-    withresponse: bool,
+    mode: BluetoothGattWriteMode,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (
@@ -448,7 +451,7 @@ pub(crate) unsafe fn destack_device_bluetooth_gatt_write(
         serviceuuid,
         characteristicuuid,
         argument_value,
-        withresponse,
+        mode,
         timeoutns,
     );
 
@@ -546,7 +549,7 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_open(
     _binding: &BindingCallContext,
     out: *mut resource::BluetoothScanHandle,
     adapterid: NativeStringRef,
-    filter: BluetoothScanFilter,
+    filter: Option<BluetoothScanFilter>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -592,6 +595,39 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_read(
     .boxed())
 }
 
+/// Wait for one Bluetooth scan event.
+///
+/// Wait for one typed scan event from one opened scan session.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host Bluetooth scan event queues.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_bluetooth_scan_read_event(
+    _binding: &BindingCallContext,
+    out: *mut BluetoothScanEvent,
+    handle: resource::BluetoothScanHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle, timeoutns);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.scan.readEvent",
+    ))
+    .boxed())
+}
+
 /// Poll one scanned device without blocking.
 ///
 /// Poll one scanned device advertisement from one opened scan session without waiting.
@@ -620,6 +656,38 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_try_read(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.scan.tryRead",
+    ))
+    .boxed())
+}
+
+/// Poll one Bluetooth scan event without blocking.
+///
+/// Poll one typed scan event from one opened scan session without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host nonblocking Bluetooth scan event reads.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.scan`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_bluetooth_scan_try_read_event(
+    _binding: &BindingCallContext,
+    out: *mut BluetoothScanEvent,
+    handle: resource::BluetoothScanHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.scan.tryReadEvent",
     ))
     .boxed())
 }
@@ -714,6 +782,39 @@ pub(crate) unsafe fn destack_device_bluetooth_pair(
     .boxed())
 }
 
+/// Wait for one Bluetooth session event.
+///
+/// Wait for one typed session event from one opened Bluetooth device session.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host Bluetooth link-state and pairing event queues where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_bluetooth_session_read_event(
+    _binding: &BindingCallContext,
+    out: *mut BluetoothSessionEvent,
+    handle: resource::BluetoothDeviceHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle, timeoutns);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.session.readEvent",
+    ))
+    .boxed())
+}
+
 /// Read link RSSI for one Bluetooth device session.
 ///
 /// Read current received signal strength indicator for one connected device session.
@@ -743,6 +844,38 @@ pub(crate) unsafe fn destack_device_bluetooth_read_rssi(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.session.rssi",
+    ))
+    .boxed())
+}
+
+/// Poll one Bluetooth session event without blocking.
+///
+/// Poll one typed session event from one opened Bluetooth device session without waiting.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host nonblocking Bluetooth session event reads where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.bluetooth.connect`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_bluetooth_session_try_read_event(
+    _binding: &BindingCallContext,
+    out: *mut BluetoothSessionEvent,
+    handle: resource::BluetoothDeviceHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.bluetooth.session.tryReadEvent",
     ))
     .boxed())
 }
@@ -959,13 +1092,77 @@ pub(crate) unsafe fn destack_device_camera_stream_close(
     .boxed())
 }
 
-/// Read one camera control range.
+/// Read current camera stream configuration.
 ///
-/// Read one normalized camera control range descriptor for one opened stream.
+/// Read one active stream-configuration snapshot for one opened camera stream.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend camera control capability query APIs where available.
+/// Uses backend stream settings and active-format query APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.capture`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_camera_stream_config(
+    _binding: &BindingCallContext,
+    out: *mut CameraStreamConfig,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.config",
+    ))
+    .boxed())
+}
+
+/// Read camera exposure compensation.
+///
+/// Read one exposure-compensation value in EV units from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend exposure-compensation query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_camera_stream_exposure_compensation(
+    _binding: &BindingCallContext,
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.exposureCompensation",
+    ))
+    .boxed())
+}
+
+/// Read exposure-compensation range.
+///
+/// Read one exposure-compensation range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend exposure-compensation capability query APIs where available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -975,19 +1172,18 @@ pub(crate) unsafe fn destack_device_camera_stream_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_control_range(
+pub(crate) unsafe fn destack_device_camera_stream_exposure_compensation_range(
     _binding: &BindingCallContext,
-    out: *mut CameraControlRange,
+    out: *mut CameraExposureCompensationRange,
     handle: resource::CameraStreamHandle,
-    control: CameraControl,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle, control);
+    let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.controlRange",
+        "destack.device.camera.stream.exposureCompensationRange",
     ))
     .boxed())
 }
@@ -1024,13 +1220,13 @@ pub(crate) unsafe fn destack_device_camera_stream_exposure_mode(
     .boxed())
 }
 
-/// Read one camera control value.
+/// Read camera focus distance.
 ///
-/// Read one normalized camera control value from one running stream.
+/// Read one focus-distance value in diopters from one opened camera stream.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend camera control query APIs where available.
+/// Uses backend focus-distance query APIs where available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1040,19 +1236,50 @@ pub(crate) unsafe fn destack_device_camera_stream_exposure_mode(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_get_control(
+pub(crate) unsafe fn destack_device_camera_stream_focus_distance_diopters(
     _binding: &BindingCallContext,
     out: *mut f64,
     handle: resource::CameraStreamHandle,
-    control: CameraControl,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle, control);
+    let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.getControl",
+        "destack.device.camera.stream.focusDistanceDiopters",
+    ))
+    .boxed())
+}
+
+/// Read focus-distance range.
+///
+/// Read one focus-distance range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend focus-distance capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_camera_stream_focus_distance_range(
+    _binding: &BindingCallContext,
+    out: *mut CameraFocusDistanceRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.focusDistanceRange",
     ))
     .boxed())
 }
@@ -1123,13 +1350,13 @@ pub(crate) unsafe fn destack_device_camera_stream_read(
     .boxed())
 }
 
-/// Set one camera control value.
+/// Set camera exposure compensation.
 ///
-/// Apply one normalized camera control value in one running stream.
+/// Apply one exposure-compensation value in EV units on one opened camera stream.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend camera control APIs where available.
+/// Uses backend exposure-compensation control APIs where available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1139,16 +1366,15 @@ pub(crate) unsafe fn destack_device_camera_stream_read(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_camera_stream_set_control(
+pub(crate) unsafe fn destack_device_camera_stream_set_exposure_compensation(
     _binding: &BindingCallContext,
     handle: resource::CameraStreamHandle,
-    control: CameraControl,
-    argument_value: f64,
+    valueev: f64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, control, argument_value);
+    let _ = (handle, valueev);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.camera.stream.setControl",
+        "destack.device.camera.stream.setExposureCompensation",
     ))
     .boxed())
 }
@@ -1178,6 +1404,35 @@ pub(crate) unsafe fn destack_device_camera_stream_set_exposure_mode(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.setExposureMode",
+    ))
+    .boxed())
+}
+
+/// Set camera focus distance.
+///
+/// Apply one focus-distance value in diopters on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend focus-distance control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_camera_stream_set_focus_distance_diopters(
+    _binding: &BindingCallContext,
+    handle: resource::CameraStreamHandle,
+    diopters: f64,
+) -> RuntimeResult<()> {
+    let _ = (handle, diopters);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setFocusDistanceDiopters",
     ))
     .boxed())
 }
@@ -1236,6 +1491,64 @@ pub(crate) unsafe fn destack_device_camera_stream_set_torch_mode(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.setTorchMode",
+    ))
+    .boxed())
+}
+
+/// Set camera white balance.
+///
+/// Apply one white-balance value in kelvin on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend white-balance control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_camera_stream_set_white_balance_kelvin(
+    _binding: &BindingCallContext,
+    handle: resource::CameraStreamHandle,
+    kelvin: u32,
+) -> RuntimeResult<()> {
+    let _ = (handle, kelvin);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setWhiteBalanceKelvin",
+    ))
+    .boxed())
+}
+
+/// Set camera zoom ratio.
+///
+/// Apply one digital zoom ratio on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend zoom control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_camera_stream_set_zoom_ratio(
+    _binding: &BindingCallContext,
+    handle: resource::CameraStreamHandle,
+    ratio: f64,
+) -> RuntimeResult<()> {
+    let _ = (handle, ratio);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setZoomRatio",
     ))
     .boxed())
 }
@@ -1392,6 +1705,134 @@ pub(crate) unsafe fn destack_device_camera_stream_try_read(
     .boxed())
 }
 
+/// Read camera white balance.
+///
+/// Read one white-balance value in kelvin from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend white-balance query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_camera_stream_white_balance_kelvin(
+    _binding: &BindingCallContext,
+    out: *mut u32,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.whiteBalanceKelvin",
+    ))
+    .boxed())
+}
+
+/// Read white-balance range.
+///
+/// Read one white-balance range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend white-balance capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_camera_stream_white_balance_range(
+    _binding: &BindingCallContext,
+    out: *mut CameraWhiteBalanceRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.whiteBalanceRange",
+    ))
+    .boxed())
+}
+
+/// Read camera zoom ratio.
+///
+/// Read one digital zoom ratio from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend zoom query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_camera_stream_zoom_ratio(
+    _binding: &BindingCallContext,
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.zoomRatio",
+    ))
+    .boxed())
+}
+
+/// Read zoom-ratio range.
+///
+/// Read one zoom-ratio range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend zoom capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_camera_stream_zoom_ratio_range(
+    _binding: &BindingCallContext,
+    out: *mut CameraZoomRatioRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.zoomRatioRange",
+    ))
+    .boxed())
+}
+
 /// Close serial endpoint.
 ///
 /// Close one opened serial endpoint and release host resources.
@@ -1415,6 +1856,35 @@ pub(crate) unsafe fn destack_device_serial_close(
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.close")).boxed())
+}
+
+/// Read serial endpoint configuration.
+///
+/// Read one line-configuration snapshot for one opened serial endpoint.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend serial line-configuration queries.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.serial.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_serial_config(
+    _binding: &BindingCallContext,
+    out: *mut SerialPortConfig,
+    handle: resource::SerialPortHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.config")).boxed())
 }
 
 /// Reconfigure serial endpoint.
@@ -1442,6 +1912,38 @@ pub(crate) unsafe fn destack_device_serial_configure(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.serial.configure",
+    ))
+    .boxed())
+}
+
+/// Read serial endpoint descriptor.
+///
+/// Read one stable descriptor snapshot for one opened serial endpoint.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend descriptor and device-metadata queries.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.serial.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_serial_descriptor(
+    _binding: &BindingCallContext,
+    out: *mut SerialPortDescriptor,
+    handle: resource::SerialPortHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.serial.descriptor",
     ))
     .boxed())
 }
@@ -1502,13 +2004,13 @@ pub(crate) unsafe fn destack_device_serial_discard_output(
     .boxed())
 }
 
-/// Flush serial output.
+/// Drain serial output.
 ///
-/// Drain queued outbound bytes on one opened serial endpoint.
+/// Wait until queued outbound bytes drain on one opened serial endpoint.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend serial flush operations.
+/// Uses backend serial drain operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1518,13 +2020,45 @@ pub(crate) unsafe fn destack_device_serial_discard_output(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_serial_flush(
+pub(crate) unsafe fn destack_device_serial_drain(
     _binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.flush")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.drain")).boxed())
+}
+
+/// Read serial input signal state.
+///
+/// Return current serial input signal state for one opened endpoint.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend modem-status APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.serial.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_serial_get_signals(
+    _binding: &BindingCallContext,
+    out: *mut SerialInputSignals,
+    handle: resource::SerialPortHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.serial.getSignals",
+    ))
+    .boxed())
 }
 
 /// List serial endpoints.
@@ -1558,7 +2092,7 @@ pub(crate) unsafe fn destack_device_serial_list(
 
 /// Open serial endpoint.
 ///
-/// Open one serial endpoint with explicit line configuration.
+/// Open one serial endpoint with explicit line configuration and host open policy.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1576,45 +2110,14 @@ pub(crate) unsafe fn destack_device_serial_open(
     _binding: &BindingCallContext,
     out: *mut resource::SerialPortHandle,
     id: NativeStringRef,
-    config: SerialPortConfig,
+    options: SerialPortOpenOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, id, config);
+    let _ = (out, id, options);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.open")).boxed())
-}
-
-/// Read serial bytes.
-///
-/// Read up to `maxBytes` from one opened serial endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend read operations with timeout handling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.serial.read`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_serial_read(
-    _binding: &BindingCallContext,
-    out: *mut NativeSlice<u8>,
-    handle: resource::SerialPortHandle,
-    maxbytes: u32,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle, maxbytes, timeoutns);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.read")).boxed())
 }
 
 /// Wait for one serial event.
@@ -1650,38 +2153,44 @@ pub(crate) unsafe fn destack_device_serial_read_event(
     .boxed())
 }
 
-/// Set serial break state.
+/// Read serial bytes.
 ///
-/// Apply break signaling state for one opened serial endpoint.
+/// Read bytes into caller memory from one opened serial endpoint.
+/// Partial reads are preserved exactly as reported by the host backend.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend serial break-control APIs.
+/// Uses backend read operations with timeout handling.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
 ///
 /// # Security
-/// Requires `device.serial.control`.
+/// Requires `device.serial.read`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_serial_set_break(
+pub(crate) unsafe fn destack_device_serial_read_into(
     _binding: &BindingCallContext,
+    out: *mut u64,
     handle: resource::SerialPortHandle,
-    enabled: bool,
+    buffer: NativeSlice<u8>,
+    timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, enabled);
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle, buffer, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.serial.setBreak",
+        "destack.device.serial.readInto",
     ))
     .boxed())
 }
 
-/// Set DTR and RTS control lines.
+/// Update serial output signal state.
 ///
-/// Apply DTR and RTS line state for one opened endpoint.
+/// Apply one partial output signal update for one opened endpoint.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1695,48 +2204,15 @@ pub(crate) unsafe fn destack_device_serial_set_break(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_serial_set_control_lines(
+pub(crate) unsafe fn destack_device_serial_set_signals(
     _binding: &BindingCallContext,
     handle: resource::SerialPortHandle,
-    dtr: bool,
-    rts: bool,
+    signals: SerialOutputSignals,
 ) -> RuntimeResult<()> {
-    let _ = (handle, dtr, rts);
+    let _ = (handle, signals);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.serial.setControlLines",
-    ))
-    .boxed())
-}
-
-/// Read serial signal lines.
-///
-/// Return current serial signal-line bitmask for one opened endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend modem-status APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_device_serial_signal_bits(
-    _binding: &BindingCallContext,
-    out: *mut u32,
-    handle: resource::SerialPortHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.serial.signalBits",
+        "destack.device.serial.setSignals",
     ))
     .boxed())
 }
@@ -1775,7 +2251,8 @@ pub(crate) unsafe fn destack_device_serial_try_event(
 
 /// Poll serial bytes without blocking.
 ///
-/// Read up to `maxBytes` from one opened serial endpoint without waiting.
+/// Read bytes into caller memory from one opened serial endpoint without waiting.
+/// Empty queue state is reported through ioWouldBlock.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1789,19 +2266,19 @@ pub(crate) unsafe fn destack_device_serial_try_event(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_serial_try_read(
+pub(crate) unsafe fn destack_device_serial_try_read_into(
     _binding: &BindingCallContext,
-    out: *mut NativeSlice<u8>,
+    out: *mut u64,
     handle: resource::SerialPortHandle,
-    maxbytes: u32,
+    buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle, maxbytes);
+    let _ = (out, handle, buffer);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.serial.tryRead",
+        "destack.device.serial.tryReadInto",
     ))
     .boxed())
 }
@@ -1824,7 +2301,7 @@ pub(crate) unsafe fn destack_device_serial_try_read(
 /// External, recordable.
 pub(crate) unsafe fn destack_device_serial_write(
     _binding: &BindingCallContext,
-    out: *mut u32,
+    out: *mut u64,
     handle: resource::SerialPortHandle,
     data: NativeSlice<u8>,
     timeoutns: u64,
@@ -1837,9 +2314,41 @@ pub(crate) unsafe fn destack_device_serial_write(
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.serial.write")).boxed())
 }
 
+/// List USB BOS capabilities.
+///
+/// Enumerate BOS capability descriptors for one opened USB device.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host BOS or device-capability descriptor query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.usb.enumerate`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_device_usb_bos_capability_list(
+    _binding: &BindingCallContext,
+    out: *mut NativeSlice<UsbBosCapabilityDescriptor>,
+    handle: resource::UsbDeviceHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (out, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.usb.bosCapabilityList",
+    ))
+    .boxed())
+}
+
 /// Read bulk endpoint bytes.
 ///
-/// Read up to `maxBytes` from one bulk IN endpoint.
+/// Read up to `maxBytes` from one bulk IN endpoint and return transfer status.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1855,23 +2364,23 @@ pub(crate) unsafe fn destack_device_serial_write(
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_bulk_read(
     _binding: &BindingCallContext,
-    out: *mut NativeSlice<u8>,
+    out: *mut UsbInTransferResult,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelector,
     maxbytes: u32,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle, endpointaddress, maxbytes, timeoutns);
+    let _ = (out, handle, endpoint, maxbytes, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.bulkRead")).boxed())
 }
 
 /// Write bulk endpoint bytes.
 ///
-/// Write bytes to one bulk OUT endpoint and return transferred byte count.
+/// Write bytes to one bulk OUT endpoint and return transfer status with transferred byte count.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1887,16 +2396,16 @@ pub(crate) unsafe fn destack_device_usb_bulk_read(
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_bulk_write(
     _binding: &BindingCallContext,
-    out: *mut u32,
+    out: *mut UsbOutTransferResult,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelector,
     argument_bytes: NativeSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle, endpointaddress, argument_bytes, timeoutns);
+    let _ = (out, handle, endpoint, argument_bytes, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.bulkWrite")).boxed())
 }
@@ -1949,9 +2458,9 @@ pub(crate) unsafe fn destack_device_usb_claim_interface(
 pub(crate) unsafe fn destack_device_usb_clear_halt(
     _binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelector,
 ) -> RuntimeResult<()> {
-    let _ = (handle, endpointaddress);
+    let _ = (handle, endpoint);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.usb.clearHalt")).boxed())
 }
@@ -2076,7 +2585,7 @@ pub(crate) unsafe fn destack_device_usb_configuration_set(
 
 /// Read control-transfer response bytes.
 ///
-/// Execute one control-transfer read and return response bytes.
+/// Execute one control-transfer read and return transfer status with response bytes.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2092,7 +2601,7 @@ pub(crate) unsafe fn destack_device_usb_configuration_set(
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_control_read(
     _binding: &BindingCallContext,
-    out: *mut NativeSlice<u8>,
+    out: *mut UsbInTransferResult,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetup,
     timeoutns: u64,
@@ -2110,7 +2619,7 @@ pub(crate) unsafe fn destack_device_usb_control_read(
 
 /// Write control-transfer request bytes.
 ///
-/// Execute one control-transfer write and return transferred byte count.
+/// Execute one control-transfer write and return transfer status with transferred byte count.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2126,7 +2635,7 @@ pub(crate) unsafe fn destack_device_usb_control_read(
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_control_write(
     _binding: &BindingCallContext,
-    out: *mut u32,
+    out: *mut UsbOutTransferResult,
     handle: resource::UsbDeviceHandle,
     setup: UsbControlSetup,
     argument_bytes: NativeSlice<u8>,
@@ -2177,7 +2686,7 @@ pub(crate) unsafe fn destack_device_usb_descriptor(
 
 /// Read interrupt endpoint bytes.
 ///
-/// Read up to `maxBytes` from one interrupt IN endpoint.
+/// Read up to `maxBytes` from one interrupt IN endpoint and return transfer status.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2193,16 +2702,16 @@ pub(crate) unsafe fn destack_device_usb_descriptor(
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_interrupt_read(
     _binding: &BindingCallContext,
-    out: *mut NativeSlice<u8>,
+    out: *mut UsbInTransferResult,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelector,
     maxbytes: u32,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle, endpointaddress, maxbytes, timeoutns);
+    let _ = (out, handle, endpoint, maxbytes, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.interruptRead",
@@ -2212,7 +2721,7 @@ pub(crate) unsafe fn destack_device_usb_interrupt_read(
 
 /// Write interrupt endpoint bytes.
 ///
-/// Write bytes to one interrupt OUT endpoint and return transferred byte count.
+/// Write bytes to one interrupt OUT endpoint and return transfer status with transferred byte count.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2228,16 +2737,16 @@ pub(crate) unsafe fn destack_device_usb_interrupt_read(
 /// External, recordable.
 pub(crate) unsafe fn destack_device_usb_interrupt_write(
     _binding: &BindingCallContext,
-    out: *mut u32,
+    out: *mut UsbOutTransferResult,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelector,
     argument_bytes: NativeSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle, endpointaddress, argument_bytes, timeoutns);
+    let _ = (out, handle, endpoint, argument_bytes, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.interruptWrite",
@@ -2247,7 +2756,7 @@ pub(crate) unsafe fn destack_device_usb_interrupt_write(
 
 /// Read one isochronous transfer.
 ///
-/// Read one isochronous transfer and return flattened bytes with per-packet status and length metadata.
+/// Read one isochronous transfer and return flattened bytes with per-packet transfer results.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2265,14 +2774,14 @@ pub(crate) unsafe fn destack_device_usb_isochronous_read(
     _binding: &BindingCallContext,
     out: *mut UsbIsochronousTransferResult,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelector,
     packetsizes: NativeSlice<u32>,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle, endpointaddress, packetsizes, timeoutns);
+    let _ = (out, handle, endpoint, packetsizes, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.isochronousRead",
@@ -2282,7 +2791,7 @@ pub(crate) unsafe fn destack_device_usb_isochronous_read(
 
 /// Write one isochronous transfer.
 ///
-/// Write one flattened isochronous transfer and return per-packet status and length metadata.
+/// Write one flattened isochronous transfer and return per-packet transfer results.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -2300,7 +2809,7 @@ pub(crate) unsafe fn destack_device_usb_isochronous_write(
     _binding: &BindingCallContext,
     out: *mut UsbIsochronousTransferResult,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelector,
     argument_bytes: NativeSlice<u8>,
     packetsizes: NativeSlice<u32>,
     timeoutns: u64,
@@ -2311,7 +2820,7 @@ pub(crate) unsafe fn destack_device_usb_isochronous_write(
     let _ = (
         out,
         handle,
-        endpointaddress,
+        endpoint,
         argument_bytes,
         packetsizes,
         timeoutns,
@@ -2639,9 +3148,9 @@ pub(crate) unsafe fn destack_device_usb_string_language_list(
 pub(crate) unsafe fn destack_device_usb_transfer_cancel(
     _binding: &BindingCallContext,
     handle: resource::UsbDeviceHandle,
-    endpointaddress: u8,
+    endpoint: UsbEndpointSelector,
 ) -> RuntimeResult<()> {
-    let _ = (handle, endpointaddress);
+    let _ = (handle, endpoint);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.usb.transferCancel",
