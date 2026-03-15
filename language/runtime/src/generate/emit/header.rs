@@ -17,7 +17,10 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             .push_str("#![allow(improper_ctypes_definitions)]\n\n");
         self.output.push_str("#![allow(clippy::clone_on_copy)]\n\n");
         self.output
+            .push_str("#![allow(clippy::bind_instead_of_map)]\n\n");
+        self.output
             .push_str("#![allow(clippy::enum_variant_names)]\n\n");
+        self.output.push_str("#![allow(clippy::len_zero)]\n\n");
         self.output
             .push_str("#![allow(clippy::type_complexity)]\n\n");
         if usage.needs_vm {
