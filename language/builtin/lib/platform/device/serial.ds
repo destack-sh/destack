@@ -155,9 +155,6 @@ export struct SerialReadReadyPayload {
     availableBytes?: uint64;
 }
 
-/// Output-drained event payload.
-export struct SerialWriteDrainedPayload {}
-
 /// Modem-status changed event payload.
 export struct SerialModemStatusPayload {
     /// Current serial input signal state.
@@ -195,16 +192,6 @@ export struct SerialReadReadyEvent {
     payload: SerialReadReadyPayload;
 }
 
-/// Output-drained serial event.
-export struct SerialWriteDrainedEvent {
-    /// Discriminator for this serial event variant.
-    kind: "writeDrained";
-    /// Shared event metadata.
-    metadata: SerialEventMetadata;
-    /// Output-drained payload.
-    payload: SerialWriteDrainedPayload;
-}
-
 /// Modem-status-changed serial event.
 export struct SerialModemStatusChangedEvent {
     /// Discriminator for this serial event variant.
@@ -238,7 +225,6 @@ export struct SerialDisconnectedEvent {
 /// Serial event.
 export newtype SerialEvent =
     | SerialReadReadyEvent
-    | SerialWriteDrainedEvent
     | SerialModemStatusChangedEvent
     | SerialDisconnectedEvent
     | SerialErrorEvent;
