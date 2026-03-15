@@ -119,7 +119,7 @@ pub fn change_signature(
                 continue;
             };
 
-            let Some(target_symbol) = call_target_symbol(session, &ctx, &dir_tree, left_expression)
+            let Some(target_symbol) = call_target_symbol(session, &ctx, dir_tree, left_expression)
             else {
                 continue;
             };
@@ -132,7 +132,7 @@ pub fn change_signature(
                 continue;
             }
 
-            let expr_span = span_for_dir_node(&ctx, &dir_tree, expr_id.into());
+            let expr_span = span_for_dir_node(&ctx, dir_tree, expr_id.into());
             let Some(arg_span) = find_parenthesis_inner_span(&ctx, expr_span) else {
                 continue;
             };
@@ -140,7 +140,7 @@ pub fn change_signature(
                 build_arguments_for_call(
                     session,
                     &ctx,
-                    &dir_tree,
+                    dir_tree,
                     expr_id,
                     &param_specs,
                     &old_param_positions,
@@ -510,7 +510,7 @@ fn function_parameter_span(session: &Session, symbol_id: dir::GlobalSymbolId) ->
             ctx.ast.tree.source_map.get(source_id)
         }
         dir::NodeType::Declarator | dir::NodeType::Pattern => {
-            let declaration_id = function_declaration_from_binding(&dir_tree, local_id)?;
+            let declaration_id = function_declaration_from_binding(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(declaration_id.id);
             ctx.ast.tree.source_map.get(source_id)
         }
@@ -583,7 +583,7 @@ fn function_parameter_name_positions(
 
     // resolve the function signature for this declaration
     let dir_tree = ctx.tree();
-    let Some(signature) = function_signature_for_node(&dir_tree, declaration.local_id) else {
+    let Some(signature) = function_signature_for_node(dir_tree, declaration.local_id) else {
         return HashMap::new();
     };
 
@@ -640,7 +640,7 @@ fn parameter_span_for_node(session: &Session, node_id: dir::GlobalNodeIdAny) -> 
             find_parenthesis_inner_span(&ctx, full_span)
         }
         dir::NodeType::Declarator | dir::NodeType::Pattern => {
-            let decl_id = function_declaration_from_binding(&dir_tree, node_id.local_id)?;
+            let decl_id = function_declaration_from_binding(dir_tree, node_id.local_id)?;
             let source_id = dir_tree.get_source(decl_id.id);
             let ast_span = ctx.ast.tree.source_map.get(source_id);
             let full_span = Span::new(ctx.file_id, ast_span.start, ast_span.end);

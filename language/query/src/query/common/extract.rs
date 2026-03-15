@@ -32,7 +32,7 @@ pub(crate) fn resolve_extract_expression(
     let mut best_len = u32::MAX;
 
     for (expr_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-        let span = span_for_dir_node(ctx, &dir_tree, expr_id.into());
+        let span = span_for_dir_node(ctx, dir_tree, expr_id.into());
         if !span_contains_span(span, selection) {
             continue;
         }
@@ -75,7 +75,7 @@ pub(crate) fn statement_span_for_expression(
                     | dir::Expression::Using { .. }
                     | dir::Expression::Declaration { .. }
             ) {
-                return span_for_dir_node(ctx, &dir_tree, parent);
+                return span_for_dir_node(ctx, dir_tree, parent);
             }
         }
 

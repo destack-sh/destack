@@ -176,8 +176,8 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                     member,
                     member_id,
                     module_id,
-                    &dir_tree,
-                    &types,
+                    dir_tree,
+                    types,
                     container_name.as_deref(),
                 )
             } else {
@@ -195,7 +195,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                     field,
                     field_id,
                     module_id,
-                    &types,
+                    types,
                     container_name.as_deref(),
                 )
             } else {
@@ -213,7 +213,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                     param,
                     param_id,
                     module_id,
-                    &types,
+                    types,
                 )
             } else {
                 format_simple_signature(symbol.ty, name.as_deref())
@@ -225,8 +225,8 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 &ctx.program.artifacts,
                 name.as_deref(),
                 symbol_at.symbol_id,
-                &symbols,
-                &types,
+                symbols,
+                types,
                 &session.modules,
                 &session.strings,
             )
@@ -236,7 +236,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
 
     // resolve type and location metadata
     let type_text =
-        resolve_hover_type_text(session, &ctx, &symbols, hover_node_id, symbol_at.symbol_id);
+        resolve_hover_type_text(session, &ctx, symbols, hover_node_id, symbol_at.symbol_id);
     let location = hover_location(session, symbol_at.span);
     let range = hover_range_for_symbol(&ctx, symbol_at.node_id, symbol_at.span);
 
@@ -274,7 +274,7 @@ fn resolve_hover_type_text(
     Some(format_local_type(
         type_id,
         &ctx.program.artifacts,
-        &types,
+        types,
         &session.modules,
         &session.strings,
     ))

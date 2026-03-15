@@ -69,8 +69,8 @@ pub fn format_declaration_signature(
             export_prefix,
             artifacts,
             module_id,
-            &dir_tree,
-            &types,
+            dir_tree,
+            types,
             modules,
             strings,
         ),
@@ -87,19 +87,19 @@ pub fn format_declaration_signature(
         }
         dir::Declaration::Struct { generics, .. } => {
             let generics_text = format_generics(
-                generics, artifacts, module_id, &dir_tree, &types, modules, strings,
+                generics, artifacts, module_id, dir_tree, types, modules, strings,
             );
             format!("{export_prefix}struct {name}{generics_text}")
         }
         dir::Declaration::Class { generics, .. } => {
             let generics_text = format_generics(
-                generics, artifacts, module_id, &dir_tree, &types, modules, strings,
+                generics, artifacts, module_id, dir_tree, types, modules, strings,
             );
             format!("{export_prefix}class {name}{generics_text}")
         }
         dir::Declaration::Interface { generics, .. } => {
             let generics_text = format_generics(
-                generics, artifacts, module_id, &dir_tree, &types, modules, strings,
+                generics, artifacts, module_id, dir_tree, types, modules, strings,
             );
             format!("{export_prefix}interface {name}{generics_text}")
         }
@@ -465,8 +465,8 @@ pub fn format_symbol_signature(
             export_prefix,
             artifacts,
             module_id,
-            &dir_tree,
-            &types,
+            dir_tree,
+            types,
             modules,
             strings,
         ),
@@ -483,19 +483,19 @@ pub fn format_symbol_signature(
         }
         dir::Declaration::Struct { generics, .. } => {
             let generics_text = format_generics(
-                generics, artifacts, module_id, &dir_tree, &types, modules, strings,
+                generics, artifacts, module_id, dir_tree, types, modules, strings,
             );
             format!("{export_prefix}struct {name}{generics_text}")
         }
         dir::Declaration::Class { generics, .. } => {
             let generics_text = format_generics(
-                generics, artifacts, module_id, &dir_tree, &types, modules, strings,
+                generics, artifacts, module_id, dir_tree, types, modules, strings,
             );
             format!("{export_prefix}class {name}{generics_text}")
         }
         dir::Declaration::Interface { generics, .. } => {
             let generics_text = format_generics(
-                generics, artifacts, module_id, &dir_tree, &types, modules, strings,
+                generics, artifacts, module_id, dir_tree, types, modules, strings,
             );
             format!("{export_prefix}interface {name}{generics_text}")
         }

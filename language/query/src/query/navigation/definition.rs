@@ -262,11 +262,7 @@ pub fn goto_type_definition(
         // try get_value_type_id first
         if let Some(type_id) = types.get_value_type_id(symbol_id) {
             let ty = types.get_type(type_id);
-            if let Some(type_symbol) = ty.symbol() {
-                Some(type_symbol)
-            } else {
-                None
-            }
+            ty.symbol()
         }
         // otherwise fall back to declared or inferred type
         else {
@@ -555,7 +551,7 @@ fn resolve_type_definition_from_imports(
         let name_id = match expr {
             Expression::Member { left, name, .. } => {
                 let Some(namespace_name_id) =
-                    namespace_alias_name_id_from_expression(&dir_tree, *left)
+                    namespace_alias_name_id_from_expression(dir_tree, *left)
                 else {
                     continue;
                 };

@@ -96,7 +96,7 @@ pub(crate) fn parameter_data_for_symbol(
             let ast_node_id = dir_tree.get_source(declaration_id.id);
             let docs = parameter_doc_map(ctx.ast, source, ast_node_id);
             let names =
-                dynamic_parameter_display_names(session, &dir_tree, &signature.dynamic_parameters);
+                dynamic_parameter_display_names(session, dir_tree, &signature.dynamic_parameters);
 
             Some(ParameterData { names, docs })
         }
@@ -112,7 +112,7 @@ pub(crate) fn parameter_data_for_symbol(
             let ast_node_id = dir_tree.get_source(member_id.id);
             let docs = parameter_doc_map(ctx.ast, source, ast_node_id);
             let names =
-                dynamic_parameter_display_names(session, &dir_tree, &signature.dynamic_parameters);
+                dynamic_parameter_display_names(session, dir_tree, &signature.dynamic_parameters);
 
             Some(ParameterData { names, docs })
         }

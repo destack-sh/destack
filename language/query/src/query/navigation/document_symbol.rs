@@ -104,9 +104,9 @@ fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<Docu
             let name = declaration_display_name(&session.strings, declaration);
 
             // resolve the full range and the main selection range
-            let range = span_for_dir_node(&ctx, &dir_tree, declaration_id.into());
+            let range = span_for_dir_node(&ctx, dir_tree, declaration_id.into());
             let selection_range =
-                main_span_for_dir_node(&ctx, &dir_tree, declaration_id.into()).unwrap_or(range);
+                main_span_for_dir_node(&ctx, dir_tree, declaration_id.into()).unwrap_or(range);
 
             // build the document symbol
             let mut symbol =
@@ -116,7 +116,7 @@ fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<Docu
             if let Some(member_ids) = declaration.member_ids() {
                 for member_id in member_ids {
                     if let Some(child) =
-                        member_to_document_symbol(&dir_tree, *member_id, &ctx, session)
+                        member_to_document_symbol(dir_tree, *member_id, &ctx, session)
                     {
                         symbol = symbol.with_child(child);
                     }
@@ -127,7 +127,7 @@ fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<Docu
             if let Declaration::Enum { fields, .. } = declaration {
                 for field_id in fields {
                     if let Some(child) =
-                        enum_field_to_document_symbol(&dir_tree, *field_id, &ctx, session)
+                        enum_field_to_document_symbol(dir_tree, *field_id, &ctx, session)
                     {
                         symbol = symbol.with_child(child);
                     }

@@ -155,7 +155,7 @@ fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<Docume
 
                     // get the span of this import expression
                     let enclosing =
-                        main_or_enclosing_span_for_dir_node(&ctx, &dir_tree, expr_id.into());
+                        main_or_enclosing_span_for_dir_node(&ctx, dir_tree, expr_id.into());
                     let file = session.files.get(ctx.file_id);
                     let import_path = session.strings.get(*target).to_string();
                     let span = string_literal_span_in_enclosing(

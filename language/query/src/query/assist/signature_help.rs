@@ -168,7 +168,7 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                 // determine active parameter based on cursor position
                 let mut active_parameter = determine_active_parameter(
                     &ctx,
-                    &dir_tree,
+                    dir_tree,
                     expression_id,
                     dynamic_arguments,
                     offset,
@@ -271,8 +271,8 @@ fn signature_info_for_symbol(
         signature,
         &ctx.program.artifacts,
         ctx.module_id,
-        &dir_tree,
-        &types,
+        dir_tree,
+        types,
         &session.modules,
         &session.strings,
         false,

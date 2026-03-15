@@ -124,7 +124,7 @@ fn collect_expression_reference_spans(
                 let resolved_target_symbol = resolve_expression_target_symbol(
                     session,
                     ctx,
-                    &dir_tree,
+                    dir_tree,
                     expression_id,
                     expression,
                     canonical_id,
@@ -136,7 +136,7 @@ fn collect_expression_reference_spans(
                     return None;
                 }
                 if options.include_members
-                    && expression_is_member_receiver_expression(&dir_tree, expression_id)
+                    && expression_is_member_receiver_expression(dir_tree, expression_id)
                 {
                     return None;
                 }
@@ -176,7 +176,7 @@ fn collect_expression_reference_spans(
                 if !symbol_is_type_parameter(session, canonical_id) {
                     return None;
                 }
-                if !symbol_visible_in_scope(ctx, &dir_tree, expression_id, canonical_id) {
+                if !symbol_visible_in_scope(ctx, dir_tree, expression_id, canonical_id) {
                     return None;
                 }
 
@@ -189,7 +189,7 @@ fn collect_expression_reference_spans(
     let dir_tree = ctx.tree();
     let mut spans = Vec::new();
     for expression_id in matching_expression_ids {
-        let span = resolve_expression_reference_span(ctx, &dir_tree, expression_id);
+        let span = resolve_expression_reference_span(ctx, dir_tree, expression_id);
         let Some(span) = span else {
             continue;
         };
@@ -215,7 +215,7 @@ fn collect_expression_reference_spans(
             if !member_receiver_matches_target(
                 session,
                 ctx,
-                &dir_tree,
+                dir_tree,
                 *left,
                 canonical_id,
                 options.target_name,
@@ -388,7 +388,7 @@ fn resolve_expression_target_symbol(
     let (scope_id, mark) = dir_tree.get_scope(expression_id);
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(canonical_id.local_id);
-    let is_visible = visible_symbols(&symbols, scope_id, mark, Some(symbol.space))
+    let is_visible = visible_symbols(symbols, scope_id, mark, Some(symbol.space))
         .any(|visible| visible.id == canonical_id.local_id);
     is_visible.then_some(canonical_id)
 }
@@ -594,13 +594,13 @@ fn symbol_visible_in_scope(
     let (scope_id, mark) = dir_tree.get_scope(expression_id);
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
-    if visible_symbols(&symbols, scope_id, mark, Some(symbol.space))
+    if visible_symbols(symbols, scope_id, mark, Some(symbol.space))
         .any(|visible| visible.id == symbol_id.local_id)
     {
         return true;
     }
 
-    visible_symbols_full(&symbols, scope_id, Some(symbol.space))
+    visible_symbols_full(symbols, scope_id, Some(symbol.space))
         .any(|visible| visible.id == symbol_id.local_id)
 }
 
@@ -617,13 +617,13 @@ fn symbol_visible_in_scope_any_space(
 
     let (scope_id, mark) = dir_tree.get_scope(expression_id);
     let symbols = ctx.symbols();
-    if visible_symbols(&symbols, scope_id, mark, None)
+    if visible_symbols(symbols, scope_id, mark, None)
         .any(|visible| visible.id == symbol_id.local_id)
     {
         return true;
     }
 
-    visible_symbols_full(&symbols, scope_id, None).any(|visible| visible.id == symbol_id.local_id)
+    visible_symbols_full(symbols, scope_id, None).any(|visible| visible.id == symbol_id.local_id)
 }
 
 /// Check whether a canonical symbol is a namespace in the current query context.
@@ -675,13 +675,13 @@ fn scope_has_conflicting_visible_name(
         symbol_id != canonical_id.local_id
     };
 
-    if visible_symbols(&symbols, scope_id, mark, None)
+    if visible_symbols(symbols, scope_id, mark, None)
         .any(|visible| has_conflict(visible.key, visible.id))
     {
         return true;
     }
 
-    visible_symbols_full(&symbols, scope_id, None)
+    visible_symbols_full(symbols, scope_id, None)
         .any(|visible| has_conflict(visible.key, visible.id))
 }
 
@@ -747,7 +747,7 @@ fn collect_interface_type_parameter_spans(
                 let Some(target_symbol) = resolve_expression_target_symbol(
                     session,
                     ctx,
-                    &dir_tree,
+                    dir_tree,
                     expression_id,
                     expression,
                     canonical_id,
@@ -839,7 +839,7 @@ fn collect_namespace_receiver_spans_from_ast(
             && scope_has_conflicting_visible_name(
                 session,
                 ctx,
-                &dir_tree,
+                dir_tree,
                 dir_expression_id,
                 canonical_id,
                 target_name,
