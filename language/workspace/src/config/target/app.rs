@@ -183,6 +183,8 @@ pub struct TargetAppPermissionDeclarationJson {
 pub struct TargetAppIntentDeclaration {
     /// URL schemes the app may query for outbound routing.
     pub query_schemes: Vec<String>,
+    /// Whether the app may share local files through outbound host routes.
+    pub shares_files: bool,
     /// URL schemes that activate the app inbound.
     pub handled_schemes: Vec<String>,
     /// Verified web domains associated with direct app activation.
@@ -201,6 +203,7 @@ impl From<&TargetAppIntentDeclarationJson> for TargetAppIntentDeclaration {
     fn from(json: &TargetAppIntentDeclarationJson) -> Self {
         Self {
             query_schemes: json.query_schemes.clone().unwrap_or_default(),
+            shares_files: json.shares_files.unwrap_or(false),
             handled_schemes: json.handled_schemes.clone().unwrap_or_default(),
             verified_domains: json.verified_domains.clone().unwrap_or_default(),
             handled_file_types: json.handled_file_types.clone().unwrap_or_default(),
@@ -218,6 +221,8 @@ impl From<&TargetAppIntentDeclarationJson> for TargetAppIntentDeclaration {
 pub struct TargetAppIntentDeclarationJson {
     /// URL schemes the app may query for outbound routing.
     pub query_schemes: Option<Vec<String>>,
+    /// Whether the app may share local files through outbound host routes.
+    pub shares_files: Option<bool>,
     /// URL schemes that activate the app inbound.
     pub handled_schemes: Option<Vec<String>>,
     /// Verified web domains associated with direct app activation.

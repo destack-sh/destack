@@ -19,12 +19,6 @@ use crate::{
     hash_bytes, hash_json_value, resolve_cache_dir, resolve_cache_root_for_scope,
 };
 
-#[cfg(test)]
-use crate::{
-    ArtifactRegistry, FormatterOptions, LinterOptions, ModuleRegistry, OutputRegistry,
-    PackageRegistry, TsConfigRegistry,
-};
-
 /// Header for workspace index snapshots.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceIndexHeader {
@@ -663,7 +657,8 @@ mod tests {
     use indexmap::IndexMap;
 
     use crate::{
-        CacheValidate, DiskCacheStore, Program, Workspace, WorkspaceConfigError,
+        CacheValidate, DiskCacheStore, FormatterOptions, LinterOptions, ModuleRegistry,
+        PackageRegistry, Program, TsConfigRegistry, Workspace, WorkspaceConfigError,
         WorkspaceIndexStore, payload_hash_from_bytes,
     };
 

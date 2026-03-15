@@ -63,6 +63,7 @@ Destack's project configuration is similar to `tsconfig.json`, but `dsconfig.jso
                 },
                 "intents": {
                     "querySchemes": ["https", "mailto"],
+                    "sharesFiles": true,
                     "handledSchemes": ["destack-demo"],
                     "verifiedDomains": ["app.example.com"]
                 },
@@ -129,6 +130,37 @@ Destack's project configuration is similar to `tsconfig.json`, but `dsconfig.jso
                     "openTypes": ["public.image"],
                     "saveTypes": ["public.plain-text"],
                     "supportsOpenInPlace": true
+                }
+            }
+        },
+        "androidApp": {
+            "output": "native",
+            "platform": "android",
+            "app": {
+                "permissions": {
+                    "camera": { "usage": "Capture one receipt image" },
+                    "notifications": { "usage": "Send delivery alerts" }
+                },
+                "intents": {
+                    "querySchemes": ["geo", "mailto"],
+                    "sharesFiles": true,
+                    "handledSchemes": ["destack-demo"],
+                    "verifiedDomains": ["app.example.com"],
+                    "handledShareTypes": ["image/*"]
+                },
+                "notifications": {
+                    "enabled": true,
+                    "remote": true
+                },
+                "background": {
+                    "modes": ["remoteNotifications", "location"]
+                },
+                "services": {
+                    "foregroundModes": ["location", "dataSync"]
+                },
+                "document": {
+                    "openTypes": ["image/*"],
+                    "saveTypes": ["text/plain"]
                 }
             }
         }
