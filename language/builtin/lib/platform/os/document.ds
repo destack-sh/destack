@@ -30,18 +30,19 @@ export struct DocumentPickOptions {
 /// Document descriptor.
 export struct DocumentDescriptor {
     /// Host document URI.
+    /// This may be one opaque provider URI rather than one filesystem path.
     uri: string;
     /// Host-visible document name.
     name: string;
     /// Document MIME type payload when available.
-    mimeType: string;
+    mimeType?: string;
     /// Document size in bytes when available.
-    sizeBytes: uint64;
+    sizeBytes?: uint64;
     /// Document modification timestamp in UTC nanoseconds when available.
-    modifiedUnixNs: uint64;
+    modifiedUnixNs?: uint64;
     /// Whether this descriptor represents one directory.
     isDirectory: boolean;
-    /// Runtime-visible local path when one sandbox copy is available.
+    /// Runtime-visible local path when the host grants direct local access or one sandbox copy exists.
     localPath?: OsPath;
 }
 
@@ -53,7 +54,7 @@ declare namespace os {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses SAF or system picker APIs on Android, UIDocumentPicker on Apple platforms, and host file-picker bridges on desktop hosts.
+    /// Uses SAF or system picker APIs on Android, UIDocumentPicker on Apple platforms, common file dialogs on Windows, and desktop file-picker bridges or portals on Unix desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -77,7 +78,7 @@ declare namespace os {
 
     /// Open one document URI.
     ///
-    /// Open one host document-provider URI with one selected access mode.
+    /// Open one host document-provider URI from one prior picker result with one selected access mode.
     ///
     /// # Platform
     /// Unix and Windows.
