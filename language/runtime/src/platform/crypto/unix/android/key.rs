@@ -2,8 +2,9 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::{
-    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_OK, destack_host_android_crypto_compute_hardware_mac,
+use crate::host::abi::HostStatus;
+use crate::host::android::crypto::ffi::{
+    destack_host_android_crypto_compute_hardware_mac,
     destack_host_android_crypto_decrypt_hardware_key,
     destack_host_android_crypto_decrypt_hardware_secret_key,
     destack_host_android_crypto_delete_hardware_key,
@@ -192,7 +193,7 @@ where
         &mut required_ciphertext_bytes as *mut u32,
         &mut required_tag_bytes as *mut u32,
     );
-    if first_status != HOST_STATUS_OK && first_status != HOST_STATUS_BUFFER_TOO_SMALL {
+    if first_status != HostStatus::Ok.code() && first_status != HostStatus::BufferTooSmall.code() {
         host_status_result(first_status, operation, action)?;
     }
 
@@ -250,7 +251,7 @@ where
         },
         &mut required_output_bytes as *mut u32,
     );
-    if first_status != HOST_STATUS_OK && first_status != HOST_STATUS_BUFFER_TOO_SMALL {
+    if first_status != HostStatus::Ok.code() && first_status != HostStatus::BufferTooSmall.code() {
         host_status_result(first_status, operation, action)?;
     }
 
@@ -393,25 +394,25 @@ pub(crate) fn host_store_supports_hardware_backed_key(
             runtime_id,
             encoded_kind,
             encoded_rsa,
-        ) == HOST_STATUS_OK
+        ) == HostStatus::Ok.code()
     };
     let pair_ec = unsafe {
         destack_host_android_crypto_supports_hardware_key_pair(runtime_id, encoded_kind, encoded_ec)
-            == HOST_STATUS_OK
+            == HostStatus::Ok.code()
     };
     let secret_aes = unsafe {
         destack_host_android_crypto_supports_hardware_secret_key(
             runtime_id,
             encoded_kind,
             encoded_aes,
-        ) == HOST_STATUS_OK
+        ) == HostStatus::Ok.code()
     };
     let secret_hmac = unsafe {
         destack_host_android_crypto_supports_hardware_secret_key(
             runtime_id,
             encoded_kind,
             encoded_hmac,
-        ) == HOST_STATUS_OK
+        ) == HostStatus::Ok.code()
     };
 
     pair_rsa || pair_ec || secret_aes || secret_hmac
@@ -447,7 +448,7 @@ pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
             runtime_id,
             encoded_kind,
             encoded_algorithm,
-        ) == HOST_STATUS_OK
+        ) == HostStatus::Ok.code()
     }
 }
 
@@ -481,7 +482,7 @@ pub(crate) fn host_store_supports_hardware_backed_secret_key(
             runtime_id,
             encoded_kind,
             encoded_algorithm,
-        ) == HOST_STATUS_OK
+        ) == HostStatus::Ok.code()
     }
 }
 

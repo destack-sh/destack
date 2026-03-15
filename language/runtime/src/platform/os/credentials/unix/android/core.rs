@@ -1,8 +1,5 @@
 use crate::diagnostic::RuntimeError;
-use crate::host::{
-    HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND,
-    HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK, HOST_STATUS_PERMISSION_DENIED,
-};
+use crate::host::abi::HostStatus;
 use crate::platform::core as core_platform;
 use crate::platform::os::CredentialAuthenticationMechanism;
 use crate::platform::os::credentials::core::{invalid_data, permission_denied};
@@ -53,44 +50,41 @@ pub(super) fn host_status_result(
     operation: &'static str,
     action: &'static str,
 ) -> Result<(), Box<RuntimeError>> {
-    if status == HOST_STATUS_OK {
-        return Ok(());
-    }
-
-    if status == HOST_STATUS_NOT_SUPPORTED {
-        return Err(core_platform::not_supported(operation));
-    }
-
-    if status == HOST_STATUS_INVALID_ARGUMENT {
+    let Some(status) = HostStatus::from_code(status) else {
         return Err(invalid_data(
+            operation,
+            format!("android host credentials {action} failed with status code {status}"),
+        ));
+    };
+
+    match status {
+        HostStatus::Ok => Ok(()),
+        HostStatus::NotSupported => Err(core_platform::not_supported(operation)),
+        HostStatus::InvalidArgument => Err(invalid_data(
             operation,
             format!("android host credentials {action} reported one invalid argument"),
-        ));
-    }
-
-    if status == HOST_STATUS_NOT_FOUND {
-        return Err(core_platform::io_not_found(
+        )),
+        HostStatus::NotFound => Err(core_platform::io_not_found(
             operation,
             format!("android host credentials {action} could not find one credential"),
-        ));
-    }
-
-    if status == HOST_STATUS_PERMISSION_DENIED {
-        return Err(permission_denied(
+        )),
+        HostStatus::PermissionDenied => Err(permission_denied(
             operation,
             format!("android host credentials {action} was denied"),
-        ));
-    }
-
-    if status == HOST_STATUS_FAILED {
-        return Err(invalid_data(
+        )),
+        HostStatus::BufferTooSmall => Err(invalid_data(
+            operation,
+            format!(
+                "android host credentials {action} reported one unexpectedly small output buffer"
+            ),
+        )),
+        HostStatus::Failed => Err(invalid_data(
             operation,
             format!("android host credentials {action} failed"),
-        ));
+        )),
+        HostStatus::WouldBlock => Err(invalid_data(
+            operation,
+            format!("android host credentials {action} would block unexpectedly"),
+        )),
     }
-
-    Err(invalid_data(
-        operation,
-        format!("android host credentials {action} failed with status code {status}"),
-    ))
 }

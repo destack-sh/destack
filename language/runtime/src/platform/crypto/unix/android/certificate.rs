@@ -1,9 +1,9 @@
 use openssl::x509::X509;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::{
-    HOST_STATUS_NOT_FOUND, HOST_STATUS_OK, destack_host_android_crypto_delete_certificate,
-    destack_host_android_crypto_import_certificate,
+use crate::host::abi::HostStatus;
+use crate::host::android::crypto::ffi::{
+    destack_host_android_crypto_delete_certificate, destack_host_android_crypto_import_certificate,
     destack_host_android_crypto_supports_certificate_write,
 };
 use crate::platform::crypto::CryptoStoreKind;
@@ -36,7 +36,7 @@ pub(crate) fn host_store_supports_certificate_write(
     let status =
         unsafe { destack_host_android_crypto_supports_certificate_write(runtime_id, encoded_kind) };
 
-    status == HOST_STATUS_OK
+    status == HostStatus::Ok.code()
 }
 
 /// Import one certificate into one host store lane.
@@ -90,7 +90,7 @@ pub(crate) fn host_store_delete_certificate(
     let status = unsafe {
         destack_host_android_crypto_delete_certificate(runtime_id, encoded_kind, certificate_der)
     };
-    if status == HOST_STATUS_NOT_FOUND {
+    if status == HostStatus::NotFound.code() {
         return Ok(());
     }
 

@@ -1,8 +1,9 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::{
-    HOST_STATUS_BUFFER_TOO_SMALL, destack_host_android_credentials_authenticate,
-    destack_host_android_credentials_contains, destack_host_android_credentials_delete,
-    destack_host_android_credentials_read, destack_host_android_credentials_write,
+use crate::host::abi::HostStatus;
+use crate::host::android::credentials::ffi::{
+    destack_host_android_credentials_authenticate, destack_host_android_credentials_contains,
+    destack_host_android_credentials_delete, destack_host_android_credentials_read,
+    destack_host_android_credentials_write,
 };
 use crate::platform::os::credentials::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,
@@ -63,7 +64,7 @@ pub(crate) fn read_credentials(
         };
 
         // grow output buffer when host reports required capacity
-        if status == HOST_STATUS_BUFFER_TOO_SMALL {
+        if status == HostStatus::BufferTooSmall.code() {
             if output_written == 0 {
                 return Err(invalid_data(
                     OS_CREDENTIALS_READ_OPERATION,
