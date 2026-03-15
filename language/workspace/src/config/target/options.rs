@@ -11,7 +11,7 @@ use crate::config::policy::{
     TrustPolicy, TrustPolicyJson, UnwindFormat, UnwindFormatJson,
 };
 use crate::config::runtime::{
-    DsConfigRuntimeOptionsJson, RuntimeOptions, runtime_options_with_base,
+    DsConfigRuntimeOptionsJson, RuntimeAppDeclaration, RuntimeOptions, runtime_options_with_base,
 };
 use crate::config::tsconfig::{EsTarget, ModuleTarget};
 
@@ -741,7 +741,10 @@ impl Target {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
+    use crate::config::runtime::RuntimeAppPermission;
 
     /// Safety presets map to runtime check policies.
     #[test]
@@ -764,6 +767,147 @@ mod tests {
         let fast_float = SafetyPreset::ReleaseFast.float_math_policy();
         assert_eq!(debug_float, FloatMathPolicy::Strict);
         assert_eq!(fast_float, FloatMathPolicy::Fast);
+    }
+
+    /// Target app declarations seed runtime host app availability state.
+    #[test]
+    fn test_target_app_declaration_seeds_runtime_options() {
+        let json: DsConfigTargetJson = serde_json::from_value(json!({
+            "platform": "ios",
+            "app": {
+                "permissions": {
+                    "camera": {
+                        "usage": "Capture one profile photo"
+                    }
+                },
+                "intents": {
+                    "querySchemes": ["mailto"],
+                    "sharesFiles": true,
+                    "handledSchemes": ["destack-demo"],
+                    "verifiedDomains": ["app.example.com"],
+                    "handledFileTypes": ["public.image"],
+                    "receivesSharedText": true,
+                    "handledShareTypes": ["public.image"],
+                    "customActions": ["compose"]
+                },
+                "notifications": {
+                    "enabled": true,
+                    "remote": true,
+                    "categories": [
+                        {
+                            "identifier": "messages",
+                            "actions": [
+                                { "identifier": "reply" }
+                            ]
+                        }
+                    ]
+                },
+                "background": {
+                    "modes": ["audio"]
+                },
+                "services": {
+                    "foregroundModes": ["dataSync"]
+                },
+                "document": {
+                    "openTypes": ["public.image"],
+                    "saveTypes": ["public.plain-text"],
+                    "supportsOpenInPlace": true
+                },
+                "credentials": {
+                    "biometricUsage": "Unlock saved credentials",
+                    "accessGroups": ["group.com.example.shared"],
+                    "credentialDomains": ["app.example.com"]
+                },
+                "location": {
+                    "allowsBackgroundUpdates": true,
+                    "preciseByDefault": true,
+                    "temporaryPrecisePurposes": ["turnByTurnNavigation"]
+                }
+            }
+        }))
+        .expect("target json should parse");
+
+        // derive one normalized target
+        let target =
+            DsConfigTargetOptions::from_json_with_runtime(&json, &RuntimeOptions::default());
+
+        // carry target app declarations into runtime options
+        assert!(
+            target
+                .app
+                .permissions
+                .contains_key(&TargetAppPermission::Camera)
+        );
+        assert!(
+            target
+                .runtime_options
+                .app
+                .permissions
+                .contains(&RuntimeAppPermission::Camera)
+        );
+        assert_eq!(
+            target.runtime_options.app.intents.query_schemes,
+            std::collections::BTreeSet::from(["mailto".to_string()])
+        );
+        assert!(target.runtime_options.app.intents.shares_files);
+        assert!(
+            target
+                .runtime_options
+                .app
+                .intents
+                .handled_schemes
+                .contains("destack-demo")
+        );
+        assert!(
+            target
+                .runtime_options
+                .app
+                .intents
+                .verified_domains
+                .contains("app.example.com")
+        );
+        assert!(target.runtime_options.app.notifications.enabled);
+        assert!(target.runtime_options.app.notifications.remote);
+        assert_eq!(target.runtime_options.app.notifications.categories.len(), 1);
+        assert!(
+            target
+                .runtime_options
+                .app
+                .background
+                .modes
+                .contains(&crate::config::runtime::RuntimeAppBackgroundMode::Audio)
+        );
+        assert!(
+            target
+                .runtime_options
+                .app
+                .services
+                .foreground_modes
+                .contains(&crate::config::runtime::RuntimeAppForegroundMode::DataSync)
+        );
+        assert!(
+            target
+                .runtime_options
+                .app
+                .document
+                .open_types
+                .contains("public.image")
+        );
+        assert!(
+            target
+                .runtime_options
+                .app
+                .credentials
+                .access_groups
+                .contains("group.com.example.shared")
+        );
+        assert!(
+            target
+                .runtime_options
+                .app
+                .location
+                .allows_background_updates
+        );
     }
 }
 
@@ -1085,6 +1229,16 @@ impl DsConfigTargetOptions {
             runtime_options.execution = execution_mode;
         }
 
+        // resolve one target app declaration for runtime host planning
+        let app = json
+            .app
+            .as_ref()
+            .map(TargetAppDeclaration::from)
+            .unwrap_or_default();
+
+        // seed runtime options with the resolved target app declaration
+        runtime_options.app = RuntimeAppDeclaration::from(&app);
+
         let safety_preset = json.safety_preset.map(SafetyPreset::from);
         let default_checks = safety_preset
             .map(|preset| preset.runtime_check_policies())
@@ -1151,11 +1305,7 @@ impl DsConfigTargetOptions {
             lib: json.lib.clone(),
             types: json.types.clone(),
             profile: json.profile.clone(),
-            app: json
-                .app
-                .as_ref()
-                .map(TargetAppDeclaration::from)
-                .unwrap_or_default(),
+            app,
             debug: json.debug,
             optimize: json.optimize,
             optimize_level: json

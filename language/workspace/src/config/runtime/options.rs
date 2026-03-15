@@ -1,6 +1,11 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
+
+use crate::config::target::{
+    TargetAppBackgroundMode, TargetAppDeclaration, TargetAppForegroundMode,
+    TargetAppNotificationCategoryDeclaration, TargetAppPermission,
+};
 
 #[cfg(test)]
 use super::super::policy::ReplayPayloadMode;
@@ -35,6 +40,383 @@ pub struct RuntimeAgentOptions {
     pub labels: BTreeMap<String, String>,
 }
 
+/// Runtime-facing app declaration used by Host availability checks.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeAppDeclaration {
+    /// Declared app permissions.
+    pub permissions: BTreeSet<RuntimeAppPermission>,
+    /// Runtime-facing intent declaration.
+    pub intents: RuntimeAppIntentDeclaration,
+    /// Runtime-facing notification declaration.
+    pub notifications: RuntimeAppNotificationDeclaration,
+    /// Runtime-facing background execution declaration.
+    pub background: RuntimeAppBackgroundDeclaration,
+    /// Runtime-facing service declaration.
+    pub services: RuntimeAppServiceDeclaration,
+    /// Runtime-facing document declaration.
+    pub document: RuntimeAppDocumentDeclaration,
+    /// Runtime-facing credential declaration.
+    pub credentials: RuntimeAppCredentialDeclaration,
+    /// Runtime-facing location declaration.
+    pub location: RuntimeAppLocationDeclaration,
+}
+
+/// Runtime-facing intent declaration used by Host request checks.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeAppIntentDeclaration {
+    /// Declared outbound URL query schemes.
+    pub query_schemes: BTreeSet<String>,
+    /// Whether the app declares outbound local file sharing.
+    pub shares_files: bool,
+    /// URL schemes that activate the app inbound.
+    pub handled_schemes: BTreeSet<String>,
+    /// Verified web domains associated with direct app activation.
+    pub verified_domains: BTreeSet<String>,
+    /// File types the app declares for inbound open activation.
+    pub handled_file_types: BTreeSet<String>,
+    /// Whether the app declares inbound shared-text activation.
+    pub receives_shared_text: bool,
+    /// Share payload types the app declares for inbound activation.
+    pub handled_share_types: BTreeSet<String>,
+    /// Custom actions that activate the app.
+    pub custom_actions: BTreeSet<String>,
+}
+
+/// Runtime-facing notification declaration used by Host request checks.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeAppNotificationDeclaration {
+    /// Whether notification authorization is declared.
+    pub enabled: bool,
+    /// Whether remote or push notification support is declared.
+    pub remote: bool,
+    /// Whether badge support is declared.
+    pub badges: bool,
+    /// Whether sound support is declared.
+    pub sounds: bool,
+    /// Whether time-sensitive notification support is declared.
+    pub time_sensitive: bool,
+    /// Whether critical-alert support is declared.
+    pub critical_alerts: bool,
+    /// Declared notification categories.
+    pub categories: Vec<RuntimeAppNotificationCategoryDeclaration>,
+}
+
+/// Runtime-facing notification category declaration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeAppNotificationCategoryDeclaration {
+    /// Stable notification category identifier.
+    pub identifier: String,
+    /// Stable action identifiers available for this category.
+    pub action_identifiers: BTreeSet<String>,
+}
+
+/// Runtime-facing background declaration used by Host request checks.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeAppBackgroundDeclaration {
+    /// Declared background execution modes.
+    pub modes: BTreeSet<RuntimeAppBackgroundMode>,
+}
+
+/// Runtime-facing background mode selector.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum RuntimeAppBackgroundMode {
+    /// Audio playback or capture in the background.
+    Audio,
+    /// Location updates in the background.
+    Location,
+    /// Periodic background fetch.
+    Fetch,
+    /// General background processing.
+    Processing,
+    /// Remote notification wake handling.
+    RemoteNotifications,
+    /// Voice over IP background mode.
+    Voip,
+    /// Bluetooth central mode.
+    BluetoothCentral,
+    /// Bluetooth peripheral mode.
+    BluetoothPeripheral,
+    /// Motion sensor processing in the background.
+    Motion,
+    /// Picture-in-picture presentation.
+    PictureInPicture,
+}
+
+impl From<TargetAppBackgroundMode> for RuntimeAppBackgroundMode {
+    fn from(mode: TargetAppBackgroundMode) -> Self {
+        match mode {
+            TargetAppBackgroundMode::Audio => Self::Audio,
+            TargetAppBackgroundMode::Location => Self::Location,
+            TargetAppBackgroundMode::Fetch => Self::Fetch,
+            TargetAppBackgroundMode::Processing => Self::Processing,
+            TargetAppBackgroundMode::RemoteNotifications => Self::RemoteNotifications,
+            TargetAppBackgroundMode::Voip => Self::Voip,
+            TargetAppBackgroundMode::BluetoothCentral => Self::BluetoothCentral,
+            TargetAppBackgroundMode::BluetoothPeripheral => Self::BluetoothPeripheral,
+            TargetAppBackgroundMode::Motion => Self::Motion,
+            TargetAppBackgroundMode::PictureInPicture => Self::PictureInPicture,
+        }
+    }
+}
+
+/// Runtime-facing service declaration used by Host request checks.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeAppServiceDeclaration {
+    /// Declared foreground service classes.
+    pub foreground_modes: BTreeSet<RuntimeAppForegroundMode>,
+}
+
+/// Runtime-facing foreground service selector.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum RuntimeAppForegroundMode {
+    /// Audio playback or long-running audio work.
+    Audio,
+    /// Location tracking or navigation work.
+    Location,
+    /// Camera capture work.
+    Camera,
+    /// Microphone capture work.
+    Microphone,
+    /// Connected-device communication work.
+    ConnectedDevice,
+    /// Data synchronization work.
+    DataSync,
+    /// Media projection or screen-capture work.
+    ScreenCapture,
+    /// Phone-call or voice-call work.
+    PhoneCall,
+    /// Remote messaging work.
+    RemoteMessaging,
+    /// Health or fitness sensor work.
+    Health,
+}
+
+impl From<TargetAppForegroundMode> for RuntimeAppForegroundMode {
+    fn from(mode: TargetAppForegroundMode) -> Self {
+        match mode {
+            TargetAppForegroundMode::Audio => Self::Audio,
+            TargetAppForegroundMode::Location => Self::Location,
+            TargetAppForegroundMode::Camera => Self::Camera,
+            TargetAppForegroundMode::Microphone => Self::Microphone,
+            TargetAppForegroundMode::ConnectedDevice => Self::ConnectedDevice,
+            TargetAppForegroundMode::DataSync => Self::DataSync,
+            TargetAppForegroundMode::ScreenCapture => Self::ScreenCapture,
+            TargetAppForegroundMode::PhoneCall => Self::PhoneCall,
+            TargetAppForegroundMode::RemoteMessaging => Self::RemoteMessaging,
+            TargetAppForegroundMode::Health => Self::Health,
+        }
+    }
+}
+
+/// Runtime-facing document declaration used by Host request checks.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeAppDocumentDeclaration {
+    /// Types the app declares for document import or open.
+    pub open_types: BTreeSet<String>,
+    /// Types the app declares for document export or save.
+    pub save_types: BTreeSet<String>,
+    /// Whether the app declares open-in-place support.
+    pub supports_open_in_place: bool,
+}
+
+/// Runtime-facing credential declaration used by Host request checks.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeAppCredentialDeclaration {
+    /// Human-facing biometric usage text.
+    pub biometric_usage: Option<String>,
+    /// Shared secure-store access groups.
+    pub access_groups: BTreeSet<String>,
+    /// Shared web credential domains.
+    pub credential_domains: BTreeSet<String>,
+}
+
+/// Runtime-facing location declaration used by Host request checks.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeAppLocationDeclaration {
+    /// Whether background location updates are declared.
+    pub allows_background_updates: bool,
+    /// Whether precise location is declared as the default behavior.
+    pub precise_by_default: bool,
+    /// Purpose keys for temporarily requesting precise location.
+    pub temporary_precise_purposes: BTreeSet<String>,
+}
+
+impl From<&TargetAppNotificationCategoryDeclaration> for RuntimeAppNotificationCategoryDeclaration {
+    fn from(category: &TargetAppNotificationCategoryDeclaration) -> Self {
+        Self {
+            identifier: category.identifier.clone(),
+            action_identifiers: category
+                .actions
+                .iter()
+                .map(|action| action.identifier.clone())
+                .collect(),
+        }
+    }
+}
+
+impl From<&TargetAppDeclaration> for RuntimeAppDeclaration {
+    fn from(declaration: &TargetAppDeclaration) -> Self {
+        // permissions
+        let permissions = declaration
+            .permissions
+            .keys()
+            .copied()
+            .map(RuntimeAppPermission::from)
+            .collect();
+
+        // runtime app declaration
+        Self {
+            permissions,
+            intents: RuntimeAppIntentDeclaration {
+                query_schemes: declaration.intents.query_schemes.iter().cloned().collect(),
+                shares_files: declaration.intents.shares_files,
+                handled_schemes: declaration
+                    .intents
+                    .handled_schemes
+                    .iter()
+                    .cloned()
+                    .collect(),
+                verified_domains: declaration
+                    .intents
+                    .verified_domains
+                    .iter()
+                    .cloned()
+                    .collect(),
+                handled_file_types: declaration
+                    .intents
+                    .handled_file_types
+                    .iter()
+                    .cloned()
+                    .collect(),
+                receives_shared_text: declaration.intents.receives_shared_text,
+                handled_share_types: declaration
+                    .intents
+                    .handled_share_types
+                    .iter()
+                    .cloned()
+                    .collect(),
+                custom_actions: declaration.intents.custom_actions.iter().cloned().collect(),
+            },
+            notifications: RuntimeAppNotificationDeclaration {
+                enabled: declaration.notifications.enabled,
+                remote: declaration.notifications.remote,
+                badges: declaration.notifications.badges,
+                sounds: declaration.notifications.sounds,
+                time_sensitive: declaration.notifications.time_sensitive,
+                critical_alerts: declaration.notifications.critical_alerts,
+                categories: declaration
+                    .notifications
+                    .categories
+                    .iter()
+                    .map(Into::into)
+                    .collect(),
+            },
+            background: RuntimeAppBackgroundDeclaration {
+                modes: declaration
+                    .background
+                    .modes
+                    .iter()
+                    .copied()
+                    .map(Into::into)
+                    .collect(),
+            },
+            services: RuntimeAppServiceDeclaration {
+                foreground_modes: declaration
+                    .services
+                    .foreground_modes
+                    .iter()
+                    .copied()
+                    .map(Into::into)
+                    .collect(),
+            },
+            document: RuntimeAppDocumentDeclaration {
+                open_types: declaration.document.open_types.iter().cloned().collect(),
+                save_types: declaration.document.save_types.iter().cloned().collect(),
+                supports_open_in_place: declaration.document.supports_open_in_place,
+            },
+            credentials: RuntimeAppCredentialDeclaration {
+                biometric_usage: declaration.credentials.biometric_usage.clone(),
+                access_groups: declaration
+                    .credentials
+                    .access_groups
+                    .iter()
+                    .cloned()
+                    .collect(),
+                credential_domains: declaration
+                    .credentials
+                    .credential_domains
+                    .iter()
+                    .cloned()
+                    .collect(),
+            },
+            location: RuntimeAppLocationDeclaration {
+                allows_background_updates: declaration.location.allows_background_updates,
+                precise_by_default: declaration.location.precise_by_default,
+                temporary_precise_purposes: declaration
+                    .location
+                    .temporary_precise_purposes
+                    .iter()
+                    .cloned()
+                    .collect(),
+            },
+        }
+    }
+}
+
+/// Runtime-facing permission selector used by Host availability checks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum RuntimeAppPermission {
+    /// Foreground location access.
+    Location,
+    /// Background location access.
+    LocationBackground,
+    /// Camera access.
+    Camera,
+    /// Microphone access.
+    Microphone,
+    /// Bluetooth access.
+    Bluetooth,
+    /// Notification delivery access.
+    Notifications,
+    /// Contacts read access.
+    ContactsRead,
+    /// Contacts write access.
+    ContactsWrite,
+    /// Media-library read access.
+    MediaRead,
+    /// Media-library write access.
+    MediaWrite,
+    /// Motion or activity sensor access.
+    Motion,
+    /// Clipboard read access.
+    ClipboardRead,
+    /// Calendar read access.
+    CalendarRead,
+    /// Calendar write access.
+    CalendarWrite,
+}
+
+impl From<TargetAppPermission> for RuntimeAppPermission {
+    fn from(permission: TargetAppPermission) -> Self {
+        match permission {
+            TargetAppPermission::Location => Self::Location,
+            TargetAppPermission::LocationBackground => Self::LocationBackground,
+            TargetAppPermission::Camera => Self::Camera,
+            TargetAppPermission::Microphone => Self::Microphone,
+            TargetAppPermission::Bluetooth => Self::Bluetooth,
+            TargetAppPermission::Notifications => Self::Notifications,
+            TargetAppPermission::ContactsRead => Self::ContactsRead,
+            TargetAppPermission::ContactsWrite => Self::ContactsWrite,
+            TargetAppPermission::MediaRead => Self::MediaRead,
+            TargetAppPermission::MediaWrite => Self::MediaWrite,
+            TargetAppPermission::Motion => Self::Motion,
+            TargetAppPermission::ClipboardRead => Self::ClipboardRead,
+            TargetAppPermission::CalendarRead => Self::CalendarRead,
+            TargetAppPermission::CalendarWrite => Self::CalendarWrite,
+        }
+    }
+}
+
 /// Runtime execution options for scheduler, time, randomness, and heap behavior.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeOptions {
@@ -44,6 +426,8 @@ pub struct RuntimeOptions {
     pub labels: BTreeMap<String, String>,
     /// Default primary agent identity for policy selection.
     pub primary_agent: RuntimeAgentOptions,
+    /// Resolved target app declaration for host availability checks.
+    pub app: RuntimeAppDeclaration,
     /// Execution mode for runtime scheduling and replay.
     pub execution: ExecutionMode,
     /// Default world for bindings without a matching rule.

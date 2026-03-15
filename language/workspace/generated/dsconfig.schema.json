@@ -4866,6 +4866,13 @@
             "type": "string"
           }
         },
+        "sharesFiles": {
+          "description": "Whether the app may share local files through outbound host routes.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "handledSchemes": {
           "description": "URL schemes that activate the app inbound.",
           "type": [
