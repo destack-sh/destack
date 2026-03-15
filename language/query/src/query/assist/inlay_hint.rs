@@ -132,12 +132,12 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
                     Some(name) => name.as_str(),
                     None => continue,
                 };
-                let argument_is_literal = argument_is_literal(&dir_tree, argument);
+                let argument_is_literal = argument_is_literal(dir_tree, argument);
 
                 // skip hints for arguments that already carry labels or match the name
                 if should_skip_parameter_hint(
                     session,
-                    &dir_tree,
+                    dir_tree,
                     argument,
                     param_name,
                     argument_is_literal,
@@ -195,7 +195,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
                     let type_str = format_type_for_inlay_hint(
                         ty,
                         &ctx.program.artifacts,
-                        &types,
+                        types,
                         &session.modules,
                         &session.strings,
                     );

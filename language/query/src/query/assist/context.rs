@@ -316,7 +316,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
                 if let dir::Expression::Member { left, .. } = expr {
                     let receiver_local: dir::LocalNodeIdAny = (*left).into();
                     let receiver_global = receiver_local.into_global(ctx.module_id);
-                    let receiver_symbol = get_expression_symbol(&dir_tree, *left);
+                    let receiver_symbol = get_expression_symbol(dir_tree, *left);
 
                     // resolve the receiver type after the tree borrow ends
                     let receiver_type =
@@ -523,7 +523,7 @@ fn get_receiver_type(
         {
             let types = ctx.types();
             let symbols = ctx.symbols();
-            if let Some(type_id) = types.get_type_id_for_symbol(&symbols, symbol_id) {
+            if let Some(type_id) = types.get_type_id_for_symbol(symbols, symbol_id) {
                 return Some(type_id);
             }
         }
@@ -591,7 +591,7 @@ fn get_receiver_type(
         {
             let types = ctx.types();
             let symbols = ctx.symbols();
-            if let Some(type_id) = types.get_type_id_for_symbol(&symbols, type_symbol) {
+            if let Some(type_id) = types.get_type_id_for_symbol(symbols, type_symbol) {
                 return Some(type_id);
             }
         }
@@ -631,13 +631,13 @@ fn member_access_context_at_offset(
 
         // unwrap statement expressions to the inner expression
         let (actual_node_id, actual_expr) =
-            unwrap_statement_expression(&dir_tree, dir_node_id, expr);
+            unwrap_statement_expression(dir_tree, dir_node_id, expr);
 
         // prefer the member left operand as the receiver
         if let dir::Expression::Member { left, .. } = actual_expr {
             let receiver_local: dir::LocalNodeIdAny = (*left).into();
             let receiver_global = receiver_local.into_global(ctx.module_id);
-            let receiver_symbol = get_expression_symbol(&dir_tree, *left);
+            let receiver_symbol = get_expression_symbol(dir_tree, *left);
             if receiver_symbol.is_none() {
                 if fallback_context.is_none() {
                     fallback_context = Some(CompletionContext::MemberAccess {
@@ -742,11 +742,11 @@ fn member_access_context_from_tokens(
             };
             let expr = dir_tree.get::<dir::Expression>(expr_id);
             let (actual_node_id, actual_expr) =
-                unwrap_statement_expression(&dir_tree, dir_node_id, expr);
+                unwrap_statement_expression(dir_tree, dir_node_id, expr);
 
             if let dir::Expression::Member { left, .. } = actual_expr {
                 let receiver_local: dir::LocalNodeIdAny = (*left).into();
-                let receiver_local_symbol = get_expression_symbol(&dir_tree, *left);
+                let receiver_local_symbol = get_expression_symbol(dir_tree, *left);
 
                 if fallback_receiver_node.is_none() {
                     fallback_receiver_node = Some(receiver_local);
@@ -784,7 +784,7 @@ fn member_access_context_from_tokens(
         if let Some(scope) = find_scope_at_offset(ctx, receiver_offset) {
             receiver_symbol = resolve_member_receiver_symbol_in_scope(
                 session,
-                &symbols,
+                symbols,
                 receiver_name,
                 scope.scope_id,
                 scope.scope_mark,
@@ -794,7 +794,7 @@ fn member_access_context_from_tokens(
         if receiver_symbol.is_none() {
             receiver_symbol = resolve_member_receiver_symbol_in_scope(
                 session,
-                &symbols,
+                symbols,
                 receiver_name,
                 ctx.dir.namespace_scope,
                 dir::LocalScopeMark::end(),
@@ -920,7 +920,7 @@ fn fallback_type_name_from_receiver_binding(
     let mut best_match = None;
 
     for (declarator_id, declarator) in dir_tree.iter_nodes_of_type::<dir::Declarator>() {
-        let Some(binding_name) = binding_name_for_pattern(&dir_tree, session, declarator.pattern)
+        let Some(binding_name) = binding_name_for_pattern(dir_tree, session, declarator.pattern)
         else {
             continue;
         };
@@ -928,18 +928,18 @@ fn fallback_type_name_from_receiver_binding(
             continue;
         }
 
-        let declarator_span = span_for_dir_node(ctx, &dir_tree, declarator_id.into());
+        let declarator_span = span_for_dir_node(ctx, dir_tree, declarator_id.into());
         if declarator_span.file != ctx.file_id || declarator_span.start > receiver_offset {
             continue;
         }
 
         let type_name = declarator
             .ty
-            .and_then(|ty| nominal_type_name_for_expression(&dir_tree, session, ty))
+            .and_then(|ty| nominal_type_name_for_expression(dir_tree, session, ty))
             .or_else(|| {
                 declarator
                     .value
-                    .and_then(|value| nominal_type_name_for_expression(&dir_tree, session, value))
+                    .and_then(|value| nominal_type_name_for_expression(dir_tree, session, value))
             });
         let Some(type_name) = type_name else {
             continue;
@@ -1536,7 +1536,7 @@ fn find_scope_at_offset(
             if let Ok(block_id) = block_id {
                 let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
                 let scope_mark =
-                    scope_mark_for_scope_at_offset(ctx, &dir_tree, &symbols, scope_id, offset);
+                    scope_mark_for_scope_at_offset(ctx, dir_tree, symbols, scope_id, offset);
                 return Some(ScopeAtOffset {
                     scope_id,
                     scope_mark,
@@ -1557,7 +1557,7 @@ fn find_scope_at_offset(
             if let Ok(expr_id) = expr_id {
                 let (scope_id, _) = dir_tree.get_scope::<dir::Expression>(expr_id);
                 let scope_mark =
-                    scope_mark_for_scope_at_offset(ctx, &dir_tree, &symbols, scope_id, offset);
+                    scope_mark_for_scope_at_offset(ctx, dir_tree, symbols, scope_id, offset);
                 return Some(ScopeAtOffset {
                     scope_id,
                     scope_mark,
@@ -1567,7 +1567,7 @@ fn find_scope_at_offset(
 
         // for Declaration nodes, find the owned scope if this is a function/class
         if dir_node_id.ty == dir::NodeType::Declaration {
-            let scope_id = find_owned_scope_for_declaration(&symbols, dir_node_id.id);
+            let scope_id = find_owned_scope_for_declaration(symbols, dir_node_id.id);
             if let Some(scope_id) = scope_id {
                 return Some(ScopeAtOffset {
                     scope_id,
@@ -1583,7 +1583,7 @@ fn find_scope_at_offset(
             let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(parent_id) else {
                 if ctx.ast.tree.get_node_type(parent_id) == ast::NodeType::Declaration {
                     let scope_id =
-                        find_owned_scope_for_ast_declaration(&symbols, &dir_tree, parent_id);
+                        find_owned_scope_for_ast_declaration(symbols, dir_tree, parent_id);
                     if let Some(scope_id) = scope_id {
                         return Some(ScopeAtOffset {
                             scope_id,
@@ -1600,7 +1600,7 @@ fn find_scope_at_offset(
                 if let Ok(block_id) = block_id {
                     let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
                     let scope_mark =
-                        scope_mark_for_scope_at_offset(ctx, &dir_tree, &symbols, scope_id, offset);
+                        scope_mark_for_scope_at_offset(ctx, dir_tree, symbols, scope_id, offset);
                     return Some(ScopeAtOffset {
                         scope_id,
                         scope_mark,
@@ -1613,7 +1613,7 @@ fn find_scope_at_offset(
                 if let Ok(expr_id) = expr_id {
                     let (scope_id, _) = dir_tree.get_scope::<dir::Expression>(expr_id);
                     let scope_mark =
-                        scope_mark_for_scope_at_offset(ctx, &dir_tree, &symbols, scope_id, offset);
+                        scope_mark_for_scope_at_offset(ctx, dir_tree, symbols, scope_id, offset);
                     return Some(ScopeAtOffset {
                         scope_id,
                         scope_mark,
@@ -1622,7 +1622,7 @@ fn find_scope_at_offset(
             }
 
             if dir_node_id.ty == dir::NodeType::Declaration {
-                let scope_id = find_owned_scope_for_declaration(&symbols, dir_node_id.id);
+                let scope_id = find_owned_scope_for_declaration(symbols, dir_node_id.id);
                 if let Some(scope_id) = scope_id {
                     return Some(ScopeAtOffset {
                         scope_id,
@@ -1637,7 +1637,7 @@ fn find_scope_at_offset(
     let mut best_block = None;
     let mut best_length = u32::MAX;
     for (block_id, _) in dir_tree.iter_nodes_of_type::<dir::Block>() {
-        let span = span_for_dir_node(ctx, &dir_tree, block_id.into());
+        let span = span_for_dir_node(ctx, dir_tree, block_id.into());
         if span.file != ctx.file_id {
             continue;
         }
@@ -1654,7 +1654,7 @@ fn find_scope_at_offset(
 
     if let Some(block_id) = best_block {
         let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
-        let scope_mark = scope_mark_for_scope_at_offset(ctx, &dir_tree, &symbols, scope_id, offset);
+        let scope_mark = scope_mark_for_scope_at_offset(ctx, dir_tree, symbols, scope_id, offset);
         return Some(ScopeAtOffset {
             scope_id,
             scope_mark,
@@ -1726,14 +1726,14 @@ fn detect_object_literal_context(
             dir::Expression::ObjectExpression { properties } => {
                 // extract existing field names
                 let existing_fields =
-                    extract_property_names(&dir_tree, properties, &session.strings);
+                    extract_property_names(dir_tree, properties, &session.strings);
 
                 // resolve expected type from contextual typing when possible
                 let expected_type = expected_type_for_object_literal(
                     ctx,
-                    &dir_tree,
-                    &symbols,
-                    &types,
+                    dir_tree,
+                    symbols,
+                    types,
                     dir_node_id,
                     expr_id,
                 );
@@ -1752,7 +1752,7 @@ fn detect_object_literal_context(
             dir::Expression::TaggedObjectExpression { ty, properties } => {
                 // extract existing field names
                 let existing_fields =
-                    extract_property_names(&dir_tree, properties, &session.strings);
+                    extract_property_names(dir_tree, properties, &session.strings);
 
                 // for tagged object, the type comes from the tag expression
                 let ty_node_id: dir::LocalNodeIdAny = (*ty).into();
@@ -1923,7 +1923,7 @@ fn detect_object_literal_value_scope(ctx: &QueryContext<'_>, offset: u32) -> Opt
 
         // resolve the scope and return the value context
         let (scope_id, _) = dir_tree.get_scope::<dir::Expression>(expr_id);
-        let scope_mark = scope_mark_for_scope_at_offset(ctx, &dir_tree, &symbols, scope_id, offset);
+        let scope_mark = scope_mark_for_scope_at_offset(ctx, dir_tree, symbols, scope_id, offset);
         return Some(ScopeAtOffset {
             scope_id,
             scope_mark,
@@ -1949,8 +1949,7 @@ fn detect_new_expression_context(
     // scan spans for a new expression containing the cursor
     for enc in &enclosing {
         // try to build a context for this span
-        if let Some(context) =
-            new_expression_context_for_span(ctx, &dir_tree, &symbols, enc, offset)
+        if let Some(context) = new_expression_context_for_span(ctx, dir_tree, symbols, enc, offset)
         {
             return Some(context);
         }
@@ -2030,8 +2029,7 @@ fn detect_call_argument_context(ctx: &QueryContext<'_>, offset: u32) -> Option<C
     // scan spans for a call or new expression argument list
     for enc in &enclosing {
         // try to build a context for this span
-        if let Some(context) = call_argument_context_for_span(ctx, &dir_tree, &symbols, enc, offset)
-        {
+        if let Some(context) = call_argument_context_for_span(ctx, dir_tree, symbols, enc, offset) {
             return Some(context);
         }
     }
@@ -2210,7 +2208,7 @@ fn scope_from_block_span(
     };
 
     let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
-    let scope_mark = scope_mark_for_scope_at_offset(ctx, &dir_tree, &symbols, scope_id, offset);
+    let scope_mark = scope_mark_for_scope_at_offset(ctx, dir_tree, symbols, scope_id, offset);
 
     Some(ScopeAtOffset {
         scope_id,

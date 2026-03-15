@@ -147,7 +147,7 @@ fn extract_expression(
     let dir_tree = ctx.tree();
     let expression = dir_tree.get::<dir::Expression>(expr_id);
     let mut control_flow = ControlFlowVisitor::new();
-    control_flow.visit_expression(&dir_tree, expr_id, expression);
+    control_flow.visit_expression(dir_tree, expr_id, expression);
     if control_flow.has_forbidden {
         return None;
     }
@@ -165,7 +165,7 @@ fn extract_expression(
         format_type_for_inlay_hint(
             ty,
             &ctx.program.artifacts,
-            &types,
+            types,
             &session.modules,
             &session.strings,
         )
@@ -320,7 +320,7 @@ fn resolve_statement_selection(
     let mut best_block: Option<(dir::LocalNodeId<dir::Block>, Span, u32)> = None;
 
     for (block_id, _block) in dir_tree.iter_nodes_of_type::<dir::Block>() {
-        let span = span_for_dir_node(ctx, &dir_tree, block_id.into());
+        let span = span_for_dir_node(ctx, dir_tree, block_id.into());
         if !span_contains_span(span, selection) {
             continue;
         }
@@ -352,7 +352,7 @@ fn resolve_statement_selection(
     let mut has_partial = false;
 
     for (idx, expr_id) in container_expressions.iter().enumerate() {
-        let span = span_for_dir_node(ctx, &dir_tree, (*expr_id).into());
+        let span = span_for_dir_node(ctx, dir_tree, (*expr_id).into());
         let intersects = span.start < selection.end && span.end > selection.start;
         if !intersects {
             continue;
@@ -401,7 +401,7 @@ fn selection_contains_control_flow(ctx: &QueryContext<'_>, selection: &Statement
     for idx in selection.selected_range.clone() {
         let expr_id = selection.container_expressions[idx];
         let expression = dir_tree.get::<dir::Expression>(expr_id);
-        visitor.visit_expression(&dir_tree, expr_id, expression);
+        visitor.visit_expression(dir_tree, expr_id, expression);
         if visitor.has_forbidden {
             return true;
         }
@@ -419,7 +419,7 @@ fn selection_contains_await(ctx: &QueryContext<'_>, selection: &StatementSelecti
     for idx in selection.selected_range.clone() {
         let expr_id = selection.container_expressions[idx];
         let expression = dir_tree.get::<dir::Expression>(expr_id);
-        visitor.visit_expression(&dir_tree, expr_id, expression);
+        visitor.visit_expression(dir_tree, expr_id, expression);
         if visitor.has_await {
             return true;
         }
@@ -437,7 +437,7 @@ fn expression_contains_await(
     let dir_tree = ctx.tree();
     let expression = dir_tree.get::<dir::Expression>(expr_id);
     let mut visitor = AwaitVisitor::new();
-    visitor.visit_expression(&dir_tree, expr_id, expression);
+    visitor.visit_expression(dir_tree, expr_id, expression);
     visitor.has_await
 }
 
@@ -456,7 +456,7 @@ fn collect_output_symbols(
         for expr_id in selection.container_expressions.iter().skip(last_index + 1) {
             let expression = dir_tree.get::<dir::Expression>(*expr_id);
             let mut visitor = ReferenceCollector::new(&mut referenced_after);
-            visitor.visit_expression(&dir_tree, *expr_id, expression);
+            visitor.visit_expression(dir_tree, *expr_id, expression);
         }
     }
 
@@ -489,7 +489,7 @@ fn collect_output_symbols(
                 format_type_for_inlay_hint(
                     ty,
                     &ctx.program.artifacts,
-                    &types,
+                    types,
                     &session.modules,
                     &session.strings,
                 )
@@ -645,7 +645,7 @@ fn collect_free_variables(
     let mut vars: Vec<(u32, FreeVariable)> = Vec::new();
 
     for (expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-        let span = span_for_dir_node(ctx, &dir_tree, expr_id.into());
+        let span = span_for_dir_node(ctx, dir_tree, expr_id.into());
         if !span_contains_span(selection, span) {
             continue;
         }
@@ -691,7 +691,7 @@ fn collect_free_variables(
                 format_type_for_inlay_hint(
                     ty,
                     &ctx.program.artifacts,
-                    &types,
+                    types,
                     &session.modules,
                     &session.strings,
                 )
@@ -734,7 +734,7 @@ fn symbol_type_text(
         let type_text = format_local_type(
             type_id,
             &ctx.program.artifacts,
-            &ctx.types(),
+            ctx.types(),
             &session.modules,
             &session.strings,
         );
@@ -759,7 +759,7 @@ fn symbol_type_text(
     let type_text = format_local_type(
         type_id,
         &ctx.program.artifacts,
-        &ctx.types(),
+        ctx.types(),
         &session.modules,
         &session.strings,
     );

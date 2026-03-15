@@ -79,10 +79,10 @@ pub fn workspace_symbols(
             let kind = declaration_symbol_kind(declaration);
 
             // resolve container by walking up the parent chain
-            let container = container_name_for_node(&dir_tree, &session.strings, declaration_id.id);
+            let container = container_name_for_node(dir_tree, &session.strings, declaration_id.id);
 
             // resolve the declaration span
-            let Some(range) = span_for_dir_node_safe(&ctx, &dir_tree, declaration_id.id) else {
+            let Some(range) = span_for_dir_node_safe(&ctx, dir_tree, declaration_id.id) else {
                 continue;
             };
 
@@ -104,7 +104,7 @@ pub fn workspace_symbols(
             if let Some(member_ids) = declaration.member_ids() {
                 for member_id in member_ids {
                     let Some(member_symbol) =
-                        member_to_workspace_symbol(session, &ctx, &dir_tree, *member_id, &name)
+                        member_to_workspace_symbol(session, &ctx, dir_tree, *member_id, &name)
                     else {
                         continue;
                     };
@@ -121,7 +121,7 @@ pub fn workspace_symbols(
             if let dir::Declaration::Enum { fields, .. } = declaration {
                 for field_id in fields {
                     let Some(field_symbol) =
-                        enum_field_to_workspace_symbol(session, &ctx, &dir_tree, *field_id, &name)
+                        enum_field_to_workspace_symbol(session, &ctx, dir_tree, *field_id, &name)
                     else {
                         continue;
                     };

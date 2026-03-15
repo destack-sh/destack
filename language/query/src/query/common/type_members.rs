@@ -322,7 +322,7 @@ pub(crate) fn resolve_reference_members(
 
     // resolve direct members from the symbol definition
     let mut members =
-        resolve_local_symbol_members(symbol_id.local_id, &types, &symbols, &session.strings);
+        resolve_local_symbol_members(symbol_id.local_id, types, symbols, &session.strings);
 
     // merge extension members for this symbol
     let extension_members =

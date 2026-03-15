@@ -345,7 +345,7 @@ fn find_symbol_at_offset_impl(
                 }
 
                 if let Some(symbol_at) =
-                    pattern_field_symbol_at_offset(session, &ctx, &dir_tree, field_id, offset)
+                    pattern_field_symbol_at_offset(session, &ctx, dir_tree, field_id, offset)
                 {
                     return Some(symbol_at);
                 }

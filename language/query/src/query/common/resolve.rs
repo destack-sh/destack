@@ -190,7 +190,7 @@ pub(crate) fn nominal_symbol_for_expression(
         // resolve type information for the target symbol
         let types = ctx.types();
         let symbols = ctx.symbols();
-        type_id = types.get_type_id_for_symbol(&symbols, target_symbol);
+        type_id = types.get_type_id_for_symbol(symbols, target_symbol);
 
         // fall back to resolving from the target symbol initializer
         if type_id.is_none() {
@@ -201,7 +201,7 @@ pub(crate) fn nominal_symbol_for_expression(
     // resolve the nominal symbol from the resolved type id
     let type_id = type_id?;
     let types = ctx.types();
-    resolve_nominal_symbol_from_type(&types, type_id)
+    resolve_nominal_symbol_from_type(types, type_id)
 }
 
 /// Resolve the nominal symbol for a type id.
@@ -330,7 +330,7 @@ fn resolve_member_symbol_from_declaration(
     // resolve members declared on the type
     let member_ids = declaration.member_ids();
     if let Some(member_ids) = member_ids {
-        let symbol_id = resolve_member_from_members(session, &tree, member_ids, member_name);
+        let symbol_id = resolve_member_from_members(session, tree, member_ids, member_name);
 
         // return the member symbol when found
         if let Some(symbol_id) = symbol_id {
@@ -340,7 +340,7 @@ fn resolve_member_symbol_from_declaration(
 
     // resolve enum fields for enum declarations
     if let Declaration::Enum { fields, .. } = declaration {
-        let symbol_id = resolve_member_from_enum_fields(session, &tree, fields, member_name);
+        let symbol_id = resolve_member_from_enum_fields(session, tree, fields, member_name);
 
         // return the member symbol when found
         if let Some(symbol_id) = symbol_id {

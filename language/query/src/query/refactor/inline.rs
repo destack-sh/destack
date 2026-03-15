@@ -88,16 +88,16 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     // find the declarator that owns the symbol
     let dir_tree = ctx.tree();
     let declaration_id = declaration.local_id;
-    let (declarator_id, statement_id) = find_declarator_and_statement(&dir_tree, declaration_id)?;
+    let (declarator_id, statement_id) = find_declarator_and_statement(dir_tree, declaration_id)?;
 
     // resolve the initializer expression
-    let value_id = declarator_value(&dir_tree, declarator_id, statement_id)?;
+    let value_id = declarator_value(dir_tree, declarator_id, statement_id)?;
     let declarator = dir_tree.get::<dir::Declarator>(declarator_id);
-    let statement_span = span_for_dir_node(&ctx, &dir_tree, statement_id.into());
+    let statement_span = span_for_dir_node(&ctx, dir_tree, statement_id.into());
 
     // resolve the initializer text
     let source_file = session.files.get(file);
-    let value_span = span_for_dir_node(&ctx, &dir_tree, value_id.into());
+    let value_span = span_for_dir_node(&ctx, dir_tree, value_id.into());
     let value_expression = dir_tree.get::<dir::Expression>(value_id);
     let value_text = source_file.span_str(value_span);
     let inline_base = format_inline_expression(value_text, value_expression);
@@ -106,17 +106,13 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     }
 
     // resolve destructuring paths for inline expressions
-    let binding_count = count_pattern_bindings(&dir_tree, declarator.pattern);
+    let binding_count = count_pattern_bindings(dir_tree, declarator.pattern);
     if binding_count != 1 {
         return None;
     }
 
-    let access_path = pattern_access_path(
-        session,
-        &dir_tree,
-        declarator.pattern,
-        canonical_id.local_id,
-    )?;
+    let access_path =
+        pattern_access_path(session, dir_tree, declarator.pattern, canonical_id.local_id)?;
     let inline_text = apply_access_path(&inline_base, &access_path);
     if inline_text.is_empty() {
         return None;
@@ -154,24 +150,24 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     }
 
     // avoid duplicating side effects when inlining into multiple references
-    let has_side_effects = expression_has_side_effects(&dir_tree, value_id);
+    let has_side_effects = expression_has_side_effects(dir_tree, value_id);
     if has_side_effects && reference_entries.len() > 1 {
         return None;
     }
 
     // ensure the symbol is not reassigned
-    if symbol_is_assigned(&dir_tree, canonical_id) {
+    if symbol_is_assigned(dir_tree, canonical_id) {
         return None;
     }
 
     // avoid shadowing captured symbols in new contexts
     let captured_symbols =
-        collect_captured_symbols(session, &ctx, &dir_tree, value_id, canonical_id)?;
+        collect_captured_symbols(session, &ctx, dir_tree, value_id, canonical_id)?;
     if !captured_symbols.is_empty()
         && !inline_shadow_safe(
             session,
             &ctx,
-            &dir_tree,
+            dir_tree,
             &reference_entries,
             &captured_symbols,
         )
@@ -191,7 +187,7 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     }
 
     // remove the declaration statement or declarator
-    let declarator_spans = statement_declarator_spans(&ctx, &dir_tree, statement_id)?;
+    let declarator_spans = statement_declarator_spans(&ctx, dir_tree, statement_id)?;
     let removal_span = declarator_removal_span(
         source_file.text(),
         statement_span,
@@ -277,7 +273,7 @@ fn collect_inline_reference_entries(
             continue;
         }
 
-        let span = reference_span_for_expression(ctx, &dir_tree, expr_id);
+        let span = reference_span_for_expression(ctx, dir_tree, expr_id);
         if span.file != file {
             continue;
         }
@@ -316,7 +312,7 @@ fn collect_inline_reference_entries(
             continue;
         }
 
-        let Some(expr_id) = property_parent_expression(&dir_tree, property_id) else {
+        let Some(expr_id) = property_parent_expression(dir_tree, property_id) else {
             continue;
         };
         let (scope_id, scope_mark) = dir_tree.get_scope::<dir::Expression>(expr_id);
@@ -324,7 +320,7 @@ fn collect_inline_reference_entries(
             continue;
         };
         let Some(resolved_local) =
-            resolve_symbol_in_scope(&symbols, scope_id, scope_mark, static_key)
+            resolve_symbol_in_scope(symbols, scope_id, scope_mark, static_key)
         else {
             continue;
         };
@@ -334,7 +330,7 @@ fn collect_inline_reference_entries(
             continue;
         }
 
-        let Some(span) = main_span_for_dir_node(ctx, &dir_tree, property_id.into()) else {
+        let Some(span) = main_span_for_dir_node(ctx, dir_tree, property_id.into()) else {
             continue;
         };
         if span.file != file {
@@ -723,7 +719,7 @@ fn collect_captured_symbols(
     let expression = dir_tree.get::<dir::Expression>(value_id);
     let mut visitor = CapturedSymbolVisitor::new(
         session,
-        &symbols,
+        symbols,
         ctx.module_id,
         inline_symbol,
         &mut captured,
@@ -761,7 +757,7 @@ fn inline_shadow_safe(
         let (scope_id, scope_mark) = dir_tree.get_scope::<dir::Expression>(entry.expr_id);
         for captured in captured_symbols {
             let Some(resolved_local) =
-                resolve_symbol_in_scope(&symbols, scope_id, scope_mark, captured.name_key)
+                resolve_symbol_in_scope(symbols, scope_id, scope_mark, captured.name_key)
             else {
                 return false;
             };

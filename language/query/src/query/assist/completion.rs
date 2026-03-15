@@ -10,14 +10,14 @@ use serde::{Deserialize, Serialize};
 
 use super::context::{CompletionContext, ContextResult, detect_completion_context};
 use crate::common::{
-    ImportEditMode, MemberInfo, MemberKind, MemberName, build_import_display_path,
+    ImportEditMode, MemberInfo, MemberKind, MemberName, QueryContext, build_import_display_path,
     build_import_edits_with_mode, doc_text_for_symbol, dynamic_parameter_names,
     ensure_program_export_index, get_canonical_symbol, get_module_by_file_id,
     matches_symbol_space_filter, module_name_from_path, owned_scope_for_symbol,
     path_component_count, path_distance, program_for_file, query_context,
     resolve_extension_members_for_symbol, resolve_nominal_symbol_from_initializer,
     resolve_reference_members, resolve_symbol_name, resolve_type_members, score_completion,
-    search_importable_symbols_for_program, visible_symbols, QueryContext,
+    search_importable_symbols_for_program, visible_symbols,
 };
 use crate::format::format_local_type;
 use destack_workspace::{ArtifactRegistry, Loader, Session};
@@ -425,7 +425,7 @@ fn format_symbol_type_detail(session: &Session, symbol_id: dir::GlobalSymbolId) 
     Some(format_local_type(
         type_id,
         &ctx.program.artifacts,
-        &types,
+        types,
         &session.modules,
         &session.strings,
     ))
@@ -696,7 +696,7 @@ fn collect_visible_names(
     let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
     // walk visible symbols in scope order
-    for visible in visible_symbols(&symbols, scope_id, mark, space_filter) {
+    for visible in visible_symbols(symbols, scope_id, mark, space_filter) {
         // resolve the symbol name key
         let dir::StaticKey::Name(name_id) = visible.key else {
             continue;
@@ -1060,11 +1060,11 @@ fn complete_members(
         // resolve members from the type
         let types = ctx.types();
         let symbols = ctx.symbols();
-        let members = resolve_type_members(&types, &symbols, type_id, session, current_module_id);
+        let members = resolve_type_members(types, symbols, type_id, session, current_module_id);
 
         for member in members {
             let Some(completion) =
-                completion_for_member(session, &ctx.program.artifacts, member, Some(&types))
+                completion_for_member(session, &ctx.program.artifacts, member, Some(types))
             else {
                 continue;
             };
@@ -1140,7 +1140,7 @@ fn complete_members(
             let mut scoped_results = Vec::new();
 
             // get the scope owned by this symbol (for types like struct/class)
-            if let Some(owned_scope_id) = owned_scope_for_symbol(&symbols, symbol_id.local_id) {
+            if let Some(owned_scope_id) = owned_scope_for_symbol(symbols, symbol_id.local_id) {
                 let scope = symbols.get_scope_by_id(owned_scope_id);
 
                 // add all named symbols in the scope as member completions
@@ -1169,7 +1169,7 @@ fn complete_members(
                                 let type_text = format_local_type(
                                     type_id,
                                     &ctx.program.artifacts,
-                                    &types,
+                                    types,
                                     &session.modules,
                                     &session.strings,
                                 );
@@ -1417,7 +1417,7 @@ fn complete_object_literal(
         let current_module_id = ctx.module_id;
 
         // resolve type members
-        let members = resolve_type_members(&types, &symbols, type_id, session, current_module_id);
+        let members = resolve_type_members(types, symbols, type_id, session, current_module_id);
 
         for member in members {
             // skip non field members (methods, call signatures, etc.)
@@ -1446,7 +1446,7 @@ fn complete_object_literal(
                 let type_text = format_local_type(
                     member_type_id,
                     &ctx.program.artifacts,
-                    &types,
+                    types,
                     &session.modules,
                     &session.strings,
                 );
@@ -1469,7 +1469,7 @@ fn complete_object_literal(
         let symbols = ctx.symbols();
         let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
-        for visible in visible_symbols(&symbols, scope_id, mark, Some(SymbolSpace::Value)) {
+        for visible in visible_symbols(symbols, scope_id, mark, Some(SymbolSpace::Value)) {
             let dir::StaticKey::Name(name_id) = visible.key else {
                 continue;
             };
@@ -1548,7 +1548,7 @@ fn complete_types(
     // walk up from the scope to collect visible types
     let visible_scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
     let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
-    for visible in visible_symbols(&symbols, visible_scope_id, mark, Some(SymbolSpace::Type)) {
+    for visible in visible_symbols(symbols, visible_scope_id, mark, Some(SymbolSpace::Type)) {
         let dir::StaticKey::Name(name_id) = visible.key else {
             continue;
         };
@@ -1729,7 +1729,7 @@ fn complete_values(
         let scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
         let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
-        for visible in visible_symbols(&symbols, scope_id, mark, Some(SymbolSpace::Value)) {
+        for visible in visible_symbols(symbols, scope_id, mark, Some(SymbolSpace::Value)) {
             let dir::StaticKey::Name(name_id) = visible.key else {
                 continue;
             };
@@ -1805,7 +1805,7 @@ fn complete_new_expression(
     if let Some(scope_id) = scope_id {
         let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
-        for visible in visible_symbols(&symbols, scope_id, mark, None) {
+        for visible in visible_symbols(symbols, scope_id, mark, None) {
             // skip symbols that are not constructable
             if !is_constructable_symbol(visible.symbol.ty) {
                 continue;

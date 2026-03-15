@@ -215,7 +215,7 @@ pub fn incoming_calls(
                 };
 
                 if let Some(containing_fn) =
-                    find_containing_function(&dir_tree, module_id, expr_id.into())
+                    find_containing_function(dir_tree, module_id, expr_id.into())
                 {
                     call_sites_by_function
                         .entry(containing_fn)
@@ -289,7 +289,7 @@ pub fn outgoing_calls(
         // collect all call expressions in the body
         let mut collector = CallCollector::new(session);
         let body_expr = dir_tree.get::<Expression>(*body_id);
-        collector.visit_expression(&dir_tree, *body_id, body_expr);
+        collector.visit_expression(dir_tree, *body_id, body_expr);
 
         // get spans for collected calls
         let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
