@@ -1,10 +1,7 @@
 use std::path::PathBuf;
 
 use crate::diagnostic::RuntimeError;
-use crate::host::{
-    HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND,
-    HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK, HOST_STATUS_PERMISSION_DENIED,
-};
+use crate::host::abi::HostStatus;
 use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;
@@ -82,44 +79,39 @@ pub(super) fn host_status_result(
     operation: &'static str,
     action: &'static str,
 ) -> Result<(), Box<RuntimeError>> {
-    if status == HOST_STATUS_OK {
-        return Ok(());
-    }
-
-    if status == HOST_STATUS_NOT_SUPPORTED {
-        return Err(core_platform::not_supported(operation));
-    }
-
-    if status == HOST_STATUS_INVALID_ARGUMENT {
+    let Some(status) = HostStatus::from_code(status) else {
         return Err(invalid_data(
+            operation,
+            format!("android host crypto {action} failed with status code {status}"),
+        ));
+    };
+
+    match status {
+        HostStatus::Ok => Ok(()),
+        HostStatus::NotSupported => Err(core_platform::not_supported(operation)),
+        HostStatus::InvalidArgument => Err(invalid_data(
             operation,
             format!("android host crypto {action} reported one invalid argument"),
-        ));
-    }
-
-    if status == HOST_STATUS_NOT_FOUND {
-        return Err(invalid_data(
+        )),
+        HostStatus::NotFound => Err(invalid_data(
             operation,
             format!("android host crypto {action} could not resolve one key"),
-        ));
-    }
-
-    if status == HOST_STATUS_PERMISSION_DENIED {
-        return Err(permission_denied(
+        )),
+        HostStatus::PermissionDenied => Err(permission_denied(
             operation,
             format!("android host crypto {action} was denied"),
-        ));
-    }
-
-    if status == HOST_STATUS_FAILED {
-        return Err(invalid_data(
+        )),
+        HostStatus::BufferTooSmall => Err(invalid_data(
+            operation,
+            format!("android host crypto {action} reported one unexpectedly small output buffer"),
+        )),
+        HostStatus::Failed => Err(invalid_data(
             operation,
             format!("android host crypto {action} failed"),
-        ));
+        )),
+        HostStatus::WouldBlock => Err(invalid_data(
+            operation,
+            format!("android host crypto {action} would block unexpectedly"),
+        )),
     }
-
-    Err(invalid_data(
-        operation,
-        format!("android host crypto {action} failed with status code {status}"),
-    ))
 }

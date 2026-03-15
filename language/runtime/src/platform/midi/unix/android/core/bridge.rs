@@ -1,8 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::{
-    AndroidHostMidiEventHeader, AndroidHostMidiInputRecordHeader, AndroidHostMidiOpenedPortHeader,
-    AndroidHostMidiPortDescriptorHeader, HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED,
-    HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
+use crate::host::abi::HostStatus;
+use crate::host::android::midi::ffi::{
     destack_host_android_midi_describe_backend, destack_host_android_midi_event_close,
     destack_host_android_midi_event_open, destack_host_android_midi_event_read,
     destack_host_android_midi_input_port_close, destack_host_android_midi_input_port_list,
@@ -10,6 +8,10 @@ use crate::host::{
     destack_host_android_midi_input_virtual_create, destack_host_android_midi_output_port_close,
     destack_host_android_midi_output_port_list, destack_host_android_midi_output_port_open,
     destack_host_android_midi_output_virtual_create, destack_host_android_midi_output_write,
+};
+use crate::host::android::midi::types::{
+    AndroidHostMidiEventHeader, AndroidHostMidiInputRecordHeader, AndroidHostMidiOpenedPortHeader,
+    AndroidHostMidiPortDescriptorHeader,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::midi::core::{
@@ -60,39 +62,43 @@ pub(crate) fn host_status_result(
     operation: &'static str,
     action: &'static str,
 ) -> RuntimeResult<()> {
-    if status == HOST_STATUS_OK {
-        return Ok(());
-    }
-
-    if status == HOST_STATUS_NOT_SUPPORTED {
-        return Err(core_platform::not_supported(operation));
-    }
-
-    if status == HOST_STATUS_INVALID_ARGUMENT {
+    let Some(status) = HostStatus::from_code(status) else {
         return Err(invalid_data(
+            operation,
+            format!("{operation}: android host midi {action} failed with status code {status}"),
+        ));
+    };
+
+    match status {
+        HostStatus::Ok => Ok(()),
+        HostStatus::NotSupported => Err(core_platform::not_supported(operation)),
+        HostStatus::InvalidArgument => Err(invalid_data(
             operation,
             format!("{operation}: android host midi {action} reported one invalid argument"),
-        ));
-    }
-
-    if status == HOST_STATUS_NOT_FOUND {
-        return Err(core_platform::io_not_found(
+        )),
+        HostStatus::NotFound => Err(core_platform::io_not_found(
             operation,
             format!("android host midi {action} could not resolve one endpoint"),
-        ));
-    }
-
-    if status == HOST_STATUS_FAILED {
-        return Err(invalid_data(
+        )),
+        HostStatus::PermissionDenied => Err(invalid_data(
+            operation,
+            format!("{operation}: android host midi {action} was denied unexpectedly"),
+        )),
+        HostStatus::BufferTooSmall => Err(invalid_data(
+            operation,
+            format!(
+                "{operation}: android host midi {action} reported one unexpectedly small output buffer"
+            ),
+        )),
+        HostStatus::Failed => Err(invalid_data(
             operation,
             format!("{operation}: android host midi {action} failed"),
-        ));
+        )),
+        HostStatus::WouldBlock => Err(invalid_data(
+            operation,
+            format!("{operation}: android host midi {action} would block unexpectedly"),
+        )),
     }
-
-    Err(invalid_data(
-        operation,
-        format!("{operation}: android host midi {action} failed with status code {status}"),
-    ))
 }
 
 /// Build one ioInvalidData runtime error.
@@ -168,7 +174,7 @@ pub(crate) fn read_input_port_descriptors(
             )
         };
 
-        if status == HOST_STATUS_BUFFER_TOO_SMALL {
+        if status == HostStatus::BufferTooSmall.code() {
             grow_descriptor_buffers(
                 &mut headers,
                 header_count_written as usize,
@@ -239,7 +245,7 @@ pub(crate) fn read_output_port_descriptors(
             )
         };
 
-        if status == HOST_STATUS_BUFFER_TOO_SMALL {
+        if status == HostStatus::BufferTooSmall.code() {
             grow_descriptor_buffers(
                 &mut headers,
                 header_count_written as usize,
@@ -309,7 +315,7 @@ pub(crate) fn open_input_session(
             )
         };
 
-        if status == HOST_STATUS_BUFFER_TOO_SMALL {
+        if status == HostStatus::BufferTooSmall.code() {
             grow_string_buffer(&mut string_bytes, string_bytes_written as usize, operation)?;
             continue;
         }
@@ -368,7 +374,7 @@ pub(crate) fn open_output_session(
             )
         };
 
-        if status == HOST_STATUS_BUFFER_TOO_SMALL {
+        if status == HostStatus::BufferTooSmall.code() {
             grow_string_buffer(&mut string_bytes, string_bytes_written as usize, operation)?;
             continue;
         }
@@ -435,7 +441,7 @@ pub(crate) fn create_virtual_input_session(
             )
         };
 
-        if status == HOST_STATUS_BUFFER_TOO_SMALL {
+        if status == HostStatus::BufferTooSmall.code() {
             grow_string_buffer(&mut string_bytes, string_bytes_written as usize, operation)?;
             continue;
         }
@@ -500,7 +506,7 @@ pub(crate) fn create_virtual_output_session(
             )
         };
 
-        if status == HOST_STATUS_BUFFER_TOO_SMALL {
+        if status == HostStatus::BufferTooSmall.code() {
             grow_string_buffer(&mut string_bytes, string_bytes_written as usize, operation)?;
             continue;
         }
@@ -565,7 +571,7 @@ pub(crate) fn read_input_records(
             )
         };
 
-        if status == HOST_STATUS_BUFFER_TOO_SMALL {
+        if status == HostStatus::BufferTooSmall.code() {
             grow_record_buffers(
                 &mut headers,
                 record_count_written as usize,
@@ -652,7 +658,7 @@ pub(crate) fn read_native_events(
             )
         };
 
-        if status == HOST_STATUS_BUFFER_TOO_SMALL {
+        if status == HostStatus::BufferTooSmall.code() {
             grow_event_buffers(
                 &mut headers,
                 event_count_written as usize,
@@ -690,7 +696,7 @@ pub(crate) fn write_output_records(
 ) -> RuntimeResult<()> {
     let runtime_id = host_runtime_id(binding, operation)?;
 
-    let (headers, blob_bytes) = encode_output_records(records, operation)?;
+    let (headers, blob_bytes): (Vec<_>, Vec<u8>) = encode_output_records(records, operation)?;
     let header_count = checked_u32_length(headers.len(), operation, "record headers")?;
     let blob_count = checked_u32_length(blob_bytes.len(), operation, "record blob")?;
     let mut records_written = 0u32;

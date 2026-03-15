@@ -80,6 +80,53 @@ pub(crate) fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> Run
     Ok(unsafe { out.assume_init() })
 }
 
+/// Decode one required UTF-8 string slice from one shared blob.
+#[cfg(target_os = "android")]
+pub(crate) fn decode_required_string(
+    blob: &[u8],
+    offset: u32,
+    len: u32,
+    field: &'static str,
+    source: &str,
+) -> RuntimeResult<String> {
+    let start = offset as usize;
+    let end = start.saturating_add(len as usize);
+
+    if end > blob.len() {
+        return Err(RuntimeError::from(PlatformError::invalid_data(format!(
+            "{source} returned one out-of-range {field} string slice"
+        )))
+        .boxed());
+    }
+
+    let value = std::str::from_utf8(&blob[start..end]).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_data(format!(
+            "{source} returned one non-utf8 {field} string"
+        )))
+        .boxed()
+    })?;
+
+    Ok(value.to_string())
+}
+
+/// Decode one optional UTF-8 string slice from one shared blob.
+#[cfg(target_os = "android")]
+pub(crate) fn decode_optional_string(
+    blob: &[u8],
+    offset: u32,
+    len: u32,
+    field: &'static str,
+    source: &str,
+) -> RuntimeResult<Option<String>> {
+    if len == 0 {
+        return Ok(None);
+    }
+
+    Ok(Some(decode_required_string(
+        blob, offset, len, field, source,
+    )?))
+}
+
 /// Read one VM string handle and store it in binding-local string storage.
 pub(crate) fn store_string_from_vm(
     binding: &BindingCallContext,
