@@ -92,7 +92,9 @@ impl AbiRenderer<'_> {
         output.push_str("#![allow(dead_code)]\n");
         output.push_str("#![allow(unused_imports)]\n");
         output.push_str("#![allow(unreachable_pub)]\n\n");
+        output.push_str("#![allow(clippy::bind_instead_of_map)]\n\n");
         output.push_str("#![allow(clippy::enum_variant_names)]\n\n");
+        output.push_str("#![allow(clippy::len_zero)]\n\n");
         if needs_abi {
             output.push_str("use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};\n");
         }
