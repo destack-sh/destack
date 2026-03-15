@@ -11,7 +11,7 @@ use crate::isolate::{ExternalFnPtr, GlobalStorage, IsolateState};
 use crate::snapshot::InterpreterImage;
 use crate::telemetry::Statistics;
 use destack_heap::{
-    AgentMemory, GcStats, ManagedReference, RawPointer, ReferenceMeta, SharedPointer, Value,
+    GcStats, ManagedReference, MemoryContext, RawPointer, ReferenceMeta, SharedPointer, Value,
     string_layout_matches,
 };
 
@@ -67,7 +67,7 @@ impl Interpreter {
     pub(crate) fn context<'a>(
         &'a mut self,
         isolate: &'a mut IsolateState,
-        memory: AgentMemory<'a>,
+        memory: MemoryContext<'a>,
     ) -> InterpreterContext<'a> {
         InterpreterContext {
             isolate,
@@ -156,7 +156,7 @@ pub(crate) struct InterpreterContext<'a> {
     /// Shared isolate state for this execution.
     pub(crate) isolate: &'a mut IsolateState,
     /// Execution memory for this run.
-    pub(crate) memory: AgentMemory<'a>,
+    pub(crate) memory: MemoryContext<'a>,
     /// Interpreter engine state for execution.
     pub(crate) engine: &'a mut InterpreterState,
 }

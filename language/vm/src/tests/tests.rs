@@ -1,4 +1,4 @@
-use destack_heap::{AgentMemory, GcStats, Heap, SharedSpace, Value};
+use destack_heap::{GcStats, Heap, MemoryContext, SharedSpace, Value};
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
@@ -24,7 +24,7 @@ impl TestIsolate {
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
         let mut heap = Heap::new();
         let mut shared = SharedSpace::new();
-        let mut memory = AgentMemory::new(&mut heap, &mut shared);
+        let mut memory = MemoryContext::new(&mut heap, &mut shared);
 
         // initialize isolate state against the authoritative heap
         isolate
@@ -46,9 +46,9 @@ impl TestIsolate {
     /// Run one callback with the isolate execution memory.
     pub(crate) fn with_memory<R>(
         &mut self,
-        run: impl FnOnce(&mut Isolate, &mut AgentMemory<'_>) -> R,
+        run: impl FnOnce(&mut Isolate, &mut MemoryContext<'_>) -> R,
     ) -> R {
-        let mut memory = AgentMemory::new(&mut self.heap, &mut self.shared);
+        let mut memory = MemoryContext::new(&mut self.heap, &mut self.shared);
         run(&mut self.isolate, &mut memory)
     }
 
@@ -58,7 +58,7 @@ impl TestIsolate {
         function: &str,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
-        let mut memory = AgentMemory::new(&mut self.heap, &mut self.shared);
+        let mut memory = MemoryContext::new(&mut self.heap, &mut self.shared);
         self.isolate
             .run_function_by_name(&mut memory, function, arguments)
     }
@@ -69,7 +69,7 @@ impl TestIsolate {
         function: &str,
         arguments: &[Value],
     ) -> RuntimeResult<crate::ExecutionOutcome> {
-        let mut memory = AgentMemory::new(&mut self.heap, &mut self.shared);
+        let mut memory = MemoryContext::new(&mut self.heap, &mut self.shared);
         self.isolate
             .run_function_by_name_yielding(&mut memory, function, arguments)
     }
@@ -80,7 +80,7 @@ impl TestIsolate {
         continuation: Continuation,
         resume_value: Value,
     ) -> RuntimeResult<crate::ExecutionOutcome> {
-        let mut memory = AgentMemory::new(&mut self.heap, &mut self.shared);
+        let mut memory = MemoryContext::new(&mut self.heap, &mut self.shared);
         self.isolate.resume(&mut memory, continuation, resume_value)
     }
 

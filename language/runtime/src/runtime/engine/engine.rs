@@ -38,7 +38,7 @@ pub trait Engine: Any {
     /// Run the entrypoint function.
     fn run(
         &mut self,
-        memory: &mut heap::AgentMemory<'_>,
+        memory: &mut heap::MemoryContext<'_>,
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome>;
@@ -46,7 +46,7 @@ pub trait Engine: Any {
     /// Run one replayable entrypoint descriptor.
     fn run_replayable_entry(
         &mut self,
-        memory: &mut heap::AgentMemory<'_>,
+        memory: &mut heap::MemoryContext<'_>,
         entry: &EntryReference,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome>;
@@ -54,7 +54,7 @@ pub trait Engine: Any {
     /// Resume execution from a continuation.
     fn resume(
         &mut self,
-        memory: &mut heap::AgentMemory<'_>,
+        memory: &mut heap::MemoryContext<'_>,
         continuation: EngineContinuation,
         value: heap::Value,
     ) -> RuntimeResult<EngineOutcome>;

@@ -109,7 +109,7 @@ impl Engine for TestEngine {
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
-        _memory: &mut heap::AgentMemory<'_>,
+        _memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -121,7 +121,7 @@ impl Engine for TestEngine {
     /// Run one replayable entrypoint without yielding.
     fn run_replayable_entry(
         &mut self,
-        _memory: &mut heap::AgentMemory<'_>,
+        _memory: &mut heap::MemoryContext<'_>,
         _entry: &EntryReference,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -133,7 +133,7 @@ impl Engine for TestEngine {
     /// Resume one continuation and yield once before completion.
     fn resume(
         &mut self,
-        _memory: &mut heap::AgentMemory<'_>,
+        _memory: &mut heap::MemoryContext<'_>,
         _continuation: EngineContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
@@ -230,7 +230,7 @@ impl Engine for AllocatingEngine {
     /// Run one entrypoint after allocating into the heap.
     fn run(
         &mut self,
-        memory: &mut heap::AgentMemory<'_>,
+        memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -244,7 +244,7 @@ impl Engine for AllocatingEngine {
     /// Run one replayable entrypoint after allocating into the heap.
     fn run_replayable_entry(
         &mut self,
-        memory: &mut heap::AgentMemory<'_>,
+        memory: &mut heap::MemoryContext<'_>,
         _entry: &EntryReference,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -258,7 +258,7 @@ impl Engine for AllocatingEngine {
     /// Resume one continuation after allocating into the heap.
     fn resume(
         &mut self,
-        memory: &mut heap::AgentMemory<'_>,
+        memory: &mut heap::MemoryContext<'_>,
         _continuation: EngineContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
