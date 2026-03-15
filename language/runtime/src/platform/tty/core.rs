@@ -1,3 +1,5 @@
+#![cfg_attr(not(any(unix, windows)), allow(unused_imports))]
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::ResourceKind;

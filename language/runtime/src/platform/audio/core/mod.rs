@@ -1,3 +1,8 @@
+#![cfg_attr(
+    not(any(target_os = "android", target_os = "linux", windows)),
+    allow(unused_imports)
+)]
+
 pub(crate) mod clock;
 pub(crate) mod codec;
 pub(crate) mod constants;

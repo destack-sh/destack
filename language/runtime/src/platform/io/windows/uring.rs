@@ -1,7 +1,7 @@
 use super::core::require_out;
-use crate::diagnostic::RuntimeResult;
-use crate::platform::io::{UringFeatures, UringParameters, core as io_core};
-use crate::platform::resource;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::io::{UringFeatures, UringParameters};
+use crate::platform::{PlatformError, resource};
 use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Close one io_uring ring.
@@ -22,10 +22,10 @@ use crate::runtime::{BindingCallContext, NativeSlice};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_close(
-    binding: &BindingCallContext,
-    handle: resource::UringHandle,
+    _binding: &BindingCallContext,
+    _handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    io_core::uring_close(binding, handle)
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.close")).boxed())
 }
 
 /// Query io_uring feature support.
@@ -51,13 +51,9 @@ pub(crate) unsafe fn destack_io_uring_features(
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     require_out(out)?;
-    let value = io_core::uring_features(binding, handle)?;
+    let _ = (binding, handle);
 
-    unsafe {
-        out.write(value);
-    }
-
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.features")).boxed())
 }
 
 /// Open one io_uring ring.
@@ -83,13 +79,9 @@ pub(crate) unsafe fn destack_io_uring_open(
     parameters: UringParameters,
 ) -> RuntimeResult<()> {
     require_out(out)?;
-    let value = io_core::uring_open(binding, parameters)?;
+    let _ = (binding, parameters);
 
-    unsafe {
-        out.write(value);
-    }
-
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.open")).boxed())
 }
 
 /// Register fixed buffers with a ring.
@@ -115,7 +107,12 @@ pub(crate) unsafe fn destack_io_uring_register_buffers(
     addresses: NativeSlice<u64>,
     lengths: NativeSlice<u32>,
 ) -> RuntimeResult<()> {
-    io_core::uring_register_buffers(binding, handle, addresses, lengths)
+    let _ = (binding, handle, addresses, lengths);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.registerBuffers",
+    ))
+    .boxed())
 }
 
 /// Register fixed files with a ring.
@@ -140,7 +137,12 @@ pub(crate) unsafe fn destack_io_uring_register_files(
     handle: resource::UringHandle,
     files: NativeSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
-    io_core::uring_register_files(binding, handle, files)
+    let _ = (binding, handle, files);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.registerFiles",
+    ))
+    .boxed())
 }
 
 /// Unregister fixed buffers for a ring.
@@ -161,10 +163,13 @@ pub(crate) unsafe fn destack_io_uring_register_files(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_unregister_buffers(
-    binding: &BindingCallContext,
-    handle: resource::UringHandle,
+    _binding: &BindingCallContext,
+    _handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    io_core::uring_unregister_buffers(binding, handle)
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.unregisterBuffers",
+    ))
+    .boxed())
 }
 
 /// Unregister fixed files for a ring.
@@ -185,8 +190,11 @@ pub(crate) unsafe fn destack_io_uring_unregister_buffers(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_io_uring_unregister_files(
-    binding: &BindingCallContext,
-    handle: resource::UringHandle,
+    _binding: &BindingCallContext,
+    _handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    io_core::uring_unregister_files(binding, handle)
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.unregisterFiles",
+    ))
+    .boxed())
 }

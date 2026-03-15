@@ -1,7 +1,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::platform::audio::{AudioBackend, core as audio_core};
 use crate::platform::core::BackendSupport;
-use crate::platform::{PlatformError, audio as audio_types};
 
 pub(crate) use crate::platform::audio::simulation::native::*;
 

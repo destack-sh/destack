@@ -73,7 +73,6 @@ destack_workspace = { workspace = true }
 base64 = { workspace = true }
 argon2 = { workspace = true }
 foreign-types-shared = { workspace = true }
-getrandom = { workspace = true }
 libc = { workspace = true }
 postcard = { workspace = true }
 parking_lot = { workspace = true }
@@ -83,6 +82,13 @@ rustc-hash = { workspace = true }
 smallvec = { workspace = true }
 tracing = { workspace = true }
 zeroize = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+getrandom = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# FUGU #Architecture: finally rip out the whole getrandom runtime dependency (and any other stray ones..?)
+getrandom = { workspace = true, features = ["wasm_js"] }
 
 [target.'cfg(any(unix, windows))'.dependencies]
 notify = { workspace = true }

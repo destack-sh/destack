@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 use crate::runtime::BindingCallContext;

@@ -38,15 +38,11 @@ pub(crate) fn io_not_found(operation: &str, message: impl Into<String>) -> Box<R
 }
 
 /// Build one io-would-block runtime error scoped to one binding operation.
-#[cfg(any(unix, windows))]
-#[allow(dead_code)]
 pub(crate) fn io_would_block(operation: &str, message: impl Into<String>) -> Box<RuntimeError> {
     io_operation_error(operation, Some(PlatformErrorCode::IoWouldBlock), message)
 }
 
 /// Build one io-busy runtime error scoped to one binding operation.
-#[cfg(any(unix, windows))]
-#[allow(dead_code)]
 pub(crate) fn io_busy(operation: &str, message: impl Into<String>) -> Box<RuntimeError> {
     io_operation_error(operation, Some(PlatformErrorCode::IoBusy), message)
 }

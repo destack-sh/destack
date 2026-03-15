@@ -3,7 +3,7 @@ use crate::platform::PlatformError;
 use crate::platform::time::{ClockId, ClockMetadata};
 
 /// Runtime operation name for host clock metadata.
-const HOST_clock_metadata_OPERATION: &str = "runtime.time.host.clock.info";
+const HOST_CLOCK_METADATA_OPERATION: &str = "runtime.time.host.clock.info";
 /// Runtime operation name for host clock reads by clock id.
 const HOST_CLOCK_NOW_OPERATION: &str = "runtime.time.host.clock.now_nanos";
 /// Runtime operation name for host process CPU clock samples.
@@ -19,7 +19,7 @@ fn unsupported_operation(operation: &str) -> Box<RuntimeError> {
 pub(crate) fn host_clock_metadata(clock: ClockId) -> RuntimeResult<ClockMetadata> {
     let _ = clock;
 
-    Err(unsupported_operation(HOST_clock_metadata_OPERATION))
+    Err(unsupported_operation(HOST_CLOCK_METADATA_OPERATION))
 }
 
 /// Query one host clock sample in nanoseconds.
