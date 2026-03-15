@@ -4,34 +4,35 @@
 mod android;
 #[cfg(any(target_os = "ios", target_os = "macos"))]
 pub(crate) mod apple;
+pub(crate) mod common;
 pub(crate) mod core;
-#[cfg(any(test, target_os = "dragonfly"))]
+#[cfg(target_os = "dragonfly")]
 mod dragonfly;
-#[cfg(any(test, target_os = "freebsd"))]
+#[cfg(target_os = "freebsd")]
 mod freebsd;
-#[cfg(any(test, target_os = "haiku"))]
+#[cfg(target_os = "haiku")]
 mod haiku;
-#[cfg(any(test, target_os = "illumos"))]
+#[cfg(target_os = "illumos")]
 mod illumos;
 #[cfg(any(test, target_os = "ios"))]
 mod ios;
-#[cfg(any(test, target_os = "linux"))]
+#[cfg(target_os = "linux")]
 mod linux;
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(target_os = "macos")]
 mod macos;
-#[cfg(any(test, target_os = "netbsd"))]
+#[cfg(target_os = "netbsd")]
 mod netbsd;
-#[cfg(any(test, target_os = "openbsd"))]
+#[cfg(target_os = "openbsd")]
 mod openbsd;
-#[cfg(any(test, target_os = "solaris"))]
+#[cfg(target_os = "solaris")]
 mod solaris;
 #[cfg(any(
-    test,
     target_os = "dragonfly",
     target_os = "freebsd",
     target_os = "haiku",
     target_os = "illumos",
     target_os = "linux",
+    target_os = "macos",
     target_os = "netbsd",
     target_os = "openbsd",
     target_os = "solaris"
@@ -55,236 +56,56 @@ mod unsupported;
 #[cfg(any(test, windows))]
 mod windows;
 
-pub(crate) use core::HostBackend;
 pub use core::{
     HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,
     HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
     HOST_STATUS_PERMISSION_DENIED, Host, HostEvent, HostEventKind, HostIntentEvent,
     HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
     HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPollOutcome,
-    HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HostPowerMode, HostPowerModeEvent, HostSession, HostThermalEvent, HostThermalState,
+    HostWallClockEvent,
 };
+pub(crate) use core::{HostAdapter, HostRequest};
 pub use destack_workspace::Platform;
 #[cfg(windows)]
 pub(crate) use windows::process_ingress_loop;
 
 #[cfg(any(test, target_os = "android"))]
-pub use android::{
-    AndroidActivityLifecycle, AndroidHostBindings, AndroidHostComputeHardwareMacCallback,
-    AndroidHostCredentialsAuthenticateCallback, AndroidHostCredentialsCallbacks,
-    AndroidHostCredentialsContainsCallback, AndroidHostCredentialsDeleteCallback,
-    AndroidHostCredentialsReadCallback, AndroidHostCredentialsWriteCallback,
-    AndroidHostCryptoCallbacks, AndroidHostDecryptHardwareKeyCallback,
-    AndroidHostDecryptHardwareSecretKeyCallback, AndroidHostDeleteCertificateCallback,
-    AndroidHostDeleteHardwareKeyCallback, AndroidHostDeriveHardwareSharedSecretCallback,
-    AndroidHostEncryptHardwareSecretKeyCallback, AndroidHostExportHardwarePublicKeyCallback,
-    AndroidHostGenerateHardwareKeyPairCallback, AndroidHostGenerateHardwareSecretKeyCallback,
-    AndroidHostImportCertificateCallback, AndroidHostMidiCallbacks,
-    AndroidHostMidiDescribeBackendCallback, AndroidHostMidiEventCloseCallback,
-    AndroidHostMidiEventHeader, AndroidHostMidiEventOpenCallback, AndroidHostMidiEventReadCallback,
-    AndroidHostMidiInputPortCloseCallback, AndroidHostMidiInputPortListCallback,
-    AndroidHostMidiInputPortOpenCallback, AndroidHostMidiInputReadCallback,
-    AndroidHostMidiInputRecordHeader, AndroidHostMidiInputVirtualCreateCallback,
-    AndroidHostMidiOpenedPortHeader, AndroidHostMidiOutputPortCloseCallback,
-    AndroidHostMidiOutputPortListCallback, AndroidHostMidiOutputPortOpenCallback,
-    AndroidHostMidiOutputRecordHeader, AndroidHostMidiOutputVirtualCreateCallback,
-    AndroidHostMidiOutputWriteCallback, AndroidHostMidiPortDescriptorHeader,
-    AndroidHostSignHardwareKeyCallback, AndroidHostSupportsHardwareKeyCallback,
-    android_notify_activity_lifecycle, android_notify_intent_custom_action,
-    android_notify_intent_open_file, android_notify_intent_open_url,
-    android_notify_intent_share_files, android_notify_intent_share_text,
-    android_notify_interruption_changed, android_notify_memory_pressure_changed,
-    android_notify_permission_result, android_notify_power_mode_changed,
-    android_notify_thermal_state_changed, android_notify_wake, android_notify_wall_clock_changed,
-    destack_host_android_credentials_authenticate, destack_host_android_credentials_contains,
-    destack_host_android_credentials_delete, destack_host_android_credentials_read,
-    destack_host_android_credentials_write, destack_host_android_crypto_compute_hardware_mac,
-    destack_host_android_crypto_decrypt_hardware_key,
-    destack_host_android_crypto_decrypt_hardware_secret_key,
-    destack_host_android_crypto_delete_certificate,
-    destack_host_android_crypto_delete_hardware_key,
-    destack_host_android_crypto_derive_hardware_shared_secret,
-    destack_host_android_crypto_encrypt_hardware_secret_key,
-    destack_host_android_crypto_export_hardware_public_key,
-    destack_host_android_crypto_generate_hardware_key_pair,
-    destack_host_android_crypto_generate_hardware_secret_key,
-    destack_host_android_crypto_import_certificate, destack_host_android_crypto_sign_hardware_key,
-    destack_host_android_crypto_supports_certificate_write,
-    destack_host_android_crypto_supports_hardware_key,
-    destack_host_android_crypto_supports_hardware_key_pair,
-    destack_host_android_crypto_supports_hardware_secret_key,
-    destack_host_android_midi_describe_backend, destack_host_android_midi_event_close,
-    destack_host_android_midi_event_open, destack_host_android_midi_event_read,
-    destack_host_android_midi_input_port_close, destack_host_android_midi_input_port_list,
-    destack_host_android_midi_input_port_open, destack_host_android_midi_input_read,
-    destack_host_android_midi_input_virtual_create, destack_host_android_midi_output_port_close,
-    destack_host_android_midi_output_port_list, destack_host_android_midi_output_port_open,
-    destack_host_android_midi_output_virtual_create, destack_host_android_midi_output_write,
-    destack_host_android_notify_activity_lifecycle,
-    destack_host_android_notify_intent_custom_action, destack_host_android_notify_intent_open_file,
-    destack_host_android_notify_intent_open_url, destack_host_android_notify_intent_share_files,
-    destack_host_android_notify_intent_share_text,
-    destack_host_android_notify_interruption_changed,
-    destack_host_android_notify_memory_pressure_changed,
-    destack_host_android_notify_permission_result, destack_host_android_notify_power_mode_changed,
-    destack_host_android_notify_thermal_state_changed, destack_host_android_notify_wake,
-    destack_host_android_notify_wall_clock_changed, destack_host_android_register_bindings,
-};
+pub use android::*;
 
-#[cfg(any(test, target_os = "macos"))]
-pub use macos::{
-    MacosApplicationLifecycle, destack_host_macos_notify_application_lifecycle,
-    destack_host_macos_notify_intent_custom_action, destack_host_macos_notify_intent_open_file,
-    destack_host_macos_notify_intent_open_url, destack_host_macos_notify_intent_share_files,
-    destack_host_macos_notify_intent_share_text, destack_host_macos_notify_interruption_changed,
-    destack_host_macos_notify_memory_pressure_changed, destack_host_macos_notify_permission_result,
-    destack_host_macos_notify_power_mode_changed, destack_host_macos_notify_thermal_state_changed,
-    destack_host_macos_notify_wake, destack_host_macos_notify_wall_clock_changed,
-    macos_notify_application_lifecycle, macos_notify_intent_custom_action,
-    macos_notify_intent_open_file, macos_notify_intent_open_url, macos_notify_intent_share_files,
-    macos_notify_intent_share_text, macos_notify_interruption_changed,
-    macos_notify_memory_pressure_changed, macos_notify_permission_result,
-    macos_notify_power_mode_changed, macos_notify_thermal_state_changed, macos_notify_wake,
-    macos_notify_wall_clock_changed,
-};
+#[cfg(all(test, target_os = "macos"))]
+pub(crate) use macos::set_test_pick_hook as set_macos_document_test_pick_hook;
+#[cfg(target_os = "macos")]
+pub use macos::*;
 
 #[cfg(any(test, target_os = "ios"))]
-pub use ios::{
-    IosApplicationLifecycle, destack_host_ios_notify_application_lifecycle,
-    destack_host_ios_notify_intent_custom_action, destack_host_ios_notify_intent_open_file,
-    destack_host_ios_notify_intent_open_url, destack_host_ios_notify_intent_share_files,
-    destack_host_ios_notify_intent_share_text, destack_host_ios_notify_interruption_changed,
-    destack_host_ios_notify_memory_pressure_changed, destack_host_ios_notify_permission_result,
-    destack_host_ios_notify_power_mode_changed, destack_host_ios_notify_thermal_state_changed,
-    destack_host_ios_notify_wake, destack_host_ios_notify_wall_clock_changed,
-    ios_notify_application_lifecycle, ios_notify_intent_custom_action, ios_notify_intent_open_file,
-    ios_notify_intent_open_url, ios_notify_intent_share_files, ios_notify_intent_share_text,
-    ios_notify_interruption_changed, ios_notify_memory_pressure_changed,
-    ios_notify_permission_result, ios_notify_power_mode_changed, ios_notify_thermal_state_changed,
-    ios_notify_wake, ios_notify_wall_clock_changed,
-};
+pub use ios::*;
 
+#[cfg(all(test, windows))]
+pub(crate) use windows::set_test_pick_hook as set_windows_document_test_pick_hook;
 #[cfg(any(test, windows))]
-pub use windows::{
-    WindowsApplicationLifecycle, destack_host_windows_notify_application_lifecycle,
-    destack_host_windows_notify_intent_custom_action, destack_host_windows_notify_intent_open_file,
-    destack_host_windows_notify_intent_open_url, destack_host_windows_notify_intent_share_files,
-    destack_host_windows_notify_intent_share_text,
-    destack_host_windows_notify_interruption_changed,
-    destack_host_windows_notify_memory_pressure_changed,
-    destack_host_windows_notify_permission_result, destack_host_windows_notify_power_mode_changed,
-    destack_host_windows_notify_thermal_state_changed, destack_host_windows_notify_wake,
-    destack_host_windows_notify_wall_clock_changed, windows_notify_application_lifecycle,
-    windows_notify_intent_custom_action, windows_notify_intent_open_file,
-    windows_notify_intent_open_url, windows_notify_intent_share_files,
-    windows_notify_intent_share_text, windows_notify_interruption_changed,
-    windows_notify_memory_pressure_changed, windows_notify_permission_result,
-    windows_notify_power_mode_changed, windows_notify_thermal_state_changed, windows_notify_wake,
-    windows_notify_wall_clock_changed,
-};
+pub use windows::*;
 
-#[cfg(any(test, target_os = "linux"))]
-pub use linux::{
-    LinuxApplicationLifecycle, destack_host_linux_notify_application_lifecycle,
-    destack_host_linux_notify_interruption_changed,
-    destack_host_linux_notify_memory_pressure_changed, destack_host_linux_notify_permission_result,
-    destack_host_linux_notify_power_mode_changed, destack_host_linux_notify_thermal_state_changed,
-    destack_host_linux_notify_wake, destack_host_linux_notify_wall_clock_changed,
-    linux_notify_application_lifecycle, linux_notify_interruption_changed,
-    linux_notify_memory_pressure_changed, linux_notify_permission_result,
-    linux_notify_power_mode_changed, linux_notify_thermal_state_changed, linux_notify_wake,
-    linux_notify_wall_clock_changed,
-};
+#[cfg(target_os = "linux")]
+pub use linux::*;
 
-#[cfg(any(test, target_os = "freebsd"))]
-pub use freebsd::{
-    FreeBsdApplicationLifecycle, destack_host_freebsd_notify_application_lifecycle,
-    destack_host_freebsd_notify_interruption_changed,
-    destack_host_freebsd_notify_memory_pressure_changed,
-    destack_host_freebsd_notify_permission_result, destack_host_freebsd_notify_power_mode_changed,
-    destack_host_freebsd_notify_thermal_state_changed, destack_host_freebsd_notify_wake,
-    destack_host_freebsd_notify_wall_clock_changed, freebsd_notify_application_lifecycle,
-    freebsd_notify_interruption_changed, freebsd_notify_memory_pressure_changed,
-    freebsd_notify_permission_result, freebsd_notify_power_mode_changed,
-    freebsd_notify_thermal_state_changed, freebsd_notify_wake, freebsd_notify_wall_clock_changed,
-};
+#[cfg(target_os = "freebsd")]
+pub use freebsd::*;
 
-#[cfg(any(test, target_os = "dragonfly"))]
-pub use dragonfly::{
-    DragonflyApplicationLifecycle, destack_host_dragonfly_notify_application_lifecycle,
-    destack_host_dragonfly_notify_interruption_changed,
-    destack_host_dragonfly_notify_memory_pressure_changed,
-    destack_host_dragonfly_notify_permission_result,
-    destack_host_dragonfly_notify_power_mode_changed,
-    destack_host_dragonfly_notify_thermal_state_changed, destack_host_dragonfly_notify_wake,
-    destack_host_dragonfly_notify_wall_clock_changed, dragonfly_notify_application_lifecycle,
-    dragonfly_notify_interruption_changed, dragonfly_notify_memory_pressure_changed,
-    dragonfly_notify_permission_result, dragonfly_notify_power_mode_changed,
-    dragonfly_notify_thermal_state_changed, dragonfly_notify_wake,
-    dragonfly_notify_wall_clock_changed,
-};
+#[cfg(target_os = "dragonfly")]
+pub use dragonfly::*;
 
-#[cfg(any(test, target_os = "netbsd"))]
-pub use netbsd::{
-    NetBsdApplicationLifecycle, destack_host_netbsd_notify_application_lifecycle,
-    destack_host_netbsd_notify_interruption_changed,
-    destack_host_netbsd_notify_memory_pressure_changed,
-    destack_host_netbsd_notify_permission_result, destack_host_netbsd_notify_power_mode_changed,
-    destack_host_netbsd_notify_thermal_state_changed, destack_host_netbsd_notify_wake,
-    destack_host_netbsd_notify_wall_clock_changed, netbsd_notify_application_lifecycle,
-    netbsd_notify_interruption_changed, netbsd_notify_memory_pressure_changed,
-    netbsd_notify_permission_result, netbsd_notify_power_mode_changed,
-    netbsd_notify_thermal_state_changed, netbsd_notify_wake, netbsd_notify_wall_clock_changed,
-};
+#[cfg(target_os = "netbsd")]
+pub use netbsd::*;
 
-#[cfg(any(test, target_os = "openbsd"))]
-pub use openbsd::{
-    OpenBsdApplicationLifecycle, destack_host_openbsd_notify_application_lifecycle,
-    destack_host_openbsd_notify_interruption_changed,
-    destack_host_openbsd_notify_memory_pressure_changed,
-    destack_host_openbsd_notify_permission_result, destack_host_openbsd_notify_power_mode_changed,
-    destack_host_openbsd_notify_thermal_state_changed, destack_host_openbsd_notify_wake,
-    destack_host_openbsd_notify_wall_clock_changed, openbsd_notify_application_lifecycle,
-    openbsd_notify_interruption_changed, openbsd_notify_memory_pressure_changed,
-    openbsd_notify_permission_result, openbsd_notify_power_mode_changed,
-    openbsd_notify_thermal_state_changed, openbsd_notify_wake, openbsd_notify_wall_clock_changed,
-};
+#[cfg(target_os = "openbsd")]
+pub use openbsd::*;
 
-#[cfg(any(test, target_os = "illumos"))]
-pub use illumos::{
-    IllumosApplicationLifecycle, destack_host_illumos_notify_application_lifecycle,
-    destack_host_illumos_notify_interruption_changed,
-    destack_host_illumos_notify_memory_pressure_changed,
-    destack_host_illumos_notify_permission_result, destack_host_illumos_notify_power_mode_changed,
-    destack_host_illumos_notify_thermal_state_changed, destack_host_illumos_notify_wake,
-    destack_host_illumos_notify_wall_clock_changed, illumos_notify_application_lifecycle,
-    illumos_notify_interruption_changed, illumos_notify_memory_pressure_changed,
-    illumos_notify_permission_result, illumos_notify_power_mode_changed,
-    illumos_notify_thermal_state_changed, illumos_notify_wake, illumos_notify_wall_clock_changed,
-};
+#[cfg(target_os = "illumos")]
+pub use illumos::*;
 
-#[cfg(any(test, target_os = "solaris"))]
-pub use solaris::{
-    SolarisApplicationLifecycle, destack_host_solaris_notify_application_lifecycle,
-    destack_host_solaris_notify_interruption_changed,
-    destack_host_solaris_notify_memory_pressure_changed,
-    destack_host_solaris_notify_permission_result, destack_host_solaris_notify_power_mode_changed,
-    destack_host_solaris_notify_thermal_state_changed, destack_host_solaris_notify_wake,
-    destack_host_solaris_notify_wall_clock_changed, solaris_notify_application_lifecycle,
-    solaris_notify_interruption_changed, solaris_notify_memory_pressure_changed,
-    solaris_notify_permission_result, solaris_notify_power_mode_changed,
-    solaris_notify_thermal_state_changed, solaris_notify_wake, solaris_notify_wall_clock_changed,
-};
+#[cfg(target_os = "solaris")]
+pub use solaris::*;
 
-#[cfg(any(test, target_os = "haiku"))]
-pub use haiku::{
-    HaikuApplicationLifecycle, destack_host_haiku_notify_application_lifecycle,
-    destack_host_haiku_notify_interruption_changed,
-    destack_host_haiku_notify_memory_pressure_changed, destack_host_haiku_notify_permission_result,
-    destack_host_haiku_notify_power_mode_changed, destack_host_haiku_notify_thermal_state_changed,
-    destack_host_haiku_notify_wake, destack_host_haiku_notify_wall_clock_changed,
-    haiku_notify_application_lifecycle, haiku_notify_interruption_changed,
-    haiku_notify_memory_pressure_changed, haiku_notify_permission_result,
-    haiku_notify_power_mode_changed, haiku_notify_thermal_state_changed, haiku_notify_wake,
-    haiku_notify_wall_clock_changed,
-};
+#[cfg(target_os = "haiku")]
+pub use haiku::*;

@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::host::core::{HostQueue, HostQueueRegistry};
-use crate::host::macos::callback::host_lifecycle_state_for_application_lifecycle;
+use crate::host::macos::ingress::callback::host_lifecycle_state_for_application_lifecycle;
 use crate::host::macos::{
     MacosApplicationLifecycle, macos_notify_intent_open_url, macos_notify_permission_result,
 };

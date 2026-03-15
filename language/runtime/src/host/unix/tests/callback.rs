@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::host::core::{HostQueue, HostQueueRegistry};
-use crate::host::unix::callback::{
+use crate::host::unix::ingress::callback::{
     UnixApplicationLifecycle, host_lifecycle_state_for_unix_application,
     unix_notify_permission_result,
 };

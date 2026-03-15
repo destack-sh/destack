@@ -1,13 +1,7 @@
+#[cfg(target_os = "macos")]
 mod backend;
 mod callback;
+pub(crate) mod core;
 mod ffi;
 
-pub(super) use crate::host::macos::ffi::{
-    MACOS_LIFECYCLE_DID_BECOME_ACTIVE, MACOS_LIFECYCLE_DID_FINISH_LAUNCHING,
-    MACOS_LIFECYCLE_WILL_RESIGN_ACTIVE, MACOS_LIFECYCLE_WILL_TERMINATE,
-    MACOS_MEMORY_PRESSURE_CRITICAL, MACOS_MEMORY_PRESSURE_NORMAL, MACOS_MEMORY_PRESSURE_WARNING,
-    MACOS_POWER_MODE_LOW_POWER, MACOS_POWER_MODE_NORMAL, MACOS_THERMAL_CRITICAL,
-    MACOS_THERMAL_FAIR, MACOS_THERMAL_NOMINAL, MACOS_THERMAL_SERIOUS,
-    decode_macos_application_lifecycle, decode_macos_memory_pressure_level,
-    decode_macos_power_mode, decode_macos_thermal_state,
-};
+pub(crate) use core::{pick_documents, set_test_pick_hook};

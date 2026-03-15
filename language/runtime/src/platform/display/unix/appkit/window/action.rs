@@ -1,7 +1,7 @@
-use dispatch2::run_on_main;
 use objc2_app_kit::{NSApplication, NSRequestUserAttentionType};
 
 use crate::diagnostic::RuntimeResult;
+use crate::host::apple::execution::with_process_main_context_marker_if_needed;
 use crate::platform::display::{WindowAttentionLevel, WindowResizeEdge, unsupported};
 use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;
@@ -39,10 +39,11 @@ pub(crate) unsafe fn window_request_attention(
         NSRequestUserAttentionType::InformationalRequest
     };
 
-    run_on_main(|mtm| {
+    with_process_main_context_marker_if_needed(|mtm| {
         let application = NSApplication::sharedApplication(mtm);
         application.requestUserAttention(request_type);
-    });
+        Ok(())
+    })?;
 
     Ok(())
 }

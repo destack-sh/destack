@@ -1,4 +1,3 @@
-use dispatch2::run_on_main;
 use objc2_app_kit::NSScreen;
 use objc2_core_foundation::{CFArray, CFRetained};
 use objc2_core_graphics::{
@@ -9,6 +8,7 @@ use objc2_core_graphics::{
 
 use super::core::{display_id as monitor_display_id, display_orientation};
 use crate::diagnostic::RuntimeResult;
+use crate::host::apple::execution::with_process_main_context_marker_if_needed;
 use crate::platform;
 use crate::platform::display::unix::appkit::core;
 use crate::platform::display::unix::appkit::model::{DisplayDescriptorSnapshot, MonitorSnapshot};
@@ -148,7 +148,7 @@ fn monitor_snapshot(
 
 /// Resolve one AppKit display scale factor in milli-scale units.
 fn display_scale_factor_milli(display: CGDirectDisplayID) -> u32 {
-    run_on_main(|mtm| {
+    with_process_main_context_marker_if_needed(|mtm| {
         let screens = NSScreen::screens(mtm);
 
         // match the current CoreGraphics display against live AppKit screens
@@ -159,12 +159,13 @@ fn display_scale_factor_milli(display: CGDirectDisplayID) -> u32 {
 
             if display_id == monitor_display_id(display) {
                 let scale_factor_milli = (screen.backingScaleFactor() * 1000.0).round() as u32;
-                return scale_factor_milli.max(1);
+                return Ok(scale_factor_milli.max(1));
             }
         }
 
-        1000
+        Ok(1000)
     })
+    .unwrap_or(1000)
 }
 
 /// Enumerate current monitor snapshots.

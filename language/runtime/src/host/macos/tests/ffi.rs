@@ -1,4 +1,5 @@
-use super::{
+use crate::host::macos::MacosApplicationLifecycle;
+use crate::host::macos::ingress::ffi::{
     MACOS_LIFECYCLE_DID_BECOME_ACTIVE, MACOS_LIFECYCLE_DID_FINISH_LAUNCHING,
     MACOS_LIFECYCLE_WILL_RESIGN_ACTIVE, MACOS_LIFECYCLE_WILL_TERMINATE,
     MACOS_MEMORY_PRESSURE_CRITICAL, MACOS_MEMORY_PRESSURE_NORMAL, MACOS_MEMORY_PRESSURE_WARNING,
@@ -7,7 +8,6 @@ use super::{
     decode_macos_application_lifecycle, decode_macos_memory_pressure_level,
     decode_macos_power_mode, decode_macos_thermal_state,
 };
-use crate::host::macos::MacosApplicationLifecycle;
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 #[test]

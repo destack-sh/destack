@@ -1,12 +1,15 @@
-#[cfg(target_os = "ios")]
-use crate::host::HostBackend;
-#[cfg(target_os = "ios")]
+use crate::host::HostAdapter;
 use crate::host::ios::IosHost;
+use crate::runtime::capability::PlatformCapability;
 
-#[cfg(target_os = "ios")]
+/// Report the static iOS host capabilities.
 #[test]
-fn test_process_ingress_routes_for_host() {
+fn test_ios_host_reports_static_capabilities() {
     let host = IosHost::new();
-    let result = host.process_native_ingress();
-    assert!(result.is_ok());
+    let capabilities = host.static_capabilities();
+
+    assert!(capabilities.contains_capability(PlatformCapability::OsLifecycleRead));
+    assert!(capabilities.contains_capability(PlatformCapability::OsIntentRead));
+    assert!(capabilities.contains_capability(PlatformCapability::OsPower));
+    assert!(capabilities.contains_capability(PlatformCapability::OsPermissionRead));
 }

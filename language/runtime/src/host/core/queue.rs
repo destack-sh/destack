@@ -311,8 +311,13 @@ mod tests {
         })
     }
 
+    // shared runtime id source
+    static TEST_RUNTIME_ID: AtomicU64 = AtomicU64::new(1);
+
     fn queue() -> HostQueue {
-        HostQueue::new(RuntimeId(1))
+        let runtime_id = TEST_RUNTIME_ID.fetch_add(1, Ordering::Relaxed);
+
+        HostQueue::new(RuntimeId(runtime_id))
     }
 
     #[derive(Debug)]
