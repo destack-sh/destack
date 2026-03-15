@@ -7,6 +7,8 @@ We don't define (much) logic here, it's mostly about defining the containers and
 
 The `config/` module defines unified toolchain configuration.
 That includes compiler, runtime, formatter, linter, cache, daemon, and target options.
+Target configuration is also where app declarations belong.
+Those declarations describe what the app intends to use from the surrounding platform, and later lower into platform-native manifests and packaging metadata.
 
 ### dsconfig.json
 
@@ -49,12 +51,95 @@ Destack's project configuration is similar to `tsconfig.json`, but `dsconfig.jso
     },
     "targets": {
         "web": { "output": "js", "platform": "browser" },
-        "native": { "output": "wasm", "optimize": true }
+        "iosApp": {
+            "output": "native",
+            "platform": "ios",
+            "app": {
+                "permissions": {
+                    "camera": { "usage": "Scan receipts" },
+                    "microphone": { "usage": "Record voice notes" },
+                    "location": { "usage": "Show nearby pickup points" },
+                    "locationBackground": { "usage": "Track active delivery trips" }
+                },
+                "intents": {
+                    "querySchemes": ["https", "mailto"],
+                    "handledSchemes": ["destack-demo"],
+                    "verifiedDomains": ["app.example.com"]
+                },
+                "notifications": {
+                    "enabled": true,
+                    "remote": true,
+                    "badges": true,
+                    "sounds": true,
+                    "timeSensitive": true
+                },
+                "background": {
+                    "modes": ["audio"]
+                },
+                "location": {
+                    "allowsBackgroundUpdates": true,
+                    "preciseByDefault": true,
+                    "temporaryPrecisePurposes": ["turnByTurnNavigation"]
+                },
+                "document": {
+                    "openTypes": ["public.image"],
+                    "saveTypes": ["public.plain-text"],
+                    "supportsOpenInPlace": true
+                },
+                "credentials": {
+                    "biometricUsage": "Unlock saved credentials",
+                    "accessGroups": ["group.com.example.shared"],
+                    "credentialDomains": ["app.example.com"]
+                }
+            }
+        },
+        "macosApp": {
+            "output": "native",
+            "platform": "macos",
+            "app": {
+                "intents": {
+                    "querySchemes": ["https", "mailto"],
+                    "verifiedDomains": ["app.example.com"],
+                    "handledFileTypes": ["public.image", ".png"]
+                },
+                "notifications": {
+                    "enabled": true,
+                    "badges": true,
+                    "sounds": true,
+                    "categories": [
+                        {
+                            "identifier": "messages",
+                            "actions": [
+                                {
+                                    "identifier": "reply",
+                                    "title": "Reply",
+                                    "style": "textInput",
+                                    "foreground": true,
+                                    "textInputButtonTitle": "Send",
+                                    "textInputPlaceholder": "Message"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "services": {
+                    "foregroundModes": ["dataSync"]
+                },
+                "document": {
+                    "openTypes": ["public.image"],
+                    "saveTypes": ["public.plain-text"],
+                    "supportsOpenInPlace": true
+                }
+            }
+        }
     }
 }
 ```
 
 Child packages inherit from parent `dsconfig.json` with restrictive merge semantics where appropriate.
+The `app` section is target-scoped rather than global.
+That keeps app declarations beside the concrete build target that lowers into Android manifests, Apple property lists and entitlements, Windows manifests, or other host packaging metadata.
+It is intentionally semantic rather than syntactic: the config describes what the app declares, and platform-native manifest formats are lowering targets rather than the source language.
 
 ## Containers
 
