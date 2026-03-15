@@ -256,14 +256,14 @@ declare namespace os {
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `os.intent.read`.
+    /// Requires `os.intent.write`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.os.intent.canOpenUrl", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["os.intent.read"],
+        capabilities: ["os.intent.write"],
         platforms: ["windows", "unix"],
         simulation: "model",
         scope: "host",
