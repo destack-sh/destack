@@ -11,7 +11,7 @@ use crate::host::android::bridge::midi::callbacks::{
 /// Fixed-size Android MIDI port descriptor header.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct AndroidHostMidiPortDescriptorHeader {
+pub(crate) struct AndroidHostMidiPortDescriptorHeader {
     /// Offset of the stable id string inside the shared string buffer.
     pub id_offset: u32,
     /// Length of the stable id string inside the shared string buffer.
@@ -61,7 +61,7 @@ pub struct AndroidHostMidiPortDescriptorHeader {
 /// Fixed-size Android MIDI opened-port payload.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct AndroidHostMidiOpenedPortHeader {
+pub(crate) struct AndroidHostMidiOpenedPortHeader {
     /// Opaque host session identifier.
     pub session_id: u64,
     /// Descriptor snapshot for the opened endpoint.
@@ -71,7 +71,7 @@ pub struct AndroidHostMidiOpenedPortHeader {
 /// Fixed-size Android MIDI input record header.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct AndroidHostMidiInputRecordHeader {
+pub(crate) struct AndroidHostMidiInputRecordHeader {
     /// Receive timestamp in runtime monotonic nanoseconds.
     pub received_at_ns: u64,
     /// Offset of the optional source id string inside the shared blob.
@@ -93,7 +93,7 @@ pub struct AndroidHostMidiInputRecordHeader {
 /// Fixed-size Android MIDI output record header.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct AndroidHostMidiOutputRecordHeader {
+pub(crate) struct AndroidHostMidiOutputRecordHeader {
     /// Scheduled send timestamp in runtime monotonic nanoseconds.
     pub send_at_ns: u64,
     /// Whether the record carries one scheduled send timestamp.
@@ -113,7 +113,7 @@ pub struct AndroidHostMidiOutputRecordHeader {
 /// Fixed-size Android MIDI topology event header.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct AndroidHostMidiEventHeader {
+pub(crate) struct AndroidHostMidiEventHeader {
     /// Event timestamp in runtime monotonic nanoseconds.
     pub timestamp_ns: u64,
     /// Number of dropped events before this event.
@@ -139,7 +139,7 @@ pub struct AndroidHostMidiEventHeader {
 /// Callback table for Android host MIDI interop.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct AndroidHostMidiCallbacks {
+pub(crate) struct AndroidHostMidiCallbacks {
     /// Callback for backend descriptor probing.
     pub describe_backend: Option<AndroidHostMidiDescribeBackendCallback>,
     /// Callback for input port enumeration.

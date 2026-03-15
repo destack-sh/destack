@@ -6,7 +6,7 @@ use crate::host::android::bridge::midi::types::{
 };
 
 /// Host callback for describing Android MIDI backend support.
-pub type AndroidHostMidiDescribeBackendCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostMidiDescribeBackendCallback = unsafe extern "C" fn(
     runtime_id: u64,
     capability_flags: *mut u64,
     supported_data_formats: *mut u32,
@@ -14,7 +14,7 @@ pub type AndroidHostMidiDescribeBackendCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for listing Android MIDI input ports.
-pub type AndroidHostMidiInputPortListCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostMidiInputPortListCallback = unsafe extern "C" fn(
     runtime_id: u64,
     flags: u32,
     headers: NativeSlice<AndroidHostMidiPortDescriptorHeader>,
@@ -24,7 +24,7 @@ pub type AndroidHostMidiInputPortListCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for listing Android MIDI output ports.
-pub type AndroidHostMidiOutputPortListCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostMidiOutputPortListCallback = unsafe extern "C" fn(
     runtime_id: u64,
     flags: u32,
     headers: NativeSlice<AndroidHostMidiPortDescriptorHeader>,
@@ -34,7 +34,7 @@ pub type AndroidHostMidiOutputPortListCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for opening one Android MIDI input session.
-pub type AndroidHostMidiInputPortOpenCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostMidiInputPortOpenCallback = unsafe extern "C" fn(
     runtime_id: u64,
     id: NativeStringRef,
     data_format: u32,
@@ -46,7 +46,7 @@ pub type AndroidHostMidiInputPortOpenCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for opening one Android MIDI output session.
-pub type AndroidHostMidiOutputPortOpenCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostMidiOutputPortOpenCallback = unsafe extern "C" fn(
     runtime_id: u64,
     id: NativeStringRef,
     data_format: u32,
@@ -57,7 +57,7 @@ pub type AndroidHostMidiOutputPortOpenCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for creating one Android virtual MIDI input session.
-pub type AndroidHostMidiInputVirtualCreateCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostMidiInputVirtualCreateCallback = unsafe extern "C" fn(
     runtime_id: u64,
     name: NativeStringRef,
     manufacturer: NativeStringRef,
@@ -72,7 +72,7 @@ pub type AndroidHostMidiInputVirtualCreateCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for creating one Android virtual MIDI output session.
-pub type AndroidHostMidiOutputVirtualCreateCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostMidiOutputVirtualCreateCallback = unsafe extern "C" fn(
     runtime_id: u64,
     name: NativeStringRef,
     manufacturer: NativeStringRef,
@@ -86,15 +86,15 @@ pub type AndroidHostMidiOutputVirtualCreateCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for closing one Android MIDI input session.
-pub type AndroidHostMidiInputPortCloseCallback =
+pub(crate) type AndroidHostMidiInputPortCloseCallback =
     unsafe extern "C" fn(runtime_id: u64, session_id: u64) -> u32;
 
 /// Host callback for closing one Android MIDI output session.
-pub type AndroidHostMidiOutputPortCloseCallback =
+pub(crate) type AndroidHostMidiOutputPortCloseCallback =
     unsafe extern "C" fn(runtime_id: u64, session_id: u64) -> u32;
 
 /// Host callback for reading Android MIDI input records.
-pub type AndroidHostMidiInputReadCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostMidiInputReadCallback = unsafe extern "C" fn(
     runtime_id: u64,
     session_id: u64,
     max_records: u32,
@@ -106,7 +106,7 @@ pub type AndroidHostMidiInputReadCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for opening one Android MIDI event subscription.
-pub type AndroidHostMidiEventOpenCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostMidiEventOpenCallback = unsafe extern "C" fn(
     runtime_id: u64,
     flags: u32,
     direction_mask: u32,
@@ -114,7 +114,7 @@ pub type AndroidHostMidiEventOpenCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for reading Android MIDI topology events.
-pub type AndroidHostMidiEventReadCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostMidiEventReadCallback = unsafe extern "C" fn(
     runtime_id: u64,
     session_id: u64,
     max_events: u32,
@@ -126,11 +126,11 @@ pub type AndroidHostMidiEventReadCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for closing one Android MIDI event subscription.
-pub type AndroidHostMidiEventCloseCallback =
+pub(crate) type AndroidHostMidiEventCloseCallback =
     unsafe extern "C" fn(runtime_id: u64, session_id: u64) -> u32;
 
 /// Host callback for writing Android MIDI output records.
-pub type AndroidHostMidiOutputWriteCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostMidiOutputWriteCallback = unsafe extern "C" fn(
     runtime_id: u64,
     session_id: u64,
     headers: NativeSlice<AndroidHostMidiOutputRecordHeader>,
