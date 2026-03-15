@@ -3,7 +3,9 @@
 #![allow(unused_imports)]
 #![allow(improper_ctypes_definitions)]
 #![allow(clippy::clone_on_copy)]
+#![allow(clippy::bind_instead_of_map)]
 #![allow(clippy::enum_variant_names)]
+#![allow(clippy::len_zero)]
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};

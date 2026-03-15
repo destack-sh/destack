@@ -3,7 +3,9 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
+#![allow(clippy::bind_instead_of_map)]
 #![allow(clippy::enum_variant_names)]
+#![allow(clippy::len_zero)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
