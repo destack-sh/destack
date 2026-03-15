@@ -104,13 +104,3 @@ pub(crate) fn service_registered_runtimes_until(
 
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::process_ingress_ready;
-
-    #[test]
-    fn test_process_ingress_ready_ignores_runtime_without_panicking() {
-        let _ = process_ingress_ready(true);
-    }
-}

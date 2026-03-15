@@ -1,0 +1,34 @@
+use crate::diagnostic::RuntimeResult;
+use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome};
+use crate::host::unix::{submit_unix_request, unix_request_capabilities};
+use crate::host::{HostAdapter, Platform};
+use crate::runtime::capability::PlatformCapabilitySet;
+
+/// DragonFly BSD host implementation.
+#[derive(Debug, Default)]
+pub(crate) struct DragonflyHost;
+
+impl DragonflyHost {
+    /// Create one DragonFly BSD host.
+    pub(crate) fn new() -> Self {
+        Self
+    }
+}
+
+impl HostAdapter for DragonflyHost {
+    fn platform(&self) -> Platform {
+        Platform::DragonFly
+    }
+
+    fn session_capabilities(&self) -> PlatformCapabilitySet {
+        unix_request_capabilities()
+    }
+
+    fn submit_request(
+        &self,
+        _context: &HostRequestContext,
+        request: HostRequest,
+    ) -> RuntimeResult<HostRequestOutcome> {
+        submit_unix_request(request)
+    }
+}

@@ -1,17 +1,19 @@
 use std::sync::Arc;
 
-use destack_workspace::{Platform, PlatformHostOptions, RuntimeOptions};
+use destack_workspace::{Platform, PlatformHostOptions, RuntimeAppDeclaration, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "android")]
 use crate::host::android::AndroidHost;
 #[cfg(target_os = "android")]
-use crate::host::android::unregister_android_host_runtime;
-use crate::host::core::backend::{HostBackend, HostPollOutcome};
+use crate::host::android::unregister_android_bindings;
+use crate::host::common::require_declared_request;
+use crate::host::core::adapter::{HostAdapter, HostPollOutcome};
 use crate::host::core::event::{HostEvent, HostLifecycleEvent, HostLifecycleState};
 use crate::host::core::observer::RuntimeIngressObserverRegistry;
 use crate::host::core::queue::HostQueue;
 use crate::host::core::registry::{HostCleanup, HostQueueRegistry, HostRegistrationGuard};
+use crate::host::core::request::{HostRequest, HostRequestContext, HostRequestOutcome};
 #[cfg(target_os = "dragonfly")]
 use crate::host::dragonfly::DragonflyHost;
 #[cfg(target_os = "freebsd")]
@@ -22,6 +24,8 @@ use crate::host::haiku::HaikuHost;
 use crate::host::illumos::IllumosHost;
 #[cfg(target_os = "ios")]
 use crate::host::ios::IosHost;
+#[cfg(target_os = "ios")]
+use crate::host::ios::unregister_ios_bindings;
 #[cfg(target_os = "linux")]
 use crate::host::linux::LinuxHost;
 #[cfg(target_os = "macos")]
@@ -53,32 +57,41 @@ use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, Platf
 use crate::runtime::poller::PollerWakeHandle;
 use crate::runtime::world::RuntimeId;
 
-/// Runtime host integration container.
-pub struct Host {
-    /// Active host implementation for this runtime instance.
-    backend: Arc<dyn HostBackend>,
+/// Runtime-scoped host session.
+pub struct HostSession {
+    /// Active host adapter for this runtime session.
+    adapter: Arc<dyn HostAdapter>,
     /// Shared host queue for this runtime instance.
     queue: Arc<HostQueue>,
     /// Shared registration guard for callback routing.
     registration_guard: HostRegistrationGuard,
     /// Runtime id used for host callback routing and ingress observers.
     runtime_id: RuntimeId,
-    /// Host capability set reported by the host implementation.
-    host_capabilities: PlatformCapabilitySet,
+    /// Static host capability set reported by the adapter.
+    adapter_capabilities: PlatformCapabilitySet,
     /// Resolved host integration options for this runtime target.
     host_options: PlatformHostOptions,
+    /// Resolved target app declaration for request availability checks.
+    app_declaration: RuntimeAppDeclaration,
 }
 
-impl std::fmt::Debug for Host {
+/// Backward-compatible alias for the runtime host session.
+pub type Host = HostSession;
+
+impl std::fmt::Debug for HostSession {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Host")
+        f.debug_struct("HostSession")
             .field("platform", &self.platform())
             .field("runtime_id", &self.runtime_id)
             .field(
                 "registration_runtime_id",
                 &self.registration_guard.runtime_id(),
             )
-            .field("host_capability_count", &self.host_capabilities.len())
+            .field("adapter_capability_count", &self.adapter_capabilities.len())
+            .field(
+                "session_capability_count",
+                &self.session_capabilities().len(),
+            )
             .field(
                 "enable_lifecycle_events",
                 &self.host_options.enable_lifecycle_events,
@@ -99,15 +112,16 @@ impl std::fmt::Debug for Host {
     }
 }
 
-impl Host {
-    /// Create one host runtime from one explicit host and host options.
+impl HostSession {
+    /// Create one host session from one explicit adapter and host options.
     pub(crate) fn new_with_options(
-        backend: Arc<dyn HostBackend>,
+        adapter: Arc<dyn HostAdapter>,
         cleanup: Option<HostCleanup>,
         runtime_id: RuntimeId,
         host_options: PlatformHostOptions,
+        app_declaration: RuntimeAppDeclaration,
     ) -> Self {
-        let platform = backend.platform();
+        let platform = adapter.platform();
         let queue = Arc::new(HostQueue::new(runtime_id));
 
         // register callback routing before this host starts serving callers
@@ -129,35 +143,48 @@ impl Host {
             state: HostLifecycleState::Initializing,
         }));
 
-        let host_capabilities = backend.host_capabilities();
-
+        let adapter_capabilities = adapter.static_capabilities();
         Self {
-            backend,
+            adapter,
             queue,
             registration_guard,
             runtime_id,
-            host_capabilities,
+            adapter_capabilities,
             host_options,
+            app_declaration,
         }
     }
 
-    /// Create one host runtime from runtime options and one explicit runtime id.
+    /// Create one host session from runtime options and one explicit runtime id.
     pub fn from_runtime_options(options: &RuntimeOptions, runtime_id: RuntimeId) -> Self {
-        // select the host for this compile target
-        let (host, cleanup) = Self::default_backend_parts();
+        // select the host adapter for this compile target
+        let (adapter, cleanup) = Self::default_adapter_parts();
         let host_options = Self::host_options_for_target(options);
+        let app_declaration = options.app.clone();
 
-        Self::new_with_options(host, cleanup, runtime_id, host_options)
+        Self::new_with_options(adapter, cleanup, runtime_id, host_options, app_declaration)
     }
 
     /// Return the active host platform.
     pub fn platform(&self) -> Platform {
-        self.backend.platform()
+        self.adapter.platform()
     }
 
-    /// Return host platform capabilities reported by this runtime target.
-    pub fn host_capabilities(&self) -> &PlatformCapabilitySet {
-        &self.host_capabilities
+    /// Return effective host capabilities reported by adapter and session wiring.
+    pub fn host_capabilities(&self) -> PlatformCapabilitySet {
+        let session_capabilities = self.session_capabilities();
+
+        merge_capabilities(self.adapter_capabilities.clone(), session_capabilities)
+    }
+
+    /// Return the static host capabilities reported by this adapter.
+    pub fn adapter_capabilities(&self) -> &PlatformCapabilitySet {
+        &self.adapter_capabilities
+    }
+
+    /// Return the dynamic session capabilities reported by the active adapter.
+    pub fn session_capabilities(&self) -> PlatformCapabilitySet {
+        self.adapter.runtime_session_capabilities(self.runtime_id)
     }
 
     /// Return the resolved host options for this runtime target.
@@ -172,14 +199,30 @@ impl Host {
             .and_then(|capacity| usize::try_from(capacity).ok())
     }
 
-    /// Return whether this runtime target reports one host capability id.
+    /// Return whether adapter and session wiring report one host capability id.
     pub fn has_host_capability_id(&self, capability_id: PlatformCapabilityId) -> bool {
-        self.host_capabilities.contains_id(capability_id)
+        self.adapter_capabilities.contains_id(capability_id)
+            || self.session_capabilities().contains_id(capability_id)
     }
 
-    /// Return whether this runtime target reports one host capability.
+    /// Return whether adapter and session wiring report one host capability.
     pub fn has_host_capability(&self, capability: PlatformCapability) -> bool {
-        self.host_capabilities.contains_capability(capability)
+        self.has_host_capability_id(capability.id())
+    }
+
+    /// Submit one normalized host request through the active session.
+    pub(crate) fn submit_request(&self, request: HostRequest) -> RuntimeResult<HostRequestOutcome> {
+        // request declaration
+        require_declared_request(self.platform(), &self.app_declaration, &request)?;
+
+        // request context
+        let request_context = HostRequestContext {
+            runtime_id: self.runtime_id,
+            platform: self.platform(),
+            is_process_main_context: self.is_process_main_context(),
+        };
+
+        self.adapter.submit_request(&request_context, request)
     }
 
     /// Poll host events using the active host.
@@ -206,12 +249,12 @@ impl Host {
 
     /// Return whether the current execution context is the process main context.
     pub fn is_process_main_context(&self) -> bool {
-        self.backend.is_process_main_context()
+        self.adapter.is_process_main_context()
     }
 
     /// Service immediately ready native host ingress without blocking.
     pub fn process_ingress(&self) -> RuntimeResult<bool> {
-        self.backend.process_native_ingress()
+        self.adapter.process_native_ingress()
     }
 
     /// Service host-owned ingress for the active runtime.
@@ -225,12 +268,12 @@ impl Host {
             .process_runtime(self.runtime_id.0)
     }
 
-    /// Return the default backend and runtime cleanup for the active compile target.
-    fn default_backend_parts() -> (Arc<dyn HostBackend>, Option<HostCleanup>) {
+    /// Return the default adapter and runtime cleanup for the active compile target.
+    fn default_adapter_parts() -> (Arc<dyn HostAdapter>, Option<HostCleanup>) {
         #[cfg(target_os = "android")]
         return (
             Arc::new(AndroidHost::new()),
-            Some(unregister_android_host_runtime),
+            Some(unregister_android_bindings),
         );
 
         #[cfg(target_os = "dragonfly")]
@@ -246,7 +289,7 @@ impl Host {
         return (Arc::new(IllumosHost::new()), None);
 
         #[cfg(target_os = "ios")]
-        return (Arc::new(IosHost::new()), None);
+        return (Arc::new(IosHost::new()), Some(unregister_ios_bindings));
 
         #[cfg(target_os = "linux")]
         return (Arc::new(LinuxHost::new()), None);
@@ -405,5 +448,252 @@ impl Host {
         {
             Platform::Universal
         }
+    }
+}
+
+/// Merge one static and one dynamic capability set into one effective set.
+fn merge_capabilities(
+    static_capabilities: PlatformCapabilitySet,
+    dynamic_capabilities: PlatformCapabilitySet,
+) -> PlatformCapabilitySet {
+    let mut merged = static_capabilities;
+
+    for capability_id in dynamic_capabilities.iter() {
+        merged.insert_id(*capability_id);
+    }
+
+    merged
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use destack_workspace::{
+        RuntimeAppDeclaration, RuntimeAppIntentDeclaration, RuntimeAppNotificationDeclaration,
+    };
+
+    use super::{
+        HostAdapter, HostCleanup, HostRequest, HostRequestContext, HostRequestOutcome, HostSession,
+        Platform, PlatformHostOptions, RuntimeId, RuntimeResult,
+    };
+    use crate::host::core::HostRequestResult;
+    use crate::platform::os::abi_generated::DocumentPickOptionsValue;
+    use crate::platform::os::{NotificationPermissionState, Permission, PermissionState};
+    use crate::runtime::capability::PlatformCapabilitySet;
+
+    /// Test host adapter that records request submissions.
+    #[derive(Debug)]
+    struct TestHostAdapter {
+        /// Host platform reported by the adapter.
+        platform: Platform,
+        /// Submission counter for preflight assertions.
+        submit_count: Arc<AtomicUsize>,
+    }
+
+    impl HostAdapter for TestHostAdapter {
+        /// Return the configured host platform.
+        fn platform(&self) -> Platform {
+            self.platform
+        }
+
+        /// Return one empty static capability set for focused request tests.
+        fn static_capabilities(&self) -> PlatformCapabilitySet {
+            PlatformCapabilitySet::new()
+        }
+
+        /// Return one empty session capability set for focused request tests.
+        fn session_capabilities(&self) -> PlatformCapabilitySet {
+            PlatformCapabilitySet::new()
+        }
+
+        /// Submit one request and return one deterministic test payload.
+        fn submit_request(
+            &self,
+            _context: &HostRequestContext,
+            request: HostRequest,
+        ) -> RuntimeResult<HostRequestOutcome> {
+            // submission bookkeeping
+            self.submit_count.fetch_add(1, Ordering::Relaxed);
+
+            let outcome = match request {
+                HostRequest::OsIntentCanOpenUrl { .. } => {
+                    HostRequestOutcome::immediate(HostRequestResult::Bool(true))
+                }
+                HostRequest::OsNotificationRequestPermission => {
+                    HostRequestOutcome::immediate(HostRequestResult::NotificationPermissionState(
+                        NotificationPermissionState::Granted,
+                    ))
+                }
+                HostRequest::OsDocumentPick { .. } => HostRequestOutcome::immediate(
+                    HostRequestResult::DocumentDescriptors(Vec::new()),
+                ),
+                HostRequest::OsPermissionRequest { .. } => HostRequestOutcome::immediate(
+                    HostRequestResult::PermissionState(PermissionState::Granted),
+                ),
+                _ => HostRequestOutcome::immediate(HostRequestResult::None),
+            };
+
+            Ok(outcome)
+        }
+    }
+
+    /// Build one test host session with one explicit platform and app declaration.
+    fn test_host_session(
+        platform: Platform,
+        app: RuntimeAppDeclaration,
+    ) -> (HostSession, Arc<AtomicUsize>) {
+        let submit_count = Arc::new(AtomicUsize::new(0));
+        let adapter = Arc::new(TestHostAdapter {
+            platform,
+            submit_count: submit_count.clone(),
+        });
+        let cleanup: Option<HostCleanup> = None;
+        let runtime_id = RuntimeId(91);
+        let host_options = PlatformHostOptions::default();
+        let host = HostSession::new_with_options(adapter, cleanup, runtime_id, host_options, app);
+
+        (host, submit_count)
+    }
+
+    /// Reject undeclared permission requests before adapter submission.
+    #[test]
+    fn test_submit_request_rejects_undeclared_permission_before_adapter() {
+        let (host, submit_count) =
+            test_host_session(Platform::Android, RuntimeAppDeclaration::default());
+
+        // submit one undeclared permission request
+        let error = host
+            .submit_request(HostRequest::OsPermissionRequest {
+                permission: Permission::Camera,
+            })
+            .expect_err("undeclared permission request should fail");
+        let message = error.to_string();
+
+        // keep the adapter out of the path
+        assert_eq!(submit_count.load(Ordering::Relaxed), 0);
+        assert!(
+            message.contains("destack.os.permission.request requires one target app declaration")
+        );
+        assert!(message.contains("permissions.camera"));
+    }
+
+    /// Reject undeclared iOS query schemes before adapter submission.
+    #[test]
+    fn test_submit_request_rejects_undeclared_ios_query_scheme() {
+        let (host, submit_count) =
+            test_host_session(Platform::IOS, RuntimeAppDeclaration::default());
+
+        // submit one undeclared query-scheme request
+        let error = host
+            .submit_request(HostRequest::OsIntentCanOpenUrl {
+                url: "mailto:test@example.com".to_string(),
+            })
+            .expect_err("undeclared query scheme should fail");
+        let message = error.to_string();
+
+        // keep the adapter out of the path
+        assert_eq!(submit_count.load(Ordering::Relaxed), 0);
+        assert!(message.contains("intents.querySchemes"));
+        assert!(message.contains("mailto"));
+    }
+
+    /// Allow notification permission requests when notifications are declared.
+    #[test]
+    fn test_submit_request_allows_declared_notification_permission_request() {
+        // notification declaration
+        let app = RuntimeAppDeclaration {
+            notifications: RuntimeAppNotificationDeclaration {
+                enabled: true,
+                ..RuntimeAppNotificationDeclaration::default()
+            },
+            ..RuntimeAppDeclaration::default()
+        };
+        let (host, submit_count) = test_host_session(Platform::IOS, app);
+
+        // submit one declared notification permission request
+        let outcome = host
+            .submit_request(HostRequest::OsNotificationRequestPermission)
+            .expect("declared notification permission request should succeed");
+        let permission_state = outcome
+            .into_notification_permission_state("destack.os.notification.requestPermission")
+            .expect("notification permission request should decode one permission state");
+
+        // ensure the adapter received the request
+        assert_eq!(submit_count.load(Ordering::Relaxed), 1);
+        assert_eq!(permission_state, NotificationPermissionState::Granted);
+    }
+
+    /// Allow declaration-free document picker requests to reach the adapter.
+    #[test]
+    fn test_submit_request_allows_declaration_free_document_pick() {
+        let (host, submit_count) =
+            test_host_session(Platform::MacOS, RuntimeAppDeclaration::default());
+
+        // submit one declaration-free document picker request
+        let outcome = host
+            .submit_request(HostRequest::OsDocumentPick {
+                options: DocumentPickOptionsValue {
+                    mime_types: Vec::new(),
+                    extensions: Vec::new(),
+                    multiple: false,
+                    allow_directories: false,
+                    copy_to_sandbox: false,
+                },
+            })
+            .expect("document picker request should remain declaration-free");
+        let descriptors = outcome
+            .into_document_descriptors("destack.os.document.pick")
+            .expect("document picker request should decode document descriptors");
+
+        // ensure the adapter received the request
+        assert_eq!(submit_count.load(Ordering::Relaxed), 1);
+        assert!(descriptors.is_empty());
+    }
+
+    /// Reject undeclared Android file sharing before adapter submission.
+    #[test]
+    fn test_submit_request_rejects_undeclared_android_file_share() {
+        let (host, submit_count) =
+            test_host_session(Platform::Android, RuntimeAppDeclaration::default());
+
+        // submit one undeclared file-share request
+        let error = host
+            .submit_request(HostRequest::OsIntentSharePaths {
+                paths: Vec::new(),
+                mime_type: Some("text/plain".to_string()),
+            })
+            .expect_err("undeclared Android file share should fail");
+        let message = error.to_string();
+
+        // keep the adapter out of the path
+        assert_eq!(submit_count.load(Ordering::Relaxed), 0);
+        assert!(message.contains("intents.sharesFiles"));
+    }
+
+    /// Allow declared Android file sharing to reach the adapter.
+    #[test]
+    fn test_submit_request_allows_declared_android_file_share() {
+        let app = RuntimeAppDeclaration {
+            intents: RuntimeAppIntentDeclaration {
+                shares_files: true,
+                ..RuntimeAppIntentDeclaration::default()
+            },
+            ..RuntimeAppDeclaration::default()
+        };
+        let (host, submit_count) = test_host_session(Platform::Android, app);
+
+        // submit one declared file-share request
+        let outcome = host
+            .submit_request(HostRequest::OsIntentSharePaths {
+                paths: Vec::new(),
+                mime_type: Some("text/plain".to_string()),
+            })
+            .expect("declared Android file share should succeed");
+
+        // ensure the adapter received the request
+        assert_eq!(submit_count.load(Ordering::Relaxed), 1);
+        assert_eq!(outcome.result, HostRequestResult::None);
     }
 }

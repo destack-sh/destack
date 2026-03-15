@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::host::core::{HostQueue, HostQueueRegistry};
-use crate::host::windows::callback::host_lifecycle_state_for_windows_application;
+use crate::host::windows::ingress::callback::host_lifecycle_state_for_windows_application;
 use crate::host::windows::{
     WindowsApplicationLifecycle, windows_notify_intent_open_url, windows_notify_permission_result,
 };

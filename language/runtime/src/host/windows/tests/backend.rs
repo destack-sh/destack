@@ -1,12 +1,15 @@
-#[cfg(windows)]
-use crate::host::HostBackend;
-#[cfg(windows)]
+use crate::host::HostAdapter;
 use crate::host::windows::WindowsHost;
+use crate::runtime::capability::PlatformCapability;
 
-#[cfg(windows)]
+/// Report the static Windows host capabilities.
 #[test]
-fn test_process_ingress_routes_for_host() {
+fn test_windows_host_reports_static_capabilities() {
     let host = WindowsHost::new();
-    let result = host.process_native_ingress();
-    assert!(result.is_ok());
+    let capabilities = host.static_capabilities();
+
+    assert!(capabilities.contains_capability(PlatformCapability::OsLifecycleRead));
+    assert!(capabilities.contains_capability(PlatformCapability::OsIntentRead));
+    assert!(capabilities.contains_capability(PlatformCapability::OsPower));
+    assert!(capabilities.contains_capability(PlatformCapability::OsPermissionRead));
 }

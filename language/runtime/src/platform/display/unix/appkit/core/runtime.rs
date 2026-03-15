@@ -4,6 +4,7 @@ use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 
 use super::delegate::AppKitWindowDelegate;
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
+use crate::host::apple::execution::with_process_main_context_marker_if_needed;
 use crate::host::core::observer::{RuntimeIngressObserver, RuntimeIngressObserverRegistry};
 use crate::platform::display::unix::appkit::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
@@ -16,7 +17,7 @@ use crate::runtime::world::World;
 use crate::runtime::{
     BindingCallContext, RuntimeEventLog, RuntimeId, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
-use dispatch2::{MainThreadBound, run_on_main};
+use dispatch2::MainThreadBound;
 use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSImage, NSWindow};
 
 /// Transient drag and drop state for one native AppKit window.
@@ -148,17 +149,18 @@ impl std::fmt::Debug for AppKitRuntimeState {
 impl AppKitRuntimeState {
     /// Create one runtime-owned AppKit state value.
     pub(crate) fn from_context(binding: &BindingCallContext) -> Self {
-        let main_thread_state = run_on_main(|mtm| {
+        let main_thread_state = with_process_main_context_marker_if_needed(|mtm| {
             let application = NSApplication::sharedApplication(mtm);
             application.setActivationPolicy(NSApplicationActivationPolicy::Regular);
 
-            MainThreadBound::new(
+            Ok(MainThreadBound::new(
                 RefCell::new(AppKitMainThreadState {
                     windows: HashMap::new(),
                 }),
                 mtm,
-            )
-        });
+            ))
+        })
+        .unwrap_or_else(|error| panic!("failed to initialize AppKit runtime state: {error}"));
 
         Self {
             main_thread_state,

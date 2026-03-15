@@ -1,6 +1,5 @@
 use std::sync::{Arc, Mutex};
 
-use dispatch2::run_on_main;
 use objc2::runtime::ProtocolObject;
 use objc2::{MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{
@@ -11,6 +10,7 @@ use objc2_core_graphics::{kCGFloatingWindowLevel, kCGNormalWindowLevel};
 use objc2_foundation::{NSArray, NSSize, NSString};
 
 use crate::diagnostic::RuntimeResult;
+use crate::host::apple::execution::with_process_main_context_marker_if_needed;
 use crate::platform;
 use crate::platform::display::{WindowModeOptions, WindowOptions, WindowRole, WindowVisibility};
 use crate::platform::resource;
@@ -137,7 +137,7 @@ pub(crate) unsafe fn window_open(
     };
 
     // create and configure the native window on the AppKit main thread
-    run_on_main(|mtm| {
+    with_process_main_context_marker_if_needed(|mtm| {
         let application = NSApplication::sharedApplication(mtm);
         let window = create_native_window(mtm, &resolved_options);
         let native_title = NSString::from_str(title);
@@ -262,7 +262,8 @@ pub(crate) unsafe fn window_open(
                 window_icon: Default::default(),
             },
         );
-    });
+        Ok(())
+    })?;
 
     // apply parent and modal relationships after the host window exists
     let initial_owner = resolved_options.transient_for.or(resolved_options.parent);

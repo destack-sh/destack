@@ -4,6 +4,7 @@ use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
 use crate::diagnostic::RuntimeResult;
+use crate::host::HostEvent;
 use crate::host::core::Platform;
 use crate::host::core::error::missing_host_queue;
 use crate::host::core::observer::{HostEventObserverRegistry, RuntimeIngressObserverRegistry};
@@ -15,6 +16,13 @@ pub(crate) type HostCleanup = fn(runtime_id: u64);
 
 /// Shared process-global host queue registry.
 static HOST_RUNTIME_QUEUE_REGISTRY: OnceLock<RwLock<HostQueueRegistry>> = OnceLock::new();
+
+/// Runtime-scoped ingress handle resolved from the process-global registry.
+#[derive(Debug, Clone)]
+pub(crate) struct HostSessionIngress {
+    /// Resolved runtime-owned host queue.
+    queue: Arc<HostQueue>,
+}
 
 /// Registration guard for one host runtime queue.
 #[derive(Debug)]
@@ -101,6 +109,17 @@ impl HostQueueRegistry {
         Ok(queue)
     }
 
+    /// Resolve one runtime-scoped host session ingress handle.
+    pub(crate) fn session_ingress_for_runtime(
+        &mut self,
+        runtime_id: RuntimeId,
+        platform: Platform,
+    ) -> RuntimeResult<HostSessionIngress> {
+        let queue = self.queue_for_runtime(runtime_id, platform)?;
+
+        Ok(HostSessionIngress { queue })
+    }
+
     /// Remove one registration from the shared host runtime queue registry.
     pub(crate) fn unregister(&mut self, runtime_id: RuntimeId) {
         let cleanup = self
@@ -118,6 +137,18 @@ impl HostQueueRegistry {
         if let Some(cleanup) = cleanup {
             cleanup(runtime_id.0);
         }
+    }
+}
+
+impl HostSessionIngress {
+    /// Publish one normalized host event into the runtime queue.
+    pub(crate) fn publish_event(&self, event: HostEvent) {
+        self.queue.enqueue(event);
+    }
+
+    /// Wake one blocked host poller for this runtime.
+    pub(crate) fn wake(&self) -> RuntimeResult<()> {
+        self.queue.poll_wake_handle().wake()
     }
 }
 
