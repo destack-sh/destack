@@ -1,13 +1,16 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
+use crate::host::Platform;
+use crate::host::android::bindings::{AndroidHostBindings, destack_host_android_register_bindings};
+use crate::host::android::bluetooth::AndroidHostBluetoothCallbacks;
+use crate::host::android::camera::AndroidHostCameraCallbacks;
+use crate::host::android::bridge::credentials::AndroidHostCredentialsCallbacks;
+use crate::host::android::bridge::crypto::AndroidHostCryptoCallbacks;
+use crate::host::android::bridge::midi::AndroidHostMidiCallbacks;
 use crate::host::android::unregister_android_bindings;
 use crate::host::core::registry::HostRegistrationGuard;
 use crate::host::core::{HostQueue, HostRuntimeRegistry};
-use crate::host::{
-    AndroidHostBindings, AndroidHostCredentialsCallbacks, AndroidHostCryptoCallbacks,
-    AndroidHostMidiCallbacks, Platform, destack_host_android_register_bindings,
-};
 use crate::runtime::world::RuntimeId;
 
 /// Shared runtime-id allocator for Android host tests.
@@ -27,6 +30,7 @@ fn next_test_runtime_id() -> RuntimeId {
 
 /// Register one temporary Android host queue and keep registration state alive.
 pub(crate) fn register_android_runtime() -> (Arc<HostQueue>, HostRegistrationGuard, u64) {
+    // allocate one host queue and register it under one unique Android runtime id
     let runtime_id = next_test_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration = HostRuntimeRegistry::register_queue(
@@ -50,6 +54,7 @@ pub(crate) fn register_android_bindings_credentials(
     runtime_id: u64,
     callbacks: AndroidHostCredentialsCallbacks,
 ) -> u32 {
+    // install one credentials-only callback lane
     register_android_bindings(
         runtime_id,
         AndroidHostBindings {
@@ -64,6 +69,7 @@ pub(crate) fn register_android_bindings_crypto(
     runtime_id: u64,
     callbacks: AndroidHostCryptoCallbacks,
 ) -> u32 {
+    // install one crypto-only callback lane
     register_android_bindings(
         runtime_id,
         AndroidHostBindings {
@@ -78,10 +84,41 @@ pub(crate) fn register_android_bindings_midi(
     runtime_id: u64,
     callbacks: AndroidHostMidiCallbacks,
 ) -> u32 {
+    // install one midi-only callback lane
     register_android_bindings(
         runtime_id,
         AndroidHostBindings {
             midi: callbacks,
+            ..AndroidHostBindings::default()
+        },
+    )
+}
+
+/// Register one runtime-scoped Android Bluetooth callback payload.
+pub(crate) fn register_android_bindings_bluetooth(
+    runtime_id: u64,
+    callbacks: AndroidHostBluetoothCallbacks,
+) -> u32 {
+    // install one bluetooth-only callback lane
+    register_android_bindings(
+        runtime_id,
+        AndroidHostBindings {
+            bluetooth: callbacks,
+            ..AndroidHostBindings::default()
+        },
+    )
+}
+
+/// Register one runtime-scoped Android camera callback payload.
+pub(crate) fn register_android_bindings_camera(
+    runtime_id: u64,
+    callbacks: AndroidHostCameraCallbacks,
+) -> u32 {
+    // install one camera-only callback lane
+    register_android_bindings(
+        runtime_id,
+        AndroidHostBindings {
+            camera: callbacks,
             ..AndroidHostBindings::default()
         },
     )

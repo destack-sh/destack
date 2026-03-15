@@ -1,4 +1,3 @@
-use crate::host::android::bridge::bindings::invoke_android_binding_callback;
 use crate::runtime::{NativeSlice, NativeStringRef};
 
 /// Host callback for reading one credential payload.
@@ -81,17 +80,4 @@ impl Default for AndroidHostCredentialsCallbacks {
             authenticate: None,
         }
     }
-}
-
-/// Resolve and invoke one Android host credentials callback.
-pub(super) fn call_android_credentials_callback<T: Copy>(
-    runtime_id: u64,
-    resolve: impl FnOnce(&AndroidHostCredentialsCallbacks) -> Option<T>,
-    invoke: impl FnOnce(T) -> u32,
-) -> u32 {
-    invoke_android_binding_callback(
-        runtime_id,
-        |bindings| resolve(&bindings.credentials),
-        invoke,
-    )
 }

@@ -1,16 +1,23 @@
-use crate::host::android::abi::HOST_STATUS_NOT_SUPPORTED;
+#![allow(unreachable_pub)]
+
+use crate::host::abi::HostStatus;
+use crate::host::android::bluetooth::types::AndroidHostBluetoothCallbacks;
+use crate::host::android::camera::types::AndroidHostCameraCallbacks;
 use crate::host::android::bridge::credentials::AndroidHostCredentialsCallbacks;
 use crate::host::android::bridge::crypto::AndroidHostCryptoCallbacks;
 use crate::host::android::bridge::midi::AndroidHostMidiCallbacks;
-use crate::host::android::bridge::registry::{register_android_bindings, resolve_android_bindings};
-use crate::host::android::request::intent::AndroidHostIntentCallbacks;
+use crate::host::android::bridge::registry::{
+    register_android_bindings, resolve_android_bindings,
+};
 
 /// Android host bindings container for callback-backed lanes.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct AndroidHostBindings {
-    /// Intent host callbacks.
-    pub intent: AndroidHostIntentCallbacks,
+    /// Bluetooth host callbacks.
+    pub bluetooth: AndroidHostBluetoothCallbacks,
+    /// Camera host callbacks.
+    pub camera: AndroidHostCameraCallbacks,
     /// Credentials host callbacks.
     pub credentials: AndroidHostCredentialsCallbacks,
     /// Crypto host callbacks.
@@ -37,7 +44,7 @@ pub(crate) fn resolve_android_binding_callback<T: Copy>(
     let bindings = resolve_android_bindings(runtime_id)?;
 
     // resolve one callback and report unsupported lanes explicitly
-    resolve(&bindings).ok_or(HOST_STATUS_NOT_SUPPORTED)
+    resolve(&bindings).ok_or(HostStatus::NotSupported.code())
 }
 
 /// Resolve and invoke one Android host callback.
