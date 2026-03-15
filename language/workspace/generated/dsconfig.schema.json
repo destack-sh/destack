@@ -64,7 +64,7 @@
         "time": null,
         "random": null,
         "scheduler": null,
-        "gc": null,
+        "heap": null,
         "diagnostic": null,
         "fs": null,
         "net": null,
@@ -83,7 +83,6 @@
         "ffi": null,
         "io": null,
         "ipc": null,
-        "memory": null,
         "resource": null,
         "thread": null,
         "tty": null,
@@ -1058,11 +1057,11 @@
             }
           ]
         },
-        "gc": {
-          "description": "Runtime garbage collector configuration.",
+        "heap": {
+          "description": "Runtime heap configuration.",
           "anyOf": [
             {
-              "$ref": "#/$defs/GcOptionsJson"
+              "$ref": "#/$defs/HeapOptionsJson"
             },
             {
               "type": "null"
@@ -1261,17 +1260,6 @@
           "anyOf": [
             {
               "$ref": "#/$defs/PlatformIpcOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "memory": {
-          "description": "Global memory runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformMemoryOptionsJson"
             },
             {
               "type": "null"
@@ -1558,6 +1546,17 @@
             }
           ]
         },
+        "affinity": {
+          "description": "Binding affinity selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BindingAffinityJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "effect": {
           "description": "Binding effect selector.",
           "anyOf": [
@@ -1656,6 +1655,31 @@
           "description": "Match conditionally blocking bindings.",
           "type": "string",
           "const": "sometimes"
+        }
+      ]
+    },
+    "BindingAffinityJson": {
+      "description": "Runtime rule affinity selector for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Match bindings callable from any execution context.",
+          "type": "string",
+          "const": "any"
+        },
+        {
+          "description": "Match bindings that require the agent event-loop context.",
+          "type": "string",
+          "const": "eventLoop"
+        },
+        {
+          "description": "Match bindings that require the creating execution context.",
+          "type": "string",
+          "const": "owner"
+        },
+        {
+          "description": "Match bindings that require the process main context.",
+          "type": "string",
+          "const": "processMain"
         }
       ]
     },
@@ -2118,19 +2142,12 @@
         }
       ]
     },
-    "GcOptionsJson": {
-      "description": "Runtime GC options for JSON deserialization.",
+    "HeapOptionsJson": {
+      "description": "Runtime heap configuration for JSON deserialization.",
       "type": "object",
       "properties": {
-        "enabled": {
-          "description": "Whether the garbage collector is enabled.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "heapGrowthPercent": {
-          "description": "Heap growth target percentage.",
+        "growthPercent": {
+          "description": "Growth target percentage.",
           "type": [
             "integer",
             "null"
@@ -2138,7 +2155,7 @@
           "format": "uint32",
           "minimum": 0
         },
-        "heapSoftLimitBytes": {
+        "softLimitBytes": {
           "description": "Soft heap limit in bytes.",
           "type": [
             "integer",
@@ -2147,8 +2164,53 @@
           "format": "uint64",
           "minimum": 0
         },
-        "heapInitialBytes": {
+        "initialBytes": {
           "description": "Initial heap size hint in bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "managedLargeSpanValues": {
+          "description": "Dedicated managed span threshold in values.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "rawLargeSpanBytes": {
+          "description": "Dedicated raw span threshold in bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "maxBytes": {
+          "description": "Hard limit for total retained heap bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxManagedBytes": {
+          "description": "Hard limit for retained managed heap bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxRawBytes": {
+          "description": "Hard limit for retained raw heap bytes.",
           "type": [
             "integer",
             "null"
@@ -2640,7 +2702,27 @@
     },
     "PlatformDisplayOptionsJson": {
       "description": "Display runtime options.",
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "eventQueueCapacity": {
+          "description": "Optional display event queue capacity override.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "streamWaitSliceNs": {
+          "description": "Optional display stream wait slice in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
     },
     "PlatformErrorOptionsJson": {
       "description": "Error runtime options.",
@@ -2668,10 +2750,6 @@
           "minimum": 0
         }
       }
-    },
-    "PlatformMemoryOptionsJson": {
-      "description": "Memory runtime options.",
-      "type": "object"
     },
     "PlatformResourceOptionsJson": {
       "description": "Resource runtime options.",
@@ -3289,6 +3367,20 @@
           "format": "uint",
           "minimum": 0
         },
+        "maxLinesSkipComments": {
+          "description": "Ignore full-line comments in `max-lines`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "maxLinesSkipBlankLines": {
+          "description": "Ignore blank lines in `max-lines`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "maxLinesPerFunction": {
           "description": "Maximum lines per function.",
           "type": [
@@ -3388,6 +3480,13 @@
           "format": "uint",
           "minimum": 0
         },
+        "noMultiAssignIgnoreNonDeclaration": {
+          "description": "Ignore non-declaration chains in `no-multi-assign`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "arrayType": {
           "description": "Preferred array type syntax: \"array\" or \"generic\".",
           "anyOf": [
@@ -3426,6 +3525,87 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "allowSingleExtendsEmptyInterface": {
+          "description": "Allow empty interfaces that extend exactly one supertype.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "returnAwaitMode": {
+          "description": "Await policy for the `return-await` rule.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReturnAwaitModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allowNamedFunctionsInPreferArrowCallback": {
+          "description": "Allow named callbacks in `prefer-arrow-callback`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowUnboundThisInPreferArrowCallback": {
+          "description": "Allow unbound `this` in `prefer-arrow-callback`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noConfusingVoidExpressionIgnoreVoidOperator": {
+          "description": "Ignore explicit `void` wrappers in `no-confusing-void-expression`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "consistentTypeImportsPreferTypeImports": {
+          "description": "Prefer top-level `import type` in `consistent-type-imports`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "consistentTypeImportsPreferInlineTypeImports": {
+          "description": "Prefer inline `type` specifiers in `consistent-type-imports`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "consistentTypeImportsDisallowTypeAnnotations": {
+          "description": "Disallow `import(\\\"...\\\")` type annotations in `consistent-type-imports`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "ignoreConditionalTestsInPreferNullishCoalescing": {
+          "description": "Ignore conditional tests in `prefer-nullish-coalescing`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "ignoreMixedLogicalExpressionsInPreferNullishCoalescing": {
+          "description": "Ignore mixed logical expressions in `prefer-nullish-coalescing`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "ignoreTernaryTestsInPreferNullishCoalescing": {
+          "description": "Ignore ternary checks in `prefer-nullish-coalescing`.",
+          "type": [
+            "boolean",
+            "null"
           ]
         },
         "allowedMagicNumbers": {
@@ -3487,7 +3667,7 @@
       "type": "object",
       "properties": {
         "preset": {
-          "description": "Preset: \"none\", \"recommended\", or \"all\".",
+          "description": "Preset: \"none\", \"recommended\", \"strict\", or \"all\".",
           "type": [
             "string",
             "null"
@@ -3594,6 +3774,31 @@
           "description": "PascalCase (e.g., `MyComponent.ts`).",
           "type": "string",
           "const": "pascal"
+        }
+      ]
+    },
+    "ReturnAwaitModeJson": {
+      "description": "Return-await mode for linter JSON.",
+      "oneOf": [
+        {
+          "description": "Require await only in error handling contexts and forbid it elsewhere.",
+          "type": "string",
+          "const": "in-try-catch"
+        },
+        {
+          "description": "Require await only in error handling contexts and do not enforce elsewhere.",
+          "type": "string",
+          "const": "error-handling-correctness-only"
+        },
+        {
+          "description": "Require await in all contexts.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Forbid await in all contexts.",
+          "type": "string",
+          "const": "never"
         }
       ]
     },
@@ -4128,6 +4333,17 @@
             "null"
           ]
         },
+        "app": {
+          "description": "App declaration for packaging and runtime capability planning.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAppDeclarationJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "debug": {
           "description": "Whether this is a debug build.",
           "type": "boolean",
@@ -4529,6 +4745,573 @@
           "const": "symbols"
         }
       ]
+    },
+    "TargetAppDeclarationJson": {
+      "description": "Target-scoped app declaration JSON.",
+      "type": "object",
+      "properties": {
+        "permissions": {
+          "description": "Permission declarations keyed by permission selector.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/TargetAppPermissionDeclarationJson"
+          }
+        },
+        "intents": {
+          "description": "Intent declaration for app activation and routing.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAppIntentDeclarationJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notifications": {
+          "description": "Notification declaration for local and remote notifications.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAppNotificationDeclarationJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "background": {
+          "description": "Background execution declaration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAppBackgroundDeclarationJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "services": {
+          "description": "Host-managed foreground service declaration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAppServiceDeclarationJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "document": {
+          "description": "Document-provider and picker declaration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAppDocumentDeclarationJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "credentials": {
+          "description": "Credential and secure-store declaration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAppCredentialDeclarationJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "location": {
+          "description": "Location declaration beyond permission usage strings.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAppLocationDeclarationJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "TargetAppPermissionDeclarationJson": {
+      "description": "Permission declaration JSON for one app permission.",
+      "type": "object",
+      "properties": {
+        "usage": {
+          "description": "Human-facing usage text for platforms that require one declaration string.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "TargetAppIntentDeclarationJson": {
+      "description": "Intent declaration JSON for one target app.",
+      "type": "object",
+      "properties": {
+        "querySchemes": {
+          "description": "URL schemes the app may query for outbound routing.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "handledSchemes": {
+          "description": "URL schemes that activate the app inbound.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "verifiedDomains": {
+          "description": "Verified web domains associated with direct app activation.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "handledFileTypes": {
+          "description": "File or content types the app can open inbound.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "receivesSharedText": {
+          "description": "Whether the app accepts shared text payloads inbound.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "handledShareTypes": {
+          "description": "File or content types the app accepts through share ingress.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "customActions": {
+          "description": "Custom actions that activate the app.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "TargetAppNotificationDeclarationJson": {
+      "description": "Notification declaration JSON for one target app.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether the app declares local notification support.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "remote": {
+          "description": "Whether the app declares remote or push notification support.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "badges": {
+          "description": "Whether the app declares badge support.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sounds": {
+          "description": "Whether the app declares sound support.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeSensitive": {
+          "description": "Whether the app declares time-sensitive notification support.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "criticalAlerts": {
+          "description": "Whether the app declares critical-alert support.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "categories": {
+          "description": "Declared notification categories.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/TargetAppNotificationCategoryDeclarationJson"
+          }
+        }
+      }
+    },
+    "TargetAppNotificationCategoryDeclarationJson": {
+      "description": "Notification category declaration JSON.",
+      "type": "object",
+      "properties": {
+        "identifier": {
+          "description": "Stable notification category identifier.",
+          "type": "string"
+        },
+        "actions": {
+          "description": "Actions available for this category.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TargetAppNotificationActionDeclarationJson"
+          }
+        }
+      },
+      "required": [
+        "identifier"
+      ]
+    },
+    "TargetAppNotificationActionDeclarationJson": {
+      "description": "Notification action declaration JSON.",
+      "type": "object",
+      "properties": {
+        "identifier": {
+          "description": "Stable notification action identifier.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Human-facing title for the action.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "style": {
+          "description": "Platform presentation style for the action.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAppNotificationActionStyle"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "foreground": {
+          "description": "Whether the action should foreground the app when activated.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "textInputButtonTitle": {
+          "description": "Button title for text-input actions.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "textInputPlaceholder": {
+          "description": "Placeholder for text-input actions.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "identifier"
+      ]
+    },
+    "TargetAppNotificationActionStyle": {
+      "description": "Notification action style for app declarations.",
+      "oneOf": [
+        {
+          "description": "Default action presentation.",
+          "type": "string",
+          "const": "default"
+        },
+        {
+          "description": "Destructive action presentation.",
+          "type": "string",
+          "const": "destructive"
+        },
+        {
+          "description": "Text-input action presentation.",
+          "type": "string",
+          "const": "textInput"
+        }
+      ]
+    },
+    "TargetAppBackgroundDeclarationJson": {
+      "description": "Background execution declaration JSON for one target app.",
+      "type": "object",
+      "properties": {
+        "modes": {
+          "description": "Declared background execution modes.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/TargetAppBackgroundMode"
+          }
+        }
+      }
+    },
+    "TargetAppBackgroundMode": {
+      "description": "Background execution mode for one app declaration.",
+      "oneOf": [
+        {
+          "description": "Audio playback or capture in the background.",
+          "type": "string",
+          "const": "audio"
+        },
+        {
+          "description": "Location updates in the background.",
+          "type": "string",
+          "const": "location"
+        },
+        {
+          "description": "Periodic background fetch.",
+          "type": "string",
+          "const": "fetch"
+        },
+        {
+          "description": "General background processing.",
+          "type": "string",
+          "const": "processing"
+        },
+        {
+          "description": "Remote notification wake handling.",
+          "type": "string",
+          "const": "remoteNotifications"
+        },
+        {
+          "description": "Voice over IP background mode.",
+          "type": "string",
+          "const": "voip"
+        },
+        {
+          "description": "Bluetooth central mode.",
+          "type": "string",
+          "const": "bluetoothCentral"
+        },
+        {
+          "description": "Bluetooth peripheral mode.",
+          "type": "string",
+          "const": "bluetoothPeripheral"
+        },
+        {
+          "description": "Motion sensor processing in the background.",
+          "type": "string",
+          "const": "motion"
+        },
+        {
+          "description": "Picture-in-picture presentation.",
+          "type": "string",
+          "const": "pictureInPicture"
+        }
+      ]
+    },
+    "TargetAppServiceDeclarationJson": {
+      "description": "Foreground or persistent service declaration JSON for one target app.",
+      "type": "object",
+      "properties": {
+        "foregroundModes": {
+          "description": "Declared foreground service classes.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/TargetAppForegroundMode"
+          }
+        }
+      }
+    },
+    "TargetAppForegroundMode": {
+      "description": "Foreground or persistent service class for one app declaration.",
+      "oneOf": [
+        {
+          "description": "Audio playback or long-running audio work.",
+          "type": "string",
+          "const": "audio"
+        },
+        {
+          "description": "Location tracking or navigation work.",
+          "type": "string",
+          "const": "location"
+        },
+        {
+          "description": "Camera capture work.",
+          "type": "string",
+          "const": "camera"
+        },
+        {
+          "description": "Microphone capture work.",
+          "type": "string",
+          "const": "microphone"
+        },
+        {
+          "description": "Connected-device communication work.",
+          "type": "string",
+          "const": "connectedDevice"
+        },
+        {
+          "description": "Data synchronization work.",
+          "type": "string",
+          "const": "dataSync"
+        },
+        {
+          "description": "Media projection or screen-capture work.",
+          "type": "string",
+          "const": "screenCapture"
+        },
+        {
+          "description": "Phone-call or voice-call work.",
+          "type": "string",
+          "const": "phoneCall"
+        },
+        {
+          "description": "Remote messaging work.",
+          "type": "string",
+          "const": "remoteMessaging"
+        },
+        {
+          "description": "Health or fitness sensor work.",
+          "type": "string",
+          "const": "health"
+        }
+      ]
+    },
+    "TargetAppDocumentDeclarationJson": {
+      "description": "Document-provider declaration JSON for one target app.",
+      "type": "object",
+      "properties": {
+        "openTypes": {
+          "description": "File or content types the app can open from document providers.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "saveTypes": {
+          "description": "File or content types the app can save or export through the host.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "supportsOpenInPlace": {
+          "description": "Whether the app supports opening provider-backed documents in place.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "TargetAppCredentialDeclarationJson": {
+      "description": "Credential and secure-store declaration JSON for one target app.",
+      "type": "object",
+      "properties": {
+        "biometricUsage": {
+          "description": "Human-facing usage text for biometric authentication on hosts that require one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "accessGroups": {
+          "description": "Shared secure-store access groups.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "credentialDomains": {
+          "description": "Web domains associated with shared web credentials.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "TargetAppLocationDeclarationJson": {
+      "description": "Location declaration JSON for one target app.",
+      "type": "object",
+      "properties": {
+        "allowsBackgroundUpdates": {
+          "description": "Whether the app expects background location updates.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "preciseByDefault": {
+          "description": "Whether the app expects precise location by default.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "temporaryPrecisePurposes": {
+          "description": "Purpose keys for temporarily requesting precise location.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     },
     "LtoModeJson": {
       "description": "Link time optimization mode for JSON deserialization.",

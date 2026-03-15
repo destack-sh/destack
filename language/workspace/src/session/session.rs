@@ -8,8 +8,8 @@ use parking_lot::RwLock;
 
 use crate::{
     Builtins, CacheStore, DiskCacheStore, DsConfig, FormatterOptions, LinterOptions,
-    ModuleRegistry, PackageRegistry, ProfileKey, Program, SessionOptions,
-    TsConfigRegistry, Workspace, resolve_workspace_cache_root,
+    ModuleRegistry, PackageRegistry, ProfileKey, Program, SessionOptions, TsConfigRegistry,
+    Workspace, resolve_workspace_cache_root,
 };
 
 /// A session is the persistent state for a workspace.
@@ -74,7 +74,8 @@ impl Session {
     pub fn new(cwd: PathBuf) -> Self {
         let options = SessionOptions::default();
         let files = Arc::new(FileRegistry::new());
-        let (modules, packages, tsconfigs, strings, builtins) = Self::bootstrap_state(files.clone());
+        let (modules, packages, tsconfigs, strings, builtins) =
+            Self::bootstrap_state(files.clone());
 
         Self {
             workspace: RwLock::new(Workspace::single_package(cwd.clone())),
@@ -99,7 +100,8 @@ impl Session {
         let options = SessionOptions::default();
 
         let files = Arc::new(FileRegistry::new());
-        let (modules, packages, tsconfigs, strings, builtins) = Self::bootstrap_state(files.clone());
+        let (modules, packages, tsconfigs, strings, builtins) =
+            Self::bootstrap_state(files.clone());
 
         Self {
             workspace: RwLock::new((*workspace).clone()),

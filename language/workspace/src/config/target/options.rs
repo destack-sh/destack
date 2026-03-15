@@ -15,6 +15,7 @@ use crate::config::runtime::{
 };
 use crate::config::tsconfig::{EsTarget, ModuleTarget};
 
+use super::app::*;
 use super::execution::*;
 use super::optimization::*;
 use super::output::*;
@@ -54,6 +55,8 @@ pub struct Target {
     pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
+    /// App declaration for packaging and runtime capability planning.
+    pub app: TargetAppDeclaration,
     /// Output format (js, ts, wasm, native).
     pub output: OutputFormat,
     /// Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).
@@ -836,6 +839,8 @@ pub struct DsConfigTargetOptions {
     pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
+    /// App declaration for packaging and runtime capability planning.
+    pub app: TargetAppDeclaration,
 
     // optimization
     /// Whether this is a debug build.
@@ -931,6 +936,7 @@ impl Default for DsConfigTargetOptions {
             lib: None,
             types: None,
             profile: None,
+            app: TargetAppDeclaration::default(),
             debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
@@ -1019,6 +1025,7 @@ impl DsConfigTargetOptions {
             lib: self.lib.clone(),
             types: self.types.clone(),
             profile: self.profile.clone(),
+            app: self.app.clone(),
             debug: self.debug,
             optimize: self.optimize,
             optimize_level: self.optimize_level,
@@ -1144,6 +1151,11 @@ impl DsConfigTargetOptions {
             lib: json.lib.clone(),
             types: json.types.clone(),
             profile: json.profile.clone(),
+            app: json
+                .app
+                .as_ref()
+                .map(TargetAppDeclaration::from)
+                .unwrap_or_default(),
             debug: json.debug,
             optimize: json.optimize,
             optimize_level: json
@@ -1295,6 +1307,8 @@ pub struct DsConfigTargetJson {
     pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
+    /// App declaration for packaging and runtime capability planning.
+    pub app: Option<TargetAppDeclarationJson>,
 
     // optimization
     /// Whether this is a debug build.
