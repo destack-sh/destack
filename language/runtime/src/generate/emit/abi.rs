@@ -705,7 +705,11 @@ impl AbiRenderer<'_> {
                 output.push_str(
                 "        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
             );
-                output.push_str(&format!("        if slots.len() != {} {{\n", fields.len()));
+                if fields.is_empty() {
+                    output.push_str("        if !slots.is_empty() {\n");
+                } else {
+                    output.push_str(&format!("        if slots.len() != {} {{\n", fields.len()));
+                }
                 output.push_str(&format!(
                 "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(\"value\", \"expected {} fields\")).boxed());\n",
                 fields.len()
@@ -847,7 +851,11 @@ impl AbiRenderer<'_> {
                 output.push_str(
                 "        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
             );
-                output.push_str(&format!("        if slots.len() != {} {{\n", fields.len()));
+                if fields.is_empty() {
+                    output.push_str("        if !slots.is_empty() {\n");
+                } else {
+                    output.push_str(&format!("        if slots.len() != {} {{\n", fields.len()));
+                }
                 output.push_str(&format!(
                 "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(\"value\", \"expected {} fields\")).boxed());\n",
                 fields.len()

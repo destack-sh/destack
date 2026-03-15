@@ -55,7 +55,9 @@ impl<'a> ModuleCodegen<'a> {
         }
 
         let expr = self.render_encode_expr(binding_type, "value");
-        vec![format!("result.and_then(|value| {expr})")]
+        vec![format!(
+            "result.map(|value| {expr}).and_then(|value| value)"
+        )]
     }
 
     /// Render one VM value expression for one encoded binding value.
