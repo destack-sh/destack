@@ -1,5 +1,7 @@
 mod backend;
 mod core;
+#[cfg(test)]
+mod tests;
 #[cfg(unix)]
 mod unix;
 #[cfg(not(any(unix, windows)))]

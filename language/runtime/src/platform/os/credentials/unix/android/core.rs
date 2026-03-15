@@ -5,9 +5,8 @@ use crate::host::{
 };
 use crate::platform::core as core_platform;
 use crate::platform::os::CredentialAuthenticationMechanism;
+use crate::platform::os::credentials::core::{invalid_data, permission_denied};
 use crate::runtime::BindingCallContext;
-
-use super::super::super::core::{invalid_data, permission_denied};
 
 /// Mechanism code for one unknown host authentication method.
 const AUTHENTICATION_MECHANISM_UNKNOWN_CODE: u32 = 1;

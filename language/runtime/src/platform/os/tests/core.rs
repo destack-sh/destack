@@ -1,88 +1,287 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+#![cfg_attr(feature = "execution", allow(dead_code))]
+
+use std::sync::{Mutex, OnceLock};
 
 use destack_vm as vm;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::os::{
-    HostIdentity, HostIdentityVm, LoadAverage, LoadAverageVm, SystemSnapshot, SystemSnapshotVm,
+use crate::diagnostic::RuntimeResult;
+use crate::host::core::HostRuntimeRegistry;
+use crate::host::{
+    HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleEvent, HostLifecycleState,
+    HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode,
+    HostPowerModeEvent,
 };
-pub(super) use crate::tests::platform::assert_not_supported_error;
+use crate::runtime::BindingCallContext;
+use crate::tests::runtime::TestRuntime;
+use destack_workspace::RuntimeOptions;
 
-use super::{HarnessValue, OsHarnessContext};
+#[path = "harness.generated.rs"]
+mod harness;
+pub(crate) use harness::HarnessValue;
 
-/// Return one raw VM context pointer when this harness run uses VM bindings.
-fn vm_context_pointer(context: &OsHarnessContext<'_>) -> Option<*mut ()> {
-    context.vm_context
+/// Test harness context used by tests.
+pub(crate) struct OsHarnessContext<'call> {
+    /// Runtime call context active for this operation.
+    pub(crate) call_context: &'call BindingCallContext,
+    /// VM context when running VM bindings.
+    pub(crate) vm_context: Option<*mut ()>,
 }
 
-/// Return current unix time in nanoseconds.
-pub(super) fn now_unix_ns() -> u64 {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system time should be after unix epoch");
+impl OsHarnessContext<'_> {
+    /// Return the host runtime id for this harness context.
+    pub(crate) fn runtime_id(&self) -> u64 {
+        self.call_context.host().runtime_id().0
+    }
 
-    u64::try_from(now.as_nanos()).expect("system time nanoseconds should fit in u64")
+    /// Dispatch one host event into the runtime-owned observer path.
+    pub(crate) fn dispatch_host_event(&self, event: HostEvent) -> RuntimeResult<()> {
+        HostRuntimeRegistry::dispatch_host_event(self.call_context.host().runtime_id(), &event)
+    }
+
+    /// Enqueue one host lifecycle transition for this harness runtime.
+    pub(crate) fn enqueue_lifecycle_event(&self, state: HostLifecycleState) -> RuntimeResult<()> {
+        self.dispatch_host_event(HostEvent::Lifecycle(HostLifecycleEvent { state }))
+    }
+
+    /// Enqueue one host memory-pressure event for this harness runtime.
+    pub(crate) fn enqueue_memory_pressure_event(
+        &self,
+        level: HostMemoryPressureLevel,
+    ) -> RuntimeResult<()> {
+        self.dispatch_host_event(HostEvent::MemoryPressure(HostMemoryPressureEvent { level }))
+    }
+
+    /// Enqueue one host power-mode event for this harness runtime.
+    pub(crate) fn enqueue_power_mode_event(&self, mode: HostPowerMode) -> RuntimeResult<()> {
+        self.dispatch_host_event(HostEvent::PowerMode(HostPowerModeEvent { mode }))
+    }
+
+    /// Enqueue one host permission result for this harness runtime.
+    pub(crate) fn enqueue_permission_event(
+        &self,
+        permission: &str,
+        granted: bool,
+    ) -> RuntimeResult<()> {
+        self.dispatch_host_event(HostEvent::Permission(HostPermissionEvent {
+            permission: permission.to_string(),
+            granted,
+        }))
+    }
+
+    /// Enqueue one open-url intent event for this harness runtime.
+    pub(crate) fn enqueue_intent_open_url_event(
+        &self,
+        source: Option<&str>,
+        url: &str,
+    ) -> RuntimeResult<()> {
+        self.dispatch_host_event(HostEvent::Intent(HostIntentEvent {
+            source: source.map(str::to_string),
+            payload: HostIntentPayload::OpenUrl {
+                url: url.to_string(),
+            },
+        }))
+    }
+
+    /// Enqueue one open-file intent event for this harness runtime.
+    pub(crate) fn enqueue_intent_open_file_event(
+        &self,
+        source: Option<&str>,
+        path: &str,
+        mime_type: Option<&str>,
+    ) -> RuntimeResult<()> {
+        self.dispatch_host_event(HostEvent::Intent(HostIntentEvent {
+            source: source.map(str::to_string),
+            payload: HostIntentPayload::OpenFile {
+                path: path.to_string(),
+                mime_type: mime_type.map(str::to_string),
+            },
+        }))
+    }
 }
 
-/// Decode one host-identity harness value into owned fields.
-pub(super) fn decode_host_identity_value(
-    context: &mut OsHarnessContext<'_>,
-    value: HarnessValue<HostIdentity, HostIdentityVm>,
-) -> RuntimeResult<(String, String, String, String)> {
-    match value {
-        HarnessValue::Native(value) => {
-            let hostname = unsafe { value.hostname.as_str() }?.to_string();
-            let kernel = unsafe { value.kernel.as_str() }?.to_string();
-            let release = unsafe { value.release.as_str() }?.to_string();
-            let architecture = unsafe { value.architecture.as_str() }?.to_string();
+/// Native os harness.
+pub(crate) struct NativeOsHarness {
+    /// Runtime that powers the harness.
+    runtime: TestRuntime,
+}
 
-            Ok((hostname, kernel, release, architecture))
+impl NativeOsHarness {
+    /// Create a new native os harness.
+    pub(crate) fn new() -> Self {
+        Self {
+            runtime: os_test_runtime(),
         }
-        HarnessValue::Vm(value) => {
-            let vm_context = vm_context_pointer(context).expect("vm context should be available");
-            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
-            let hostname = vm_context
-                .string_ref(value.hostname)
-                .map_err(|error| RuntimeError::from(error).boxed())?
-                .as_str()
-                .to_string();
-            let kernel = vm_context
-                .string_ref(value.kernel)
-                .map_err(|error| RuntimeError::from(error).boxed())?
-                .as_str()
-                .to_string();
-            let release = vm_context
-                .string_ref(value.release)
-                .map_err(|error| RuntimeError::from(error).boxed())?
-                .as_str()
-                .to_string();
-            let architecture = vm_context
-                .string_ref(value.architecture)
-                .map_err(|error| RuntimeError::from(error).boxed())?
-                .as_str()
-                .to_string();
+    }
+}
 
-            Ok((hostname, kernel, release, architecture))
+/// VM os harness.
+pub(crate) struct VmOsHarness {
+    /// Runtime that powers the harness.
+    runtime: TestRuntime,
+}
+
+impl VmOsHarness {
+    /// Create a new VM os harness.
+    pub(crate) fn new() -> Self {
+        Self {
+            runtime: os_test_runtime(),
         }
     }
 }
 
-/// Decode one load-average harness value.
-pub(super) fn decode_load_average_value(
-    value: HarnessValue<LoadAverage, LoadAverageVm>,
-) -> LoadAverage {
-    match value {
-        HarnessValue::Native(value) => value,
-        HarnessValue::Vm(value) => value,
+/// Build one deterministic os test runtime with host lifecycle ingress disabled.
+fn os_test_runtime() -> TestRuntime {
+    TestRuntime::deterministic_random_with_options(disable_host_lifecycle_ingress)
+}
+
+/// Disable host lifecycle ingress so tests only observe injected lifecycle events.
+fn disable_host_lifecycle_ingress(options: &mut RuntimeOptions) {
+    #[cfg(target_os = "android")]
+    {
+        options.platform.android.enable_lifecycle_events = false;
+        options.platform.android.enable_interruption_events = false;
+    }
+
+    #[cfg(target_os = "dragonfly")]
+    {
+        options.platform.dragonfly.enable_lifecycle_events = false;
+        options.platform.dragonfly.enable_interruption_events = false;
+    }
+
+    #[cfg(target_os = "freebsd")]
+    {
+        options.platform.freebsd.enable_lifecycle_events = false;
+        options.platform.freebsd.enable_interruption_events = false;
+    }
+
+    #[cfg(target_os = "haiku")]
+    {
+        options.platform.haiku.enable_lifecycle_events = false;
+        options.platform.haiku.enable_interruption_events = false;
+    }
+
+    #[cfg(target_os = "illumos")]
+    {
+        options.platform.illumos.enable_lifecycle_events = false;
+        options.platform.illumos.enable_interruption_events = false;
+    }
+
+    #[cfg(target_os = "ios")]
+    {
+        options.platform.ios.enable_lifecycle_events = false;
+        options.platform.ios.enable_interruption_events = false;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        options.platform.linux.enable_lifecycle_events = false;
+        options.platform.linux.enable_interruption_events = false;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        options.platform.macos.enable_lifecycle_events = false;
+        options.platform.macos.enable_interruption_events = false;
+    }
+
+    #[cfg(target_os = "netbsd")]
+    {
+        options.platform.netbsd.enable_lifecycle_events = false;
+        options.platform.netbsd.enable_interruption_events = false;
+    }
+
+    #[cfg(target_os = "openbsd")]
+    {
+        options.platform.openbsd.enable_lifecycle_events = false;
+        options.platform.openbsd.enable_interruption_events = false;
+    }
+
+    #[cfg(target_os = "solaris")]
+    {
+        options.platform.solaris.enable_lifecycle_events = false;
+        options.platform.solaris.enable_interruption_events = false;
+    }
+
+    #[cfg(windows)]
+    {
+        options.platform.windows.enable_lifecycle_events = false;
+        options.platform.windows.enable_interruption_events = false;
     }
 }
 
-/// Decode one system-snapshot harness value.
-pub(super) fn decode_system_snapshot_value(
-    value: HarnessValue<SystemSnapshot, SystemSnapshotVm>,
-) -> SystemSnapshot {
-    match value {
-        HarnessValue::Native(value) => value,
-        HarnessValue::Vm(value) => value,
+/// Shared mutex that serializes os harness tests.
+static OS_TEST_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
+
+/// Harness handle that dispatches to native or VM implementations.
+pub(crate) enum OsHarnessHandle {
+    /// Native os harness.
+    Native(NativeOsHarness),
+    /// VM os harness.
+    Vm(VmOsHarness),
+}
+
+impl OsHarnessHandle {
+    /// Run a native or VM call context around one callback.
+    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    where
+        F: for<'call> FnOnce(OsHarnessContext<'call>) -> R,
+    {
+        match self {
+            OsHarnessHandle::Native(harness) => {
+                harness.runtime.with_native_call_context(|call_context| {
+                    callback(OsHarnessContext {
+                        call_context,
+                        vm_context: None,
+                    })
+                })
+            }
+            OsHarnessHandle::Vm(harness) => {
+                harness
+                    .runtime
+                    .with_vm_call_context(|call_context, vm_context| {
+                        let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
+                        callback(OsHarnessContext {
+                            call_context,
+                            vm_context: Some(vm_context),
+                        })
+                    })
+            }
+        }
     }
+
+    /// Run one callback that returns a runtime result.
+    pub(crate) fn run<F>(&self, callback: F)
+    where
+        F: for<'call> FnOnce(OsHarnessContext<'call>) -> RuntimeResult<()>,
+    {
+        self.with_context(callback)
+            .expect("os harness call should succeed");
+    }
+}
+
+/// Run one callback against both harnesses.
+pub(crate) fn with_harnesses<F>(mut callback: F)
+where
+    F: FnMut(&OsHarnessHandle),
+{
+    // serialize os harness runtimes because host callback registries are process-global
+    let _guard = OS_TEST_MUTEX
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+
+    let native = OsHarnessHandle::Native(NativeOsHarness::new());
+    callback(&native);
+    let vm = OsHarnessHandle::Vm(VmOsHarness::new());
+    callback(&vm);
+}
+
+/// Run one callback against both harness contexts.
+pub(crate) fn with_harness_context<F>(mut callback: F)
+where
+    F: for<'call> FnMut(OsHarnessContext<'call>) -> RuntimeResult<()>,
+{
+    with_harnesses(|harness| {
+        harness.run(&mut callback);
+    });
 }

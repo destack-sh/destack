@@ -32,19 +32,18 @@ use zeroize::Zeroize;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 use crate::platform::core::wide_from_str;
-use crate::platform::os::{
-    CredentialAccessibility, CredentialAuthenticationMechanism, CredentialAuthenticationPolicy,
-    CredentialAuthenticationRequirement, CredentialAuthenticationResult,
-};
-use crate::runtime::BindingCallContext;
-
-use super::super::core::{
+use crate::platform::os::credentials::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,
     CredentialWriteOptionsOwned, OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     OS_CREDENTIALS_CONTAINS_OPERATION, OS_CREDENTIALS_DELETE_OPERATION,
     OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, already_exists, invalid_data,
     permission_denied, with_no_replace_write_guard, would_block,
 };
+use crate::platform::os::{
+    CredentialAccessibility, CredentialAuthenticationMechanism, CredentialAuthenticationPolicy,
+    CredentialAuthenticationRequirement, CredentialAuthenticationResult,
+};
+use crate::runtime::BindingCallContext;
 
 /// Windows FILETIME to unix epoch offset in 100ns ticks.
 const WINDOWS_EPOCH_OFFSET_100NS: u64 = 116_444_736_000_000_000;

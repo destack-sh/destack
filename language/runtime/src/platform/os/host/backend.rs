@@ -1,17 +1,13 @@
-use crate::diagnostic::RuntimeResult;
-use crate::runtime::BindingCallContext;
-
-use super::core::HostIdentityOwned;
-
-/// Read one host identity payload from the active backend.
-pub(super) fn read_host_identity(binding: &BindingCallContext) -> RuntimeResult<HostIdentityOwned> {
-    // dispatch to the platform backend
-    platform_backend::read_host_identity(binding)
-}
+#[cfg(unix)]
+use super::unix;
+#[cfg(not(any(unix, windows)))]
+use super::unsupported;
+#[cfg(windows)]
+use super::windows;
 
 #[cfg(unix)]
-use super::unix as platform_backend;
+pub(super) use unix::read_host_identity;
 #[cfg(not(any(unix, windows)))]
-use super::unsupported as platform_backend;
+pub(super) use unsupported::read_host_identity;
 #[cfg(windows)]
-use super::windows as platform_backend;
+pub(super) use windows::read_host_identity;

@@ -7051,7 +7051,7 @@ pub(crate) const OS_INTENT_CAN_OPEN_URL: BindingDescriptor =
         "export function intentCanOpenUrl(url: string): Result<boolean, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
-        &["os.intent.read"],
+        &["os.intent.write"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
         BindingAffinity::Any,

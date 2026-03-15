@@ -3,15 +3,14 @@ use windows_sys::Win32::System::SystemInformation::{
 };
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::os::{LoadAverage, SystemSnapshot};
-use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::BindingCallContext;
-
-use super::super::core::{
+use crate::platform::os::info::core::{
     OS_INFO_BOOT_TIME_UNIX_NS_OPERATION, OS_INFO_LOAD_AVERAGE_OPERATION,
     OS_INFO_SYSTEM_SNAPSHOT_OPERATION, OS_INFO_UPTIME_NS_OPERATION, invalid_data,
     system_time_unix_ns,
 };
+use crate::platform::os::{LoadAverage, SystemSnapshot};
+use crate::platform::{PlatformError, core as core_platform};
+use crate::runtime::BindingCallContext;
 
 /// Read one host system-information payload from windows APIs.
 fn system_snapshot_value() -> RuntimeResult<SystemSnapshot> {

@@ -1445,7 +1445,7 @@ pub(crate) unsafe fn destack_os_intent_read(_binding: &BindingCallContext, out: 
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_intent_share_paths(_binding: &BindingCallContext, paths: NativeArray<fs::OsPath>, mimetype: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_intent_share_paths(_binding: &BindingCallContext, paths: NativeArray<fs::OsPath>, mimetype: Option<NativeStringRef>) -> RuntimeResult<()> {
     let _ = (paths, mimetype);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1470,7 +1470,7 @@ pub(crate) unsafe fn destack_os_intent_share_paths(_binding: &BindingCallContext
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_intent_share_text(_binding: &BindingCallContext, text: NativeStringRef, mimetype: NativeStringRef) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_os_intent_share_text(_binding: &BindingCallContext, text: NativeStringRef, mimetype: Option<NativeStringRef>) -> RuntimeResult<()> {
     let _ = (text, mimetype);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1921,32 +1921,6 @@ pub(crate) unsafe fn destack_os_media_read(_binding: &BindingCallContext, out: *
     .boxed())
 }
 
-/// Mount one filesystem target.
-///
-/// Mount one source on one target path with explicit flags and data.
-/// Mount privilege checks and propagation policy are host-defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mount(2)-family APIs on Unix and volume-mount APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.mount`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_os_mount_add(_binding: &BindingCallContext, source: NativeStringRef, target: fs::OsPath, filesystem: NativeStringRef, flags: u64, data: NativeStringRef) -> RuntimeResult<()> {
-    let _ = (source, target, filesystem, flags, data);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.mount.add",
-    ))
-    .boxed())
-}
-
 /// Enumerate mount table entries.
 ///
 /// Return one snapshot of the current host mount table.
@@ -1975,33 +1949,6 @@ pub(crate) unsafe fn destack_os_mount_list(_binding: &BindingCallContext, out: *
     ))
     .boxed())
 }
-
-/// Unmount one filesystem target.
-///
-/// Unmount one target path with explicit unmount flags.
-/// Forced unmount behavior follows host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses umount or unmount APIs on Unix and volume unmount APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.mount`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) unsafe fn destack_os_mount_remove(_binding: &BindingCallContext, target: fs::OsPath, flags: u64) -> RuntimeResult<()> {
-    let _ = (target, flags);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.mount.remove",
-    ))
-    .boxed())
-}
-
 /// Read host network state.
 ///
 /// Read one point-in-time host network state snapshot.

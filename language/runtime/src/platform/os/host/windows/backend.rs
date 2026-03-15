@@ -1,15 +1,15 @@
+use windows_sys::Wdk::System::SystemServices::RtlGetVersion;
 use windows_sys::Win32::System::SystemInformation::{
-    ComputerNamePhysicalDnsHostname, GetComputerNameExW, GetNativeSystemInfo, GetVersionExW,
-    OSVERSIONINFOW, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_ARM,
-    PROCESSOR_ARCHITECTURE_ARM64, PROCESSOR_ARCHITECTURE_INTEL, PROCESSOR_ARCHITECTURE_UNKNOWN,
-    SYSTEM_INFO,
+    ComputerNamePhysicalDnsHostname, GetComputerNameExW, GetNativeSystemInfo, OSVERSIONINFOW,
+    PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_ARM, PROCESSOR_ARCHITECTURE_ARM64,
+    PROCESSOR_ARCHITECTURE_INTEL, PROCESSOR_ARCHITECTURE_UNKNOWN, SYSTEM_INFO,
 };
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 use crate::runtime::BindingCallContext;
 
-use super::super::core::{
+use crate::platform::os::host::core::{
     HostIdentityOwned, OS_HOST_IDENTITY_OPERATION, decode_utf16_buffer, invalid_data,
 };
 
@@ -60,12 +60,12 @@ fn hostname_value() -> RuntimeResult<String> {
 
 /// Read one windows release string.
 fn release_value() -> RuntimeResult<String> {
-    // query version payload from Win32 APIs
+    // query version payload from ntdll to avoid manifest-sensitive Win32 reporting
     let mut version = unsafe { std::mem::zeroed::<OSVERSIONINFOW>() };
     version.dwOSVersionInfoSize = std::mem::size_of::<OSVERSIONINFOW>() as u32;
-    let status = unsafe { GetVersionExW(&mut version) };
-    if status == 0 {
-        return Err(core_platform::io_error("GetVersionExW"));
+    let status = unsafe { RtlGetVersion(&mut version) };
+    if status < 0 {
+        return Err(core_platform::io_error("RtlGetVersion"));
     }
 
     Ok(format!(

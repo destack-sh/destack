@@ -1,16 +1,13 @@
-use crate::diagnostic::RuntimeResult;
-use crate::platform::os::PowerState;
-use crate::runtime::BindingCallContext;
-
-/// Read one host power-state value from the active backend.
-pub(super) fn read_power_state(binding: &BindingCallContext) -> RuntimeResult<PowerState> {
-    // dispatch to the platform backend
-    platform_backend::read_power_state(binding)
-}
+#[cfg(unix)]
+use super::unix;
+#[cfg(not(any(unix, windows)))]
+use super::unsupported;
+#[cfg(windows)]
+use super::windows;
 
 #[cfg(unix)]
-use super::unix as platform_backend;
+pub(super) use unix::{read_power_state, request_suspend};
 #[cfg(not(any(unix, windows)))]
-use super::unsupported as platform_backend;
+pub(super) use unsupported::{read_power_state, request_suspend};
 #[cfg(windows)]
-use super::windows as platform_backend;
+pub(super) use windows::{read_power_state, request_suspend};

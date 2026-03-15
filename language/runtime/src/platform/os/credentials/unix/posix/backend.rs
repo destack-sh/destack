@@ -1,14 +1,13 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 use crate::platform::os::CredentialAuthenticationResult;
-use crate::runtime::BindingCallContext;
-
-use super::super::core::{
+use crate::platform::os::credentials::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,
     CredentialWriteOptionsOwned, OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     OS_CREDENTIALS_CONTAINS_OPERATION, OS_CREDENTIALS_DELETE_OPERATION,
     OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION,
 };
+use crate::runtime::BindingCallContext;
 
 /// Read one credential record from unsupported unix host backends.
 pub(crate) fn read_credentials(

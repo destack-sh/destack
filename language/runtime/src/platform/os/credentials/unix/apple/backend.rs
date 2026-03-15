@@ -15,23 +15,22 @@ use security_framework_sys::item::{
 use security_framework_sys::keychain_item::{SecItemAdd, SecItemCopyMatching, SecItemDelete};
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::os::{
-    CredentialAuthenticationMechanism, CredentialAuthenticationRequirement,
-    CredentialAuthenticationResult,
-};
-use crate::runtime::BindingCallContext;
-
-use super::super::super::core::{
+use crate::platform::os::credentials::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,
     CredentialWriteOptionsOwned, OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     OS_CREDENTIALS_CONTAINS_OPERATION, OS_CREDENTIALS_DELETE_OPERATION,
     OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, already_exists, invalid_data,
 };
-use super::core::{
+use crate::platform::os::credentials::unix::apple::core::{
     OwnedCfReference, create_authentication_access_control, create_cf_data, create_cf_string,
     create_dictionary, create_optional_access_control, create_optional_access_group,
     map_keychain_status,
 };
+use crate::platform::os::{
+    CredentialAuthenticationMechanism, CredentialAuthenticationRequirement,
+    CredentialAuthenticationResult,
+};
+use crate::runtime::BindingCallContext;
 
 /// Security status code for user-canceled operation.
 const ERR_SEC_USER_CANCELED: i32 = -128;

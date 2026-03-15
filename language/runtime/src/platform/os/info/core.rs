@@ -10,7 +10,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{LoadAverage, SystemSnapshot};
 use crate::runtime::BindingCallContext;
 
-use super::backend;
+use crate::platform::os::info::backend;
 
 /// Binding operation name for system snapshot reads.
 pub(crate) const OS_INFO_SYSTEM_SNAPSHOT_OPERATION: &str = "destack.os.info.systemSnapshot";
