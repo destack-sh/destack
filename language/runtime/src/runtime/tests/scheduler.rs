@@ -39,7 +39,7 @@ impl Engine for CompleteEngine {
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
-        _memory: &mut heap::AgentMemory<'_>,
+        _memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -56,7 +56,7 @@ impl Engine for CompleteEngine {
     /// Run one replayable entrypoint without yielding.
     fn run_replayable_entry(
         &mut self,
-        _memory: &mut heap::AgentMemory<'_>,
+        _memory: &mut heap::MemoryContext<'_>,
         _entry: &EntryReference,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -73,7 +73,7 @@ impl Engine for CompleteEngine {
     /// Resume one continuation and complete immediately.
     fn resume(
         &mut self,
-        _memory: &mut heap::AgentMemory<'_>,
+        _memory: &mut heap::MemoryContext<'_>,
         continuation: EngineContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {

@@ -12,7 +12,7 @@ impl Engine for Isolate {
     /// Run a VM entrypoint by name.
     fn run(
         &mut self,
-        memory: &mut heap::AgentMemory<'_>,
+        memory: &mut heap::MemoryContext<'_>,
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -32,7 +32,7 @@ impl Engine for Isolate {
     /// Run one replayable VM entrypoint by name.
     fn run_replayable_entry(
         &mut self,
-        memory: &mut heap::AgentMemory<'_>,
+        memory: &mut heap::MemoryContext<'_>,
         entry: &EntryReference,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -54,7 +54,7 @@ impl Engine for Isolate {
     /// Resume a VM continuation.
     fn resume(
         &mut self,
-        memory: &mut heap::AgentMemory<'_>,
+        memory: &mut heap::MemoryContext<'_>,
         continuation: EngineContinuation,
         value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {

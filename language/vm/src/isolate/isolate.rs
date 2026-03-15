@@ -11,7 +11,7 @@ use crate::interpreter::{Interpreter, InterpreterContext};
 use crate::options::IsolateOptions;
 use crate::snapshot::{ContinuationImage, IsolateImage, IsolateSnapshot};
 use destack_heap::{
-    AgentMemory, GcStats, Heap, ManagedReference, SharedPointer, SharedSpace, Value,
+    GcStats, Heap, ManagedReference, MemoryContext, SharedPointer, SharedSpace, Value,
 };
 
 /// VM isolate with globals and execution state.
@@ -66,7 +66,7 @@ impl Isolate {
     }
 
     /// Initialize isolate globals against one explicit heap.
-    pub fn initialize(&mut self, memory: &mut AgentMemory<'_>) -> RuntimeResult<()> {
+    pub fn initialize(&mut self, memory: &mut MemoryContext<'_>) -> RuntimeResult<()> {
         // initialize globals and interned literals
         self.with_interpreter(memory, |context| context.initialize_globals())
     }
@@ -119,7 +119,7 @@ impl Isolate {
     }
 
     /// Run a callback with a runtime context for this isolate.
-    pub fn with_runtime_context<F, R>(&mut self, memory: &mut AgentMemory<'_>, run: F) -> R
+    pub fn with_runtime_context<F, R>(&mut self, memory: &mut MemoryContext<'_>, run: F) -> R
     where
         F: for<'ctx> FnOnce(&mut ExternalCallContext<'ctx>) -> R,
     {
@@ -136,7 +136,7 @@ impl Isolate {
     /// Allocate a shared heap byte region and return its pointer.
     pub fn allocate_shared_bytes(
         &mut self,
-        memory: &mut AgentMemory<'_>,
+        memory: &mut MemoryContext<'_>,
         bytes: &[u8],
     ) -> SharedPointer {
         memory
@@ -166,7 +166,7 @@ impl Isolate {
     /// Run a function by name and return its output.
     pub fn run_function_by_name(
         &mut self,
-        memory: &mut AgentMemory<'_>,
+        memory: &mut MemoryContext<'_>,
         name: &str,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
@@ -178,7 +178,7 @@ impl Isolate {
     /// Run a function by name and allow yielding.
     pub fn run_function_by_name_yielding(
         &mut self,
-        memory: &mut AgentMemory<'_>,
+        memory: &mut MemoryContext<'_>,
         name: &str,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutcome> {
@@ -190,7 +190,7 @@ impl Isolate {
     /// Run a function by id and return its output.
     pub fn run_function(
         &mut self,
-        memory: &mut AgentMemory<'_>,
+        memory: &mut MemoryContext<'_>,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
@@ -200,7 +200,7 @@ impl Isolate {
     /// Run a function by id and allow yielding.
     pub fn run_function_yielding(
         &mut self,
-        memory: &mut AgentMemory<'_>,
+        memory: &mut MemoryContext<'_>,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutcome> {
@@ -212,7 +212,7 @@ impl Isolate {
     /// Resume a previously yielded coroutine.
     pub fn resume(
         &mut self,
-        memory: &mut AgentMemory<'_>,
+        memory: &mut MemoryContext<'_>,
         continuation: Continuation,
         resume_value: Value,
     ) -> RuntimeResult<ExecutionOutcome> {
@@ -272,7 +272,7 @@ impl Isolate {
 
     /// Collect garbage from managed heap.
     pub fn collect_garbage(&mut self, heap: &mut Heap, shared: &mut SharedSpace) -> GcStats {
-        let mut memory = AgentMemory::new(heap, shared);
+        let mut memory = MemoryContext::new(heap, shared);
         self.with_interpreter(&mut memory, |context| context.collect_garbage())
     }
 
@@ -283,7 +283,7 @@ impl Isolate {
         shared: &mut SharedSpace,
         continuations: &[Continuation],
     ) -> GcStats {
-        let mut memory = AgentMemory::new(heap, shared);
+        let mut memory = MemoryContext::new(heap, shared);
         self.with_interpreter(&mut memory, |context| {
             context.collect_garbage_with_continuations(continuations)
         })
@@ -351,7 +351,7 @@ impl Isolate {
     // interpret a closure with access to the interpreter context
     fn with_interpreter<R>(
         &mut self,
-        memory: &mut AgentMemory<'_>,
+        memory: &mut MemoryContext<'_>,
         f: impl FnOnce(&mut InterpreterContext<'_>) -> R,
     ) -> R {
         let memory = memory.reborrow();

@@ -54,7 +54,7 @@ pub struct Heap {
 
 /// One agent-local execution memory view across local and shared memory.
 #[derive(Debug)]
-pub struct AgentMemory<'a> {
+pub struct MemoryContext<'a> {
     /// The agent-local heap.
     heap: &'a mut Heap,
     /// The world-shared memory space.
@@ -571,9 +571,9 @@ impl Default for Heap {
     }
 }
 
-impl AgentMemory<'_> {
+impl MemoryContext<'_> {
     /// Create one agent memory view.
-    pub fn new<'a>(heap: &'a mut Heap, shared: &'a mut SharedSpace) -> AgentMemory<'a> {
+    pub fn new<'a>(heap: &'a mut Heap, shared: &'a mut SharedSpace) -> MemoryContext<'a> {
         Self::with_shared_limits(heap, shared, SharedLimits::default())
     }
 
@@ -582,10 +582,10 @@ impl AgentMemory<'_> {
         heap: &'a mut Heap,
         shared: &'a mut SharedSpace,
         shared_limits: SharedLimits,
-    ) -> AgentMemory<'a> {
+    ) -> MemoryContext<'a> {
         let shared_budget = SharedBudget::new(shared_limits, shared.retained_bytes());
 
-        AgentMemory {
+        MemoryContext {
             heap,
             shared,
             shared_budget,
@@ -593,8 +593,8 @@ impl AgentMemory<'_> {
     }
 
     /// Reborrow this agent memory view for one nested operation.
-    pub fn reborrow(&mut self) -> AgentMemory<'_> {
-        AgentMemory {
+    pub fn reborrow(&mut self) -> MemoryContext<'_> {
+        MemoryContext {
             heap: self.heap,
             shared: self.shared,
             shared_budget: self.shared_budget,

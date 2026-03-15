@@ -5,7 +5,7 @@ use destack_source::FileId;
 use crate::diagnostic::Error;
 use crate::tests::{create_isolate, run_mir, run_mir_expect, run_mir_ok};
 use crate::{Isolate, IsolateOptions};
-use destack_heap::{AgentMemory, Heap, SharedSpace, Value};
+use destack_heap::{Heap, MemoryContext, SharedSpace, Value};
 
 /// Branch instruction takes the true path when condition is true.
 #[test]
@@ -231,7 +231,7 @@ block0(v0: fn(i32) -> i32, v1: i32):
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let mut heap = Heap::new();
     let mut shared = SharedSpace::new();
-    let mut memory = AgentMemory::new(&mut heap, &mut shared);
+    let mut memory = MemoryContext::new(&mut heap, &mut shared);
 
     // initialize isolate state against the authoritative heap
     isolate
@@ -264,7 +264,7 @@ block0(v0: fn(i32) -> i32, v1: i32):
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let mut heap = Heap::new();
     let mut shared = SharedSpace::new();
-    let mut memory = AgentMemory::new(&mut heap, &mut shared);
+    let mut memory = MemoryContext::new(&mut heap, &mut shared);
 
     // initialize isolate state against the authoritative heap
     isolate

@@ -2,7 +2,7 @@ use std::fmt;
 use std::ptr::NonNull;
 
 use crate::diagnostic::Error;
-use destack_heap::{AgentMemory, RawPointer, SharedPointer, Value, ValueTag};
+use destack_heap::{MemoryContext, RawPointer, SharedPointer, Value, ValueTag};
 
 use super::IsolateState;
 
@@ -28,12 +28,12 @@ pub struct ExternalCallContext<'ctx> {
     /// The isolate state backing this external call.
     state: &'ctx mut IsolateState,
     /// The execution memory backing this external call.
-    memory: AgentMemory<'ctx>,
+    memory: MemoryContext<'ctx>,
 }
 
 impl<'ctx> ExternalCallContext<'ctx> {
     /// Wrap an isolate state for external calls.
-    pub(crate) fn new(state: &'ctx mut IsolateState, memory: AgentMemory<'ctx>) -> Self {
+    pub(crate) fn new(state: &'ctx mut IsolateState, memory: MemoryContext<'ctx>) -> Self {
         Self { state, memory }
     }
 

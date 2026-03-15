@@ -53,8 +53,11 @@ impl Agent {
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
         let mut shared = world.shared.borrow_mut();
-        let mut memory =
-            heap::AgentMemory::with_shared_limits(&mut self.heap, &mut shared, world.shared_limits);
+        let mut memory = heap::MemoryContext::with_shared_limits(
+            &mut self.heap,
+            &mut shared,
+            world.shared_limits,
+        );
         let outcome = self.engine.run(&mut memory, entry, args)?;
 
         // handle the entry outcome
@@ -105,8 +108,11 @@ impl Agent {
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
         let mut shared = world.shared.borrow_mut();
-        let mut memory =
-            heap::AgentMemory::with_shared_limits(&mut self.heap, &mut shared, world.shared_limits);
+        let mut memory = heap::MemoryContext::with_shared_limits(
+            &mut self.heap,
+            &mut shared,
+            world.shared_limits,
+        );
         let outcome = self.engine.run_replayable_entry(&mut memory, entry, args)?;
 
         // handle the entry outcome
@@ -544,8 +550,11 @@ impl Agent {
         resume_value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
         let mut shared = world.shared.borrow_mut();
-        let mut memory =
-            heap::AgentMemory::with_shared_limits(&mut self.heap, &mut shared, world.shared_limits);
+        let mut memory = heap::MemoryContext::with_shared_limits(
+            &mut self.heap,
+            &mut shared,
+            world.shared_limits,
+        );
         self.engine.resume(&mut memory, runnable, resume_value)
     }
 
