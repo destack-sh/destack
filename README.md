@@ -33,9 +33,10 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Apps**](app/README.md): First-party applications and programmer tools.
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
 - [**Destack Bridge**](bridge/README.md): Two-way bridges for the Destack universe.
-- [**Destack Platform**](platform/README.md): First-party site, apps, and services (same as above).
+- [**Destack Platform**](platform/README.md): First-party site, apps, and services (hosting the above).
 
-The structure of Destack is more of a "software factory toolkit" than it is "ready-to-wear software": we do provide some apps with a common plugin system - built on top of the shared library and reusable services - but the entire Destack is optimized for programmers building their _own_ software processes in one correct, optimal, integrated system.
+The structure of Destack is much more of "do-it-yourself software kit" than it is "ready-to-wear software apps".
+We do provide common apps built on top of our library and services, but the entire Destack is optimized for programmers building their _own_ software processes in one correct, optimal, integrated system.
 Aspiritionally, Destack is intended as a meta framework for developing and maintaining custom software stacks using [foundational building blocks](https://caseymuratori.com/blog_0016).
 
 ---
@@ -56,7 +57,7 @@ There is great promise in turning more things _into_ correct, optimal, integrate
 
 ## Why You Should Not Use Destack
 
-Destack has been in development for years and went through a _lot_ of iteration, and we intentionally follow good standards like TypeScript, TSX, Node and Web-shaped APIs.
+Destack has been in development for years and went through a _lot_ of iteration, and Destack intentionally follows good standards like TypeScript, TSX, Node and Web-shaped APIs.
 However, it is still rather early, it is definitely quite radical, and there are sound arguments against the Destack-shaped "universal software engine" way:
 
 1. **Maybe the existing stack is already good enough**: The existing "stack", its layers and components exist for a good reason and have withstood significant evolutionary pressure, thus trying to combine or even rearrange them in a substantially different way may very well turn out net negative.
@@ -97,7 +98,7 @@ If you have gotten this far through reading the README, you probably have some, 
 1. **What even _is_ Destack? Is it a TypeScript dialect (like TSX), a JS family language (like Rescript), a JavaScript runtime (like V8), a Node runtime (like Deno), an NPM library (like vitest), a service (like Antithesis), an app (like Notion), ...?** 
 All of it, none of it.
 Mechanically, Destack _is_ a TSX-family language and toolchain with a VM, AOT compiler, Node-like runtime, formatter, linter, rich standard libraries, and a set of common services and apps. 
-Conceptually, Destack is a new kind of thing: a fully integrated computing stack, a software factory toolkit, the building blockis you need to build your own stack.
+Conceptually, Destack is a new kind of thing: a fully integrated computing stack, a software toolkit, the building blocks you need to build your own stack.
 
 2. **Why is Destack built on TypeScript and not some other language (like Python or Rust)?**
 Both Python and Rust are great languages, and both fail the "universal language" test for surprisingly symmetrical reasons:
