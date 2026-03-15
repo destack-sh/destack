@@ -1,3 +1,5 @@
+#![cfg_attr(not(any(test, unix, windows)), allow(unused_imports))]
+
 mod backend;
 pub(crate) mod error;
 mod event;

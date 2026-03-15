@@ -1,3 +1,5 @@
+#![cfg_attr(target_arch = "wasm32", allow(dead_code))]
+
 #[path = "abi.generated.rs"]
 mod abi_generated;
 #[path = "bindings.generated.rs"]

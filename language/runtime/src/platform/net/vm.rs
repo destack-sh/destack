@@ -2588,24 +2588,40 @@ fn socket_family_from_address(
     }
 }
 
+/// Return the native socket type constant for one TCP stream socket.
 #[cfg(unix)]
 fn tcp_stream_socket_type() -> SocketType {
     SocketType(libc::SOCK_STREAM as u32)
 }
 
+/// Return the native socket type constant for one TCP stream socket.
 #[cfg(windows)]
 fn tcp_stream_socket_type() -> SocketType {
     SocketType(windows_sys::Win32::Networking::WinSock::SOCK_STREAM as u32)
 }
 
+/// Return the native protocol constant for TCP sockets.
 #[cfg(unix)]
 fn tcp_socket_protocol() -> SocketProtocol {
     SocketProtocol(libc::IPPROTO_TCP)
 }
 
+/// Return the native protocol constant for TCP sockets.
 #[cfg(windows)]
 fn tcp_socket_protocol() -> SocketProtocol {
     SocketProtocol(windows_sys::Win32::Networking::WinSock::IPPROTO_TCP)
+}
+
+/// Return the POSIX-compatible socket type constant for one TCP stream socket.
+#[cfg(not(any(unix, windows)))]
+fn tcp_stream_socket_type() -> SocketType {
+    SocketType(1)
+}
+
+/// Return the POSIX-compatible protocol constant for TCP sockets.
+#[cfg(not(any(unix, windows)))]
+fn tcp_socket_protocol() -> SocketProtocol {
+    SocketProtocol(6)
 }
 
 /// Read socket packet mark.

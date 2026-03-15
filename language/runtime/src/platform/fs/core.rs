@@ -1,3 +1,5 @@
+#![cfg_attr(not(any(unix, windows)), allow(unused_imports))]
+
 #[cfg(any(unix, windows))]
 use std::collections::VecDeque;
 #[cfg(any(unix, windows))]

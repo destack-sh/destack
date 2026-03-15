@@ -105,6 +105,13 @@ pub(crate) use queue::{
 };
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "ios", windows))]
 pub(crate) use resource::remove_labeled_resource;
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "ios",
+    windows
+))]
 pub(crate) use resource::{
     define_backend_midi_resource_accessors, define_backend_midi_resource_inserters,
     direction_mask_includes, endpoint_direction_name, event_snapshot_list_flags,

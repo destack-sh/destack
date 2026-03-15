@@ -1,3 +1,6 @@
+#![cfg_attr(not(any(unix, windows)), allow(unused_imports))]
+#![cfg_attr(target_arch = "wasm32", allow(dead_code))]
+
 #[path = "abi.generated.rs"]
 pub(crate) mod abi_generated;
 

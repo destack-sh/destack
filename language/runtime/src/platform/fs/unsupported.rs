@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unused_variables)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{
@@ -10,7 +11,7 @@ use crate::platform::fs::{
 use crate::platform::net::SocketHandle;
 use crate::platform::resource::{DirectoryHandle, FileHandle, PipeHandle, ResourceId};
 use crate::platform::{NativeArray, PlatformError};
-use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 pub(crate) use crate::platform::fs::simulation::native::*;
 
@@ -2980,7 +2981,7 @@ pub(crate) unsafe fn destack_fs_getxattr_bytes(
     binding: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     path: PathBytes,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.getxattrBytes")).boxed())
@@ -3007,7 +3008,7 @@ pub(crate) unsafe fn destack_fs_getxattr_utf16(
     binding: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     path: PathUtf16,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.getxattrUtf16")).boxed())
@@ -3034,7 +3035,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
     binding: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     path: PathBytes,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lgetxattrBytes")).boxed())
@@ -3061,7 +3062,7 @@ pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
     binding: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     path: PathUtf16,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lgetxattrUtf16")).boxed())
@@ -3088,7 +3089,7 @@ pub(crate) unsafe fn destack_fs_fgetxattr_handle(
     binding: &BindingCallContext,
     _out: *mut NativeArray<u8>,
     handle: FileHandle,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (binding, handle, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fgetxattr")).boxed())
@@ -3114,7 +3115,7 @@ pub(crate) unsafe fn destack_fs_fgetxattr_handle(
 pub(crate) unsafe fn destack_fs_setxattr_bytes(
     binding: &BindingCallContext,
     path: PathBytes,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
@@ -3142,7 +3143,7 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
 pub(crate) unsafe fn destack_fs_setxattr_utf16(
     binding: &BindingCallContext,
     path: PathUtf16,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
@@ -3170,7 +3171,7 @@ pub(crate) unsafe fn destack_fs_setxattr_utf16(
 pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
     binding: &BindingCallContext,
     path: PathBytes,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
@@ -3198,7 +3199,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
 pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
     binding: &BindingCallContext,
     path: PathUtf16,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
@@ -3226,7 +3227,7 @@ pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
 pub(crate) unsafe fn destack_fs_fsetxattr_handle(
     binding: &BindingCallContext,
     handle: FileHandle,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
@@ -3253,7 +3254,7 @@ pub(crate) unsafe fn destack_fs_fsetxattr_handle(
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_bytes(
     binding: &BindingCallContext,
-    _out: *mut NativeArray<NativeStringRef>,
+    _out: *mut NativeArray<NativeArray<u8>>,
     path: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = (binding, path);
@@ -3279,7 +3280,7 @@ pub(crate) unsafe fn destack_fs_listxattr_bytes(
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_utf16(
     binding: &BindingCallContext,
-    _out: *mut NativeArray<NativeStringRef>,
+    _out: *mut NativeArray<NativeArray<u8>>,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
     let _ = (binding, path);
@@ -3305,7 +3306,7 @@ pub(crate) unsafe fn destack_fs_listxattr_utf16(
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_bytes(
     binding: &BindingCallContext,
-    _out: *mut NativeArray<NativeStringRef>,
+    _out: *mut NativeArray<NativeArray<u8>>,
     path: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = (binding, path);
@@ -3331,7 +3332,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_bytes(
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_utf16(
     binding: &BindingCallContext,
-    _out: *mut NativeArray<NativeStringRef>,
+    _out: *mut NativeArray<NativeArray<u8>>,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
     let _ = (binding, path);
@@ -3357,7 +3358,7 @@ pub(crate) unsafe fn destack_fs_llistxattr_utf16(
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr_handle(
     binding: &BindingCallContext,
-    _out: *mut NativeArray<NativeStringRef>,
+    _out: *mut NativeArray<NativeArray<u8>>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
     let _ = (binding, handle);
@@ -3384,7 +3385,7 @@ pub(crate) unsafe fn destack_fs_flistxattr_handle(
 pub(crate) unsafe fn destack_fs_removexattr_bytes(
     binding: &BindingCallContext,
     path: PathBytes,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.removexattrBytes")).boxed())
@@ -3410,7 +3411,7 @@ pub(crate) unsafe fn destack_fs_removexattr_bytes(
 pub(crate) unsafe fn destack_fs_removexattr_utf16(
     binding: &BindingCallContext,
     path: PathUtf16,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.removexattrUtf16")).boxed())
@@ -3436,7 +3437,7 @@ pub(crate) unsafe fn destack_fs_removexattr_utf16(
 pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
     binding: &BindingCallContext,
     path: PathBytes,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lremovexattrBytes")).boxed())
@@ -3462,7 +3463,7 @@ pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
 pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
     binding: &BindingCallContext,
     path: PathUtf16,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (binding, path, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lremovexattrUtf16")).boxed())
@@ -3488,7 +3489,7 @@ pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
 pub(crate) unsafe fn destack_fs_fremovexattr_handle(
     binding: &BindingCallContext,
     handle: FileHandle,
-    name: NativeStringRef,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (binding, handle, name);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fremovexattr")).boxed())

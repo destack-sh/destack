@@ -3,8 +3,9 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::OsPath;
 use crate::platform::net::{
-    AcceptFlags, Linger, ResolveFlags, SocketAddress, SocketFamily, SocketMessageFlags,
-    SocketRecvMessage, SocketSendMessage, SocketShutdown, UdpMessageFlags, UdpReceive,
+    AcceptFlags, Linger, ResolveFlags, ReverseLookupFlags, ReverseLookupName, SocketAddress,
+    SocketFamily, SocketMessageFlags, SocketRecvMessage, SocketSendMessage, SocketShutdown,
+    UdpMessageFlags, UdpReceive,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, PlatformError};

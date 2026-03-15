@@ -1,3 +1,5 @@
+#![cfg_attr(target_arch = "wasm32", allow(dead_code))]
+
 #[cfg(any(test, target_os = "android"))]
 mod android;
 #[cfg(any(target_os = "ios", target_os = "macos"))]

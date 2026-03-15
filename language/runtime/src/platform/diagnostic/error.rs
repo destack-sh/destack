@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[cfg(any(unix, windows))]
 use libc::{
     EACCES, EADDRINUSE, EADDRNOTAVAIL, EAGAIN, EALREADY, EBADF, EBUSY, ECONNABORTED, ECONNREFUSED,
     ECONNRESET, EEXIST, EFBIG, EHOSTUNREACH, EINPROGRESS, EINTR, EINVAL, EISCONN, EISDIR, EMFILE,
@@ -752,6 +753,7 @@ fn source_from_errno(
 }
 
 /// Map an errno value to an IO error code when possible.
+#[cfg(any(unix, windows))]
 pub fn io_error_code_from_errno(errno: i32) -> Option<PlatformErrorCode> {
     if errno == EWOULDBLOCK || errno == EAGAIN {
         return Some(PlatformErrorCode::IoWouldBlock);
@@ -780,7 +782,17 @@ pub fn io_error_code_from_errno(errno: i32) -> Option<PlatformErrorCode> {
     }
 }
 
+/// Map an errno value to an IO error code when possible.
+#[cfg(not(any(unix, windows)))]
+pub fn io_error_code_from_errno(errno: i32) -> Option<PlatformErrorCode> {
+    let _ = errno;
+
+    // non-OS targets do not expose a stable errno domain here
+    None
+}
+
 /// Map an errno value to a network error code when possible.
+#[cfg(any(unix, windows))]
 pub fn net_error_code_from_errno(errno: i32) -> Option<PlatformErrorCode> {
     if errno == EWOULDBLOCK || errno == EAGAIN {
         return Some(PlatformErrorCode::IoWouldBlock);
@@ -813,6 +825,15 @@ pub fn net_error_code_from_errno(errno: i32) -> Option<PlatformErrorCode> {
     }
 }
 
+/// Map an errno value to a network error code when possible.
+#[cfg(not(any(unix, windows)))]
+pub fn net_error_code_from_errno(errno: i32) -> Option<PlatformErrorCode> {
+    let _ = errno;
+
+    // non-OS targets do not expose a stable errno domain here
+    None
+}
+
 /// Map one Winsock error value to a network or I/O error code when possible.
 #[cfg(windows)]
 pub fn net_error_code_from_winsock(code: i32) -> Option<PlatformErrorCode> {
@@ -840,12 +861,22 @@ pub fn net_error_code_from_winsock(code: i32) -> Option<PlatformErrorCode> {
 }
 
 /// Map an errno value to a process error code when possible.
+#[cfg(any(unix, windows))]
 pub fn process_error_code_from_errno(errno: i32) -> Option<PlatformErrorCode> {
     match errno {
         ENOENT => Some(PlatformErrorCode::ProcessNotFound),
         EACCES | libc::EPERM => Some(PlatformErrorCode::ProcessPermissionDenied),
         _ => None,
     }
+}
+
+/// Map an errno value to a process error code when possible.
+#[cfg(not(any(unix, windows)))]
+pub fn process_error_code_from_errno(errno: i32) -> Option<PlatformErrorCode> {
+    let _ = errno;
+
+    // non-OS targets do not expose a stable errno domain here
+    None
 }
 
 impl fmt::Display for PlatformError {
