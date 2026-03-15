@@ -133,7 +133,7 @@ pub(crate) unsafe fn window_set_mode(
         return Err(error);
     }
     drop(resolved_host_state);
-    runtime_state.process_runtime_ingress("destack.display.window.setMode")?;
+    runtime_state.service_ingress("destack.display.window.setMode")?;
 
     Ok(())
 }
@@ -177,7 +177,7 @@ pub(crate) unsafe fn window_set_position(
         )
     })?;
     drop(resolved_host_state);
-    runtime_state.process_runtime_ingress("destack.display.window.setPosition")?;
+    runtime_state.service_ingress("destack.display.window.setPosition")?;
 
     Ok(())
 }
@@ -283,7 +283,7 @@ pub(crate) unsafe fn window_set_size_logical(
         "destack.display.window.setSizeLogical",
     )?;
     drop(resolved_host_state);
-    runtime_state.process_runtime_ingress("destack.display.window.setSizeLogical")?;
+    runtime_state.service_ingress("destack.display.window.setSizeLogical")?;
 
     Ok(())
 }
@@ -348,7 +348,7 @@ pub(crate) unsafe fn window_set_size_physical(
         "destack.display.window.setSizePhysical",
     )?;
     drop(resolved_host_state);
-    runtime_state.process_runtime_ingress("destack.display.window.setSizePhysical")?;
+    runtime_state.service_ingress("destack.display.window.setSizePhysical")?;
 
     Ok(())
 }

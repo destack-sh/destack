@@ -4,7 +4,7 @@ use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 
 use super::WaylandConnectionState;
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::observer::{RuntimeIngressObserver, RuntimeIngressObserverRegistry};
+use crate::host::core::{HostRuntimeRegistry, RuntimeIngressObserver};
 use crate::platform::display::DisplayBackend;
 use crate::platform::display::unix::wayland::event::{
     self as wayland_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord,
@@ -178,10 +178,7 @@ impl WaylandRuntimeState {
     }
 
     /// Service one ingress step for this runtime.
-    pub(crate) fn process_runtime_ingress(
-        self: &Arc<Self>,
-        operation: &'static str,
-    ) -> RuntimeResult<()> {
+    pub(crate) fn service_ingress(self: &Arc<Self>, operation: &'static str) -> RuntimeResult<()> {
         // dispatch pending wayland protocol events first
         let is_monitor_topology_dirty =
             super::connection::dispatch_pending_for_runtime(self, operation)?;
@@ -265,9 +262,7 @@ impl WaylandRuntimeState {
             .clone();
         let observer: Arc<dyn RuntimeIngressObserver> = observer;
 
-        RuntimeIngressObserverRegistry::shared()
-            .write()
-            .register(runtime_id.0, &observer);
+        HostRuntimeRegistry::register_runtime_ingress_observer(runtime_id, &observer);
     }
 
     /// Register this runtime with the wayland display service once.
@@ -294,7 +289,7 @@ impl RuntimeIngressObserver for WaylandRuntimeIngressObserver {
             return Ok(());
         };
 
-        runtime_state.process_runtime_ingress("destack.display")
+        runtime_state.service_ingress("destack.display")
     }
 }
 
