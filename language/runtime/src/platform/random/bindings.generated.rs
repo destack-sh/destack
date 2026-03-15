@@ -207,20 +207,24 @@ fn encode_destack_random_secure_metadata_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SecureRandomMetadataVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.source as u8 as u64, 8));
-        let field_1: RuntimeResult<vm::Value> = Ok(value.backend_name.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.may_block));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_cryptographic));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_seeded));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_fips_approved));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.entropy_bits_per_byte));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.source as u8 as u64, 8));
+            let field_1: RuntimeResult<vm::Value> = Ok(value.backend_name.value());
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.may_block));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_cryptographic));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_seeded));
+            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_fips_approved));
+            let field_6: RuntimeResult<vm::Value> =
+                Ok(vm::Value::float64(value.entropy_bits_per_byte));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.random.stream.create.
@@ -229,7 +233,9 @@ fn encode_destack_random_stream_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.random.stream.export.
@@ -250,13 +256,15 @@ fn encode_destack_random_stream_export_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RandomStreamStateVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.version as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.version as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.random.stream.fillBytes.
@@ -377,7 +385,9 @@ fn encode_destack_random_stream_in_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.random.stream.jump.
@@ -409,7 +419,9 @@ fn encode_destack_random_stream_next_u64_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.random.stream.nextU64From.
@@ -430,7 +442,9 @@ fn encode_destack_random_stream_next_u64_from_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.random.stream.split.
@@ -451,7 +465,9 @@ fn encode_destack_random_stream_split_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Replay payload for destack.random.secure.metadata.

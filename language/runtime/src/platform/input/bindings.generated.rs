@@ -275,42 +275,52 @@ fn encode_destack_input_device_capabilities_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputDeviceCapabilitiesVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = value.kinds.to_value(context);
-        let field_1: RuntimeResult<vm::Value> = value.axes.to_value(context);
-        let field_2: RuntimeResult<vm::Value> = value.buttons.to_value(context);
-        let field_3: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.metadata_origin as i32 as i64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-            value.axis_metadata_fidelity as i32 as i64,
-            32,
-        ));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-            value.button_metadata_fidelity as i32 as i64,
-            32,
-        ));
-        let field_6: RuntimeResult<vm::Value> =
-            Ok(vm::Value::bool(value.supports_relative_pointer));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_pointer_grab));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_pointer_capture));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_pointer_warp));
-        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_text_input));
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_composition));
-        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_rumble));
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_trigger_rumble));
-        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_sensors));
-        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_battery_state));
-        let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_light_control));
-        let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_raw_hid));
-        let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_player_index));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                field_15?, field_16?, field_17?, field_18?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = value.kinds.to_value(context);
+            let field_1: RuntimeResult<vm::Value> = value.axes.to_value(context);
+            let field_2: RuntimeResult<vm::Value> = value.buttons.to_value(context);
+            let field_3: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.metadata_origin as i32 as i64, 32));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                value.axis_metadata_fidelity as i32 as i64,
+                32,
+            ));
+            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                value.button_metadata_fidelity as i32 as i64,
+                32,
+            ));
+            let field_6: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.supports_relative_pointer));
+            let field_7: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.supports_pointer_grab));
+            let field_8: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.supports_pointer_capture));
+            let field_9: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.supports_pointer_warp));
+            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_text_input));
+            let field_11: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.supports_composition));
+            let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_rumble));
+            let field_13: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.supports_trigger_rumble));
+            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_sensors));
+            let field_15: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.supports_battery_state));
+            let field_16: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.supports_light_control));
+            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_raw_hid));
+            let field_18: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.supports_player_index));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+                    field_15?, field_16?, field_17?, field_18?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.device.close.
@@ -342,7 +352,9 @@ fn encode_destack_input_device_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<InputDeviceDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.device.open.
@@ -362,7 +374,9 @@ fn encode_destack_input_device_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::InputDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.event.monitorClose.
@@ -394,7 +408,9 @@ fn encode_destack_input_event_monitor_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::InputMonitorHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.event.monitorRead.
@@ -417,86 +433,97 @@ fn encode_destack_input_event_monitor_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputMonitorEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        InputMonitorEventVm::InputMonitorChangeEvent(value) => {
-            let tag_value = vm::Value::uint(3150676780u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.device_kind as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.metadata.connected));
+    result
+        .map(|value| match value {
+            InputMonitorEventVm::InputMonitorChangeEvent(value) => {
+                let tag_value = vm::Value::uint(3150676780u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.device_kind as i32 as i64, 32));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.metadata.connected));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputMonitorEventVm::InputMonitorConnectEvent(value) => {
-            let tag_value = vm::Value::uint(1147506405u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.device_kind as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.metadata.connected));
+            }
+            InputMonitorEventVm::InputMonitorConnectEvent(value) => {
+                let tag_value = vm::Value::uint(1147506405u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.device_kind as i32 as i64, 32));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.metadata.connected));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputMonitorEventVm::InputMonitorDisconnectEvent(value) => {
-            let tag_value = vm::Value::uint(1352806727u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.device_kind as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.metadata.connected));
+            }
+            InputMonitorEventVm::InputMonitorDisconnectEvent(value) => {
+                let tag_value = vm::Value::uint(1352806727u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.device_kind as i32 as i64, 32));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.metadata.connected));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.event.monitorTryRead.
@@ -519,86 +546,97 @@ fn encode_destack_input_event_monitor_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputMonitorEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        InputMonitorEventVm::InputMonitorChangeEvent(value) => {
-            let tag_value = vm::Value::uint(3150676780u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.device_kind as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.metadata.connected));
+    result
+        .map(|value| match value {
+            InputMonitorEventVm::InputMonitorChangeEvent(value) => {
+                let tag_value = vm::Value::uint(3150676780u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.device_kind as i32 as i64, 32));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.metadata.connected));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputMonitorEventVm::InputMonitorConnectEvent(value) => {
-            let tag_value = vm::Value::uint(1147506405u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.device_kind as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.metadata.connected));
+            }
+            InputMonitorEventVm::InputMonitorConnectEvent(value) => {
+                let tag_value = vm::Value::uint(1147506405u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.device_kind as i32 as i64, 32));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.metadata.connected));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputMonitorEventVm::InputMonitorDisconnectEvent(value) => {
-            let tag_value = vm::Value::uint(1352806727u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.device_kind as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.metadata.connected));
+            }
+            InputMonitorEventVm::InputMonitorDisconnectEvent(value) => {
+                let tag_value = vm::Value::uint(1352806727u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.device_kind as i32 as i64, 32));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.metadata.connected));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.event.read.
@@ -621,357 +659,384 @@ fn encode_destack_input_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        InputEventVm::InputCompositionEvent(value) => {
-            let tag_value = vm::Value::uint(1953975626u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+    result
+        .map(|value| match value {
+            InputEventVm::InputCompositionEvent(value) => {
+                let tag_value = vm::Value::uint(1953975626u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.selection_start as i64, 32));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.selection_end as i64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.selection_start as i64, 32));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.selection_end as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputDeviceEvent(value) => {
-            let tag_value = vm::Value::uint(1711088174u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputDeviceEvent(value) => {
+                let tag_value = vm::Value::uint(1711088174u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.backend_value, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.backend_value, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputGamepadEvent(value) => {
-            let tag_value = vm::Value::uint(4057440654u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputGamepadEvent(value) => {
+                let tag_value = vm::Value::uint(4057440654u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.backend_value, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.backend_value, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputKeyEvent(value) => {
-            let tag_value = vm::Value::uint(2680346764u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputKeyEvent(value) => {
+                let tag_value = vm::Value::uint(2680346764u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.backend_scan_code as u64, 32));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.backend_value, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.repeat));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.backend_scan_code as u64, 32));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.backend_value, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.repeat));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputPointerButtonEvent(value) => {
-            let tag_value = vm::Value::uint(4073494792u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputPointerButtonEvent(value) => {
+                let tag_value = vm::Value::uint(4073494792u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.backend_value, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.x));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.y));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.backend_value, 64));
-                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.x));
-                    let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.y));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputPointerMotionEvent(value) => {
-            let tag_value = vm::Value::uint(2712240874u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputPointerMotionEvent(value) => {
+                let tag_value = vm::Value::uint(2712240874u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.x));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.y));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.buttons as u64, 32));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.x));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.y));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.buttons as u64, 32));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputScrollEvent(value) => {
-            let tag_value = vm::Value::uint(4279710721u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputScrollEvent(value) => {
+                let tag_value = vm::Value::uint(4279710721u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.wheel_x));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.wheel_y));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.x));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.y));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::float64(value.payload.wheel_x));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::float64(value.payload.wheel_y));
-                    let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.x));
-                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.y));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputSensorEvent(value) => {
-            let tag_value = vm::Value::uint(1143015131u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputSensorEvent(value) => {
+                let tag_value = vm::Value::uint(1143015131u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.backend_value, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.x));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.y));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.z));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.backend_value, 64));
-                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.x));
-                    let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.y));
-                    let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.z));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputTextEvent(value) => {
-            let tag_value = vm::Value::uint(2362503160u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputTextEvent(value) => {
+                let tag_value = vm::Value::uint(2362503160u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
+                        context
+                            .allocate_aggregate(vec![field_0?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputTouchEvent(value) => {
-            let tag_value = vm::Value::uint(1845998728u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputTouchEvent(value) => {
+                let tag_value = vm::Value::uint(1845998728u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.contact_id as u64, 32));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.x));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.y));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.pressure));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.contact_id as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.x));
-                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.y));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::float64(value.payload.pressure));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.event.readBatch.
@@ -996,7 +1061,9 @@ fn encode_destack_input_event_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<InputEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.event.setExclusiveGrab.
@@ -1080,357 +1147,384 @@ fn encode_destack_input_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        InputEventVm::InputCompositionEvent(value) => {
-            let tag_value = vm::Value::uint(1953975626u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+    result
+        .map(|value| match value {
+            InputEventVm::InputCompositionEvent(value) => {
+                let tag_value = vm::Value::uint(1953975626u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.selection_start as i64, 32));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.selection_end as i64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.selection_start as i64, 32));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.selection_end as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputDeviceEvent(value) => {
-            let tag_value = vm::Value::uint(1711088174u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputDeviceEvent(value) => {
+                let tag_value = vm::Value::uint(1711088174u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.backend_value, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.backend_value, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputGamepadEvent(value) => {
-            let tag_value = vm::Value::uint(4057440654u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputGamepadEvent(value) => {
+                let tag_value = vm::Value::uint(4057440654u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.backend_value, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.backend_value, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputKeyEvent(value) => {
-            let tag_value = vm::Value::uint(2680346764u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputKeyEvent(value) => {
+                let tag_value = vm::Value::uint(2680346764u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.backend_scan_code as u64, 32));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.backend_value, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.repeat));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.backend_scan_code as u64, 32));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.backend_value, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.repeat));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputPointerButtonEvent(value) => {
-            let tag_value = vm::Value::uint(4073494792u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputPointerButtonEvent(value) => {
+                let tag_value = vm::Value::uint(4073494792u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.backend_value, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.x));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.y));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.backend_value, 64));
-                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.x));
-                    let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.y));
-                    let field_5: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputPointerMotionEvent(value) => {
-            let tag_value = vm::Value::uint(2712240874u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputPointerMotionEvent(value) => {
+                let tag_value = vm::Value::uint(2712240874u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.x));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.y));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.buttons as u64, 32));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.x));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.y));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.buttons as u64, 32));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputScrollEvent(value) => {
-            let tag_value = vm::Value::uint(4279710721u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputScrollEvent(value) => {
+                let tag_value = vm::Value::uint(4279710721u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.wheel_x));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.wheel_y));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.x));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.y));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::float64(value.payload.wheel_x));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::float64(value.payload.wheel_y));
-                    let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.x));
-                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.y));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.modifiers as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputSensorEvent(value) => {
-            let tag_value = vm::Value::uint(1143015131u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputSensorEvent(value) => {
+                let tag_value = vm::Value::uint(1143015131u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.backend_value, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.x));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.y));
+                        let field_5: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.z));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.backend_code as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.backend_value, 64));
-                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.x));
-                    let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.y));
-                    let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.z));
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputTextEvent(value) => {
-            let tag_value = vm::Value::uint(2362503160u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputTextEvent(value) => {
+                let tag_value = vm::Value::uint(2362503160u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
+                        context
+                            .allocate_aggregate(vec![field_0?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        InputEventVm::InputTouchEvent(value) => {
-            let tag_value = vm::Value::uint(1845998728u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+            }
+            InputEventVm::InputTouchEvent(value) => {
+                let tag_value = vm::Value::uint(1845998728u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(value.metadata.device_id.value());
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.contact_id as u64, 32));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.x));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.y));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.pressure));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.contact_id as u64, 32));
-                    let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.x));
-                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.payload.y));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::float64(value.payload.pressure));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.gamepad.setLight.
@@ -1507,33 +1601,38 @@ fn encode_destack_input_gamepad_state_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputGamepadStateVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connected));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.mapping as i32 as i64, 32));
-        let field_3: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.connection_type as i32 as i64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.player_index as u64, 8));
-        let field_5: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.battery.state as i32 as i64, 32));
-            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.battery.level));
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connected));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.mapping as i32 as i64, 32));
+            let field_3: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.connection_type as i32 as i64, 32));
+            let field_4: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.player_index as u64, 8));
+            let field_5: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.battery.state as i32 as i64, 32));
+                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.battery.level));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_rumble));
+            let field_7: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.supports_trigger_rumble));
+            let field_8: RuntimeResult<vm::Value> = value.axes.to_value(context);
+            let field_9: RuntimeResult<vm::Value> = value.buttons.to_value(context);
+            let field_10: RuntimeResult<vm::Value> = value.touches.to_value(context);
             context
-                .allocate_aggregate(vec![field_0?, field_1?])
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?, field_10?,
+                ])
                 .map_err(Box::<RuntimeError>::from)
-        };
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_rumble));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.supports_trigger_rumble));
-        let field_8: RuntimeResult<vm::Value> = value.axes.to_value(context);
-        let field_9: RuntimeResult<vm::Value> = value.buttons.to_value(context);
-        let field_10: RuntimeResult<vm::Value> = value.touches.to_value(context);
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.haptics.effects.
@@ -1556,7 +1655,9 @@ fn encode_destack_input_haptics_effects_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<InputHapticEffectType>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.haptics.play.
@@ -1636,7 +1737,9 @@ fn encode_destack_input_haptics_play_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputHapticsResult>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+    result
+        .map(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.haptics.stop.
@@ -1682,19 +1785,21 @@ fn encode_destack_input_keyboard_state_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputKeyboardStateVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(value.device_id.value());
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.modifiers as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = value.pressed_codes.to_value(context);
-        let field_5: RuntimeResult<vm::Value> = value.pressed_scan_codes.to_value(context);
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
+            let field_2: RuntimeResult<vm::Value> = Ok(value.device_id.value());
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.modifiers as u64, 32));
+            let field_4: RuntimeResult<vm::Value> = value.pressed_codes.to_value(context);
+            let field_5: RuntimeResult<vm::Value> = value.pressed_scan_codes.to_value(context);
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.pointer.capture.
@@ -1774,33 +1879,35 @@ fn encode_destack_input_pointer_relative_state_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputPointerStateVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.buttons as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.modifiers as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = match value.pen {
-            Some(value) => {
-                let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.pressure));
-                let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::float64(value.tangential_pressure));
-                let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.tilt_x));
-                let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.tilt_y));
-                let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.twist));
-                let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.in_contact));
-                let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.in_range));
-                context
-                    .allocate_aggregate(vec![
-                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                    ])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            None => Ok(vm::Value::VOID),
-        };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.buttons as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.modifiers as u64, 32));
+            let field_4: RuntimeResult<vm::Value> = match value.pen {
+                Some(value) => {
+                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.pressure));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::float64(value.tangential_pressure));
+                    let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.tilt_x));
+                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.tilt_y));
+                    let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.twist));
+                    let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.in_contact));
+                    let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.in_range));
+                    context
+                        .allocate_aggregate(vec![
+                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                        ])
+                        .map_err(Box::<RuntimeError>::from)
+                }
+                None => Ok(vm::Value::VOID),
+            };
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.pointer.setGrabMode.
@@ -1921,33 +2028,35 @@ fn encode_destack_input_pointer_state_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputPointerStateVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.buttons as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.modifiers as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = match value.pen {
-            Some(value) => {
-                let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.pressure));
-                let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::float64(value.tangential_pressure));
-                let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.tilt_x));
-                let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.tilt_y));
-                let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.twist));
-                let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.in_contact));
-                let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.in_range));
-                context
-                    .allocate_aggregate(vec![
-                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                    ])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            None => Ok(vm::Value::VOID),
-        };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.buttons as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.modifiers as u64, 32));
+            let field_4: RuntimeResult<vm::Value> = match value.pen {
+                Some(value) => {
+                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.pressure));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::float64(value.tangential_pressure));
+                    let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.tilt_x));
+                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.tilt_y));
+                    let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.twist));
+                    let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.in_contact));
+                    let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.in_range));
+                    context
+                        .allocate_aggregate(vec![
+                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                        ])
+                        .map_err(Box::<RuntimeError>::from)
+                }
+                None => Ok(vm::Value::VOID),
+            };
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.pointer.warp.
@@ -2033,7 +2142,9 @@ fn encode_destack_input_rawhid_get_feature_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.rawhid.read.
@@ -2060,15 +2171,17 @@ fn encode_destack_input_rawhid_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputRawHidReportVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.report_id as u64, 8));
-        let field_3: RuntimeResult<vm::Value> = value.data.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.report_id as u64, 8));
+            let field_3: RuntimeResult<vm::Value> = value.data.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.rawhid.setFeature.
@@ -2120,15 +2233,17 @@ fn encode_destack_input_rawhid_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputRawHidReportVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.report_id as u64, 8));
-        let field_3: RuntimeResult<vm::Value> = value.data.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.report_id as u64, 8));
+            let field_3: RuntimeResult<vm::Value> = value.data.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.rawhid.write.
@@ -2155,7 +2270,9 @@ fn encode_destack_input_rawhid_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.sensor.configure.
@@ -2235,16 +2352,18 @@ fn encode_destack_input_sensor_configure_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputSensorEffectiveConfigVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.enabled));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.sample_rate_hz));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.batch_latency_ms as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.enabled));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.sample_rate_hz));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.batch_latency_ms as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.sensor.list.
@@ -2267,7 +2386,9 @@ fn encode_destack_input_sensor_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<InputSensorDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.sensor.read.
@@ -2311,20 +2432,23 @@ fn encode_destack_input_sensor_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputSensorSampleVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.kind as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.z));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.w));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.kind as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.z));
+            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.w));
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.sensor.tryRead.
@@ -2368,20 +2492,23 @@ fn encode_destack_input_sensor_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputSensorSampleVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.kind as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.z));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.w));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.kind as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.z));
+            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.w));
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.text.getArea.
@@ -2436,16 +2563,18 @@ fn encode_destack_input_text_get_area_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputTextInputAreaVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.x as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.y as i64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.cursor as i64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.x as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.y as i64, 32));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.cursor as i64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.text.isActive.
@@ -2468,7 +2597,9 @@ fn encode_destack_input_text_is_active_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result
+        .map(|value| Ok(vm::Value::bool(value)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.text.readComposition.
@@ -2491,34 +2622,36 @@ fn encode_destack_input_text_read_composition_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputCompositionEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-        let field_1: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-            let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.metadata.sequence, 64));
-            let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+            let field_1: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.metadata.sequence, 64));
+                let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_2: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                let field_1: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.payload.selection_start as i64, 32));
+                let field_3: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.payload.selection_end as i64, 32));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
             context
                 .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                 .map_err(Box::<RuntimeError>::from)
-        };
-        let field_2: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-            let field_1: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
-            let field_2: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.payload.selection_start as i64, 32));
-            let field_3: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.payload.selection_end as i64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                .map_err(Box::<RuntimeError>::from)
-        };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.text.setArea.
@@ -2763,34 +2896,36 @@ fn encode_destack_input_text_try_read_composition_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputCompositionEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-        let field_1: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-            let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.metadata.sequence, 64));
-            let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+            let field_1: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.metadata.sequence, 64));
+                let field_2: RuntimeResult<vm::Value> = Ok(value.metadata.device_id.value());
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_2: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
+                let field_1: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.payload.selection_start as i64, 32));
+                let field_3: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.payload.selection_end as i64, 32));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
             context
                 .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                 .map_err(Box::<RuntimeError>::from)
-        };
-        let field_2: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.payload.action as i32 as i64, 32));
-            let field_1: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
-            let field_2: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.payload.selection_start as i64, 32));
-            let field_3: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.payload.selection_end as i64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                .map_err(Box::<RuntimeError>::from)
-        };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.input.touch.state.
@@ -2813,15 +2948,17 @@ fn encode_destack_input_touch_state_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputTouchStateVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(value.device_id.value());
-        let field_3: RuntimeResult<vm::Value> = value.contacts.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
+            let field_2: RuntimeResult<vm::Value> = Ok(value.device_id.value());
+            let field_3: RuntimeResult<vm::Value> = value.contacts.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Replay payload for destack.input.device.capabilities.

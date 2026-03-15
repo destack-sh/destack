@@ -143,7 +143,9 @@ fn encode_destack_resource_id_kind_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ResourceKindVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result
+        .map(|value| Ok(value.value()))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.resource.id.remove.
