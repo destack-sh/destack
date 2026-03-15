@@ -3,6 +3,10 @@ use std::ptr;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform;
+use crate::platform::os::credentials::core::{
+    CredentialWriteOptionsOwned, already_exists, interrupted, invalid_data, permission_denied,
+    would_block,
+};
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
 };
@@ -20,11 +24,6 @@ use security_framework_sys::access_control::{
 use security_framework_sys::base::{
     errSecAuthFailed, errSecBadReq, errSecDuplicateItem, errSecIO, errSecInternalComponent,
     errSecItemNotFound, errSecParam, errSecUnimplemented,
-};
-
-use super::super::super::core::{
-    CredentialWriteOptionsOwned, already_exists, interrupted, invalid_data, permission_denied,
-    would_block,
 };
 
 /// Security status code for user-cancelled operation.

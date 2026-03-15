@@ -3,11 +3,12 @@ use crate::platform::core as core_platform;
 use crate::platform::os::PowerState;
 use crate::runtime::BindingCallContext;
 
-use super::backend;
+use crate::platform::os::power::backend;
 
-#[cfg(not(any(unix, windows)))]
 /// Binding operation name for power-state reads.
 pub(crate) const OS_POWER_STATE_OPERATION: &str = "destack.os.power.state";
+/// Binding operation name for suspend requests.
+pub(crate) const OS_POWER_SUSPEND_OPERATION: &str = "destack.os.power.suspend";
 
 /// Read current host power state.
 ///
@@ -45,4 +46,14 @@ pub(crate) unsafe fn destack_os_power_state(
 /// Read current host power state through the VM ABI surface.
 pub(crate) fn read_power_state(binding: &BindingCallContext) -> RuntimeResult<PowerState> {
     backend::read_power_state(binding)
+}
+
+/// Request one host suspend transition through the active backend.
+pub(crate) unsafe fn destack_os_suspend(binding: &BindingCallContext) -> RuntimeResult<()> {
+    backend::request_suspend(binding)
+}
+
+/// Request one host suspend transition through the VM ABI surface.
+pub(crate) fn suspend(binding: &BindingCallContext) -> RuntimeResult<()> {
+    backend::request_suspend(binding)
 }

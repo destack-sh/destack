@@ -1,17 +1,21 @@
-#[cfg(any(target_os = "linux", target_os = "windows"))]
+#[cfg(any(unix, windows))]
 use std::sync::{Arc, OnceLock};
 
 use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
-
+#[cfg(any(unix, windows))]
+use crate::platform::os::core::OsRuntimeState;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-use super::credentials::NoReplaceWriteRuntimeState;
+use crate::platform::os::credentials::NoReplaceWriteRuntimeState;
 
 /// Runtime-owned OS module state.
 #[derive(Default)]
 pub(crate) struct PlatformOsState {
+    /// Runtime-owned host event observer and stream state.
+    #[cfg(any(unix, windows))]
+    runtime_state: OnceLock<Arc<OsRuntimeState>>,
     /// Runtime-owned no-replace write guard state.
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     no_replace_write_runtime_state: OnceLock<Arc<NoReplaceWriteRuntimeState>>,
@@ -28,12 +32,26 @@ impl std::fmt::Debug for PlatformOsState {
 impl PlatformOsState {
     /// Return whether any runtime-owned OS state is active.
     fn has_runtime_state(&self) -> bool {
+        #[cfg(any(unix, windows))]
+        if self.runtime_state.get().is_some() {
+            return true;
+        }
+
         #[cfg(any(target_os = "linux", target_os = "windows"))]
         if self.no_replace_write_runtime_state.get().is_some() {
             return true;
         }
 
         false
+    }
+
+    /// Return runtime-owned OS event state.
+    #[cfg(any(unix, windows))]
+    pub(crate) fn runtime_state(
+        &self,
+        initialize: impl FnOnce() -> OsRuntimeState,
+    ) -> Arc<OsRuntimeState> {
+        Arc::clone(self.runtime_state.get_or_init(|| Arc::new(initialize())))
     }
 
     /// Capture one OS-state image.

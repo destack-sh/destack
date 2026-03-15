@@ -1,18 +1,19 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
-use crate::platform::os::{
-    CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationResult,
-};
-use crate::runtime::BindingCallContext;
-
-use super::super::super::core::{
+use crate::platform::os::credentials::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,
     CredentialWriteOptionsOwned, OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     OS_CREDENTIALS_CONTAINS_OPERATION, OS_CREDENTIALS_DELETE_OPERATION,
     OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, already_exists,
     with_no_replace_write_guard,
 };
-use super::core::{map_keyring_error, open_keyring_entry, write_entry_secret};
+use crate::platform::os::credentials::unix::linux::core::{
+    map_keyring_error, open_keyring_entry, write_entry_secret,
+};
+use crate::platform::os::{
+    CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationResult,
+};
+use crate::runtime::BindingCallContext;
 
 /// Read one credential record from the Linux keyring backend.
 pub(crate) fn read_credentials(

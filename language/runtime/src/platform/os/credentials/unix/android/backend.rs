@@ -4,16 +4,17 @@ use crate::host::{
     destack_host_android_credentials_contains, destack_host_android_credentials_delete,
     destack_host_android_credentials_read, destack_host_android_credentials_write,
 };
-use crate::platform::os::{CredentialAuthenticationMechanism, CredentialAuthenticationResult};
-use crate::runtime::{BindingCallContext, NativeSlice};
-
-use super::super::super::core::{
+use crate::platform::os::credentials::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,
     CredentialWriteOptionsOwned, OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     OS_CREDENTIALS_CONTAINS_OPERATION, OS_CREDENTIALS_DELETE_OPERATION,
     OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, invalid_data,
 };
-use super::core::{decode_authentication_mechanism, host_runtime_id, host_status_result};
+use crate::platform::os::credentials::unix::android::core::{
+    decode_authentication_mechanism, host_runtime_id, host_status_result,
+};
+use crate::platform::os::{CredentialAuthenticationMechanism, CredentialAuthenticationResult};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Initial scratch buffer size for Android host credential reads.
 const INITIAL_ANDROID_READ_BUFFER_BYTES: usize = 512;

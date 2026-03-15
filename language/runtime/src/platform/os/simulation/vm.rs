@@ -1415,7 +1415,7 @@ pub(crate) fn destack_os_intent_share_paths(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     paths: VmArray<fs::OsPathVm>,
-    mimetype: vm::StringHandle,
+    mimetype: Option<vm::StringHandle>,
 ) -> RuntimeResult<()> {
     let _ = (paths, mimetype);
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.sharePaths")).boxed())
@@ -1441,7 +1441,7 @@ pub(crate) fn destack_os_intent_share_text(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     text: vm::StringHandle,
-    mimetype: vm::StringHandle,
+    mimetype: Option<vm::StringHandle>,
 ) -> RuntimeResult<()> {
     let _ = (text, mimetype);
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.shareText")).boxed())
@@ -1867,29 +1867,6 @@ pub(crate) fn destack_os_media_read(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses mount(2)-family APIs on Unix and volume-mount APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.mount`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_mount_add(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    source: vm::StringHandle,
-    target: fs::OsPathVm,
-    filesystem: vm::StringHandle,
-    flags: u64,
-    data: vm::StringHandle,
-) -> RuntimeResult<()> {
-    let _ = (source, target, filesystem, flags, data);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.mount.add")).boxed())
-}
-
 /// Enumerate mount table entries.
 ///
 /// Return one snapshot of the current host mount table.
@@ -1913,34 +1890,6 @@ pub(crate) fn destack_os_mount_list(
 ) -> RuntimeResult<VmArray<MountEntryVm>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.mount.list")).boxed())
 }
-
-/// Unmount one filesystem target.
-///
-/// Unmount one target path with explicit unmount flags.
-/// Forced unmount behavior follows host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses umount or unmount APIs on Unix and volume unmount APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.mount`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_os_mount_remove(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    target: fs::OsPathVm,
-    flags: u64,
-) -> RuntimeResult<()> {
-    let _ = (target, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.mount.remove")).boxed())
-}
-
 /// Read host network state.
 ///
 /// Read one point-in-time host network state snapshot.

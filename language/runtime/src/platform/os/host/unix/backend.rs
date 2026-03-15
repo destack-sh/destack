@@ -2,9 +2,10 @@ use std::mem::MaybeUninit;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
+use crate::platform::os::host::core::{
+    HostIdentityOwned, OS_HOST_IDENTITY_OPERATION, cstring_from_ptr,
+};
 use crate::runtime::BindingCallContext;
-
-use super::super::core::{HostIdentityOwned, OS_HOST_IDENTITY_OPERATION, cstring_from_ptr};
 
 /// Read one host identity payload from unix APIs.
 pub(crate) fn read_host_identity(

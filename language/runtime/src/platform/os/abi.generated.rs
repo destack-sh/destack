@@ -9153,18 +9153,19 @@ impl VmAbiCodec for CredentialWriteOptionsAbi<VmAbi> {
 #[repr(C)]
 pub struct DocumentDescriptorAbi<A: BindingAbi> {
     /// Host document URI.
+    /// This may be one opaque provider URI rather than one filesystem path.
     pub uri: A::String,
     /// Host-visible document name.
     pub name: A::String,
     /// Document MIME type payload when available.
-    pub mime_type: A::String,
+    pub mime_type: Option<A::String>,
     /// Document size in bytes when available.
-    pub size_bytes: u64,
+    pub size_bytes: Option<u64>,
     /// Document modification timestamp in UTC nanoseconds when available.
-    pub modified_unix_ns: u64,
+    pub modified_unix_ns: Option<u64>,
     /// Whether this descriptor represents one directory.
     pub is_directory: bool,
-    /// Runtime-visible local path when one sandbox copy is available.
+    /// Runtime-visible local path when the host grants direct local access or one sandbox copy exists.
     pub local_path: Option<platform_fs::OsPathAbi<A>>,
 }
 
@@ -9219,10 +9220,11 @@ impl VmAggregateCodec for DocumentDescriptorAbi<VmAbi> {
         let field_name =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_mime_type =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_size_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_size_bytes =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_modified_unix_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_is_directory =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_local_path =
@@ -9245,9 +9247,12 @@ impl VmAggregateCodec for DocumentDescriptorAbi<VmAbi> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uri, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.mime_type, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.modified_unix_ns, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.mime_type,
+                context,
+            )?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.modified_unix_ns, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_directory, context)?,
             <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(
                 self.local_path,
@@ -9264,18 +9269,19 @@ impl VmAggregateCodec for DocumentDescriptorAbi<VmAbi> {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentDescriptorValue {
     /// Host document URI.
+    /// This may be one opaque provider URI rather than one filesystem path.
     pub uri: String,
     /// Host-visible document name.
     pub name: String,
     /// Document MIME type payload when available.
-    pub mime_type: String,
+    pub mime_type: Option<String>,
     /// Document size in bytes when available.
-    pub size_bytes: u64,
+    pub size_bytes: Option<u64>,
     /// Document modification timestamp in UTC nanoseconds when available.
-    pub modified_unix_ns: u64,
+    pub modified_unix_ns: Option<u64>,
     /// Whether this descriptor represents one directory.
     pub is_directory: bool,
-    /// Runtime-visible local path when one sandbox copy is available.
+    /// Runtime-visible local path when the host grants direct local access or one sandbox copy exists.
     pub local_path: Option<platform_fs::abi_generated::OsPathValue>,
 }
 
@@ -9286,10 +9292,12 @@ impl NativeAbiCodec for DocumentDescriptorAbi<NativeAbi> {
         Ok(DocumentDescriptorValue {
             uri: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.uri)? },
             name: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.name)? },
-            mime_type: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.mime_type)? },
-            size_bytes: unsafe { <u64 as NativeAbiCodec>::into_value(self.size_bytes)? },
+            mime_type: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.mime_type)?
+            },
+            size_bytes: unsafe { <Option<u64> as NativeAbiCodec>::into_value(self.size_bytes)? },
             modified_unix_ns: unsafe {
-                <u64 as NativeAbiCodec>::into_value(self.modified_unix_ns)?
+                <Option<u64> as NativeAbiCodec>::into_value(self.modified_unix_ns)?
             },
             is_directory: unsafe { <bool as NativeAbiCodec>::into_value(self.is_directory)? },
             local_path: unsafe {
@@ -9302,9 +9310,15 @@ impl NativeAbiCodec for DocumentDescriptorAbi<NativeAbi> {
         Self {
             uri: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.uri),
             name: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.name),
-            mime_type: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.mime_type),
-            size_bytes: <u64 as NativeAbiCodec>::from_value(binding, value.size_bytes),
-            modified_unix_ns: <u64 as NativeAbiCodec>::from_value(binding, value.modified_unix_ns),
+            mime_type: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
+                binding,
+                value.mime_type,
+            ),
+            size_bytes: <Option<u64> as NativeAbiCodec>::from_value(binding, value.size_bytes),
+            modified_unix_ns: <Option<u64> as NativeAbiCodec>::from_value(
+                binding,
+                value.modified_unix_ns,
+            ),
             is_directory: <bool as NativeAbiCodec>::from_value(binding, value.is_directory),
             local_path: <Option<fs::OsPath> as NativeAbiCodec>::from_value(
                 binding,
@@ -9324,9 +9338,15 @@ impl VmAbiCodec for DocumentDescriptorAbi<VmAbi> {
         Ok(DocumentDescriptorValue {
             uri: <vm::StringHandle as VmAbiCodec>::into_value(self.uri, context)?,
             name: <vm::StringHandle as VmAbiCodec>::into_value(self.name, context)?,
-            mime_type: <vm::StringHandle as VmAbiCodec>::into_value(self.mime_type, context)?,
-            size_bytes: <u64 as VmAbiCodec>::into_value(self.size_bytes, context)?,
-            modified_unix_ns: <u64 as VmAbiCodec>::into_value(self.modified_unix_ns, context)?,
+            mime_type: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
+                self.mime_type,
+                context,
+            )?,
+            size_bytes: <Option<u64> as VmAbiCodec>::into_value(self.size_bytes, context)?,
+            modified_unix_ns: <Option<u64> as VmAbiCodec>::into_value(
+                self.modified_unix_ns,
+                context,
+            )?,
             is_directory: <bool as VmAbiCodec>::into_value(self.is_directory, context)?,
             local_path: <Option<fs::OsPathVm> as VmAbiCodec>::into_value(self.local_path, context)?,
         })
@@ -9339,9 +9359,15 @@ impl VmAbiCodec for DocumentDescriptorAbi<VmAbi> {
         Ok(Self {
             uri: <vm::StringHandle as VmAbiCodec>::from_value(context, value.uri)?,
             name: <vm::StringHandle as VmAbiCodec>::from_value(context, value.name)?,
-            mime_type: <vm::StringHandle as VmAbiCodec>::from_value(context, value.mime_type)?,
-            size_bytes: <u64 as VmAbiCodec>::from_value(context, value.size_bytes)?,
-            modified_unix_ns: <u64 as VmAbiCodec>::from_value(context, value.modified_unix_ns)?,
+            mime_type: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
+                context,
+                value.mime_type,
+            )?,
+            size_bytes: <Option<u64> as VmAbiCodec>::from_value(context, value.size_bytes)?,
+            modified_unix_ns: <Option<u64> as VmAbiCodec>::from_value(
+                context,
+                value.modified_unix_ns,
+            )?,
             is_directory: <bool as VmAbiCodec>::from_value(context, value.is_directory)?,
             local_path: <Option<fs::OsPathVm> as VmAbiCodec>::from_value(
                 context,
@@ -17464,18 +17490,19 @@ pub struct CredentialwriteoptionsReplayRecord {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentdescriptorReplayRecord {
     /// Host document URI.
+    /// This may be one opaque provider URI rather than one filesystem path.
     pub uri: String,
     /// Host-visible document name.
     pub name: String,
     /// Document MIME type payload when available.
-    pub mime_type: String,
+    pub mime_type: Option<String>,
     /// Document size in bytes when available.
-    pub size_bytes: u64,
+    pub size_bytes: Option<u64>,
     /// Document modification timestamp in UTC nanoseconds when available.
-    pub modified_unix_ns: u64,
+    pub modified_unix_ns: Option<u64>,
     /// Whether this descriptor represents one directory.
     pub is_directory: bool,
-    /// Runtime-visible local path when one sandbox copy is available.
+    /// Runtime-visible local path when the host grants direct local access or one sandbox copy exists.
     pub local_path: Option<fs::OspathReplayRecord>,
 }
 

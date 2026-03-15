@@ -13,7 +13,7 @@ use crate::platform::os::{
 use crate::platform::{PlatformError, VmSlice, core as core_platform};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
-use super::backend;
+use crate::platform::os::credentials::backend;
 
 /// Operation name for credentials read.
 pub(crate) const OS_CREDENTIALS_READ_OPERATION: &str = "destack.os.credentials.read";

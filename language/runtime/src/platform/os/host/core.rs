@@ -9,7 +9,7 @@ use crate::platform::os::{HostIdentity, HostIdentityVm};
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
-use super::backend;
+use crate::platform::os::host::backend;
 
 /// Binding operation name for host identity reads.
 pub(crate) const OS_HOST_IDENTITY_OPERATION: &str = "destack.os.host.identity";

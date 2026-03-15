@@ -1463,7 +1463,7 @@ impl<'call> OsHarnessContext<'call> {
 
     /// Open one document URI.
     ///
-    /// Open one host document-provider URI with one selected access mode.
+    /// Open one host document-provider URI from one prior picker result with one selected access mode.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1511,7 +1511,7 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses SAF or system picker APIs on Android, UIDocumentPicker on Apple platforms, and host file-picker bridges on desktop hosts.
+    /// Uses SAF or system picker APIs on Android, UIDocumentPicker on Apple platforms, common file dialogs on Windows, and desktop file-picker bridges or portals on Unix desktop hosts.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1885,7 +1885,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `os.intent.read`.
+    /// Requires `os.intent.write`.
     ///
     /// # Replay
     /// External, recordable.
@@ -3795,7 +3795,8 @@ impl<'call> OsHarnessContext<'call> {
     /// Unix and Windows.
     /// Uses host power-management APIs where supported.
     /// macOS and Windows desktop hosts support suspend.
-    /// Linux, Android, and other Unix hosts may return `notSupported` until a real host integration exists.
+    /// Linux hosts may support suspend through the kernel power-state interface when available.
+    /// Android and other Unix hosts may return `notSupported` where no suspend integration exists.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
