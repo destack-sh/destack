@@ -6,7 +6,7 @@ use x11rb::connection::Connection;
 use super::connection::X11ConnectionState;
 use super::ingress;
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::core::observer::{RuntimeIngressObserver, RuntimeIngressObserverRegistry};
+use crate::host::core::{HostRuntimeRegistry, RuntimeIngressObserver};
 use crate::platform::display::unix::x11::event::{
     self as x11_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
@@ -67,7 +67,7 @@ impl RuntimeIngressObserver for X11RuntimeIngressObserver {
             return Ok(());
         };
 
-        runtime_state.process_runtime_ingress("destack.display")
+        runtime_state.service_ingress("destack.display")
     }
 }
 
@@ -203,10 +203,7 @@ impl X11RuntimeState {
     }
 
     /// Service one ingress step for this runtime.
-    pub(crate) fn process_runtime_ingress(
-        self: &Arc<Self>,
-        operation: &'static str,
-    ) -> RuntimeResult<()> {
+    pub(crate) fn service_ingress(self: &Arc<Self>, operation: &'static str) -> RuntimeResult<()> {
         // resolve host connection state
         let connection_state = super::connection_state(self, operation)?;
         let mut is_monitor_topology_dirty = false;
@@ -252,9 +249,7 @@ impl X11RuntimeState {
             .clone();
         let observer: Arc<dyn RuntimeIngressObserver> = observer;
 
-        RuntimeIngressObserverRegistry::shared()
-            .write()
-            .register(runtime_id.0, &observer);
+        HostRuntimeRegistry::register_runtime_ingress_observer(runtime_id, &observer);
     }
 
     /// Register this runtime with the x11 display service once.

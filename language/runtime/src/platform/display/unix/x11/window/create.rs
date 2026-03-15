@@ -477,7 +477,7 @@ pub(crate) unsafe fn window_open(
     let handle = resource::WindowHandle(resource_id);
     runtime_state.register_xid(window, handle, Arc::downgrade(&host_state));
     event::publish_window_created(&runtime_state, handle);
-    runtime_state.process_runtime_ingress("destack.display.window.open")?;
+    runtime_state.service_ingress("destack.display.window.open")?;
 
     unsafe {
         *out = handle;

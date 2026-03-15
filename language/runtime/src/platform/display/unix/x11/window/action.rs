@@ -211,7 +211,7 @@ pub(crate) unsafe fn window_focus(
         )
     })?;
     drop(resolved_host_state);
-    runtime_state.process_runtime_ingress("destack.display.window.focus")?;
+    runtime_state.service_ingress("destack.display.window.focus")?;
 
     Ok(())
 }

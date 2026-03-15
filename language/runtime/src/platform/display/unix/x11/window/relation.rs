@@ -88,7 +88,7 @@ pub(crate) unsafe fn window_set_modal(
         modal,
     )?;
     drop(resolved_host_state);
-    runtime_state.process_runtime_ingress("destack.display.window.setModal")?;
+    runtime_state.service_ingress("destack.display.window.setModal")?;
 
     Ok(())
 }

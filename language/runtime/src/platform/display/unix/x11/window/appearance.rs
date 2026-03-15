@@ -38,7 +38,7 @@ pub(crate) unsafe fn window_set_always_on_top(
         always_on_top,
     )?;
     drop(host_state);
-    runtime_state.process_runtime_ingress("destack.display.window.setAlwaysOnTop")?;
+    runtime_state.service_ingress("destack.display.window.setAlwaysOnTop")?;
 
     Ok(())
 }
@@ -333,7 +333,7 @@ pub(crate) unsafe fn window_set_taskbar_visible(
         !visible,
     )?;
     drop(host_state);
-    runtime_state.process_runtime_ingress("destack.display.window.setTaskbarVisible")?;
+    runtime_state.service_ingress("destack.display.window.setTaskbarVisible")?;
 
     Ok(())
 }
@@ -425,7 +425,7 @@ pub(crate) unsafe fn window_set_visibility(
         )
     })?;
     drop(host_state);
-    runtime_state.process_runtime_ingress("destack.display.window.setVisibility")?;
+    runtime_state.service_ingress("destack.display.window.setVisibility")?;
 
     Ok(())
 }
