@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "execution", allow(dead_code))]
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -152,14 +154,6 @@ pub(crate) fn result_or_skip_not_supported<T>(
 pub(crate) fn assert_not_supported_error(error: &RuntimeError) {
     let code = error_code_from_runtime_error(error).expect("expected one platform error payload");
     assert!(is_not_supported_platform_code(code));
-}
-
-#[cfg(any(test, feature = "execution"))]
-/// Assert one runtime error does not carry not-supported.
-#[cfg(any(target_vendor = "apple", target_os = "android", windows))]
-pub(crate) fn assert_not_not_supported_error(error: &RuntimeError) {
-    let code = error_code_from_runtime_error(error).expect("expected one platform error payload");
-    assert!(!is_not_supported_platform_code(code));
 }
 
 #[cfg(any(test, feature = "execution"))]

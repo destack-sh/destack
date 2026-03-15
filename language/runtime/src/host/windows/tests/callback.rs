@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::host::core::{HostQueue, HostQueueRegistry};
+use crate::host::core::{HostQueue, HostRuntimeRegistry};
 use crate::host::windows::ingress::callback::host_lifecycle_state_for_windows_application;
 use crate::host::windows::{
     WindowsApplicationLifecycle, windows_notify_intent_open_url, windows_notify_permission_result,
@@ -60,7 +60,7 @@ fn test_map_windows_lifecycle_to_destroyed() {
 fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
     let runtime_id = next_test_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostQueueRegistry::shared().write().register(
+    let registration = HostRuntimeRegistry::register_queue(
         Platform::Windows,
         runtime_id,
         Arc::downgrade(&queue),
@@ -84,7 +84,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
 fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
     let runtime_id = next_test_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostQueueRegistry::shared().write().register(
+    let registration = HostRuntimeRegistry::register_queue(
         Platform::Windows,
         runtime_id,
         Arc::downgrade(&queue),

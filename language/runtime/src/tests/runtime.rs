@@ -5,7 +5,7 @@ use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions
 
 #[cfg(test)]
 use crate::diagnostic::{DiagnosticId, RuntimeError, RuntimeResult, RuntimeStatus};
-use crate::host::Host;
+use crate::host::HostSession;
 #[cfg(test)]
 use crate::platform::PlatformError;
 #[cfg(test)]
@@ -29,7 +29,7 @@ pub(crate) struct TestRuntime {
     /// Agent under test.
     pub agent: Box<Agent>,
     /// Host under test.
-    host: Host,
+    host: HostSession,
     /// VM isolate backing VM bindings in tests.
     vm_isolate: std::cell::RefCell<vm::Isolate>,
     /// Heap backing the VM isolate in tests.
@@ -92,7 +92,7 @@ impl TestRuntime {
 
         let agent = Agent::new_in_world(Vec::new(), &options, &world, Box::new(agent_engine))
             .expect("runtime test agent should build");
-        let host = Host::from_runtime_options(&options, agent.runtime_id);
+        let host = HostSession::from_runtime_options(&options, agent.runtime_id);
 
         // vm binding isolate
         let tree = NodeTree::new();
@@ -125,7 +125,7 @@ impl TestRuntime {
         // install current agent context for vm callback bridges
         let runtime = self.agent.as_ref() as *const Agent;
         let event_loop = self.agent.event_loop.as_ref() as *const _;
-        let host = &self.host as *const Host;
+        let host = &self.host as *const HostSession;
         let world = self.world.as_ref() as *const World;
         let _agent_guard = enter_current_agent_context(
             runtime,
@@ -156,7 +156,7 @@ impl TestRuntime {
         // install current agent context for vm callback bridges
         let runtime = self.agent.as_ref() as *const Agent;
         let event_loop = self.agent.event_loop.as_ref() as *const _;
-        let host = &self.host as *const Host;
+        let host = &self.host as *const HostSession;
         let world = self.world.as_ref() as *const World;
         let _agent_guard = enter_current_agent_context(
             runtime,

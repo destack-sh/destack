@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Host;
+use crate::host::HostSession;
 use crate::runtime::engine::{Engine, EngineOutput, Entry, EntryReference};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::scheduler::Timer;
@@ -28,7 +28,7 @@ pub struct Runtime {
     /// Runtime options used for agent creation.
     options: RuntimeOptions,
     /// Shared host integration for all agents in this runtime.
-    host: Host,
+    host: HostSession,
     /// Shared platform poller for external events.
     poller: Option<Box<dyn HostPoller>>,
     /// Drop accounting at the runtime coordination boundary.
@@ -108,7 +108,7 @@ impl Runtime {
     }
 
     /// Return the shared host integration for this runtime.
-    pub fn host(&self) -> &Host {
+    pub fn host(&self) -> &HostSession {
         &self.host
     }
 
@@ -323,7 +323,7 @@ impl Runtime {
         let primary_agent = Box::new(primary_agent);
         let primary_agent_id = primary_agent.id;
         let runtime_id = primary_agent.runtime_id;
-        let host = Host::from_runtime_options(options, runtime_id);
+        let host = HostSession::from_runtime_options(options, runtime_id);
         let runtime_name = options
             .name
             .clone()
@@ -597,7 +597,7 @@ impl Runtime {
     ) -> RuntimeResult<Self> {
         // runtime-wide reconstructed state
         let platform_args: Arc<[String]> = image.platform_args.clone().into();
-        let host = Host::from_runtime_options(&image.options, image.runtime_id);
+        let host = HostSession::from_runtime_options(&image.options, image.runtime_id);
         let poller = poller_for_options(&image.options)?;
         let mut agents = BTreeMap::new();
 

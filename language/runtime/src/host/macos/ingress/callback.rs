@@ -1,7 +1,7 @@
 use destack_workspace::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostQueueRegistry, HostSessionIngress};
+use crate::host::core::{HostIngressHandle, HostRuntimeRegistry};
 use crate::host::{
     HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent,
     HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent,
@@ -23,10 +23,8 @@ pub enum MacosApplicationLifecycle {
 }
 
 /// Return the active macOS host queue for this process.
-fn macos_host_bridge(runtime_id: u64) -> RuntimeResult<HostSessionIngress> {
-    HostQueueRegistry::shared()
-        .write()
-        .session_ingress_for_runtime(RuntimeId(runtime_id), Platform::MacOS)
+fn macos_host_bridge(runtime_id: u64) -> RuntimeResult<HostIngressHandle> {
+    HostRuntimeRegistry::ingress_handle_for_runtime(RuntimeId(runtime_id), Platform::MacOS)
 }
 
 /// Submit one macOS application lifecycle callback.

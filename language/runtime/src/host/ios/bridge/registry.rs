@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
-use crate::host::core::HostQueueRegistry;
+use crate::host::core::HostRuntimeRegistry;
 use crate::host::ios::bridge::bindings::IosHostBindings;
 use crate::host::{
     HOST_STATUS_FAILED, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK, Platform,
@@ -30,10 +30,7 @@ fn ios_bindings_registry() -> &'static RwLock<IosBindingsRegistryState> {
 
 /// Return whether one runtime id currently resolves to one iOS host queue.
 fn has_ios_host_bridge(runtime_id: u64) -> bool {
-    HostQueueRegistry::shared()
-        .write()
-        .queue_for_runtime(RuntimeId(runtime_id), Platform::IOS)
-        .is_ok()
+    HostRuntimeRegistry::queue_for_runtime(RuntimeId(runtime_id), Platform::IOS).is_ok()
 }
 
 /// Register one runtime-scoped iOS bindings payload.

@@ -1,3 +1,3 @@
 mod intent;
 
-pub(crate) use intent::{session_capabilities, submit_request};
+pub(crate) use intent::{request_capabilities, submit_request};

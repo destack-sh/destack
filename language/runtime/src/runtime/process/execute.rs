@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Host;
+use crate::host::HostSession;
 use crate::platform::resource;
 use crate::runtime::DropReason;
 use crate::runtime::engine::{
@@ -21,7 +21,7 @@ impl Agent {
     pub fn run_entrypoint(
         &mut self,
         world: &World,
-        host: &Host,
+        host: &HostSession,
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<EngineOutput> {
@@ -33,14 +33,14 @@ impl Agent {
     pub(crate) fn run_entrypoint_with_host_and_poller(
         &mut self,
         world: &World,
-        host: &Host,
+        host: &HostSession,
         entry: &Entry,
         args: &[heap::Value],
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<EngineOutput> {
         let agent_ptr = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
-        let host_ptr = host as *const Host;
+        let host_ptr = host as *const HostSession;
         let world_ptr = world as *const World;
         let _context_guard = enter_current_agent_context(
             agent_ptr,
@@ -88,14 +88,14 @@ impl Agent {
     pub(crate) fn run_replayable_entrypoint_with_host_and_poller(
         &mut self,
         world: &World,
-        host: &Host,
+        host: &HostSession,
         entry: &EntryReference,
         args: &[heap::Value],
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<EngineOutput> {
         let agent_ptr = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
-        let host_ptr = host as *const Host;
+        let host_ptr = host as *const HostSession;
         let world_ptr = world as *const World;
         let _context_guard = enter_current_agent_context(
             agent_ptr,
@@ -142,7 +142,7 @@ impl Agent {
     pub fn run_loop_until_task_complete(
         &mut self,
         world: &World,
-        host: &Host,
+        host: &HostSession,
         target_task: TaskId,
     ) -> RuntimeResult<EngineOutput> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
@@ -158,7 +158,7 @@ impl Agent {
     pub(crate) fn run_loop_until_task_complete_with_host_and_poller(
         &mut self,
         world: &World,
-        host: &Host,
+        host: &HostSession,
         target_task: TaskId,
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<EngineOutput> {
@@ -175,7 +175,7 @@ impl Agent {
     pub fn run_loop_until_task_complete_with_timeout(
         &mut self,
         world: &World,
-        host: &Host,
+        host: &HostSession,
         target_task: TaskId,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<Option<EngineOutput>> {
@@ -187,7 +187,7 @@ impl Agent {
     fn run_until_task_complete(
         &mut self,
         world: &World,
-        host: &Host,
+        host: &HostSession,
         target_task: TaskId,
         timeout_nanos: Option<u64>,
         poller: &mut Option<Box<dyn HostPoller>>,
@@ -230,12 +230,12 @@ impl Agent {
     }
 
     /// Execute one local agent tick.
-    pub fn tick(&mut self, world: &World, host: &Host) -> RuntimeResult<bool> {
+    pub fn tick(&mut self, world: &World, host: &HostSession) -> RuntimeResult<bool> {
         self.tick_once(world, host)
     }
 
     /// Run runtime ticks until no work remains.
-    pub fn tick_until_idle(&mut self, world: &World, host: &Host) -> RuntimeResult<()> {
+    pub fn tick_until_idle(&mut self, world: &World, host: &HostSession) -> RuntimeResult<()> {
         loop {
             let progressed = self.tick_once(world, host)?;
             if !progressed {
@@ -247,7 +247,7 @@ impl Agent {
     }
 
     /// Execute one local agent tick.
-    fn tick_once(&mut self, world: &World, host: &Host) -> RuntimeResult<bool> {
+    fn tick_once(&mut self, world: &World, host: &HostSession) -> RuntimeResult<bool> {
         // run one event loop tick and capture progress
         let (mut progressed, _) = self.tick_loop(world, host, None)?;
 
@@ -263,12 +263,12 @@ impl Agent {
     fn tick_loop(
         &mut self,
         world: &World,
-        host: &Host,
+        host: &HostSession,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<(bool, Option<EngineOutput>)> {
         let agent_ptr = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
-        let host_ptr = host as *const Host;
+        let host_ptr = host as *const HostSession;
         let world_ptr = world as *const World;
         let _context_guard = enter_current_agent_context(
             agent_ptr,
@@ -283,7 +283,7 @@ impl Agent {
         let tick_start_mono_nanos = world.mono_nanos();
 
         // service host owned ingress before consuming runtime work
-        host.process_runtime_ingress()?;
+        host.service_ingress()?;
 
         if self.is_tick_budget_exhausted(world, tick_start_mono_nanos) {
             return Ok((progressed, None));
@@ -562,7 +562,7 @@ impl Agent {
     fn wait_for_next_turn(
         &mut self,
         world: &World,
-        host: &Host,
+        host: &HostSession,
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<bool> {
         // virtual mode never blocks: callers must advance virtual time explicitly
@@ -576,7 +576,7 @@ impl Agent {
         let timeout_nanos = self.event_loop.timeout_until_next_timer(wall_now, mono_now);
 
         // poll host events before blocking or sleeping
-        host.process_runtime_ingress()?;
+        host.service_ingress()?;
         let host_event_count = self.poll_host_events(host, Some(0))?;
         if host_event_count > 0 {
             for _ in 0..host_event_count {
@@ -615,7 +615,7 @@ impl Agent {
     /// Poll host events and enqueue host semantic events.
     fn poll_host_events(
         &mut self,
-        host: &Host,
+        host: &HostSession,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<usize> {
         // drain host events for this tick

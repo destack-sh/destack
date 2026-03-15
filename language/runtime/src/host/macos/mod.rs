@@ -15,5 +15,5 @@ pub use ingress::*;
 pub(crate) use request::set_test_pick_hook;
 #[cfg(target_os = "macos")]
 pub(crate) use request::{
-    session_capabilities as macos_request_capabilities, submit_request as submit_macos_request,
+    request_capabilities as macos_request_capabilities, submit_request as submit_macos_request,
 };

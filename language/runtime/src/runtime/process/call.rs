@@ -6,7 +6,7 @@ use std::ptr;
 use std::time::Duration;
 
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
-use crate::host::Host;
+use crate::host::HostSession;
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
 use crate::runtime::bindings::{
     BindingAffinity, BindingDescriptor, BindingEngine, BindingPolicy, BindingReplayPayload,
@@ -42,7 +42,7 @@ struct CurrentAgentContext {
     /// Event loop pointer for callback dispatch.
     event_loop: *const EventLoop,
     /// Host pointer for callback dispatch.
-    host: *const Host,
+    host: *const HostSession,
     /// World pointer for replay, time, random, and policy.
     world: *const World,
     /// Execution context identifier for callback dispatch.
@@ -91,7 +91,7 @@ impl Drop for CurrentAgentContextGuard {
 pub(crate) fn enter_current_agent_context(
     agent: *const Agent,
     event_loop: *const EventLoop,
-    host: *const Host,
+    host: *const HostSession,
     world: *const World,
     is_process_main: bool,
 ) -> CurrentAgentContextGuard {
@@ -134,7 +134,7 @@ pub struct BindingCallContext {
     /// Event loop for task queues and timers.
     event_loop: *const EventLoop,
     /// Host state for platform callbacks.
-    host: *const Host,
+    host: *const HostSession,
     /// Shared world for replay, time, random, and policy.
     world: *const World,
     /// Engine kind for this binding call.
@@ -165,7 +165,7 @@ impl Drop for BindingHookGuard<'_> {
 
 impl BindingCallContext {
     /// Create a binding call context for TLS.
-    pub fn new(agent: &Agent, event_loop: &EventLoop, host: &Host, world: &World) -> Self {
+    pub fn new(agent: &Agent, event_loop: &EventLoop, host: &HostSession, world: &World) -> Self {
         let execution_context = event_loop.execution_context(host.is_process_main_context());
 
         Self {
@@ -183,7 +183,7 @@ impl BindingCallContext {
     pub(crate) fn from_raw(
         agent: *const Agent,
         event_loop: *const EventLoop,
-        host: *const Host,
+        host: *const HostSession,
         world: *const World,
         engine: BindingEngine,
     ) -> Self {
@@ -194,7 +194,7 @@ impl BindingCallContext {
         Self {
             agent,
             event_loop: event_loop as *const EventLoop,
-            host: host as *const Host,
+            host: host as *const HostSession,
             world,
             engine,
             scope: current_event_loop_scope(),
@@ -313,7 +313,7 @@ impl BindingCallContext {
 
     /// Borrow the runtime host state.
     #[inline]
-    pub fn host(&self) -> &Host {
+    pub fn host(&self) -> &HostSession {
         // safety: pointer is owned by the runtime caller
         unsafe { &*self.host }
     }
@@ -347,8 +347,8 @@ impl BindingCallContext {
     }
 
     /// Service runtime-owned host ingress for the active runtime.
-    pub(crate) fn process_runtime_ingress(&self) -> RuntimeResult<()> {
-        self.host().process_runtime_ingress()
+    pub(crate) fn service_runtime_ingress(&self) -> RuntimeResult<()> {
+        self.host().service_ingress()
     }
 
     /// Wait for one binding result while runtime-owned host ingress makes progress.
@@ -368,7 +368,7 @@ impl BindingCallContext {
             }
 
             // let the runtime and host own progress while the binding waits
-            self.process_runtime_ingress()?;
+            self.service_runtime_ingress()?;
 
             if let Some(result) = try_take()? {
                 return Ok(result);
@@ -581,7 +581,7 @@ impl BindingCallContext {
 
         // service runtime-owned host ingress before host bindings execute
         if decision.world == RuntimeWorld::Host {
-            self.process_runtime_ingress()?;
+            self.service_runtime_ingress()?;
         }
 
         Ok(decision)

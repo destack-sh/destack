@@ -9,7 +9,7 @@ use crate::platform::core::not_supported;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
 /// Return dynamic Windows request capabilities.
-pub(crate) fn session_capabilities() -> PlatformCapabilitySet {
+pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
     PlatformCapabilitySet::from_capabilities([
         PlatformCapability::OsDocumentPick,
         PlatformCapability::OsIntentWrite,

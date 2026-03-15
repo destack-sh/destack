@@ -8,7 +8,7 @@ use crate::host::unix::{submit_unix_request, unix_request_capabilities};
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
 /// Return dynamic macOS request capabilities.
-pub(crate) fn session_capabilities() -> PlatformCapabilitySet {
+pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
     let mut capabilities = unix_request_capabilities();
 
     // document picking is live on the concrete macOS host

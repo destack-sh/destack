@@ -29,14 +29,9 @@ pub(crate) trait HostAdapter: std::fmt::Debug + Send + Sync {
         capabilities
     }
 
-    /// Return dynamic session capabilities for this adapter instance.
-    fn session_capabilities(&self) -> PlatformCapabilitySet {
-        PlatformCapabilitySet::new()
-    }
-
     /// Return dynamic session capabilities for one specific runtime.
-    fn runtime_session_capabilities(&self, _runtime_id: RuntimeId) -> PlatformCapabilitySet {
-        self.session_capabilities()
+    fn session_capabilities(&self, _runtime_id: RuntimeId) -> PlatformCapabilitySet {
+        PlatformCapabilitySet::new()
     }
 
     /// Return whether the current execution context is the process main context.
