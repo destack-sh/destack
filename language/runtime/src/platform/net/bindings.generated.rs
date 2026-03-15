@@ -227,14 +227,16 @@ fn encode_destack_net_address_local_address_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketAddressVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.family as u64, 16));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length as u64, 32));
-        let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.family as u64, 16));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length as u64, 32));
+            let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.address.peerAddress.
@@ -256,14 +258,16 @@ fn encode_destack_net_address_peer_address_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketAddressVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.family as u64, 16));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length as u64, 32));
-        let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.family as u64, 16));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length as u64, 32));
+            let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.interface.interfaceIndex.
@@ -283,7 +287,9 @@ fn encode_destack_net_interface_interface_index_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.interface.interfaceName.
@@ -303,7 +309,9 @@ fn encode_destack_net_interface_interface_name_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result
+        .map(|value| Ok(value.value()))
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.net.interface.listInterfaces.
@@ -312,7 +320,9 @@ fn encode_destack_net_interface_list_interfaces_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<NetInterfaceVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.listener.accept.
@@ -338,7 +348,9 @@ fn encode_destack_net_listener_accept_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.listener.bind.
@@ -458,7 +470,9 @@ fn encode_destack_net_listener_listen_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ListenerHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.getBroadcast.
@@ -480,7 +494,9 @@ fn encode_destack_net_options_get_broadcast_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result
+        .map(|value| Ok(vm::Value::bool(value)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.getLinger.
@@ -502,13 +518,15 @@ fn encode_destack_net_options_get_linger_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LingerVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.enabled));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.seconds as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.enabled));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.seconds as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.getOnlyV6.
@@ -530,7 +548,9 @@ fn encode_destack_net_options_get_only_v6_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result
+        .map(|value| Ok(vm::Value::bool(value)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.getPacketMark.
@@ -552,7 +572,9 @@ fn encode_destack_net_options_get_packet_mark_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.getReadTimeout.
@@ -574,7 +596,9 @@ fn encode_destack_net_options_get_read_timeout_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.getRecvBuffer.
@@ -596,7 +620,9 @@ fn encode_destack_net_options_get_recv_buffer_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.getSendBuffer.
@@ -618,7 +644,9 @@ fn encode_destack_net_options_get_send_buffer_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.getSockOptRaw.
@@ -653,7 +681,9 @@ fn encode_destack_net_options_get_sock_opt_raw_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.getTimestamping.
@@ -675,7 +705,9 @@ fn encode_destack_net_options_get_timestamping_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketTimestampingMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+    result
+        .map(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.getTos.
@@ -697,7 +729,9 @@ fn encode_destack_net_options_get_tos_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.getTtl.
@@ -719,7 +753,9 @@ fn encode_destack_net_options_get_ttl_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.getWriteTimeout.
@@ -741,7 +777,9 @@ fn encode_destack_net_options_get_write_timeout_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.options.setBroadcast.
@@ -1089,7 +1127,9 @@ fn encode_destack_net_raw_packet_backend_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<PacketBackendDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.raw.packetClearFanout.
@@ -1234,7 +1274,9 @@ fn encode_destack_net_raw_packet_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.raw.packetReceive.
@@ -1263,18 +1305,20 @@ fn encode_destack_net_raw_packet_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PacketCaptureRecordVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
-        let field_1: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.interface_index as u64, 32));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.timestamp_clock as i32 as i64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.truncated));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
+            let field_1: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.interface_index as u64, 32));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.timestamp_clock as i32 as i64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.truncated));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.raw.packetSend.
@@ -1303,7 +1347,9 @@ fn encode_destack_net_raw_packet_send_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.raw.packetSetFanout.
@@ -1565,15 +1611,17 @@ fn encode_destack_net_raw_packet_stats_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PacketCaptureStatsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.received_packets, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dropped_packets, 64));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.interface_dropped_packets, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.received_packets, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dropped_packets, 64));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.interface_dropped_packets, 64));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.raw.setHeaderIncluded.
@@ -1631,7 +1679,9 @@ fn encode_destack_net_raw_socket_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.resolve.lookup.
@@ -1702,7 +1752,9 @@ fn encode_destack_net_resolve_lookup_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<SocketAddressVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.resolve.reverseLookup.
@@ -1751,7 +1803,9 @@ fn encode_destack_net_resolve_reverse_lookup_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<ReverseLookupNameVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.reuse.getReuseAddr.
@@ -1773,7 +1827,9 @@ fn encode_destack_net_reuse_get_reuse_addr_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result
+        .map(|value| Ok(vm::Value::bool(value)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.reuse.getReusePort.
@@ -1795,7 +1851,9 @@ fn encode_destack_net_reuse_get_reuse_port_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result
+        .map(|value| Ok(vm::Value::bool(value)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.reuse.setReuseAddr.
@@ -2149,7 +2207,9 @@ fn encode_destack_net_route_route_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<RouteEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.socket.close.
@@ -2259,7 +2319,9 @@ fn encode_destack_net_socket_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.socket.openPair.
@@ -2297,13 +2359,15 @@ fn encode_destack_net_socket_open_pair_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketPairVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.first.0.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.second.0.0, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.first.0.0, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.second.0.0, 64));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.socket.read.
@@ -2327,7 +2391,9 @@ fn encode_destack_net_socket_read_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.socket.readv.
@@ -2352,7 +2418,9 @@ fn encode_destack_net_socket_readv_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.socket.recvFrom.
@@ -2379,23 +2447,26 @@ fn encode_destack_net_socket_recv_from_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketRecvFromVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
-        let field_1: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.address.family as u64, 16));
-            let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.address.length as u64, 32));
-            let field_2: RuntimeResult<vm::Value> = value.address.bytes.to_value(context);
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
+            let field_1: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.address.family as u64, 16));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.address.length as u64, 32));
+                let field_2: RuntimeResult<vm::Value> = value.address.bytes.to_value(context);
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
             context
                 .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                 .map_err(Box::<RuntimeError>::from)
-        };
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.socket.recvMmsg.
@@ -2436,7 +2507,9 @@ fn encode_destack_net_socket_recv_mmsg_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<SocketRecvMessageVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.socket.recvMsg.
@@ -2483,43 +2556,49 @@ fn encode_destack_net_socket_recv_msg_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketRecvMessageVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
-        let field_1: RuntimeResult<vm::Value> = match value.address {
-            Some(value) => {
-                let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.family as u64, 16));
-                let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.length as u64, 32));
-                let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            None => Ok(vm::Value::VOID),
-        };
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.payload_truncated));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.control_truncated));
-        let field_5: RuntimeResult<vm::Value> = value.control.0.to_value(context);
-        let field_6: RuntimeResult<vm::Value> = value.fds.to_value(context);
-        let field_7: RuntimeResult<vm::Value> = match value.credentials {
-            Some(value) => {
-                let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid as u64, 32));
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.uid as u64, 32));
-                let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.gid as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            None => Ok(vm::Value::VOID),
-        };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
+            let field_1: RuntimeResult<vm::Value> = match value.address {
+                Some(value) => {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.family as u64, 16));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.length as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }
+                None => Ok(vm::Value::VOID),
+            };
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.payload_truncated));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.control_truncated));
+            let field_5: RuntimeResult<vm::Value> = value.control.0.to_value(context);
+            let field_6: RuntimeResult<vm::Value> = value.fds.to_value(context);
+            let field_7: RuntimeResult<vm::Value> = match value.credentials {
+                Some(value) => {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid as u64, 32));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.uid as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.gid as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }
+                None => Ok(vm::Value::VOID),
+            };
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.socket.sendMmsg.
@@ -2548,7 +2627,9 @@ fn encode_destack_net_socket_send_mmsg_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.socket.sendMsg.
@@ -2677,7 +2758,9 @@ fn encode_destack_net_socket_send_msg_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.socket.sendTo.
@@ -2757,7 +2840,9 @@ fn encode_destack_net_socket_send_to_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.socket.setNonblocking.
@@ -2841,7 +2926,9 @@ fn encode_destack_net_socket_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.socket.writev.
@@ -2866,7 +2953,9 @@ fn encode_destack_net_socket_writev_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.tcp.getKeepAlive.
@@ -2888,16 +2977,20 @@ fn encode_destack_net_tcp_get_keep_alive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<KeepAliveConfigVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.enabled));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.idle_seconds as u64, 32));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.interval_seconds as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.probe_count as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.enabled));
+            let field_1: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.idle_seconds as u64, 32));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.interval_seconds as u64, 32));
+            let field_3: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.probe_count as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.tcp.getNoDelay.
@@ -2919,7 +3012,9 @@ fn encode_destack_net_tcp_get_no_delay_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result
+        .map(|value| Ok(vm::Value::bool(value)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.tcp.setKeepAlive.
@@ -3118,7 +3213,9 @@ fn encode_destack_net_udp_get_multicast_interface_v4_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result
+        .map(|value| Ok(value.value()))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.udp.getMulticastInterfaceV6.
@@ -3140,7 +3237,9 @@ fn encode_destack_net_udp_get_multicast_interface_v6_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.udp.getMulticastLoop.
@@ -3162,7 +3261,9 @@ fn encode_destack_net_udp_get_multicast_loop_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result
+        .map(|value| Ok(vm::Value::bool(value)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.udp.getMulticastTtl.
@@ -3184,7 +3285,9 @@ fn encode_destack_net_udp_get_multicast_ttl_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.udp.joinMulticastSourceV4.
@@ -3519,23 +3622,26 @@ fn encode_destack_net_udp_recv_from_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UdpReceiveVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.address.family as u64, 16));
-            let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.address.length as u64, 32));
-            let field_2: RuntimeResult<vm::Value> = value.address.bytes.to_value(context);
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.address.family as u64, 16));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.address.length as u64, 32));
+                let field_2: RuntimeResult<vm::Value> = value.address.bytes.to_value(context);
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
             context
                 .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                 .map_err(Box::<RuntimeError>::from)
-        };
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.udp.sendTo.
@@ -3595,7 +3701,9 @@ fn encode_destack_net_udp_send_to_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.udp.setMulticastInterfaceV4.
@@ -3723,7 +3831,9 @@ fn encode_destack_net_udp_socket_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.uds.udsAccept.
@@ -3746,7 +3856,9 @@ fn encode_destack_net_uds_uds_accept_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.uds.udsCloseListener.
@@ -3788,7 +3900,9 @@ fn encode_destack_net_uds_uds_connect_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SocketHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.uds.udsListen.
@@ -3810,7 +3924,9 @@ fn encode_destack_net_uds_uds_listen_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ListenerHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.net.uds.udsSocketPair.
@@ -3831,13 +3947,15 @@ fn encode_destack_net_uds_uds_socket_pair_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketPairVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.first.0.0, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.second.0.0, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.first.0.0, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.second.0.0, 64));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Replay payload for destack.net.address.localAddress.

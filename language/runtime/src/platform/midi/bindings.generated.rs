@@ -216,7 +216,9 @@ fn encode_destack_midi_backend_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<MidiBackendDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.event.close.
@@ -355,7 +357,9 @@ fn encode_destack_midi_event_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.event.read.
@@ -379,287 +383,297 @@ fn encode_destack_midi_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MidiEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        MidiEventVm::MidiBackendDisconnectedEvent(value) => {
-            let tag_value = vm::Value::uint(4143034202u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        MidiEventVm::MidiPortAddedEvent(value) => {
-            let tag_value = vm::Value::uint(639313437u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
+    result
+        .map(|value| match value {
+            MidiEventVm::MidiBackendDisconnectedEvent(value) => {
+                let tag_value = vm::Value::uint(4143034202u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.backend as i32 as i64,
-                            32,
-                        ));
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.payload.descriptor.id.value());
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_2: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.group_id {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let field_3: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.backend_id {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
+                            Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
                         let field_4: RuntimeResult<vm::Value> =
-                            Ok(value.payload.descriptor.name.value());
-                        let field_5: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.group_name {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_6: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.manufacturer {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_7: RuntimeResult<vm::Value> = match value.payload.descriptor.model
-                        {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.version {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.supported_data_formats.0 as u64,
-                            32,
-                        ));
-                        let field_10: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.default_data_format {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.supported_protocols.0 as u64,
-                            32,
-                        ));
-                        let field_12: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.default_protocol {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_13: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
-                        let field_14: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.descriptor.is_connected));
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         context
                             .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                field_12?, field_13?, field_14?,
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        MidiEventVm::MidiPortChangedEvent(value) => {
-            let tag_value = vm::Value::uint(2166240247u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.backend as i32 as i64,
-                            32,
-                        ));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.payload.descriptor.id.value());
-                        let field_2: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.group_id {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_3: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.backend_id {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_4: RuntimeResult<vm::Value> =
-                            Ok(value.payload.descriptor.name.value());
-                        let field_5: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.group_name {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_6: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.manufacturer {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_7: RuntimeResult<vm::Value> = match value.payload.descriptor.model
-                        {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.version {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.supported_data_formats.0 as u64,
-                            32,
-                        ));
-                        let field_10: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.default_data_format {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.supported_protocols.0 as u64,
-                            32,
-                        ));
-                        let field_12: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.default_protocol {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_13: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
-                        let field_14: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.descriptor.is_connected));
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.flags as u64, 32));
                         context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                field_12?, field_13?, field_14?,
-                            ])
+                            .allocate_aggregate(vec![field_0?])
                             .map_err(Box::<RuntimeError>::from)
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        MidiEventVm::MidiPortRemovedEvent(value) => {
-            let tag_value = vm::Value::uint(1791639446u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = Ok(value.payload.id.value());
-                    let field_2: RuntimeResult<vm::Value> = match value.payload.group_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+            MidiEventVm::MidiPortAddedEvent(value) => {
+                let tag_value = vm::Value::uint(639313437u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.backend as i32 as i64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(value.payload.descriptor.id.value());
+                            let field_2: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.group_id {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_3: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.backend_id {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_4: RuntimeResult<vm::Value> =
+                                Ok(value.payload.descriptor.name.value());
+                            let field_5: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.group_name {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_6: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.manufacturer {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.model {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.version {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.supported_data_formats.0 as u64,
+                                32,
+                            ));
+                            let field_10: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.default_data_format {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.supported_protocols.0 as u64,
+                                32,
+                            ));
+                            let field_12: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.default_protocol {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_13: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
+                            let field_14: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.descriptor.is_connected));
+                            context
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                    field_12?, field_13?, field_14?,
+                                ])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            MidiEventVm::MidiPortChangedEvent(value) => {
+                let tag_value = vm::Value::uint(2166240247u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.backend as i32 as i64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(value.payload.descriptor.id.value());
+                            let field_2: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.group_id {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_3: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.backend_id {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_4: RuntimeResult<vm::Value> =
+                                Ok(value.payload.descriptor.name.value());
+                            let field_5: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.group_name {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_6: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.manufacturer {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.model {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.version {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.supported_data_formats.0 as u64,
+                                32,
+                            ));
+                            let field_10: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.default_data_format {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.supported_protocols.0 as u64,
+                                32,
+                            ));
+                            let field_12: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.default_protocol {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_13: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
+                            let field_14: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.descriptor.is_connected));
+                            context
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                    field_12?, field_13?, field_14?,
+                                ])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            MidiEventVm::MidiPortRemovedEvent(value) => {
+                let tag_value = vm::Value::uint(1791639446u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = Ok(value.payload.id.value());
+                        let field_2: RuntimeResult<vm::Value> = match value.payload.group_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.event.readBatch.
@@ -685,7 +699,9 @@ fn encode_destack_midi_event_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<MidiEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.event.tryRead.
@@ -707,287 +723,297 @@ fn encode_destack_midi_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MidiEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        MidiEventVm::MidiBackendDisconnectedEvent(value) => {
-            let tag_value = vm::Value::uint(4143034202u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.flags as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        MidiEventVm::MidiPortAddedEvent(value) => {
-            let tag_value = vm::Value::uint(639313437u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
+    result
+        .map(|value| match value {
+            MidiEventVm::MidiBackendDisconnectedEvent(value) => {
+                let tag_value = vm::Value::uint(4143034202u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.backend as i32 as i64,
-                            32,
-                        ));
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.payload.descriptor.id.value());
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_2: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.group_id {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         let field_3: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.backend_id {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
+                            Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
                         let field_4: RuntimeResult<vm::Value> =
-                            Ok(value.payload.descriptor.name.value());
-                        let field_5: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.group_name {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_6: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.manufacturer {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_7: RuntimeResult<vm::Value> = match value.payload.descriptor.model
-                        {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.version {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.supported_data_formats.0 as u64,
-                            32,
-                        ));
-                        let field_10: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.default_data_format {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.supported_protocols.0 as u64,
-                            32,
-                        ));
-                        let field_12: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.default_protocol {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_13: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
-                        let field_14: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.descriptor.is_connected));
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         context
                             .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                field_12?, field_13?, field_14?,
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        MidiEventVm::MidiPortChangedEvent(value) => {
-            let tag_value = vm::Value::uint(2166240247u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.backend as i32 as i64,
-                            32,
-                        ));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.payload.descriptor.id.value());
-                        let field_2: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.group_id {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_3: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.backend_id {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_4: RuntimeResult<vm::Value> =
-                            Ok(value.payload.descriptor.name.value());
-                        let field_5: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.group_name {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_6: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.manufacturer {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_7: RuntimeResult<vm::Value> = match value.payload.descriptor.model
-                        {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.version {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.supported_data_formats.0 as u64,
-                            32,
-                        ));
-                        let field_10: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.default_data_format {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.supported_protocols.0 as u64,
-                            32,
-                        ));
-                        let field_12: RuntimeResult<vm::Value> =
-                            match value.payload.descriptor.default_protocol {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_13: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
-                        let field_14: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.descriptor.is_connected));
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.flags as u64, 32));
                         context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                field_12?, field_13?, field_14?,
-                            ])
+                            .allocate_aggregate(vec![field_0?])
                             .map_err(Box::<RuntimeError>::from)
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        MidiEventVm::MidiPortRemovedEvent(value) => {
-            let tag_value = vm::Value::uint(1791639446u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = Ok(value.payload.id.value());
-                    let field_2: RuntimeResult<vm::Value> = match value.payload.group_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+            MidiEventVm::MidiPortAddedEvent(value) => {
+                let tag_value = vm::Value::uint(639313437u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.backend as i32 as i64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(value.payload.descriptor.id.value());
+                            let field_2: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.group_id {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_3: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.backend_id {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_4: RuntimeResult<vm::Value> =
+                                Ok(value.payload.descriptor.name.value());
+                            let field_5: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.group_name {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_6: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.manufacturer {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.model {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.version {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.supported_data_formats.0 as u64,
+                                32,
+                            ));
+                            let field_10: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.default_data_format {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.supported_protocols.0 as u64,
+                                32,
+                            ));
+                            let field_12: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.default_protocol {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_13: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
+                            let field_14: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.descriptor.is_connected));
+                            context
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                    field_12?, field_13?, field_14?,
+                                ])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            MidiEventVm::MidiPortChangedEvent(value) => {
+                let tag_value = vm::Value::uint(2166240247u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.backend as i32 as i64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(value.payload.descriptor.id.value());
+                            let field_2: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.group_id {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_3: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.backend_id {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_4: RuntimeResult<vm::Value> =
+                                Ok(value.payload.descriptor.name.value());
+                            let field_5: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.group_name {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_6: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.manufacturer {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.model {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.version {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.supported_data_formats.0 as u64,
+                                32,
+                            ));
+                            let field_10: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.default_data_format {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.supported_protocols.0 as u64,
+                                32,
+                            ));
+                            let field_12: RuntimeResult<vm::Value> =
+                                match value.payload.descriptor.default_protocol {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_13: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
+                            let field_14: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.descriptor.is_connected));
+                            context
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                    field_12?, field_13?, field_14?,
+                                ])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            MidiEventVm::MidiPortRemovedEvent(value) => {
+                let tag_value = vm::Value::uint(1791639446u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.source as i32 as i64, 32));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = Ok(value.payload.id.value());
+                        let field_2: RuntimeResult<vm::Value> = match value.payload.group_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.event.tryReadBatch.
@@ -1011,7 +1037,9 @@ fn encode_destack_midi_event_try_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<MidiEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.input.port.close.
@@ -1057,55 +1085,58 @@ fn encode_destack_midi_input_port_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MidiPortDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.backend as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_2: RuntimeResult<vm::Value> = match value.group_id {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_3: RuntimeResult<vm::Value> = match value.backend_id {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_4: RuntimeResult<vm::Value> = Ok(value.name.value());
-        let field_5: RuntimeResult<vm::Value> = match value.group_name {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_6: RuntimeResult<vm::Value> = match value.manufacturer {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_7: RuntimeResult<vm::Value> = match value.model {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_8: RuntimeResult<vm::Value> = match value.version {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_9: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.supported_data_formats.0 as u64, 32));
-        let field_10: RuntimeResult<vm::Value> = match value.default_data_format {
-            Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_11: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.supported_protocols.0 as u64, 32));
-        let field_12: RuntimeResult<vm::Value> = match value.default_protocol {
-            Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_virtual));
-        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_connected));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.backend as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
+            let field_2: RuntimeResult<vm::Value> = match value.group_id {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_3: RuntimeResult<vm::Value> = match value.backend_id {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_4: RuntimeResult<vm::Value> = Ok(value.name.value());
+            let field_5: RuntimeResult<vm::Value> = match value.group_name {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_6: RuntimeResult<vm::Value> = match value.manufacturer {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_7: RuntimeResult<vm::Value> = match value.model {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_8: RuntimeResult<vm::Value> = match value.version {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_9: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.supported_data_formats.0 as u64, 32));
+            let field_10: RuntimeResult<vm::Value> = match value.default_data_format {
+                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_11: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.supported_protocols.0 as u64, 32));
+            let field_12: RuntimeResult<vm::Value> = match value.default_protocol {
+                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_virtual));
+            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_connected));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.input.port.list.
@@ -1182,7 +1213,9 @@ fn encode_destack_midi_input_port_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<MidiPortDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.input.port.open.
@@ -1299,7 +1332,9 @@ fn encode_destack_midi_input_port_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiInputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.input.read.
@@ -1324,26 +1359,29 @@ fn encode_destack_midi_input_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MidiInputRecordVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.received_at_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = match value.source_id {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.data_format as i32 as i64, 32));
-        let field_3: RuntimeResult<vm::Value> = match value.protocol {
-            Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.framing as i32 as i64, 32));
-        let field_5: RuntimeResult<vm::Value> = value.data.to_value(context);
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.received_at_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = match value.source_id {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.data_format as i32 as i64, 32));
+            let field_3: RuntimeResult<vm::Value> = match value.protocol {
+                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_4: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.framing as i32 as i64, 32));
+            let field_5: RuntimeResult<vm::Value> = value.data.to_value(context);
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.input.readBatch.
@@ -1370,7 +1408,9 @@ fn encode_destack_midi_input_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<MidiInputRecordVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.input.tryRead.
@@ -1393,26 +1433,29 @@ fn encode_destack_midi_input_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MidiInputRecordVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.received_at_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = match value.source_id {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.data_format as i32 as i64, 32));
-        let field_3: RuntimeResult<vm::Value> = match value.protocol {
-            Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.framing as i32 as i64, 32));
-        let field_5: RuntimeResult<vm::Value> = value.data.to_value(context);
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.received_at_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = match value.source_id {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.data_format as i32 as i64, 32));
+            let field_3: RuntimeResult<vm::Value> = match value.protocol {
+                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_4: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.framing as i32 as i64, 32));
+            let field_5: RuntimeResult<vm::Value> = value.data.to_value(context);
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.input.tryReadBatch.
@@ -1437,7 +1480,9 @@ fn encode_destack_midi_input_try_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<MidiInputRecordVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.input.virtual.create.
@@ -1566,7 +1611,9 @@ fn encode_destack_midi_input_virtual_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiInputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.output.port.close.
@@ -1612,55 +1659,58 @@ fn encode_destack_midi_output_port_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MidiPortDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.backend as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_2: RuntimeResult<vm::Value> = match value.group_id {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_3: RuntimeResult<vm::Value> = match value.backend_id {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_4: RuntimeResult<vm::Value> = Ok(value.name.value());
-        let field_5: RuntimeResult<vm::Value> = match value.group_name {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_6: RuntimeResult<vm::Value> = match value.manufacturer {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_7: RuntimeResult<vm::Value> = match value.model {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_8: RuntimeResult<vm::Value> = match value.version {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_9: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.supported_data_formats.0 as u64, 32));
-        let field_10: RuntimeResult<vm::Value> = match value.default_data_format {
-            Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_11: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.supported_protocols.0 as u64, 32));
-        let field_12: RuntimeResult<vm::Value> = match value.default_protocol {
-            Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_virtual));
-        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_connected));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.backend as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
+            let field_2: RuntimeResult<vm::Value> = match value.group_id {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_3: RuntimeResult<vm::Value> = match value.backend_id {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_4: RuntimeResult<vm::Value> = Ok(value.name.value());
+            let field_5: RuntimeResult<vm::Value> = match value.group_name {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_6: RuntimeResult<vm::Value> = match value.manufacturer {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_7: RuntimeResult<vm::Value> = match value.model {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_8: RuntimeResult<vm::Value> = match value.version {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_9: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.supported_data_formats.0 as u64, 32));
+            let field_10: RuntimeResult<vm::Value> = match value.default_data_format {
+                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_11: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.supported_protocols.0 as u64, 32));
+            let field_12: RuntimeResult<vm::Value> = match value.default_protocol {
+                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_virtual));
+            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_connected));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.output.port.list.
@@ -1737,7 +1787,9 @@ fn encode_destack_midi_output_port_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<MidiPortDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.output.port.open.
@@ -1851,7 +1903,9 @@ fn encode_destack_midi_output_port_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiOutputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.output.virtual.create.
@@ -1977,7 +2031,9 @@ fn encode_destack_midi_output_virtual_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MidiOutputPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.midi.output.write.
@@ -2007,7 +2063,9 @@ fn encode_destack_midi_output_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Replay payload for destack.midi.backend.list.

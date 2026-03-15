@@ -16,24 +16,29 @@ use crate::platform::device::{
     BluetoothAdvertisementManufacturerData, BluetoothAdvertisementManufacturerDataValue,
     BluetoothAdvertisementManufacturerDataVm, BluetoothAdvertisementServiceData,
     BluetoothAdvertisementServiceDataValue, BluetoothAdvertisementServiceDataVm,
-    BluetoothDeviceDescriptor, BluetoothDeviceDescriptorValue, BluetoothDeviceDescriptorVm,
+    BluetoothDataFilter, BluetoothDataFilterVm, BluetoothDeviceDescriptor,
+    BluetoothDeviceDescriptorValue, BluetoothDeviceDescriptorVm,
     BluetoothGattCharacteristicDescriptor, BluetoothGattCharacteristicDescriptorValue,
     BluetoothGattCharacteristicDescriptorVm, BluetoothGattCharacteristicProperties,
     BluetoothGattCharacteristicPropertiesVm, BluetoothGattDescriptorDescriptor,
     BluetoothGattDescriptorDescriptorValue, BluetoothGattDescriptorDescriptorVm,
     BluetoothGattServiceDescriptor, BluetoothGattServiceDescriptorValue,
     BluetoothGattServiceDescriptorVm, BluetoothGattValueEvent, BluetoothGattValueEventValue,
-    BluetoothGattValueEventVm, BluetoothGattWriteMode, BluetoothPairState, BluetoothPhy,
+    BluetoothGattValueEventVm, BluetoothGattWriteMode, BluetoothManufacturerDataFilter,
+    BluetoothManufacturerDataFilterVm, BluetoothPairState, BluetoothPhy,
     BluetoothScanDiscoveredEvent, BluetoothScanDiscoveredEventValue,
     BluetoothScanDiscoveredEventVm, BluetoothScanEvent, BluetoothScanEventMetadata,
     BluetoothScanEventMetadataValue, BluetoothScanEventMetadataVm, BluetoothScanEventValue,
     BluetoothScanEventVm, BluetoothScanFilter, BluetoothScanFilterVm, BluetoothScanLostEvent,
     BluetoothScanLostEventValue, BluetoothScanLostEventVm, BluetoothScanMode,
     BluetoothScanUpdatedEvent, BluetoothScanUpdatedEventValue, BluetoothScanUpdatedEventVm,
-    BluetoothSessionDisconnectedEvent, BluetoothSessionDisconnectedEventValue,
-    BluetoothSessionDisconnectedEventVm, BluetoothSessionDisconnectedPayload,
-    BluetoothSessionDisconnectedPayloadVm, BluetoothSessionEvent, BluetoothSessionEventMetadata,
-    BluetoothSessionEventMetadataVm, BluetoothSessionEventValue, BluetoothSessionEventVm,
+    BluetoothServiceDataFilter, BluetoothServiceDataFilterVm, BluetoothSessionDisconnectedEvent,
+    BluetoothSessionDisconnectedEventValue, BluetoothSessionDisconnectedEventVm,
+    BluetoothSessionDisconnectedPayload, BluetoothSessionDisconnectedPayloadVm,
+    BluetoothSessionEvent, BluetoothSessionEventMetadata, BluetoothSessionEventMetadataVm,
+    BluetoothSessionEventValue, BluetoothSessionEventVm, BluetoothSessionGattDatabaseChangedEvent,
+    BluetoothSessionGattDatabaseChangedEventValue, BluetoothSessionGattDatabaseChangedEventVm,
+    BluetoothSessionGattDatabaseChangedPayload, BluetoothSessionGattDatabaseChangedPayloadVm,
     BluetoothSessionPairStateChangedEvent, BluetoothSessionPairStateChangedEventValue,
     BluetoothSessionPairStateChangedEventVm, BluetoothSessionPairStateChangedPayload,
     BluetoothSessionPairStateChangedPayloadVm, BluetoothTransport,
@@ -46,56 +51,59 @@ use crate::platform::device::{
     BluetoothscaneventReplayRecord, BluetoothscaneventmetadataReplayRecord,
     BluetoothscanlosteventReplayRecord, BluetoothscanupdatedeventReplayRecord,
     BluetoothsessiondisconnectedeventReplayRecord, BluetoothsessioneventReplayRecord,
+    BluetoothsessiongattdatabasechangedeventReplayRecord,
     BluetoothsessionpairstatechangedeventReplayRecord, CameraColorSpace, CameraDeviceDescriptor,
     CameraDeviceDescriptorValue, CameraDeviceDescriptorVm, CameraDynamicRange,
     CameraExposureCompensationRange, CameraExposureCompensationRangeVm, CameraExposureMode,
-    CameraFacingMode, CameraFocusDistanceRange, CameraFocusDistanceRangeVm, CameraFrame,
-    CameraFrameMetadata, CameraFrameMetadataVm, CameraFrameValue, CameraFrameVm, CameraPixelFormat,
+    CameraExposureTimeRange, CameraExposureTimeRangeVm, CameraFacingMode, CameraFloatControlRange,
+    CameraFloatControlRangeVm, CameraFocusDistanceRange, CameraFocusDistanceRangeVm,
+    CameraFocusMode, CameraFrame, CameraFrameMetadata, CameraFrameMetadataVm, CameraFrameValue,
+    CameraFrameVm, CameraPanAngleRange, CameraPanAngleRangeVm, CameraPixelFormat,
     CameraPixelFormatDescriptor, CameraPixelFormatDescriptorVm, CameraPixelFormatFamily,
-    CameraPlaneLayout, CameraPlaneLayoutVm, CameraStabilizationMode, CameraStreamCapability,
-    CameraStreamCapabilityValue, CameraStreamCapabilityVm, CameraStreamConfig,
-    CameraStreamConfigVm, CameraTorchMode, CameraWhiteBalanceRange, CameraWhiteBalanceRangeVm,
-    CameraZoomRatioRange, CameraZoomRatioRangeVm, CameradevicedescriptorReplayRecord,
-    CameraframeReplayRecord, CamerastreamcapabilityReplayRecord, SerialDataBits,
-    SerialDisconnectedEvent, SerialDisconnectedEventValue, SerialDisconnectedEventVm,
-    SerialDisconnectedPayload, SerialDisconnectedPayloadVm, SerialErrorEvent,
-    SerialErrorEventValue, SerialErrorEventVm, SerialErrorKind, SerialErrorPayload,
-    SerialErrorPayloadVm, SerialEvent, SerialEventMetadata, SerialEventMetadataVm,
-    SerialEventValue, SerialEventVm, SerialFlowControl, SerialFlowControlVm, SerialInputSignals,
-    SerialInputSignalsVm, SerialModemStatusChangedEvent, SerialModemStatusChangedEventValue,
-    SerialModemStatusChangedEventVm, SerialModemStatusPayload, SerialModemStatusPayloadVm,
-    SerialOutputSignals, SerialOutputSignalsVm, SerialParity, SerialPortConfig, SerialPortConfigVm,
-    SerialPortDescriptor, SerialPortDescriptorValue, SerialPortDescriptorVm, SerialPortOpenOptions,
-    SerialPortOpenOptionsVm, SerialPortTransport, SerialReadReadyEvent, SerialReadReadyEventValue,
-    SerialReadReadyEventVm, SerialReadReadyPayload, SerialReadReadyPayloadVm, SerialStopBits,
-    SerialWriteDrainedEvent, SerialWriteDrainedEventValue, SerialWriteDrainedEventVm,
-    SerialWriteDrainedPayload, SerialWriteDrainedPayloadVm, SerialdisconnectedeventReplayRecord,
-    SerialerroreventReplayRecord, SerialeventReplayRecord,
+    CameraPlaneLayout, CameraPlaneLayoutVm, CameraSensorIsoRange, CameraSensorIsoRangeVm,
+    CameraStabilizationMode, CameraStreamCapability, CameraStreamCapabilityValue,
+    CameraStreamCapabilityVm, CameraStreamConfig, CameraStreamConfigVm, CameraTiltAngleRange,
+    CameraTiltAngleRangeVm, CameraTorchMode, CameraWhiteBalanceMode, CameraWhiteBalanceRange,
+    CameraWhiteBalanceRangeVm, CameraZoomRatioRange, CameraZoomRatioRangeVm,
+    CameradevicedescriptorReplayRecord, CameraframeReplayRecord,
+    CamerastreamcapabilityReplayRecord, SerialDataBits, SerialDisconnectedEvent,
+    SerialDisconnectedEventValue, SerialDisconnectedEventVm, SerialDisconnectedPayload,
+    SerialDisconnectedPayloadVm, SerialErrorEvent, SerialErrorEventValue, SerialErrorEventVm,
+    SerialErrorKind, SerialErrorPayload, SerialErrorPayloadVm, SerialEvent, SerialEventMetadata,
+    SerialEventMetadataVm, SerialEventValue, SerialEventVm, SerialFlowControl, SerialFlowControlVm,
+    SerialInputSignals, SerialInputSignalsVm, SerialModemStatusChangedEvent,
+    SerialModemStatusChangedEventValue, SerialModemStatusChangedEventVm, SerialModemStatusPayload,
+    SerialModemStatusPayloadVm, SerialOutputSignals, SerialOutputSignalsVm, SerialParity,
+    SerialPortConfig, SerialPortConfigVm, SerialPortDescriptor, SerialPortDescriptorValue,
+    SerialPortDescriptorVm, SerialPortOpenOptions, SerialPortOpenOptionsVm, SerialPortTransport,
+    SerialReadReadyEvent, SerialReadReadyEventValue, SerialReadReadyEventVm,
+    SerialReadReadyPayload, SerialReadReadyPayloadVm, SerialStopBits,
+    SerialdisconnectedeventReplayRecord, SerialerroreventReplayRecord, SerialeventReplayRecord,
     SerialmodemstatuschangedeventReplayRecord, SerialportdescriptorReplayRecord,
-    SerialreadreadyeventReplayRecord, SerialwritedrainedeventReplayRecord,
-    UsbBosCapabilityDescriptor, UsbBosCapabilityDescriptorValue, UsbBosCapabilityDescriptorVm,
-    UsbBosCapabilityKind, UsbConfigurationDescriptor, UsbConfigurationDescriptorValue,
-    UsbConfigurationDescriptorVm, UsbControlDeviceTarget, UsbControlDeviceTargetVm,
-    UsbControlEndpointTarget, UsbControlEndpointTargetVm, UsbControlInterfaceTarget,
-    UsbControlInterfaceTargetVm, UsbControlOtherTarget, UsbControlOtherTargetVm, UsbControlSetup,
-    UsbControlSetupVm, UsbControlTarget, UsbControlTargetVm, UsbControlTransferType,
-    UsbDeviceDescriptor, UsbDeviceDescriptorValue, UsbDeviceDescriptorVm, UsbEndpointDescriptor,
-    UsbEndpointDescriptorVm, UsbEndpointDirection, UsbEndpointSelector, UsbEndpointSelectorVm,
-    UsbEndpointTransferType, UsbHotplugAttachedEvent, UsbHotplugAttachedEventValue,
-    UsbHotplugAttachedEventVm, UsbHotplugDetachedEvent, UsbHotplugDetachedEventValue,
-    UsbHotplugDetachedEventVm, UsbHotplugEvent, UsbHotplugEventMetadata,
-    UsbHotplugEventMetadataValue, UsbHotplugEventMetadataVm, UsbHotplugEventValue,
-    UsbHotplugEventVm, UsbInTransferResult, UsbInTransferResultValue, UsbInTransferResultVm,
-    UsbInterfaceDescriptor, UsbInterfaceDescriptorValue, UsbInterfaceDescriptorVm,
-    UsbIsochronousPacketResult, UsbIsochronousPacketResultVm, UsbIsochronousTransferResult,
-    UsbIsochronousTransferResultValue, UsbIsochronousTransferResultVm, UsbOutTransferResult,
-    UsbOutTransferResultVm, UsbStringDescriptor, UsbStringDescriptorValue, UsbStringDescriptorVm,
-    UsbTransferStatus, UsbboscapabilitydescriptorReplayRecord,
-    UsbconfigurationdescriptorReplayRecord, UsbdevicedescriptorReplayRecord,
-    UsbhotplugattachedeventReplayRecord, UsbhotplugdetachedeventReplayRecord,
-    UsbhotplugeventReplayRecord, UsbhotplugeventmetadataReplayRecord,
-    UsbinterfacedescriptorReplayRecord, UsbintransferresultReplayRecord,
-    UsbisochronoustransferresultReplayRecord, UsbstringdescriptorReplayRecord,
+    SerialreadreadyeventReplayRecord, UsbBosCapabilityDescriptor, UsbBosCapabilityDescriptorValue,
+    UsbBosCapabilityDescriptorVm, UsbBosCapabilityKind, UsbConfigurationDescriptor,
+    UsbConfigurationDescriptorValue, UsbConfigurationDescriptorVm, UsbControlDeviceTarget,
+    UsbControlDeviceTargetVm, UsbControlEndpointTarget, UsbControlEndpointTargetVm,
+    UsbControlInterfaceTarget, UsbControlInterfaceTargetVm, UsbControlOtherTarget,
+    UsbControlOtherTargetVm, UsbControlSetup, UsbControlSetupVm, UsbControlTarget,
+    UsbControlTargetVm, UsbControlTransferType, UsbDeviceDescriptor, UsbDeviceDescriptorValue,
+    UsbDeviceDescriptorVm, UsbEndpointDescriptor, UsbEndpointDescriptorVm, UsbEndpointDirection,
+    UsbEndpointSelector, UsbEndpointSelectorVm, UsbEndpointTransferType, UsbHotplugAttachedEvent,
+    UsbHotplugAttachedEventValue, UsbHotplugAttachedEventVm, UsbHotplugDetachedEvent,
+    UsbHotplugDetachedEventValue, UsbHotplugDetachedEventVm, UsbHotplugEvent,
+    UsbHotplugEventMetadata, UsbHotplugEventMetadataValue, UsbHotplugEventMetadataVm,
+    UsbHotplugEventValue, UsbHotplugEventVm, UsbInTransferResult, UsbInTransferResultValue,
+    UsbInTransferResultVm, UsbInterfaceDescriptor, UsbInterfaceDescriptorValue,
+    UsbInterfaceDescriptorVm, UsbIsochronousPacketResult, UsbIsochronousPacketResultVm,
+    UsbIsochronousTransferResult, UsbIsochronousTransferResultValue,
+    UsbIsochronousTransferResultVm, UsbOutTransferResult, UsbOutTransferResultVm,
+    UsbStringDescriptor, UsbStringDescriptorValue, UsbStringDescriptorVm, UsbTransferStatus,
+    UsbboscapabilitydescriptorReplayRecord, UsbconfigurationdescriptorReplayRecord,
+    UsbdevicedescriptorReplayRecord, UsbhotplugattachedeventReplayRecord,
+    UsbhotplugdetachedeventReplayRecord, UsbhotplugeventReplayRecord,
+    UsbhotplugeventmetadataReplayRecord, UsbinterfacedescriptorReplayRecord,
+    UsbintransferresultReplayRecord, UsbisochronoustransferresultReplayRecord,
+    UsbstringdescriptorReplayRecord,
 };
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
@@ -300,7 +308,9 @@ fn encode_destack_device_bluetooth_adapter_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<BluetoothAdapterDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.characteristicList.
@@ -314,9 +324,9 @@ fn decode_destack_device_bluetooth_gatt_characteristic_list_args(
         decode_uint64(handle_value, "handle_inner_inner", "BluetoothDeviceHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::BluetoothDeviceHandle(handle_inner);
-    let serviceuuid_value = arg_value(args, 1, "serviceuuid", "string")?;
-    let serviceuuid = decode_string(serviceuuid_value, "serviceuuid", "string")?;
-    Ok((handle, serviceuuid))
+    let serviceid_value = arg_value(args, 1, "serviceid", "string")?;
+    let serviceid = decode_string(serviceid_value, "serviceid", "string")?;
+    Ok((handle, serviceid))
 }
 
 /// Encode the result for destack.device.bluetooth.gatt.characteristicList.
@@ -325,7 +335,9 @@ fn encode_destack_device_bluetooth_gatt_characteristic_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<BluetoothGattCharacteristicDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.descriptorList.
@@ -333,22 +345,15 @@ fn encode_destack_device_bluetooth_gatt_characteristic_list_result(
 fn decode_destack_device_bluetooth_gatt_descriptor_list_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::BluetoothDeviceHandle,
-    vm::StringHandle,
-    vm::StringHandle,
-)> {
+) -> RuntimeResult<(resource::BluetoothDeviceHandle, vm::StringHandle)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "BluetoothDeviceHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::BluetoothDeviceHandle(handle_inner);
-    let serviceuuid_value = arg_value(args, 1, "serviceuuid", "string")?;
-    let serviceuuid = decode_string(serviceuuid_value, "serviceuuid", "string")?;
-    let characteristicuuid_value = arg_value(args, 2, "characteristicuuid", "string")?;
-    let characteristicuuid =
-        decode_string(characteristicuuid_value, "characteristicuuid", "string")?;
-    Ok((handle, serviceuuid, characteristicuuid))
+    let characteristicid_value = arg_value(args, 1, "characteristicid", "string")?;
+    let characteristicid = decode_string(characteristicid_value, "characteristicid", "string")?;
+    Ok((handle, characteristicid))
 }
 
 /// Encode the result for destack.device.bluetooth.gatt.descriptorList.
@@ -357,7 +362,9 @@ fn encode_destack_device_bluetooth_gatt_descriptor_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<BluetoothGattDescriptorDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.mtu.
@@ -380,7 +387,9 @@ fn encode_destack_device_bluetooth_gatt_mtu_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u16>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 16)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 16)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.read.
@@ -388,25 +397,17 @@ fn encode_destack_device_bluetooth_gatt_mtu_result(
 fn decode_destack_device_bluetooth_gatt_read_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::BluetoothDeviceHandle,
-    vm::StringHandle,
-    vm::StringHandle,
-    u64,
-)> {
+) -> RuntimeResult<(resource::BluetoothDeviceHandle, vm::StringHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "BluetoothDeviceHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::BluetoothDeviceHandle(handle_inner);
-    let serviceuuid_value = arg_value(args, 1, "serviceuuid", "string")?;
-    let serviceuuid = decode_string(serviceuuid_value, "serviceuuid", "string")?;
-    let characteristicuuid_value = arg_value(args, 2, "characteristicuuid", "string")?;
-    let characteristicuuid =
-        decode_string(characteristicuuid_value, "characteristicuuid", "string")?;
-    let timeoutns_value = arg_value(args, 3, "timeoutns", "uint64")?;
+    let characteristicid_value = arg_value(args, 1, "characteristicid", "string")?;
+    let characteristicid = decode_string(characteristicid_value, "characteristicid", "string")?;
+    let timeoutns_value = arg_value(args, 2, "timeoutns", "uint64")?;
     let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    Ok((handle, serviceuuid, characteristicuuid, timeoutns))
+    Ok((handle, characteristicid, timeoutns))
 }
 
 /// Encode the result for destack.device.bluetooth.gatt.read.
@@ -415,7 +416,9 @@ fn encode_destack_device_bluetooth_gatt_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.readDescriptor.
@@ -423,34 +426,17 @@ fn encode_destack_device_bluetooth_gatt_read_result(
 fn decode_destack_device_bluetooth_gatt_read_descriptor_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::BluetoothDeviceHandle,
-    vm::StringHandle,
-    vm::StringHandle,
-    vm::StringHandle,
-    u64,
-)> {
+) -> RuntimeResult<(resource::BluetoothDeviceHandle, vm::StringHandle, u64)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "BluetoothDeviceHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::BluetoothDeviceHandle(handle_inner);
-    let serviceuuid_value = arg_value(args, 1, "serviceuuid", "string")?;
-    let serviceuuid = decode_string(serviceuuid_value, "serviceuuid", "string")?;
-    let characteristicuuid_value = arg_value(args, 2, "characteristicuuid", "string")?;
-    let characteristicuuid =
-        decode_string(characteristicuuid_value, "characteristicuuid", "string")?;
-    let descriptoruuid_value = arg_value(args, 3, "descriptoruuid", "string")?;
-    let descriptoruuid = decode_string(descriptoruuid_value, "descriptoruuid", "string")?;
-    let timeoutns_value = arg_value(args, 4, "timeoutns", "uint64")?;
+    let descriptorid_value = arg_value(args, 1, "descriptorid", "string")?;
+    let descriptorid = decode_string(descriptorid_value, "descriptorid", "string")?;
+    let timeoutns_value = arg_value(args, 2, "timeoutns", "uint64")?;
     let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    Ok((
-        handle,
-        serviceuuid,
-        characteristicuuid,
-        descriptoruuid,
-        timeoutns,
-    ))
+    Ok((handle, descriptorid, timeoutns))
 }
 
 /// Encode the result for destack.device.bluetooth.gatt.readDescriptor.
@@ -459,7 +445,9 @@ fn encode_destack_device_bluetooth_gatt_read_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.readEvent.
@@ -487,42 +475,21 @@ fn encode_destack_device_bluetooth_gatt_read_event_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BluetoothGattValueEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(value.service_uuid.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(value.characteristic_uuid.value());
-        let field_3: RuntimeResult<vm::Value> = value.value.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
-    })
-}
-
-/// Decode arguments for destack.device.bluetooth.gatt.requestMtu.
-#[inline]
-fn decode_destack_device_bluetooth_gatt_request_mtu_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::BluetoothDeviceHandle, u16, u64)> {
-    let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "BluetoothDeviceHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::BluetoothDeviceHandle(handle_inner);
-    let mtu_value = arg_value(args, 1, "mtu", "uint16")?;
-    let mtu = decode_uint16(mtu_value, "mtu", "uint16")?;
-    let timeoutns_value = arg_value(args, 2, "timeoutns", "uint64")?;
-    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    Ok((handle, mtu, timeoutns))
-}
-
-/// Encode the result for destack.device.bluetooth.gatt.requestMtu.
-#[inline]
-fn encode_destack_device_bluetooth_gatt_request_mtu_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<u16>,
-) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 16)))
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(value.service_id.value());
+            let field_2: RuntimeResult<vm::Value> = Ok(value.characteristic_id.value());
+            let field_3: RuntimeResult<vm::Value> = Ok(value.service_uuid.value());
+            let field_4: RuntimeResult<vm::Value> = Ok(value.characteristic_uuid.value());
+            let field_5: RuntimeResult<vm::Value> = value.value.to_value(context);
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.serviceList.
@@ -545,7 +512,9 @@ fn encode_destack_device_bluetooth_gatt_service_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<BluetoothGattServiceDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.subscribe.
@@ -553,22 +522,15 @@ fn encode_destack_device_bluetooth_gatt_service_list_result(
 fn decode_destack_device_bluetooth_gatt_subscribe_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::BluetoothDeviceHandle,
-    vm::StringHandle,
-    vm::StringHandle,
-)> {
+) -> RuntimeResult<(resource::BluetoothDeviceHandle, vm::StringHandle)> {
     let handle_value = arg_value(args, 0, "handle", "BluetoothDeviceHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "BluetoothDeviceHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::BluetoothDeviceHandle(handle_inner);
-    let serviceuuid_value = arg_value(args, 1, "serviceuuid", "string")?;
-    let serviceuuid = decode_string(serviceuuid_value, "serviceuuid", "string")?;
-    let characteristicuuid_value = arg_value(args, 2, "characteristicuuid", "string")?;
-    let characteristicuuid =
-        decode_string(characteristicuuid_value, "characteristicuuid", "string")?;
-    Ok((handle, serviceuuid, characteristicuuid))
+    let characteristicid_value = arg_value(args, 1, "characteristicid", "string")?;
+    let characteristicid = decode_string(characteristicid_value, "characteristicid", "string")?;
+    Ok((handle, characteristicid))
 }
 
 /// Encode the result for destack.device.bluetooth.gatt.subscribe.
@@ -577,7 +539,9 @@ fn encode_destack_device_bluetooth_gatt_subscribe_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::BluetoothSubscriptionHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.tryReadEvent.
@@ -603,15 +567,21 @@ fn encode_destack_device_bluetooth_gatt_try_read_event_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BluetoothGattValueEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(value.service_uuid.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(value.characteristic_uuid.value());
-        let field_3: RuntimeResult<vm::Value> = value.value.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(value.service_id.value());
+            let field_2: RuntimeResult<vm::Value> = Ok(value.characteristic_id.value());
+            let field_3: RuntimeResult<vm::Value> = Ok(value.service_uuid.value());
+            let field_4: RuntimeResult<vm::Value> = Ok(value.characteristic_uuid.value());
+            let field_5: RuntimeResult<vm::Value> = value.value.to_value(context);
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.gatt.unsubscribe.
@@ -648,7 +618,6 @@ fn decode_destack_device_bluetooth_gatt_write_args(
 ) -> RuntimeResult<(
     resource::BluetoothDeviceHandle,
     vm::StringHandle,
-    vm::StringHandle,
     VmSlice<u8>,
     BluetoothGattWriteMode,
     u64,
@@ -658,19 +627,16 @@ fn decode_destack_device_bluetooth_gatt_write_args(
         decode_uint64(handle_value, "handle_inner_inner", "BluetoothDeviceHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::BluetoothDeviceHandle(handle_inner);
-    let serviceuuid_value = arg_value(args, 1, "serviceuuid", "string")?;
-    let serviceuuid = decode_string(serviceuuid_value, "serviceuuid", "string")?;
-    let characteristicuuid_value = arg_value(args, 2, "characteristicuuid", "string")?;
-    let characteristicuuid =
-        decode_string(characteristicuuid_value, "characteristicuuid", "string")?;
-    let argument_value_value = arg_value(args, 3, "argument_value", "Slice<uint8>")?;
+    let characteristicid_value = arg_value(args, 1, "characteristicid", "string")?;
+    let characteristicid = decode_string(characteristicid_value, "characteristicid", "string")?;
+    let argument_value_value = arg_value(args, 2, "argument_value", "Slice<uint8>")?;
     let argument_value = decode_slice::<u8>(
         context,
         argument_value_value,
         "argument_value",
         "Slice<uint8>",
     )?;
-    let mode_value = arg_value(args, 4, "mode", "BluetoothGattWriteMode")?;
+    let mode_value = arg_value(args, 3, "mode", "BluetoothGattWriteMode")?;
     let mode_raw = decode_int32(mode_value, "mode_raw", "BluetoothGattWriteMode")?;
     let mode = match mode_raw {
         1i32 => BluetoothGattWriteMode::WithResponse,
@@ -683,16 +649,9 @@ fn decode_destack_device_bluetooth_gatt_write_args(
             .boxed());
         }
     };
-    let timeoutns_value = arg_value(args, 5, "timeoutns", "uint64")?;
+    let timeoutns_value = arg_value(args, 4, "timeoutns", "uint64")?;
     let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    Ok((
-        handle,
-        serviceuuid,
-        characteristicuuid,
-        argument_value,
-        mode,
-        timeoutns,
-    ))
+    Ok((handle, characteristicid, argument_value, mode, timeoutns))
 }
 
 /// Encode the result for destack.device.bluetooth.gatt.write.
@@ -712,8 +671,6 @@ fn decode_destack_device_bluetooth_gatt_write_descriptor_args(
 ) -> RuntimeResult<(
     resource::BluetoothDeviceHandle,
     vm::StringHandle,
-    vm::StringHandle,
-    vm::StringHandle,
     VmSlice<u8>,
     u64,
 )> {
@@ -722,30 +679,18 @@ fn decode_destack_device_bluetooth_gatt_write_descriptor_args(
         decode_uint64(handle_value, "handle_inner_inner", "BluetoothDeviceHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::BluetoothDeviceHandle(handle_inner);
-    let serviceuuid_value = arg_value(args, 1, "serviceuuid", "string")?;
-    let serviceuuid = decode_string(serviceuuid_value, "serviceuuid", "string")?;
-    let characteristicuuid_value = arg_value(args, 2, "characteristicuuid", "string")?;
-    let characteristicuuid =
-        decode_string(characteristicuuid_value, "characteristicuuid", "string")?;
-    let descriptoruuid_value = arg_value(args, 3, "descriptoruuid", "string")?;
-    let descriptoruuid = decode_string(descriptoruuid_value, "descriptoruuid", "string")?;
-    let argument_value_value = arg_value(args, 4, "argument_value", "Slice<uint8>")?;
+    let descriptorid_value = arg_value(args, 1, "descriptorid", "string")?;
+    let descriptorid = decode_string(descriptorid_value, "descriptorid", "string")?;
+    let argument_value_value = arg_value(args, 2, "argument_value", "Slice<uint8>")?;
     let argument_value = decode_slice::<u8>(
         context,
         argument_value_value,
         "argument_value",
         "Slice<uint8>",
     )?;
-    let timeoutns_value = arg_value(args, 5, "timeoutns", "uint64")?;
+    let timeoutns_value = arg_value(args, 3, "timeoutns", "uint64")?;
     let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    Ok((
-        handle,
-        serviceuuid,
-        characteristicuuid,
-        descriptoruuid,
-        argument_value,
-        timeoutns,
-    ))
+    Ok((handle, descriptorid, argument_value, timeoutns))
 }
 
 /// Encode the result for destack.device.bluetooth.gatt.writeDescriptor.
@@ -803,10 +748,10 @@ fn decode_destack_device_bluetooth_scan_open_args(
             let slots = context
                 .aggregate_slots(filter_value)
                 .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 8 {
+            if slots.len() != 11 {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "filter_inner",
-                    "expected 8 fields",
+                    "expected 11 fields",
                 ))
                 .boxed());
             }
@@ -816,27 +761,49 @@ fn decode_destack_device_bluetooth_scan_open_args(
                 "filter_inner_service_uuids",
                 "serviceUuids",
             )?;
-            let filter_inner_name_prefix = if slots[1].tag() == vm::ValueTag::Void {
+            let filter_inner_name = if slots[1].tag() == vm::ValueTag::Void {
+                None
+            } else {
+                let filter_inner_name_inner =
+                    decode_string(slots[1], "filter_inner_name_inner", "name")?;
+                Some(filter_inner_name_inner)
+            };
+            let filter_inner_name_prefix = if slots[2].tag() == vm::ValueTag::Void {
                 None
             } else {
                 let filter_inner_name_prefix_inner =
-                    decode_string(slots[1], "filter_inner_name_prefix_inner", "namePrefix")?;
+                    decode_string(slots[2], "filter_inner_name_prefix_inner", "namePrefix")?;
                 Some(filter_inner_name_prefix_inner)
             };
-            let filter_inner_allow_duplicates =
-                decode_bool(slots[2], "filter_inner_allow_duplicates", "allowDuplicates")?;
-            let filter_inner_minimum_rssi = if slots[3].tag() == vm::ValueTag::Void {
+            let filter_inner_manufacturer_data = decode_array::<BluetoothManufacturerDataFilterVm>(
+                context,
+                slots[3],
+                "filter_inner_manufacturer_data",
+                "manufacturerData",
+            )?;
+            let filter_inner_service_data = decode_array::<BluetoothServiceDataFilterVm>(
+                context,
+                slots[4],
+                "filter_inner_service_data",
+                "serviceData",
+            )?;
+            let filter_inner_keep_repeated_devices = decode_bool(
+                slots[5],
+                "filter_inner_keep_repeated_devices",
+                "keepRepeatedDevices",
+            )?;
+            let filter_inner_minimum_rssi = if slots[6].tag() == vm::ValueTag::Void {
                 None
             } else {
                 let filter_inner_minimum_rssi_inner =
-                    decode_int32(slots[3], "filter_inner_minimum_rssi_inner", "minimumRssi")?;
+                    decode_int32(slots[6], "filter_inner_minimum_rssi_inner", "minimumRssi")?;
                 Some(filter_inner_minimum_rssi_inner)
             };
-            let filter_inner_transport = if slots[4].tag() == vm::ValueTag::Void {
+            let filter_inner_transport = if slots[7].tag() == vm::ValueTag::Void {
                 None
             } else {
                 let filter_inner_transport_inner_raw =
-                    decode_int32(slots[4], "filter_inner_transport_inner_raw", "transport")?;
+                    decode_int32(slots[7], "filter_inner_transport_inner_raw", "transport")?;
                 let filter_inner_transport_inner = match filter_inner_transport_inner_raw {
                     1i32 => BluetoothTransport::LowEnergy,
                     2i32 => BluetoothTransport::Classic,
@@ -851,11 +818,11 @@ fn decode_destack_device_bluetooth_scan_open_args(
                 };
                 Some(filter_inner_transport_inner)
             };
-            let filter_inner_scan_mode = if slots[5].tag() == vm::ValueTag::Void {
+            let filter_inner_scan_mode = if slots[8].tag() == vm::ValueTag::Void {
                 None
             } else {
                 let filter_inner_scan_mode_inner_raw =
-                    decode_int32(slots[5], "filter_inner_scan_mode_inner_raw", "scanMode")?;
+                    decode_int32(slots[8], "filter_inner_scan_mode_inner_raw", "scanMode")?;
                 let filter_inner_scan_mode_inner = match filter_inner_scan_mode_inner_raw {
                     1i32 => BluetoothScanMode::Passive,
                     2i32 => BluetoothScanMode::Active,
@@ -869,11 +836,11 @@ fn decode_destack_device_bluetooth_scan_open_args(
                 };
                 Some(filter_inner_scan_mode_inner)
             };
-            let filter_inner_primary_phy = if slots[6].tag() == vm::ValueTag::Void {
+            let filter_inner_primary_phy = if slots[9].tag() == vm::ValueTag::Void {
                 None
             } else {
                 let filter_inner_primary_phy_inner_raw =
-                    decode_int32(slots[6], "filter_inner_primary_phy_inner_raw", "primaryPhy")?;
+                    decode_int32(slots[9], "filter_inner_primary_phy_inner_raw", "primaryPhy")?;
                 let filter_inner_primary_phy_inner = match filter_inner_primary_phy_inner_raw {
                     1i32 => BluetoothPhy::Le1M,
                     2i32 => BluetoothPhy::Le2M,
@@ -889,11 +856,11 @@ fn decode_destack_device_bluetooth_scan_open_args(
                 };
                 Some(filter_inner_primary_phy_inner)
             };
-            let filter_inner_secondary_phy = if slots[7].tag() == vm::ValueTag::Void {
+            let filter_inner_secondary_phy = if slots[10].tag() == vm::ValueTag::Void {
                 None
             } else {
                 let filter_inner_secondary_phy_inner_raw = decode_int32(
-                    slots[7],
+                    slots[10],
                     "filter_inner_secondary_phy_inner_raw",
                     "secondaryPhy",
                 )?;
@@ -914,8 +881,11 @@ fn decode_destack_device_bluetooth_scan_open_args(
             };
             BluetoothScanFilterVm {
                 service_uuids: filter_inner_service_uuids,
+                name: filter_inner_name,
                 name_prefix: filter_inner_name_prefix,
-                allow_duplicates: filter_inner_allow_duplicates,
+                manufacturer_data: filter_inner_manufacturer_data,
+                service_data: filter_inner_service_data,
+                keep_repeated_devices: filter_inner_keep_repeated_devices,
                 minimum_rssi: filter_inner_minimum_rssi,
                 transport: filter_inner_transport,
                 scan_mode: filter_inner_scan_mode,
@@ -934,7 +904,9 @@ fn encode_destack_device_bluetooth_scan_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::BluetoothScanHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.scan.read.
@@ -959,52 +931,65 @@ fn encode_destack_device_bluetooth_scan_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BluetoothDeviceDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_1: RuntimeResult<vm::Value> = Ok(value.address.value());
-        let field_2: RuntimeResult<vm::Value> = match value.name {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_3: RuntimeResult<vm::Value> = match value.rssi {
-            Some(value) => Ok(vm::Value::int(value as i64, 32)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.paired));
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.pair_state as i32 as i64, 32));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connected));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connectable));
-        let field_8: RuntimeResult<vm::Value> = match value.transport {
-            Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_9: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> = match value.advertisement.local_name {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
+            let field_1: RuntimeResult<vm::Value> = match value.address {
                 Some(value) => Ok(value.value()),
                 None => Ok(vm::Value::VOID),
             };
-            let field_1: RuntimeResult<vm::Value> = match value.advertisement.tx_power {
-                Some(value) => Ok(vm::Value::int(value as i64, 16)),
+            let field_2: RuntimeResult<vm::Value> = match value.name {
+                Some(value) => Ok(value.value()),
                 None => Ok(vm::Value::VOID),
             };
-            let field_2: RuntimeResult<vm::Value> =
-                value.advertisement.service_uuids.to_value(context);
-            let field_3: RuntimeResult<vm::Value> =
-                value.advertisement.manufacturer_data.to_value(context);
-            let field_4: RuntimeResult<vm::Value> =
-                value.advertisement.service_data.to_value(context);
+            let field_3: RuntimeResult<vm::Value> = match value.rssi {
+                Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_4: RuntimeResult<vm::Value> = match value.paired {
+                Some(value) => Ok(vm::Value::bool(value)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_5: RuntimeResult<vm::Value> = match value.pair_state {
+                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connected));
+            let field_7: RuntimeResult<vm::Value> = match value.connectable {
+                Some(value) => Ok(vm::Value::bool(value)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_8: RuntimeResult<vm::Value> = match value.transport {
+                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_9: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> = match value.advertisement.local_name {
+                    Some(value) => Ok(value.value()),
+                    None => Ok(vm::Value::VOID),
+                };
+                let field_1: RuntimeResult<vm::Value> = match value.advertisement.tx_power {
+                    Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                    None => Ok(vm::Value::VOID),
+                };
+                let field_2: RuntimeResult<vm::Value> =
+                    value.advertisement.service_uuids.to_value(context);
+                let field_3: RuntimeResult<vm::Value> =
+                    value.advertisement.manufacturer_data.to_value(context);
+                let field_4: RuntimeResult<vm::Value> =
+                    value.advertisement.service_data.to_value(context);
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
             context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?,
+                ])
                 .map_err(Box::<RuntimeError>::from)
-        };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.scan.readEvent.
@@ -1029,281 +1014,319 @@ fn encode_destack_device_bluetooth_scan_read_event_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BluetoothScanEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        BluetoothScanEventVm::BluetoothScanDiscoveredEvent(value) => {
-            let tag_value = vm::Value::uint(4071846137u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
+    result
+        .map(|value| match value {
+            BluetoothScanEventVm::BluetoothScanDiscoveredEvent(value) => {
+                let tag_value = vm::Value::uint(4071846137u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.address.value());
-                        let field_2: RuntimeResult<vm::Value> = match value.metadata.device.name {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_3: RuntimeResult<vm::Value> = match value.metadata.device.rssi {
-                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_4: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.paired));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.metadata.device.pair_state as i32 as i64,
-                            32,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.connected));
-                        let field_7: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.connectable));
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.transport {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_9: RuntimeResult<vm::Value> = {
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> = {
                             let field_0: RuntimeResult<vm::Value> =
-                                match value.metadata.device.advertisement.local_name {
+                                Ok(value.metadata.device.id.value());
+                            let field_1: RuntimeResult<vm::Value> =
+                                match value.metadata.device.address {
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_1: RuntimeResult<vm::Value> =
-                                match value.metadata.device.advertisement.tx_power {
-                                    Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                            let field_2: RuntimeResult<vm::Value> = match value.metadata.device.name
+                            {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_3: RuntimeResult<vm::Value> = match value.metadata.device.rssi
+                            {
+                                Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_4: RuntimeResult<vm::Value> =
+                                match value.metadata.device.paired {
+                                    Some(value) => Ok(vm::Value::bool(value)),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_2: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .service_uuids
-                                .to_value(context);
-                            let field_3: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .manufacturer_data
-                                .to_value(context);
-                            let field_4: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .service_data
-                                .to_value(context);
+                            let field_5: RuntimeResult<vm::Value> =
+                                match value.metadata.device.pair_state {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_6: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.metadata.device.connected));
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.metadata.device.connectable {
+                                    Some(value) => Ok(vm::Value::bool(value)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.metadata.device.transport {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_9: RuntimeResult<vm::Value> = {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    match value.metadata.device.advertisement.local_name {
+                                        Some(value) => Ok(value.value()),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                let field_1: RuntimeResult<vm::Value> =
+                                    match value.metadata.device.advertisement.tx_power {
+                                        Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                let field_2: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .service_uuids
+                                    .to_value(context);
+                                let field_3: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .manufacturer_data
+                                    .to_value(context);
+                                let field_4: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .service_data
+                                    .to_value(context);
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            };
                             context
                                 .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?, field_9?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
                         context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?,
-                            ])
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        BluetoothScanEventVm::BluetoothScanLostEvent(value) => {
-            let tag_value = vm::Value::uint(2895224211u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
+            }
+            BluetoothScanEventVm::BluetoothScanLostEvent(value) => {
+                let tag_value = vm::Value::uint(2895224211u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.address.value());
-                        let field_2: RuntimeResult<vm::Value> = match value.metadata.device.name {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_3: RuntimeResult<vm::Value> = match value.metadata.device.rssi {
-                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_4: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.paired));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.metadata.device.pair_state as i32 as i64,
-                            32,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.connected));
-                        let field_7: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.connectable));
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.transport {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_9: RuntimeResult<vm::Value> = {
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> = {
                             let field_0: RuntimeResult<vm::Value> =
-                                match value.metadata.device.advertisement.local_name {
+                                Ok(value.metadata.device.id.value());
+                            let field_1: RuntimeResult<vm::Value> =
+                                match value.metadata.device.address {
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_1: RuntimeResult<vm::Value> =
-                                match value.metadata.device.advertisement.tx_power {
-                                    Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                            let field_2: RuntimeResult<vm::Value> = match value.metadata.device.name
+                            {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_3: RuntimeResult<vm::Value> = match value.metadata.device.rssi
+                            {
+                                Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_4: RuntimeResult<vm::Value> =
+                                match value.metadata.device.paired {
+                                    Some(value) => Ok(vm::Value::bool(value)),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_2: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .service_uuids
-                                .to_value(context);
-                            let field_3: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .manufacturer_data
-                                .to_value(context);
-                            let field_4: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .service_data
-                                .to_value(context);
+                            let field_5: RuntimeResult<vm::Value> =
+                                match value.metadata.device.pair_state {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_6: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.metadata.device.connected));
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.metadata.device.connectable {
+                                    Some(value) => Ok(vm::Value::bool(value)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.metadata.device.transport {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_9: RuntimeResult<vm::Value> = {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    match value.metadata.device.advertisement.local_name {
+                                        Some(value) => Ok(value.value()),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                let field_1: RuntimeResult<vm::Value> =
+                                    match value.metadata.device.advertisement.tx_power {
+                                        Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                let field_2: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .service_uuids
+                                    .to_value(context);
+                                let field_3: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .manufacturer_data
+                                    .to_value(context);
+                                let field_4: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .service_data
+                                    .to_value(context);
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            };
                             context
                                 .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?, field_9?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
                         context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?,
-                            ])
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        BluetoothScanEventVm::BluetoothScanUpdatedEvent(value) => {
-            let tag_value = vm::Value::uint(3739149067u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
+            }
+            BluetoothScanEventVm::BluetoothScanUpdatedEvent(value) => {
+                let tag_value = vm::Value::uint(3739149067u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.address.value());
-                        let field_2: RuntimeResult<vm::Value> = match value.metadata.device.name {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_3: RuntimeResult<vm::Value> = match value.metadata.device.rssi {
-                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_4: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.paired));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.metadata.device.pair_state as i32 as i64,
-                            32,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.connected));
-                        let field_7: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.connectable));
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.transport {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_9: RuntimeResult<vm::Value> = {
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> = {
                             let field_0: RuntimeResult<vm::Value> =
-                                match value.metadata.device.advertisement.local_name {
+                                Ok(value.metadata.device.id.value());
+                            let field_1: RuntimeResult<vm::Value> =
+                                match value.metadata.device.address {
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_1: RuntimeResult<vm::Value> =
-                                match value.metadata.device.advertisement.tx_power {
-                                    Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                            let field_2: RuntimeResult<vm::Value> = match value.metadata.device.name
+                            {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_3: RuntimeResult<vm::Value> = match value.metadata.device.rssi
+                            {
+                                Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_4: RuntimeResult<vm::Value> =
+                                match value.metadata.device.paired {
+                                    Some(value) => Ok(vm::Value::bool(value)),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_2: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .service_uuids
-                                .to_value(context);
-                            let field_3: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .manufacturer_data
-                                .to_value(context);
-                            let field_4: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .service_data
-                                .to_value(context);
+                            let field_5: RuntimeResult<vm::Value> =
+                                match value.metadata.device.pair_state {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_6: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.metadata.device.connected));
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.metadata.device.connectable {
+                                    Some(value) => Ok(vm::Value::bool(value)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.metadata.device.transport {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_9: RuntimeResult<vm::Value> = {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    match value.metadata.device.advertisement.local_name {
+                                        Some(value) => Ok(value.value()),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                let field_1: RuntimeResult<vm::Value> =
+                                    match value.metadata.device.advertisement.tx_power {
+                                        Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                let field_2: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .service_uuids
+                                    .to_value(context);
+                                let field_3: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .manufacturer_data
+                                    .to_value(context);
+                                let field_4: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .service_data
+                                    .to_value(context);
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            };
                             context
                                 .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?, field_9?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
                         context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?,
-                            ])
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.scan.tryRead.
@@ -1326,52 +1349,65 @@ fn encode_destack_device_bluetooth_scan_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BluetoothDeviceDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_1: RuntimeResult<vm::Value> = Ok(value.address.value());
-        let field_2: RuntimeResult<vm::Value> = match value.name {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_3: RuntimeResult<vm::Value> = match value.rssi {
-            Some(value) => Ok(vm::Value::int(value as i64, 32)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.paired));
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.pair_state as i32 as i64, 32));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connected));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connectable));
-        let field_8: RuntimeResult<vm::Value> = match value.transport {
-            Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_9: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> = match value.advertisement.local_name {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
+            let field_1: RuntimeResult<vm::Value> = match value.address {
                 Some(value) => Ok(value.value()),
                 None => Ok(vm::Value::VOID),
             };
-            let field_1: RuntimeResult<vm::Value> = match value.advertisement.tx_power {
-                Some(value) => Ok(vm::Value::int(value as i64, 16)),
+            let field_2: RuntimeResult<vm::Value> = match value.name {
+                Some(value) => Ok(value.value()),
                 None => Ok(vm::Value::VOID),
             };
-            let field_2: RuntimeResult<vm::Value> =
-                value.advertisement.service_uuids.to_value(context);
-            let field_3: RuntimeResult<vm::Value> =
-                value.advertisement.manufacturer_data.to_value(context);
-            let field_4: RuntimeResult<vm::Value> =
-                value.advertisement.service_data.to_value(context);
+            let field_3: RuntimeResult<vm::Value> = match value.rssi {
+                Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_4: RuntimeResult<vm::Value> = match value.paired {
+                Some(value) => Ok(vm::Value::bool(value)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_5: RuntimeResult<vm::Value> = match value.pair_state {
+                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.connected));
+            let field_7: RuntimeResult<vm::Value> = match value.connectable {
+                Some(value) => Ok(vm::Value::bool(value)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_8: RuntimeResult<vm::Value> = match value.transport {
+                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_9: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> = match value.advertisement.local_name {
+                    Some(value) => Ok(value.value()),
+                    None => Ok(vm::Value::VOID),
+                };
+                let field_1: RuntimeResult<vm::Value> = match value.advertisement.tx_power {
+                    Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                    None => Ok(vm::Value::VOID),
+                };
+                let field_2: RuntimeResult<vm::Value> =
+                    value.advertisement.service_uuids.to_value(context);
+                let field_3: RuntimeResult<vm::Value> =
+                    value.advertisement.manufacturer_data.to_value(context);
+                let field_4: RuntimeResult<vm::Value> =
+                    value.advertisement.service_data.to_value(context);
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
             context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?,
+                ])
                 .map_err(Box::<RuntimeError>::from)
-        };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.scan.tryReadEvent.
@@ -1394,281 +1430,319 @@ fn encode_destack_device_bluetooth_scan_try_read_event_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BluetoothScanEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        BluetoothScanEventVm::BluetoothScanDiscoveredEvent(value) => {
-            let tag_value = vm::Value::uint(4071846137u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
+    result
+        .map(|value| match value {
+            BluetoothScanEventVm::BluetoothScanDiscoveredEvent(value) => {
+                let tag_value = vm::Value::uint(4071846137u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.address.value());
-                        let field_2: RuntimeResult<vm::Value> = match value.metadata.device.name {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_3: RuntimeResult<vm::Value> = match value.metadata.device.rssi {
-                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_4: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.paired));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.metadata.device.pair_state as i32 as i64,
-                            32,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.connected));
-                        let field_7: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.connectable));
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.transport {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_9: RuntimeResult<vm::Value> = {
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> = {
                             let field_0: RuntimeResult<vm::Value> =
-                                match value.metadata.device.advertisement.local_name {
+                                Ok(value.metadata.device.id.value());
+                            let field_1: RuntimeResult<vm::Value> =
+                                match value.metadata.device.address {
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_1: RuntimeResult<vm::Value> =
-                                match value.metadata.device.advertisement.tx_power {
-                                    Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                            let field_2: RuntimeResult<vm::Value> = match value.metadata.device.name
+                            {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_3: RuntimeResult<vm::Value> = match value.metadata.device.rssi
+                            {
+                                Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_4: RuntimeResult<vm::Value> =
+                                match value.metadata.device.paired {
+                                    Some(value) => Ok(vm::Value::bool(value)),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_2: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .service_uuids
-                                .to_value(context);
-                            let field_3: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .manufacturer_data
-                                .to_value(context);
-                            let field_4: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .service_data
-                                .to_value(context);
+                            let field_5: RuntimeResult<vm::Value> =
+                                match value.metadata.device.pair_state {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_6: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.metadata.device.connected));
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.metadata.device.connectable {
+                                    Some(value) => Ok(vm::Value::bool(value)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.metadata.device.transport {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_9: RuntimeResult<vm::Value> = {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    match value.metadata.device.advertisement.local_name {
+                                        Some(value) => Ok(value.value()),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                let field_1: RuntimeResult<vm::Value> =
+                                    match value.metadata.device.advertisement.tx_power {
+                                        Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                let field_2: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .service_uuids
+                                    .to_value(context);
+                                let field_3: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .manufacturer_data
+                                    .to_value(context);
+                                let field_4: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .service_data
+                                    .to_value(context);
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            };
                             context
                                 .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?, field_9?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
                         context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?,
-                            ])
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        BluetoothScanEventVm::BluetoothScanLostEvent(value) => {
-            let tag_value = vm::Value::uint(2895224211u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
+            }
+            BluetoothScanEventVm::BluetoothScanLostEvent(value) => {
+                let tag_value = vm::Value::uint(2895224211u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.address.value());
-                        let field_2: RuntimeResult<vm::Value> = match value.metadata.device.name {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_3: RuntimeResult<vm::Value> = match value.metadata.device.rssi {
-                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_4: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.paired));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.metadata.device.pair_state as i32 as i64,
-                            32,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.connected));
-                        let field_7: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.connectable));
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.transport {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_9: RuntimeResult<vm::Value> = {
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> = {
                             let field_0: RuntimeResult<vm::Value> =
-                                match value.metadata.device.advertisement.local_name {
+                                Ok(value.metadata.device.id.value());
+                            let field_1: RuntimeResult<vm::Value> =
+                                match value.metadata.device.address {
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_1: RuntimeResult<vm::Value> =
-                                match value.metadata.device.advertisement.tx_power {
-                                    Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                            let field_2: RuntimeResult<vm::Value> = match value.metadata.device.name
+                            {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_3: RuntimeResult<vm::Value> = match value.metadata.device.rssi
+                            {
+                                Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_4: RuntimeResult<vm::Value> =
+                                match value.metadata.device.paired {
+                                    Some(value) => Ok(vm::Value::bool(value)),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_2: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .service_uuids
-                                .to_value(context);
-                            let field_3: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .manufacturer_data
-                                .to_value(context);
-                            let field_4: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .service_data
-                                .to_value(context);
+                            let field_5: RuntimeResult<vm::Value> =
+                                match value.metadata.device.pair_state {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_6: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.metadata.device.connected));
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.metadata.device.connectable {
+                                    Some(value) => Ok(vm::Value::bool(value)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.metadata.device.transport {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_9: RuntimeResult<vm::Value> = {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    match value.metadata.device.advertisement.local_name {
+                                        Some(value) => Ok(value.value()),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                let field_1: RuntimeResult<vm::Value> =
+                                    match value.metadata.device.advertisement.tx_power {
+                                        Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                let field_2: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .service_uuids
+                                    .to_value(context);
+                                let field_3: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .manufacturer_data
+                                    .to_value(context);
+                                let field_4: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .service_data
+                                    .to_value(context);
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            };
                             context
                                 .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?, field_9?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
                         context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?,
-                            ])
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        BluetoothScanEventVm::BluetoothScanUpdatedEvent(value) => {
-            let tag_value = vm::Value::uint(3739149067u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
+            }
+            BluetoothScanEventVm::BluetoothScanUpdatedEvent(value) => {
+                let tag_value = vm::Value::uint(3739149067u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.address.value());
-                        let field_2: RuntimeResult<vm::Value> = match value.metadata.device.name {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_3: RuntimeResult<vm::Value> = match value.metadata.device.rssi {
-                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_4: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.paired));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.metadata.device.pair_state as i32 as i64,
-                            32,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.connected));
-                        let field_7: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.metadata.device.connectable));
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.transport {
-                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_9: RuntimeResult<vm::Value> = {
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> = {
                             let field_0: RuntimeResult<vm::Value> =
-                                match value.metadata.device.advertisement.local_name {
+                                Ok(value.metadata.device.id.value());
+                            let field_1: RuntimeResult<vm::Value> =
+                                match value.metadata.device.address {
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_1: RuntimeResult<vm::Value> =
-                                match value.metadata.device.advertisement.tx_power {
-                                    Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                            let field_2: RuntimeResult<vm::Value> = match value.metadata.device.name
+                            {
+                                Some(value) => Ok(value.value()),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_3: RuntimeResult<vm::Value> = match value.metadata.device.rssi
+                            {
+                                Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                            let field_4: RuntimeResult<vm::Value> =
+                                match value.metadata.device.paired {
+                                    Some(value) => Ok(vm::Value::bool(value)),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            let field_2: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .service_uuids
-                                .to_value(context);
-                            let field_3: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .manufacturer_data
-                                .to_value(context);
-                            let field_4: RuntimeResult<vm::Value> = value
-                                .metadata
-                                .device
-                                .advertisement
-                                .service_data
-                                .to_value(context);
+                            let field_5: RuntimeResult<vm::Value> =
+                                match value.metadata.device.pair_state {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_6: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.metadata.device.connected));
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.metadata.device.connectable {
+                                    Some(value) => Ok(vm::Value::bool(value)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.metadata.device.transport {
+                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_9: RuntimeResult<vm::Value> = {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    match value.metadata.device.advertisement.local_name {
+                                        Some(value) => Ok(value.value()),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                let field_1: RuntimeResult<vm::Value> =
+                                    match value.metadata.device.advertisement.tx_power {
+                                        Some(value) => Ok(vm::Value::int(value as i64, 16)),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                let field_2: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .service_uuids
+                                    .to_value(context);
+                                let field_3: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .manufacturer_data
+                                    .to_value(context);
+                                let field_4: RuntimeResult<vm::Value> = value
+                                    .metadata
+                                    .device
+                                    .advertisement
+                                    .service_data
+                                    .to_value(context);
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            };
                             context
                                 .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?, field_9?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
                         };
                         context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?,
-                            ])
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.session.close.
@@ -1713,7 +1787,9 @@ fn encode_destack_device_bluetooth_session_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::BluetoothDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.session.pair.
@@ -1763,62 +1839,90 @@ fn encode_destack_device_bluetooth_session_read_event_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BluetoothSessionEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        BluetoothSessionEventVm::BluetoothSessionDisconnectedEvent(value) => {
-            let tag_value = vm::Value::uint(2652478646u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+    result
+        .map(|value| match value {
+            BluetoothSessionEventVm::BluetoothSessionDisconnectedEvent(value) => {
+                let tag_value = vm::Value::uint(2652478646u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        context
+                            .allocate_aggregate(vec![])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    context
-                        .allocate_aggregate(vec![])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        BluetoothSessionEventVm::BluetoothSessionPairStateChangedEvent(value) => {
-            let tag_value = vm::Value::uint(611044851u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+            }
+            BluetoothSessionEventVm::BluetoothSessionGattDatabaseChangedEvent(value) => {
+                let tag_value = vm::Value::uint(2039449888u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        context
+                            .allocate_aggregate(vec![])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.pair_state as i32 as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+            BluetoothSessionEventVm::BluetoothSessionPairStateChangedEvent(value) => {
+                let tag_value = vm::Value::uint(611044851u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.pair_state as i32 as i64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.session.rssi.
@@ -1843,7 +1947,9 @@ fn encode_destack_device_bluetooth_session_rssi_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<i32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value as i64, 32)))
+    result
+        .map(|value| Ok(vm::Value::int(value as i64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.session.tryReadEvent.
@@ -1866,62 +1972,90 @@ fn encode_destack_device_bluetooth_session_try_read_event_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BluetoothSessionEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        BluetoothSessionEventVm::BluetoothSessionDisconnectedEvent(value) => {
-            let tag_value = vm::Value::uint(2652478646u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+    result
+        .map(|value| match value {
+            BluetoothSessionEventVm::BluetoothSessionDisconnectedEvent(value) => {
+                let tag_value = vm::Value::uint(2652478646u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        context
+                            .allocate_aggregate(vec![])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    context
-                        .allocate_aggregate(vec![])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        BluetoothSessionEventVm::BluetoothSessionPairStateChangedEvent(value) => {
-            let tag_value = vm::Value::uint(611044851u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+            }
+            BluetoothSessionEventVm::BluetoothSessionGattDatabaseChangedEvent(value) => {
+                let tag_value = vm::Value::uint(2039449888u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        context
+                            .allocate_aggregate(vec![])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.pair_state as i32 as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+            BluetoothSessionEventVm::BluetoothSessionPairStateChangedEvent(value) => {
+                let tag_value = vm::Value::uint(611044851u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.pair_state as i32 as i64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.bluetooth.session.unpair.
@@ -1975,7 +2109,9 @@ fn encode_destack_device_camera_device_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CameraDeviceDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.device.open.
@@ -1995,7 +2131,9 @@ fn encode_destack_device_camera_device_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CameraDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.device.streamCapabilityList.
@@ -2018,7 +2156,9 @@ fn encode_destack_device_camera_device_stream_capability_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CameraStreamCapabilityVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.device.streamConfigList.
@@ -2041,7 +2181,67 @@ fn encode_destack_device_camera_device_stream_config_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<CameraStreamConfigVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.brightness.
+#[inline]
+fn decode_destack_device_camera_stream_brightness_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.brightness.
+#[inline]
+fn encode_destack_device_camera_stream_brightness_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<f64>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::float64(value)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.brightnessRange.
+#[inline]
+fn decode_destack_device_camera_stream_brightness_range_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.brightnessRange.
+#[inline]
+fn encode_destack_device_camera_stream_brightness_range_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CameraFloatControlRangeVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.close.
@@ -2087,26 +2287,86 @@ fn encode_destack_device_camera_stream_config_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraStreamConfigVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.frame_rate_milli_hz as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.pixel_format.format as i32 as i64, 32));
-            let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.pixel_format.family as i32 as i64, 32));
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
             let field_2: RuntimeResult<vm::Value> =
-                Ok(vm::Value::bool(value.pixel_format.compressed));
+                Ok(vm::Value::uint(value.frame_rate_milli_hz as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.pixel_format.format as i32 as i64, 32));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.pixel_format.family as i32 as i64, 32));
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::bool(value.pixel_format.compressed));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
             context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
                 .map_err(Box::<RuntimeError>::from)
-        };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+        })
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.contrast.
+#[inline]
+fn decode_destack_device_camera_stream_contrast_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.contrast.
+#[inline]
+fn encode_destack_device_camera_stream_contrast_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<f64>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::float64(value)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.contrastRange.
+#[inline]
+fn decode_destack_device_camera_stream_contrast_range_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.contrastRange.
+#[inline]
+fn encode_destack_device_camera_stream_contrast_range_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CameraFloatControlRangeVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.exposureCompensation.
@@ -2129,7 +2389,9 @@ fn encode_destack_device_camera_stream_exposure_compensation_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<f64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::float64(value)))
+    result
+        .map(|value| Ok(vm::Value::float64(value)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.exposureCompensationRange.
@@ -2152,16 +2414,18 @@ fn encode_destack_device_camera_stream_exposure_compensation_range_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraExposureCompensationRangeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum_ev));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum_ev));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default_ev));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step_ev));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.auto_supported));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum_ev));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum_ev));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default_ev));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step_ev));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.auto_supported));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.exposureMode.
@@ -2184,7 +2448,68 @@ fn encode_destack_device_camera_stream_exposure_mode_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraExposureMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+    result
+        .map(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.exposureTimeNs.
+#[inline]
+fn decode_destack_device_camera_stream_exposure_time_ns_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.exposureTimeNs.
+#[inline]
+fn encode_destack_device_camera_stream_exposure_time_ns_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.exposureTimeRange.
+#[inline]
+fn decode_destack_device_camera_stream_exposure_time_range_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.exposureTimeRange.
+#[inline]
+fn encode_destack_device_camera_stream_exposure_time_range_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CameraExposureTimeRangeVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.minimum_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.maximum_ns, 64));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.default_ns, 64));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.step_ns, 64));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.auto_supported));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.focusDistanceDiopters.
@@ -2207,7 +2532,9 @@ fn encode_destack_device_camera_stream_focus_distance_diopters_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<f64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::float64(value)))
+    result
+        .map(|value| Ok(vm::Value::float64(value)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.focusDistanceRange.
@@ -2230,16 +2557,43 @@ fn encode_destack_device_camera_stream_focus_distance_range_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraFocusDistanceRangeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum_diopters));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum_diopters));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default_diopters));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step_diopters));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.auto_supported));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum_diopters));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum_diopters));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default_diopters));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step_diopters));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.auto_supported));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.focusMode.
+#[inline]
+fn decode_destack_device_camera_stream_focus_mode_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.focusMode.
+#[inline]
+fn encode_destack_device_camera_stream_focus_mode_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CameraFocusMode>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.open.
@@ -2347,7 +2701,67 @@ fn encode_destack_device_camera_stream_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CameraStreamHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.panDegrees.
+#[inline]
+fn decode_destack_device_camera_stream_pan_degrees_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.panDegrees.
+#[inline]
+fn encode_destack_device_camera_stream_pan_degrees_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<f64>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::float64(value)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.panRange.
+#[inline]
+fn decode_destack_device_camera_stream_pan_range_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.panRange.
+#[inline]
+fn encode_destack_device_camera_stream_pan_range_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CameraPanAngleRangeVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum_degrees));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum_degrees));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default_degrees));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step_degrees));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.read.
@@ -2372,58 +2786,228 @@ fn encode_destack_device_camera_stream_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraFrameVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.pixel_format.format as i32 as i64, 32));
-            let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.pixel_format.family as i32 as i64, 32));
-            let field_2: RuntimeResult<vm::Value> =
-                Ok(vm::Value::bool(value.pixel_format.compressed));
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
+            let field_4: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.pixel_format.format as i32 as i64, 32));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.pixel_format.family as i32 as i64, 32));
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::bool(value.pixel_format.compressed));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_5: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.color_space as i32 as i64, 32));
+            let field_6: RuntimeResult<vm::Value> = value.planes.to_value(context);
+            let field_7: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> = match value.metadata.exposure_time_ns {
+                    Some(value) => Ok(vm::Value::uint(value, 64)),
+                    None => Ok(vm::Value::VOID),
+                };
+                let field_1: RuntimeResult<vm::Value> = match value.metadata.sensor_iso {
+                    Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                    None => Ok(vm::Value::VOID),
+                };
+                let field_2: RuntimeResult<vm::Value> = match value.metadata.white_balance_kelvin {
+                    Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                    None => Ok(vm::Value::VOID),
+                };
+                let field_3: RuntimeResult<vm::Value> = match value.metadata.focus_distance_diopters
+                {
+                    Some(value) => Ok(vm::Value::float64(value)),
+                    None => Ok(vm::Value::VOID),
+                };
+                let field_4: RuntimeResult<vm::Value> = match value.metadata.zoom_ratio {
+                    Some(value) => Ok(vm::Value::float64(value)),
+                    None => Ok(vm::Value::VOID),
+                };
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_8: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?,
+                ])
                 .map_err(Box::<RuntimeError>::from)
-        };
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.color_space as i32 as i64, 32));
-        let field_6: RuntimeResult<vm::Value> = value.planes.to_value(context);
-        let field_7: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> = match value.metadata.exposure_time_ns {
-                Some(value) => Ok(vm::Value::uint(value, 64)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_1: RuntimeResult<vm::Value> = match value.metadata.sensor_iso {
-                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_2: RuntimeResult<vm::Value> = match value.metadata.white_balance_kelvin {
-                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_3: RuntimeResult<vm::Value> = match value.metadata.focus_distance_diopters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_4: RuntimeResult<vm::Value> = match value.metadata.zoom_ratio {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
+        })
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.saturation.
+#[inline]
+fn decode_destack_device_camera_stream_saturation_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.saturation.
+#[inline]
+fn encode_destack_device_camera_stream_saturation_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<f64>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::float64(value)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.saturationRange.
+#[inline]
+fn decode_destack_device_camera_stream_saturation_range_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.saturationRange.
+#[inline]
+fn encode_destack_device_camera_stream_saturation_range_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CameraFloatControlRangeVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.sensorIso.
+#[inline]
+fn decode_destack_device_camera_stream_sensor_iso_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.sensorIso.
+#[inline]
+fn encode_destack_device_camera_stream_sensor_iso_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u32>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.sensorIsoRange.
+#[inline]
+fn decode_destack_device_camera_stream_sensor_iso_range_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.sensorIsoRange.
+#[inline]
+fn encode_destack_device_camera_stream_sensor_iso_range_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CameraSensorIsoRangeVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.minimum as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.maximum as u64, 32));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.default as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.step as u64, 32));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.auto_supported));
             context
                 .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
                 .map_err(Box::<RuntimeError>::from)
-        };
-        let field_8: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+        })
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.setBrightness.
+#[inline]
+fn decode_destack_device_camera_stream_set_brightness_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle, f64)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    let argument_value_value = arg_value(args, 1, "argument_value", "float64")?;
+    let argument_value = decode_float64(argument_value_value, "argument_value", "float64")?;
+    Ok((handle, argument_value))
+}
+
+/// Encode the result for destack.device.camera.stream.setBrightness.
+#[inline]
+fn encode_destack_device_camera_stream_set_brightness_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.device.camera.stream.setContrast.
+#[inline]
+fn decode_destack_device_camera_stream_set_contrast_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle, f64)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    let argument_value_value = arg_value(args, 1, "argument_value", "float64")?;
+    let argument_value = decode_float64(argument_value_value, "argument_value", "float64")?;
+    Ok((handle, argument_value))
+}
+
+/// Encode the result for destack.device.camera.stream.setContrast.
+#[inline]
+fn encode_destack_device_camera_stream_set_contrast_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.device.camera.stream.setExposureCompensation.
@@ -2488,6 +3072,31 @@ fn encode_destack_device_camera_stream_set_exposure_mode_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.device.camera.stream.setExposureTimeNs.
+#[inline]
+fn decode_destack_device_camera_stream_set_exposure_time_ns_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    let valuens_value = arg_value(args, 1, "valuens", "uint64")?;
+    let valuens = decode_uint64(valuens_value, "valuens", "uint64")?;
+    Ok((handle, valuens))
+}
+
+/// Encode the result for destack.device.camera.stream.setExposureTimeNs.
+#[inline]
+fn encode_destack_device_camera_stream_set_exposure_time_ns_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
 /// Decode arguments for destack.device.camera.stream.setFocusDistanceDiopters.
 #[inline]
 fn decode_destack_device_camera_stream_set_focus_distance_diopters_args(
@@ -2507,6 +3116,143 @@ fn decode_destack_device_camera_stream_set_focus_distance_diopters_args(
 /// Encode the result for destack.device.camera.stream.setFocusDistanceDiopters.
 #[inline]
 fn encode_destack_device_camera_stream_set_focus_distance_diopters_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.device.camera.stream.setFocusMode.
+#[inline]
+fn decode_destack_device_camera_stream_set_focus_mode_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle, CameraFocusMode)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    let mode_value = arg_value(args, 1, "mode", "CameraFocusMode")?;
+    let mode_raw = decode_int32(mode_value, "mode_raw", "CameraFocusMode")?;
+    let mode = match mode_raw {
+        1i32 => CameraFocusMode::Auto,
+        2i32 => CameraFocusMode::ContinuousAuto,
+        3i32 => CameraFocusMode::Manual,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "mode",
+                "unknown CameraFocusMode value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((handle, mode))
+}
+
+/// Encode the result for destack.device.camera.stream.setFocusMode.
+#[inline]
+fn encode_destack_device_camera_stream_set_focus_mode_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.device.camera.stream.setPanDegrees.
+#[inline]
+fn decode_destack_device_camera_stream_set_pan_degrees_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle, f64)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    let degrees_value = arg_value(args, 1, "degrees", "float64")?;
+    let degrees = decode_float64(degrees_value, "degrees", "float64")?;
+    Ok((handle, degrees))
+}
+
+/// Encode the result for destack.device.camera.stream.setPanDegrees.
+#[inline]
+fn encode_destack_device_camera_stream_set_pan_degrees_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.device.camera.stream.setSaturation.
+#[inline]
+fn decode_destack_device_camera_stream_set_saturation_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle, f64)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    let argument_value_value = arg_value(args, 1, "argument_value", "float64")?;
+    let argument_value = decode_float64(argument_value_value, "argument_value", "float64")?;
+    Ok((handle, argument_value))
+}
+
+/// Encode the result for destack.device.camera.stream.setSaturation.
+#[inline]
+fn encode_destack_device_camera_stream_set_saturation_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.device.camera.stream.setSensorIso.
+#[inline]
+fn decode_destack_device_camera_stream_set_sensor_iso_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    let iso_value = arg_value(args, 1, "iso", "uint32")?;
+    let iso = decode_uint32(iso_value, "iso", "uint32")?;
+    Ok((handle, iso))
+}
+
+/// Encode the result for destack.device.camera.stream.setSensorIso.
+#[inline]
+fn encode_destack_device_camera_stream_set_sensor_iso_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.device.camera.stream.setSharpness.
+#[inline]
+fn decode_destack_device_camera_stream_set_sharpness_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle, f64)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    let argument_value_value = arg_value(args, 1, "argument_value", "float64")?;
+    let argument_value = decode_float64(argument_value_value, "argument_value", "float64")?;
+    Ok((handle, argument_value))
+}
+
+/// Encode the result for destack.device.camera.stream.setSharpness.
+#[inline]
+fn encode_destack_device_camera_stream_set_sharpness_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2544,6 +3290,31 @@ fn decode_destack_device_camera_stream_set_stabilization_mode_args(
 /// Encode the result for destack.device.camera.stream.setStabilizationMode.
 #[inline]
 fn encode_destack_device_camera_stream_set_stabilization_mode_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.device.camera.stream.setTiltDegrees.
+#[inline]
+fn decode_destack_device_camera_stream_set_tilt_degrees_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle, f64)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    let degrees_value = arg_value(args, 1, "degrees", "float64")?;
+    let degrees = decode_float64(degrees_value, "degrees", "float64")?;
+    Ok((handle, degrees))
+}
+
+/// Encode the result for destack.device.camera.stream.setTiltDegrees.
+#[inline]
+fn encode_destack_device_camera_stream_set_tilt_degrees_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -2612,6 +3383,43 @@ fn encode_destack_device_camera_stream_set_white_balance_kelvin_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.device.camera.stream.setWhiteBalanceMode.
+#[inline]
+fn decode_destack_device_camera_stream_set_white_balance_mode_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle, CameraWhiteBalanceMode)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    let mode_value = arg_value(args, 1, "mode", "CameraWhiteBalanceMode")?;
+    let mode_raw = decode_int32(mode_value, "mode_raw", "CameraWhiteBalanceMode")?;
+    let mode = match mode_raw {
+        1i32 => CameraWhiteBalanceMode::Auto,
+        2i32 => CameraWhiteBalanceMode::ContinuousAuto,
+        3i32 => CameraWhiteBalanceMode::Manual,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "mode",
+                "unknown CameraWhiteBalanceMode value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((handle, mode))
+}
+
+/// Encode the result for destack.device.camera.stream.setWhiteBalanceMode.
+#[inline]
+fn encode_destack_device_camera_stream_set_white_balance_mode_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
 /// Decode arguments for destack.device.camera.stream.setZoomRatio.
 #[inline]
 fn decode_destack_device_camera_stream_set_zoom_ratio_args(
@@ -2637,6 +3445,64 @@ fn encode_destack_device_camera_stream_set_zoom_ratio_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.device.camera.stream.sharpness.
+#[inline]
+fn decode_destack_device_camera_stream_sharpness_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.sharpness.
+#[inline]
+fn encode_destack_device_camera_stream_sharpness_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<f64>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::float64(value)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.sharpnessRange.
+#[inline]
+fn decode_destack_device_camera_stream_sharpness_range_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.sharpnessRange.
+#[inline]
+fn encode_destack_device_camera_stream_sharpness_range_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CameraFloatControlRangeVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
+}
+
 /// Decode arguments for destack.device.camera.stream.stabilizationMode.
 #[inline]
 fn decode_destack_device_camera_stream_stabilization_mode_args(
@@ -2657,7 +3523,9 @@ fn encode_destack_device_camera_stream_stabilization_mode_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraStabilizationMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+    result
+        .map(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.start.
@@ -2706,6 +3574,64 @@ fn encode_destack_device_camera_stream_stop_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.device.camera.stream.tiltDegrees.
+#[inline]
+fn decode_destack_device_camera_stream_tilt_degrees_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.tiltDegrees.
+#[inline]
+fn encode_destack_device_camera_stream_tilt_degrees_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<f64>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::float64(value)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.tiltRange.
+#[inline]
+fn decode_destack_device_camera_stream_tilt_range_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.tiltRange.
+#[inline]
+fn encode_destack_device_camera_stream_tilt_range_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CameraTiltAngleRangeVm>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum_degrees));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum_degrees));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default_degrees));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step_degrees));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
+}
+
 /// Decode arguments for destack.device.camera.stream.torchMode.
 #[inline]
 fn decode_destack_device_camera_stream_torch_mode_args(
@@ -2726,7 +3652,9 @@ fn encode_destack_device_camera_stream_torch_mode_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraTorchMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+    result
+        .map(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.tryRead.
@@ -2749,58 +3677,61 @@ fn encode_destack_device_camera_stream_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraFrameVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.pixel_format.format as i32 as i64, 32));
-            let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::int(value.pixel_format.family as i32 as i64, 32));
-            let field_2: RuntimeResult<vm::Value> =
-                Ok(vm::Value::bool(value.pixel_format.compressed));
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.sequence, 64));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
+            let field_4: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.pixel_format.format as i32 as i64, 32));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::int(value.pixel_format.family as i32 as i64, 32));
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::bool(value.pixel_format.compressed));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_5: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.color_space as i32 as i64, 32));
+            let field_6: RuntimeResult<vm::Value> = value.planes.to_value(context);
+            let field_7: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> = match value.metadata.exposure_time_ns {
+                    Some(value) => Ok(vm::Value::uint(value, 64)),
+                    None => Ok(vm::Value::VOID),
+                };
+                let field_1: RuntimeResult<vm::Value> = match value.metadata.sensor_iso {
+                    Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                    None => Ok(vm::Value::VOID),
+                };
+                let field_2: RuntimeResult<vm::Value> = match value.metadata.white_balance_kelvin {
+                    Some(value) => Ok(vm::Value::uint(value as u64, 32)),
+                    None => Ok(vm::Value::VOID),
+                };
+                let field_3: RuntimeResult<vm::Value> = match value.metadata.focus_distance_diopters
+                {
+                    Some(value) => Ok(vm::Value::float64(value)),
+                    None => Ok(vm::Value::VOID),
+                };
+                let field_4: RuntimeResult<vm::Value> = match value.metadata.zoom_ratio {
+                    Some(value) => Ok(vm::Value::float64(value)),
+                    None => Ok(vm::Value::VOID),
+                };
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_8: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?,
+                ])
                 .map_err(Box::<RuntimeError>::from)
-        };
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.color_space as i32 as i64, 32));
-        let field_6: RuntimeResult<vm::Value> = value.planes.to_value(context);
-        let field_7: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> = match value.metadata.exposure_time_ns {
-                Some(value) => Ok(vm::Value::uint(value, 64)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_1: RuntimeResult<vm::Value> = match value.metadata.sensor_iso {
-                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_2: RuntimeResult<vm::Value> = match value.metadata.white_balance_kelvin {
-                Some(value) => Ok(vm::Value::uint(value as u64, 32)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_3: RuntimeResult<vm::Value> = match value.metadata.focus_distance_diopters {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            let field_4: RuntimeResult<vm::Value> = match value.metadata.zoom_ratio {
-                Some(value) => Ok(vm::Value::float64(value)),
-                None => Ok(vm::Value::VOID),
-            };
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                .map_err(Box::<RuntimeError>::from)
-        };
-        let field_8: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.whiteBalanceKelvin.
@@ -2823,7 +3754,34 @@ fn encode_destack_device_camera_stream_white_balance_kelvin_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
+}
+
+/// Decode arguments for destack.device.camera.stream.whiteBalanceMode.
+#[inline]
+fn decode_destack_device_camera_stream_white_balance_mode_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CameraStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CameraStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CameraStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CameraStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.device.camera.stream.whiteBalanceMode.
+#[inline]
+fn encode_destack_device_camera_stream_white_balance_mode_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CameraWhiteBalanceMode>,
+) -> RuntimeResult<vm::Value> {
+    result
+        .map(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.whiteBalanceRange.
@@ -2846,19 +3804,22 @@ fn encode_destack_device_camera_stream_white_balance_range_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraWhiteBalanceRangeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.minimum_kelvin as u64, 32));
-        let field_1: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.maximum_kelvin as u64, 32));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.default_kelvin as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.step_kelvin as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.auto_supported));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.minimum_kelvin as u64, 32));
+            let field_1: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.maximum_kelvin as u64, 32));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.default_kelvin as u64, 32));
+            let field_3: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.step_kelvin as u64, 32));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.auto_supported));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.zoomRatio.
@@ -2881,7 +3842,9 @@ fn encode_destack_device_camera_stream_zoom_ratio_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<f64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::float64(value)))
+    result
+        .map(|value| Ok(vm::Value::float64(value)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.camera.stream.zoomRatioRange.
@@ -2904,15 +3867,17 @@ fn encode_destack_device_camera_stream_zoom_ratio_range_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CameraZoomRatioRangeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum_ratio));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum_ratio));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default_ratio));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step_ratio));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.minimum_ratio));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.maximum_ratio));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.default_ratio));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.step_ratio));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.serial.close.
@@ -2956,32 +3921,35 @@ fn encode_destack_device_serial_config_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SerialPortConfigVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.baud_rate as u64, 32));
-        let field_1: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.data_bits as i32 as i64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.parity as i32 as i64, 32));
-        let field_3: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.stop_bits as i32 as i64, 32));
-        let field_4: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
-                value.flow_control.request_to_send_clear_to_send_enabled,
-            ));
-            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
-                value
-                    .flow_control
-                    .data_terminal_ready_data_set_ready_enabled,
-            ));
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.baud_rate as u64, 32));
+            let field_1: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.data_bits as i32 as i64, 32));
             let field_2: RuntimeResult<vm::Value> =
-                Ok(vm::Value::bool(value.flow_control.xon_xoff_enabled));
+                Ok(vm::Value::int(value.parity as i32 as i64, 32));
+            let field_3: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.stop_bits as i32 as i64, 32));
+            let field_4: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
+                    value.flow_control.request_to_send_clear_to_send_enabled,
+                ));
+                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(
+                    value
+                        .flow_control
+                        .data_terminal_ready_data_set_ready_enabled,
+                ));
+                let field_2: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::bool(value.flow_control.xon_xoff_enabled));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
             context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
                 .map_err(Box::<RuntimeError>::from)
-        };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.serial.configure.
@@ -3136,70 +4104,72 @@ fn encode_destack_device_serial_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SerialPortDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_1: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.transport as i32 as i64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
-        let field_3: RuntimeResult<vm::Value> = match value.manufacturer {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_4: RuntimeResult<vm::Value> = match value.product {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_5: RuntimeResult<vm::Value> = match value.serial_number {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_6: RuntimeResult<vm::Value> = match value.path {
-            fs::OsPathVm::OsPathBytes(value) => {
-                let tag_value = vm::Value::uint(1243901586u64, 32);
-                let payload_value = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                    let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
+            let field_1: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.transport as i32 as i64, 32));
+            let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
+            let field_3: RuntimeResult<vm::Value> = match value.manufacturer {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_4: RuntimeResult<vm::Value> = match value.product {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_5: RuntimeResult<vm::Value> = match value.serial_number {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_6: RuntimeResult<vm::Value> = match value.path {
+                fs::OsPathVm::OsPathBytes(value) => {
+                    let tag_value = vm::Value::uint(1243901586u64, 32);
+                    let payload_value = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![tag_value, payload_value])
                         .map_err(Box::<RuntimeError>::from)
-                }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            fs::OsPathVm::OsPathUtf16(value) => {
-                let tag_value = vm::Value::uint(2271740357u64, 32);
-                let payload_value = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                    let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
+                }
+                fs::OsPathVm::OsPathUtf16(value) => {
+                    let tag_value = vm::Value::uint(2271740357u64, 32);
+                    let payload_value = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![tag_value, payload_value])
                         .map_err(Box::<RuntimeError>::from)
-                }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-        };
-        let field_7: RuntimeResult<vm::Value> = match value.usb_vendor_id {
-            Some(value) => Ok(vm::Value::uint(value as u64, 16)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_8: RuntimeResult<vm::Value> = match value.usb_product_id {
-            Some(value) => Ok(vm::Value::uint(value as u64, 16)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_9: RuntimeResult<vm::Value> = match value.bluetooth_service_class_id {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+                }
+            };
+            let field_7: RuntimeResult<vm::Value> = match value.usb_vendor_id {
+                Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_8: RuntimeResult<vm::Value> = match value.usb_product_id {
+                Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_9: RuntimeResult<vm::Value> = match value.bluetooth_service_class_id {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.serial.discardInput.
@@ -3287,15 +4257,17 @@ fn encode_destack_device_serial_get_signals_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SerialInputSignalsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.clear_to_send));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.data_set_ready));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.data_carrier_detect));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.ring_indicator));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.clear_to_send));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.data_set_ready));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.data_carrier_detect));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.ring_indicator));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.device.serial.list.
@@ -3304,7 +4276,9 @@ fn encode_destack_device_serial_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<SerialPortDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.serial.open.
@@ -3490,7 +4464,9 @@ fn encode_destack_device_serial_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SerialPortHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.serial.readEvent.
@@ -3514,165 +4490,142 @@ fn encode_destack_device_serial_read_event_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SerialEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        SerialEventVm::SerialDisconnectedEvent(value) => {
-            let tag_value = vm::Value::uint(1291871846u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    context
-                        .allocate_aggregate(vec![])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        SerialEventVm::SerialErrorEvent(value) => {
-            let tag_value = vm::Value::uint(410067109u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.kind as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.backend_code {
-                        Some(value) => Ok(vm::Value::int(value as i64, 32)),
-                        None => Ok(vm::Value::VOID),
+    result
+        .map(|value| match value {
+            SerialEventVm::SerialDisconnectedEvent(value) => {
+                let tag_value = vm::Value::uint(1291871846u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = match value.payload.backend_detail {
-                        Some(value) => Ok(vm::Value::int(value as i64, 32)),
-                        None => Ok(vm::Value::VOID),
+                    let field_2: RuntimeResult<vm::Value> = {
+                        context
+                            .allocate_aggregate(vec![])
+                            .map_err(Box::<RuntimeError>::from)
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        SerialEventVm::SerialModemStatusChangedEvent(value) => {
-            let tag_value = vm::Value::uint(4098744236u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = {
+            }
+            SerialEventVm::SerialErrorEvent(value) => {
+                let tag_value = vm::Value::uint(410067109u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.signals.clear_to_send));
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.signals.data_set_ready));
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.signals.data_carrier_detect));
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.signals.ring_indicator));
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.kind as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.backend_code {
+                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_2: RuntimeResult<vm::Value> = match value.payload.backend_detail {
+                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        SerialEventVm::SerialReadReadyEvent(value) => {
-            let tag_value = vm::Value::uint(1237782817u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.available_bytes {
-                        Some(value) => Ok(vm::Value::uint(value, 64)),
-                        None => Ok(vm::Value::VOID),
+            }
+            SerialEventVm::SerialModemStatusChangedEvent(value) => {
+                let tag_value = vm::Value::uint(4098744236u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.signals.clear_to_send));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.signals.data_set_ready));
+                            let field_2: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.signals.data_carrier_detect));
+                            let field_3: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.signals.ring_indicator));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        SerialEventVm::SerialWriteDrainedEvent(value) => {
-            let tag_value = vm::Value::uint(2097029052u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+            }
+            SerialEventVm::SerialReadReadyEvent(value) => {
+                let tag_value = vm::Value::uint(1237782817u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.available_bytes
+                        {
+                            Some(value) => Ok(vm::Value::uint(value, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    context
-                        .allocate_aggregate(vec![])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.serial.readInto.
@@ -3698,7 +4651,9 @@ fn encode_destack_device_serial_read_into_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.serial.setSignals.
@@ -3794,165 +4749,142 @@ fn encode_destack_device_serial_try_event_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SerialEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        SerialEventVm::SerialDisconnectedEvent(value) => {
-            let tag_value = vm::Value::uint(1291871846u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    context
-                        .allocate_aggregate(vec![])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        SerialEventVm::SerialErrorEvent(value) => {
-            let tag_value = vm::Value::uint(410067109u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.payload.kind as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.backend_code {
-                        Some(value) => Ok(vm::Value::int(value as i64, 32)),
-                        None => Ok(vm::Value::VOID),
+    result
+        .map(|value| match value {
+            SerialEventVm::SerialDisconnectedEvent(value) => {
+                let tag_value = vm::Value::uint(1291871846u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = match value.payload.backend_detail {
-                        Some(value) => Ok(vm::Value::int(value as i64, 32)),
-                        None => Ok(vm::Value::VOID),
+                    let field_2: RuntimeResult<vm::Value> = {
+                        context
+                            .allocate_aggregate(vec![])
+                            .map_err(Box::<RuntimeError>::from)
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        SerialEventVm::SerialModemStatusChangedEvent(value) => {
-            let tag_value = vm::Value::uint(4098744236u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = {
+            }
+            SerialEventVm::SerialErrorEvent(value) => {
+                let tag_value = vm::Value::uint(410067109u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.signals.clear_to_send));
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.signals.data_set_ready));
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.signals.data_carrier_detect));
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.signals.ring_indicator));
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.payload.kind as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.backend_code {
+                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_2: RuntimeResult<vm::Value> = match value.payload.backend_detail {
+                            Some(value) => Ok(vm::Value::int(value as i64, 32)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        SerialEventVm::SerialReadReadyEvent(value) => {
-            let tag_value = vm::Value::uint(1237782817u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.available_bytes {
-                        Some(value) => Ok(vm::Value::uint(value, 64)),
-                        None => Ok(vm::Value::VOID),
+            }
+            SerialEventVm::SerialModemStatusChangedEvent(value) => {
+                let tag_value = vm::Value::uint(4098744236u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.signals.clear_to_send));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.signals.data_set_ready));
+                            let field_2: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.signals.data_carrier_detect));
+                            let field_3: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.signals.ring_indicator));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        SerialEventVm::SerialWriteDrainedEvent(value) => {
-            let tag_value = vm::Value::uint(2097029052u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
+            }
+            SerialEventVm::SerialReadReadyEvent(value) => {
+                let tag_value = vm::Value::uint(1237782817u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.available_bytes
+                        {
+                            Some(value) => Ok(vm::Value::uint(value, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    context
-                        .allocate_aggregate(vec![])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.serial.tryReadInto.
@@ -3976,7 +4908,9 @@ fn encode_destack_device_serial_try_read_into_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.serial.write.
@@ -4002,7 +4936,9 @@ fn encode_destack_device_serial_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.bosCapabilityList.
@@ -4024,7 +4960,9 @@ fn encode_destack_device_usb_bos_capability_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<UsbBosCapabilityDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.bulkRead.
@@ -4087,13 +5025,16 @@ fn encode_destack_device_usb_bulk_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbInTransferResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.status as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.status as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.bulkWrite.
@@ -4166,13 +5107,17 @@ fn encode_destack_device_usb_bulk_write_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbOutTransferResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.status as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes_written as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.status as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.bytes_written as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.claimInterface.
@@ -4299,7 +5244,9 @@ fn encode_destack_device_usb_configuration_get_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u8>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 8)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 8)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.configurationList.
@@ -4321,7 +5268,9 @@ fn encode_destack_device_usb_configuration_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<UsbConfigurationDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.configurationSet.
@@ -4415,13 +5364,16 @@ fn encode_destack_device_usb_control_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbInTransferResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.status as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.status as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.controlWrite.
@@ -4503,13 +5455,17 @@ fn encode_destack_device_usb_control_write_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbOutTransferResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.status as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes_written as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.status as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.bytes_written as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.descriptor.
@@ -4531,32 +5487,37 @@ fn encode_destack_device_usb_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbDeviceDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.vendor_id as u64, 16));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.product_id as u64, 16));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.class_code as u64, 8));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.subclass_code as u64, 8));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.protocol_code as u64, 8));
-        let field_6: RuntimeResult<vm::Value> = match value.manufacturer {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_7: RuntimeResult<vm::Value> = match value.product {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_8: RuntimeResult<vm::Value> = match value.serial_number {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.vendor_id as u64, 16));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.product_id as u64, 16));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.class_code as u64, 8));
+            let field_4: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.subclass_code as u64, 8));
+            let field_5: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.protocol_code as u64, 8));
+            let field_6: RuntimeResult<vm::Value> = match value.manufacturer {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_7: RuntimeResult<vm::Value> = match value.product {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_8: RuntimeResult<vm::Value> = match value.serial_number {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.interruptRead.
@@ -4619,13 +5580,16 @@ fn encode_destack_device_usb_interrupt_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbInTransferResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.status as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.status as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.interruptWrite.
@@ -4698,13 +5662,17 @@ fn encode_destack_device_usb_interrupt_write_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbOutTransferResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.status as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes_written as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.status as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.bytes_written as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.isochronousRead.
@@ -4773,13 +5741,15 @@ fn encode_destack_device_usb_isochronous_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbIsochronousTransferResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        let field_1: RuntimeResult<vm::Value> = value.packets.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
+            let field_1: RuntimeResult<vm::Value> = value.packets.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.isochronousWrite.
@@ -4856,13 +5826,15 @@ fn encode_destack_device_usb_isochronous_write_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbIsochronousTransferResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-        let field_1: RuntimeResult<vm::Value> = value.packets.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = value.bytes.to_value(context);
+            let field_1: RuntimeResult<vm::Value> = value.packets.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.kernelDriverActive.
@@ -4886,7 +5858,9 @@ fn encode_destack_device_usb_kernel_driver_active_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::bool(value)))
+    result
+        .map(|value| Ok(vm::Value::bool(value)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.kernelDriverAttach.
@@ -4943,7 +5917,9 @@ fn encode_destack_device_usb_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<UsbDeviceDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.open.
@@ -4963,7 +5939,9 @@ fn encode_destack_device_usb_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::UsbDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.releaseInterface.
@@ -5059,24 +6037,27 @@ fn encode_destack_device_usb_string_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbStringDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.language_id as u64, 16));
-        let field_1: RuntimeResult<vm::Value> = match value.manufacturer {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_2: RuntimeResult<vm::Value> = match value.product {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_3: RuntimeResult<vm::Value> = match value.serial_number {
-            Some(value) => Ok(value.value()),
-            None => Ok(vm::Value::VOID),
-        };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.language_id as u64, 16));
+            let field_1: RuntimeResult<vm::Value> = match value.manufacturer {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_2: RuntimeResult<vm::Value> = match value.product {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_3: RuntimeResult<vm::Value> = match value.serial_number {
+                Some(value) => Ok(value.value()),
+                None => Ok(vm::Value::VOID),
+            };
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.stringLanguageList.
@@ -5098,7 +6079,9 @@ fn encode_destack_device_usb_string_language_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u16>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.transferCancel.
@@ -5210,7 +6193,9 @@ fn encode_destack_device_usb_watch_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::UsbWatchHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.watchRead.
@@ -5234,128 +6219,130 @@ fn encode_destack_device_usb_watch_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbHotplugEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        UsbHotplugEventVm::UsbHotplugAttachedEvent(value) => {
-            let tag_value = vm::Value::uint(1449914010u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
+    result
+        .map(|value| match value {
+            UsbHotplugEventVm::UsbHotplugAttachedEvent(value) => {
+                let tag_value = vm::Value::uint(1449914010u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.vendor_id as u64, 16));
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.product_id as u64, 16));
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.class_code as u64, 8));
-                        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.subclass_code as u64,
-                            8,
-                        ));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.protocol_code as u64,
-                            8,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            match value.metadata.device.manufacturer {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_7: RuntimeResult<vm::Value> = match value.metadata.device.product
-                        {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> =
+                                Ok(value.metadata.device.id.value());
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.metadata.device.vendor_id as u64, 16));
+                            let field_2: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.metadata.device.product_id as u64, 16));
+                            let field_3: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.metadata.device.class_code as u64, 8));
+                            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.metadata.device.subclass_code as u64,
+                                8,
+                            ));
+                            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.metadata.device.protocol_code as u64,
+                                8,
+                            ));
+                            let field_6: RuntimeResult<vm::Value> =
+                                match value.metadata.device.manufacturer {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.metadata.device.product {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.metadata.device.serial_number {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            context
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?,
+                                ])
+                                .map_err(Box::<RuntimeError>::from)
                         };
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.serial_number {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
                         context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?,
-                            ])
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        UsbHotplugEventVm::UsbHotplugDetachedEvent(value) => {
-            let tag_value = vm::Value::uint(755050223u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
+            }
+            UsbHotplugEventVm::UsbHotplugDetachedEvent(value) => {
+                let tag_value = vm::Value::uint(755050223u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.vendor_id as u64, 16));
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.product_id as u64, 16));
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.class_code as u64, 8));
-                        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.subclass_code as u64,
-                            8,
-                        ));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.protocol_code as u64,
-                            8,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            match value.metadata.device.manufacturer {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_7: RuntimeResult<vm::Value> = match value.metadata.device.product
-                        {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> =
+                                Ok(value.metadata.device.id.value());
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.metadata.device.vendor_id as u64, 16));
+                            let field_2: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.metadata.device.product_id as u64, 16));
+                            let field_3: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.metadata.device.class_code as u64, 8));
+                            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.metadata.device.subclass_code as u64,
+                                8,
+                            ));
+                            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.metadata.device.protocol_code as u64,
+                                8,
+                            ));
+                            let field_6: RuntimeResult<vm::Value> =
+                                match value.metadata.device.manufacturer {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.metadata.device.product {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.metadata.device.serial_number {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            context
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?,
+                                ])
+                                .map_err(Box::<RuntimeError>::from)
                         };
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.serial_number {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
                         context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?,
-                            ])
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.device.usb.watchTryRead.
@@ -5377,128 +6364,130 @@ fn encode_destack_device_usb_watch_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UsbHotplugEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        UsbHotplugEventVm::UsbHotplugAttachedEvent(value) => {
-            let tag_value = vm::Value::uint(1449914010u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
+    result
+        .map(|value| match value {
+            UsbHotplugEventVm::UsbHotplugAttachedEvent(value) => {
+                let tag_value = vm::Value::uint(1449914010u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.vendor_id as u64, 16));
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.product_id as u64, 16));
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.class_code as u64, 8));
-                        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.subclass_code as u64,
-                            8,
-                        ));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.protocol_code as u64,
-                            8,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            match value.metadata.device.manufacturer {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_7: RuntimeResult<vm::Value> = match value.metadata.device.product
-                        {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> =
+                                Ok(value.metadata.device.id.value());
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.metadata.device.vendor_id as u64, 16));
+                            let field_2: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.metadata.device.product_id as u64, 16));
+                            let field_3: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.metadata.device.class_code as u64, 8));
+                            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.metadata.device.subclass_code as u64,
+                                8,
+                            ));
+                            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.metadata.device.protocol_code as u64,
+                                8,
+                            ));
+                            let field_6: RuntimeResult<vm::Value> =
+                                match value.metadata.device.manufacturer {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.metadata.device.product {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.metadata.device.serial_number {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            context
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?,
+                                ])
+                                .map_err(Box::<RuntimeError>::from)
                         };
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.serial_number {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
                         context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?,
-                            ])
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        UsbHotplugEventVm::UsbHotplugDetachedEvent(value) => {
-            let tag_value = vm::Value::uint(755050223u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_2: RuntimeResult<vm::Value> = {
+            }
+            UsbHotplugEventVm::UsbHotplugDetachedEvent(value) => {
+                let tag_value = vm::Value::uint(755050223u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(value.metadata.device.id.value());
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.vendor_id as u64, 16));
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.product_id as u64, 16));
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.metadata.device.class_code as u64, 8));
-                        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.subclass_code as u64,
-                            8,
-                        ));
-                        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.metadata.device.protocol_code as u64,
-                            8,
-                        ));
-                        let field_6: RuntimeResult<vm::Value> =
-                            match value.metadata.device.manufacturer {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
-                        let field_7: RuntimeResult<vm::Value> = match value.metadata.device.product
-                        {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_2: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> =
+                                Ok(value.metadata.device.id.value());
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.metadata.device.vendor_id as u64, 16));
+                            let field_2: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.metadata.device.product_id as u64, 16));
+                            let field_3: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.metadata.device.class_code as u64, 8));
+                            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.metadata.device.subclass_code as u64,
+                                8,
+                            ));
+                            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.metadata.device.protocol_code as u64,
+                                8,
+                            ));
+                            let field_6: RuntimeResult<vm::Value> =
+                                match value.metadata.device.manufacturer {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_7: RuntimeResult<vm::Value> =
+                                match value.metadata.device.product {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            let field_8: RuntimeResult<vm::Value> =
+                                match value.metadata.device.serial_number {
+                                    Some(value) => Ok(value.value()),
+                                    None => Ok(vm::Value::VOID),
+                                };
+                            context
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?,
+                                ])
+                                .map_err(Box::<RuntimeError>::from)
                         };
-                        let field_8: RuntimeResult<vm::Value> =
-                            match value.metadata.device.serial_number {
-                                Some(value) => Ok(value.value()),
-                                None => Ok(vm::Value::VOID),
-                            };
                         context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?,
-                            ])
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Replay payload for destack.device.bluetooth.adapterList.
@@ -5548,13 +6537,6 @@ struct DeviceBluetoothGattReadDescriptorReplayRecord {
 struct DeviceBluetoothGattReadEventReplayRecord {
     /// Replay result payload.
     pub result: Result<BluetoothgattvalueeventReplayRecord, TraceError>,
-}
-
-/// Replay payload for destack.device.bluetooth.gatt.requestMtu.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct DeviceBluetoothGattRequestMtuReplayRecord {
-    /// Replay result payload.
-    pub result: Result<u16, TraceError>,
 }
 
 /// Replay payload for destack.device.bluetooth.gatt.serviceList.
@@ -5711,6 +6693,20 @@ struct DeviceCameraDeviceStreamConfigListReplayRecord {
     pub result: Result<Vec<CameraStreamConfig>, TraceError>,
 }
 
+/// Replay payload for destack.device.camera.stream.brightness.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamBrightnessReplayRecord {
+    /// Replay result payload.
+    pub result: Result<f64, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.brightnessRange.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamBrightnessRangeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<CameraFloatControlRange, TraceError>,
+}
+
 /// Replay payload for destack.device.camera.stream.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamCloseReplayRecord {
@@ -5723,6 +6719,20 @@ struct DeviceCameraStreamCloseReplayRecord {
 struct DeviceCameraStreamConfigReplayRecord {
     /// Replay result payload.
     pub result: Result<CameraStreamConfig, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.contrast.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamContrastReplayRecord {
+    /// Replay result payload.
+    pub result: Result<f64, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.contrastRange.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamContrastRangeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<CameraFloatControlRange, TraceError>,
 }
 
 /// Replay payload for destack.device.camera.stream.exposureCompensation.
@@ -5746,6 +6756,20 @@ struct DeviceCameraStreamExposureModeReplayRecord {
     pub result: Result<CameraExposureMode, TraceError>,
 }
 
+/// Replay payload for destack.device.camera.stream.exposureTimeNs.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamExposureTimeNsReplayRecord {
+    /// Replay result payload.
+    pub result: Result<u64, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.exposureTimeRange.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamExposureTimeRangeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<CameraExposureTimeRange, TraceError>,
+}
+
 /// Replay payload for destack.device.camera.stream.focusDistanceDiopters.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamFocusDistanceDioptersReplayRecord {
@@ -5760,6 +6784,13 @@ struct DeviceCameraStreamFocusDistanceRangeReplayRecord {
     pub result: Result<CameraFocusDistanceRange, TraceError>,
 }
 
+/// Replay payload for destack.device.camera.stream.focusMode.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamFocusModeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<CameraFocusMode, TraceError>,
+}
+
 /// Replay payload for destack.device.camera.stream.open.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamOpenReplayRecord {
@@ -5767,11 +6798,67 @@ struct DeviceCameraStreamOpenReplayRecord {
     pub result: Result<resource::CameraStreamHandle, TraceError>,
 }
 
+/// Replay payload for destack.device.camera.stream.panDegrees.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamPanDegreesReplayRecord {
+    /// Replay result payload.
+    pub result: Result<f64, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.panRange.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamPanRangeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<CameraPanAngleRange, TraceError>,
+}
+
 /// Replay payload for destack.device.camera.stream.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamReadReplayRecord {
     /// Replay result payload.
     pub result: Result<CameraframeReplayRecord, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.saturation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSaturationReplayRecord {
+    /// Replay result payload.
+    pub result: Result<f64, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.saturationRange.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSaturationRangeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<CameraFloatControlRange, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.sensorIso.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSensorIsoReplayRecord {
+    /// Replay result payload.
+    pub result: Result<u32, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.sensorIsoRange.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSensorIsoRangeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<CameraSensorIsoRange, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.setBrightness.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSetBrightnessReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.setContrast.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSetContrastReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
 }
 
 /// Replay payload for destack.device.camera.stream.setExposureCompensation.
@@ -5788,6 +6875,13 @@ struct DeviceCameraStreamSetExposureModeReplayRecord {
     pub result: Result<(), TraceError>,
 }
 
+/// Replay payload for destack.device.camera.stream.setExposureTimeNs.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSetExposureTimeNsReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
 /// Replay payload for destack.device.camera.stream.setFocusDistanceDiopters.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamSetFocusDistanceDioptersReplayRecord {
@@ -5795,9 +6889,51 @@ struct DeviceCameraStreamSetFocusDistanceDioptersReplayRecord {
     pub result: Result<(), TraceError>,
 }
 
+/// Replay payload for destack.device.camera.stream.setFocusMode.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSetFocusModeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.setPanDegrees.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSetPanDegreesReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.setSaturation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSetSaturationReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.setSensorIso.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSetSensorIsoReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.setSharpness.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSetSharpnessReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
 /// Replay payload for destack.device.camera.stream.setStabilizationMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamSetStabilizationModeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.setTiltDegrees.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSetTiltDegreesReplayRecord {
     /// Replay result payload.
     pub result: Result<(), TraceError>,
 }
@@ -5816,11 +6952,32 @@ struct DeviceCameraStreamSetWhiteBalanceKelvinReplayRecord {
     pub result: Result<(), TraceError>,
 }
 
+/// Replay payload for destack.device.camera.stream.setWhiteBalanceMode.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSetWhiteBalanceModeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<(), TraceError>,
+}
+
 /// Replay payload for destack.device.camera.stream.setZoomRatio.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamSetZoomRatioReplayRecord {
     /// Replay result payload.
     pub result: Result<(), TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.sharpness.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSharpnessReplayRecord {
+    /// Replay result payload.
+    pub result: Result<f64, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.sharpnessRange.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamSharpnessRangeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<CameraFloatControlRange, TraceError>,
 }
 
 /// Replay payload for destack.device.camera.stream.stabilizationMode.
@@ -5844,6 +7001,20 @@ struct DeviceCameraStreamStopReplayRecord {
     pub result: Result<(), TraceError>,
 }
 
+/// Replay payload for destack.device.camera.stream.tiltDegrees.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamTiltDegreesReplayRecord {
+    /// Replay result payload.
+    pub result: Result<f64, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.tiltRange.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamTiltRangeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<CameraTiltAngleRange, TraceError>,
+}
+
 /// Replay payload for destack.device.camera.stream.torchMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DeviceCameraStreamTorchModeReplayRecord {
@@ -5863,6 +7034,13 @@ struct DeviceCameraStreamTryReadReplayRecord {
 struct DeviceCameraStreamWhiteBalanceKelvinReplayRecord {
     /// Replay result payload.
     pub result: Result<u32, TraceError>,
+}
+
+/// Replay payload for destack.device.camera.stream.whiteBalanceMode.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DeviceCameraStreamWhiteBalanceModeReplayRecord {
+    /// Replay result payload.
+    pub result: Result<CameraWhiteBalanceMode, TraceError>,
 }
 
 /// Replay payload for destack.device.camera.stream.whiteBalanceRange.
@@ -6204,7 +7382,7 @@ pub(crate) const DEVICE_BLUETOOTH_ADAPTER_LIST: BindingDescriptor = BindingDescr
 /// Binding descriptor for destack.device.bluetooth.gatt.characteristicList.
 pub(crate) const DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.characteristicList",
-    "export function bluetoothGattCharacteristicList(handle: BluetoothDeviceHandle, serviceUuid: string): Result<Slice<BluetoothGattCharacteristicDescriptor>, PlatformError>",
+    "export function bluetoothGattCharacteristicList(handle: BluetoothDeviceHandle, serviceId: string): Result<Slice<BluetoothGattCharacteristicDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
@@ -6218,7 +7396,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST: BindingDescriptor = 
 /// Binding descriptor for destack.device.bluetooth.gatt.descriptorList.
 pub(crate) const DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.descriptorList",
-    "export function bluetoothGattDescriptorList(handle: BluetoothDeviceHandle, serviceUuid: string, characteristicUuid: string): Result<Slice<BluetoothGattDescriptorDescriptor>, PlatformError>",
+    "export function bluetoothGattDescriptorList(handle: BluetoothDeviceHandle, characteristicId: string): Result<Slice<BluetoothGattDescriptorDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
@@ -6246,7 +7424,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_MTU: BindingDescriptor = BindingDescripto
 /// Binding descriptor for destack.device.bluetooth.gatt.read.
 pub(crate) const DEVICE_BLUETOOTH_GATT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.read",
-    "export function bluetoothGattRead(handle: BluetoothDeviceHandle, serviceUuid: string, characteristicUuid: string, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
+    "export function bluetoothGattRead(handle: BluetoothDeviceHandle, characteristicId: string, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
@@ -6260,7 +7438,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_READ: BindingDescriptor = BindingDescript
 /// Binding descriptor for destack.device.bluetooth.gatt.readDescriptor.
 pub(crate) const DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.readDescriptor",
-    "export function bluetoothGattReadDescriptor(handle: BluetoothDeviceHandle, serviceUuid: string, characteristicUuid: string, descriptorUuid: string, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
+    "export function bluetoothGattReadDescriptor(handle: BluetoothDeviceHandle, descriptorId: string, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
@@ -6275,20 +7453,6 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR: BindingDescriptor = Bind
 pub(crate) const DEVICE_BLUETOOTH_GATT_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.readEvent",
     "export function bluetoothGattReadEvent(handle: BluetoothSubscriptionHandle, timeoutNs: uint64): Result<BluetoothGattValueEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
-    &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
-)
-    .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
-/// Binding descriptor for destack.device.bluetooth.gatt.requestMtu.
-pub(crate) const DEVICE_BLUETOOTH_GATT_REQUEST_MTU: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.device.bluetooth.gatt.requestMtu",
-    "export function bluetoothGattRequestMtu(handle: BluetoothDeviceHandle, mtu: uint16, timeoutNs: uint64): Result<uint16, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
@@ -6316,7 +7480,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_SERVICE_LIST: BindingDescriptor = Binding
 /// Binding descriptor for destack.device.bluetooth.gatt.subscribe.
 pub(crate) const DEVICE_BLUETOOTH_GATT_SUBSCRIBE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.subscribe",
-    "export function bluetoothGattSubscribe(handle: BluetoothDeviceHandle, serviceUuid: string, characteristicUuid: string): Result<BluetoothSubscriptionHandle, PlatformError>",
+    "export function bluetoothGattSubscribe(handle: BluetoothDeviceHandle, characteristicId: string): Result<BluetoothSubscriptionHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
@@ -6358,7 +7522,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE: BindingDescriptor = BindingD
 /// Binding descriptor for destack.device.bluetooth.gatt.write.
 pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.write",
-    "export function bluetoothGattWrite(handle: BluetoothDeviceHandle, serviceUuid: string, characteristicUuid: string, value: Slice<uint8>, mode: BluetoothGattWriteMode, timeoutNs: uint64): Result<void, PlatformError>",
+    "export function bluetoothGattWrite(handle: BluetoothDeviceHandle, characteristicId: string, value: Slice<uint8>, mode: BluetoothGattWriteMode, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
@@ -6372,7 +7536,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE: BindingDescriptor = BindingDescrip
 /// Binding descriptor for destack.device.bluetooth.gatt.writeDescriptor.
 pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.bluetooth.gatt.writeDescriptor",
-    "export function bluetoothGattWriteDescriptor(handle: BluetoothDeviceHandle, serviceUuid: string, characteristicUuid: string, descriptorUuid: string, value: Slice<uint8>, timeoutNs: uint64): Result<void, PlatformError>",
+    "export function bluetoothGattWriteDescriptor(handle: BluetoothDeviceHandle, descriptorId: string, value: Slice<uint8>, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
@@ -6663,6 +7827,34 @@ pub(crate) const DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST: BindingDescriptor = Bi
     .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.device.camera.stream.brightness.
+pub(crate) const DEVICE_CAMERA_STREAM_BRIGHTNESS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.brightness",
+    "export function cameraStreamBrightness(handle: CameraStreamHandle): Result<float64, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.brightnessRange.
+pub(crate) const DEVICE_CAMERA_STREAM_BRIGHTNESS_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.brightnessRange",
+    "export function cameraStreamBrightnessRange(handle: CameraStreamHandle): Result<CameraFloatControlRange, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.device.camera.stream.close.
 pub(crate) const DEVICE_CAMERA_STREAM_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.close",
@@ -6684,6 +7876,34 @@ pub(crate) const DEVICE_CAMERA_STREAM_CONFIG: BindingDescriptor = BindingDescrip
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.contrast.
+pub(crate) const DEVICE_CAMERA_STREAM_CONTRAST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.contrast",
+    "export function cameraStreamContrast(handle: CameraStreamHandle): Result<float64, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.contrastRange.
+pub(crate) const DEVICE_CAMERA_STREAM_CONTRAST_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.contrastRange",
+    "export function cameraStreamContrastRange(handle: CameraStreamHandle): Result<CameraFloatControlRange, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
     BindingAffinity::Any,
@@ -6733,6 +7953,34 @@ pub(crate) const DEVICE_CAMERA_STREAM_EXPOSURE_MODE: BindingDescriptor = Binding
     .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.device.camera.stream.exposureTimeNs.
+pub(crate) const DEVICE_CAMERA_STREAM_EXPOSURE_TIME_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.exposureTimeNs",
+    "export function cameraStreamExposureTimeNs(handle: CameraStreamHandle): Result<uint64, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.exposureTimeRange.
+pub(crate) const DEVICE_CAMERA_STREAM_EXPOSURE_TIME_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.exposureTimeRange",
+    "export function cameraStreamExposureTimeRange(handle: CameraStreamHandle): Result<CameraExposureTimeRange, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.device.camera.stream.focusDistanceDiopters.
 pub(crate) const DEVICE_CAMERA_STREAM_FOCUS_DISTANCE_DIOPTERS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.focusDistanceDiopters",
@@ -6761,6 +8009,20 @@ pub(crate) const DEVICE_CAMERA_STREAM_FOCUS_DISTANCE_RANGE: BindingDescriptor = 
     .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.device.camera.stream.focusMode.
+pub(crate) const DEVICE_CAMERA_STREAM_FOCUS_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.focusMode",
+    "export function cameraStreamFocusMode(handle: CameraStreamHandle): Result<CameraFocusMode, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.device.camera.stream.open.
 pub(crate) const DEVICE_CAMERA_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.open",
@@ -6775,6 +8037,34 @@ pub(crate) const DEVICE_CAMERA_STREAM_OPEN: BindingDescriptor = BindingDescripto
     .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.device.camera.stream.panDegrees.
+pub(crate) const DEVICE_CAMERA_STREAM_PAN_DEGREES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.panDegrees",
+    "export function cameraStreamPanDegrees(handle: CameraStreamHandle): Result<float64, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.panRange.
+pub(crate) const DEVICE_CAMERA_STREAM_PAN_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.panRange",
+    "export function cameraStreamPanRange(handle: CameraStreamHandle): Result<CameraPanAngleRange, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.device.camera.stream.read.
 pub(crate) const DEVICE_CAMERA_STREAM_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.read",
@@ -6782,6 +8072,90 @@ pub(crate) const DEVICE_CAMERA_STREAM_READ: BindingDescriptor = BindingDescripto
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.saturation.
+pub(crate) const DEVICE_CAMERA_STREAM_SATURATION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.saturation",
+    "export function cameraStreamSaturation(handle: CameraStreamHandle): Result<float64, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.saturationRange.
+pub(crate) const DEVICE_CAMERA_STREAM_SATURATION_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.saturationRange",
+    "export function cameraStreamSaturationRange(handle: CameraStreamHandle): Result<CameraFloatControlRange, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.sensorIso.
+pub(crate) const DEVICE_CAMERA_STREAM_SENSOR_ISO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.sensorIso",
+    "export function cameraStreamSensorIso(handle: CameraStreamHandle): Result<uint32, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.sensorIsoRange.
+pub(crate) const DEVICE_CAMERA_STREAM_SENSOR_ISO_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.sensorIsoRange",
+    "export function cameraStreamSensorIsoRange(handle: CameraStreamHandle): Result<CameraSensorIsoRange, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.setBrightness.
+pub(crate) const DEVICE_CAMERA_STREAM_SET_BRIGHTNESS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.setBrightness",
+    "export function cameraStreamSetBrightness(handle: CameraStreamHandle, value: float64): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.setContrast.
+pub(crate) const DEVICE_CAMERA_STREAM_SET_CONTRAST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.setContrast",
+    "export function cameraStreamSetContrast(handle: CameraStreamHandle, value: float64): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
     BindingAffinity::Any,
@@ -6817,6 +8191,20 @@ pub(crate) const DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE: BindingDescriptor = Bin
     .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.device.camera.stream.setExposureTimeNs.
+pub(crate) const DEVICE_CAMERA_STREAM_SET_EXPOSURE_TIME_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.setExposureTimeNs",
+    "export function cameraStreamSetExposureTimeNs(handle: CameraStreamHandle, valueNs: uint64): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.device.camera.stream.setFocusDistanceDiopters.
 pub(crate) const DEVICE_CAMERA_STREAM_SET_FOCUS_DISTANCE_DIOPTERS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.setFocusDistanceDiopters",
@@ -6831,10 +8219,94 @@ pub(crate) const DEVICE_CAMERA_STREAM_SET_FOCUS_DISTANCE_DIOPTERS: BindingDescri
     .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.device.camera.stream.setFocusMode.
+pub(crate) const DEVICE_CAMERA_STREAM_SET_FOCUS_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.setFocusMode",
+    "export function cameraStreamSetFocusMode(handle: CameraStreamHandle, mode: CameraFocusMode): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.setPanDegrees.
+pub(crate) const DEVICE_CAMERA_STREAM_SET_PAN_DEGREES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.setPanDegrees",
+    "export function cameraStreamSetPanDegrees(handle: CameraStreamHandle, degrees: float64): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.setSaturation.
+pub(crate) const DEVICE_CAMERA_STREAM_SET_SATURATION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.setSaturation",
+    "export function cameraStreamSetSaturation(handle: CameraStreamHandle, value: float64): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.setSensorIso.
+pub(crate) const DEVICE_CAMERA_STREAM_SET_SENSOR_ISO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.setSensorIso",
+    "export function cameraStreamSetSensorIso(handle: CameraStreamHandle, iso: uint32): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.setSharpness.
+pub(crate) const DEVICE_CAMERA_STREAM_SET_SHARPNESS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.setSharpness",
+    "export function cameraStreamSetSharpness(handle: CameraStreamHandle, value: float64): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.device.camera.stream.setStabilizationMode.
 pub(crate) const DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.setStabilizationMode",
     "export function cameraStreamSetStabilizationMode(handle: CameraStreamHandle, mode: CameraStabilizationMode): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.setTiltDegrees.
+pub(crate) const DEVICE_CAMERA_STREAM_SET_TILT_DEGREES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.setTiltDegrees",
+    "export function cameraStreamSetTiltDegrees(handle: CameraStreamHandle, degrees: float64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.control"],
@@ -6873,10 +8345,52 @@ pub(crate) const DEVICE_CAMERA_STREAM_SET_WHITE_BALANCE_KELVIN: BindingDescripto
     .with_namespace("device")
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.device.camera.stream.setWhiteBalanceMode.
+pub(crate) const DEVICE_CAMERA_STREAM_SET_WHITE_BALANCE_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.setWhiteBalanceMode",
+    "export function cameraStreamSetWhiteBalanceMode(handle: CameraStreamHandle, mode: CameraWhiteBalanceMode): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.device.camera.stream.setZoomRatio.
 pub(crate) const DEVICE_CAMERA_STREAM_SET_ZOOM_RATIO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.setZoomRatio",
     "export function cameraStreamSetZoomRatio(handle: CameraStreamHandle, ratio: float64): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.sharpness.
+pub(crate) const DEVICE_CAMERA_STREAM_SHARPNESS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.sharpness",
+    "export function cameraStreamSharpness(handle: CameraStreamHandle): Result<float64, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.sharpnessRange.
+pub(crate) const DEVICE_CAMERA_STREAM_SHARPNESS_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.sharpnessRange",
+    "export function cameraStreamSharpnessRange(handle: CameraStreamHandle): Result<CameraFloatControlRange, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.control"],
@@ -6943,6 +8457,34 @@ pub(crate) const DEVICE_CAMERA_STREAM_STOP: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.device.camera.stream.tiltDegrees.
+pub(crate) const DEVICE_CAMERA_STREAM_TILT_DEGREES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.tiltDegrees",
+    "export function cameraStreamTiltDegrees(handle: CameraStreamHandle): Result<float64, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.tiltRange.
+pub(crate) const DEVICE_CAMERA_STREAM_TILT_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.tiltRange",
+    "export function cameraStreamTiltRange(handle: CameraStreamHandle): Result<CameraTiltAngleRange, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.device.camera.stream.torchMode.
 pub(crate) const DEVICE_CAMERA_STREAM_TORCH_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.torchMode",
@@ -6975,6 +8517,20 @@ pub(crate) const DEVICE_CAMERA_STREAM_TRY_READ: BindingDescriptor = BindingDescr
 pub(crate) const DEVICE_CAMERA_STREAM_WHITE_BALANCE_KELVIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.device.camera.stream.whiteBalanceKelvin",
     "export function cameraStreamWhiteBalanceKelvin(handle: CameraStreamHandle): Result<uint32, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::BindingCall,
+    &["device.camera.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+    BindingAffinity::Any,
+)
+    .with_namespace("device")
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.device.camera.stream.whiteBalanceMode.
+pub(crate) const DEVICE_CAMERA_STREAM_WHITE_BALANCE_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.camera.stream.whiteBalanceMode",
+    "export function cameraStreamWhiteBalanceMode(handle: CameraStreamHandle): Result<CameraWhiteBalanceMode, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.control"],
@@ -7879,11 +9435,6 @@ pub(crate) const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_device_bluetooth_gatt_read_event as *const (),
         ),
         NativeBinding::new(
-            DEVICE_BLUETOOTH_GATT_REQUEST_MTU,
-            "destack.device.bluetooth.gatt.requestMtu",
-            destack_device_bluetooth_gatt_request_mtu as *const (),
-        ),
-        NativeBinding::new(
             DEVICE_BLUETOOTH_GATT_SERVICE_LIST,
             "destack.device.bluetooth.gatt.serviceList",
             destack_device_bluetooth_gatt_service_list as *const (),
@@ -8004,6 +9555,16 @@ pub(crate) const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_device_camera_device_stream_config_list as *const (),
         ),
         NativeBinding::new(
+            DEVICE_CAMERA_STREAM_BRIGHTNESS,
+            "destack.device.camera.stream.brightness",
+            destack_device_camera_stream_brightness as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_BRIGHTNESS_RANGE,
+            "destack.device.camera.stream.brightnessRange",
+            destack_device_camera_stream_brightness_range as *const (),
+        ),
+        NativeBinding::new(
             DEVICE_CAMERA_STREAM_CLOSE,
             "destack.device.camera.stream.close",
             destack_device_camera_stream_close as *const (),
@@ -8012,6 +9573,16 @@ pub(crate) const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             DEVICE_CAMERA_STREAM_CONFIG,
             "destack.device.camera.stream.config",
             destack_device_camera_stream_config as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_CONTRAST,
+            "destack.device.camera.stream.contrast",
+            destack_device_camera_stream_contrast as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_CONTRAST_RANGE,
+            "destack.device.camera.stream.contrastRange",
+            destack_device_camera_stream_contrast_range as *const (),
         ),
         NativeBinding::new(
             DEVICE_CAMERA_STREAM_EXPOSURE_COMPENSATION,
@@ -8029,6 +9600,16 @@ pub(crate) const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_device_camera_stream_exposure_mode as *const (),
         ),
         NativeBinding::new(
+            DEVICE_CAMERA_STREAM_EXPOSURE_TIME_NS,
+            "destack.device.camera.stream.exposureTimeNs",
+            destack_device_camera_stream_exposure_time_ns as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_EXPOSURE_TIME_RANGE,
+            "destack.device.camera.stream.exposureTimeRange",
+            destack_device_camera_stream_exposure_time_range as *const (),
+        ),
+        NativeBinding::new(
             DEVICE_CAMERA_STREAM_FOCUS_DISTANCE_DIOPTERS,
             "destack.device.camera.stream.focusDistanceDiopters",
             destack_device_camera_stream_focus_distance_diopters as *const (),
@@ -8039,14 +9620,59 @@ pub(crate) const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_device_camera_stream_focus_distance_range as *const (),
         ),
         NativeBinding::new(
+            DEVICE_CAMERA_STREAM_FOCUS_MODE,
+            "destack.device.camera.stream.focusMode",
+            destack_device_camera_stream_focus_mode as *const (),
+        ),
+        NativeBinding::new(
             DEVICE_CAMERA_STREAM_OPEN,
             "destack.device.camera.stream.open",
             destack_device_camera_stream_open as *const (),
         ),
         NativeBinding::new(
+            DEVICE_CAMERA_STREAM_PAN_DEGREES,
+            "destack.device.camera.stream.panDegrees",
+            destack_device_camera_stream_pan_degrees as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_PAN_RANGE,
+            "destack.device.camera.stream.panRange",
+            destack_device_camera_stream_pan_range as *const (),
+        ),
+        NativeBinding::new(
             DEVICE_CAMERA_STREAM_READ,
             "destack.device.camera.stream.read",
             destack_device_camera_stream_read as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SATURATION,
+            "destack.device.camera.stream.saturation",
+            destack_device_camera_stream_saturation as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SATURATION_RANGE,
+            "destack.device.camera.stream.saturationRange",
+            destack_device_camera_stream_saturation_range as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SENSOR_ISO,
+            "destack.device.camera.stream.sensorIso",
+            destack_device_camera_stream_sensor_iso as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SENSOR_ISO_RANGE,
+            "destack.device.camera.stream.sensorIsoRange",
+            destack_device_camera_stream_sensor_iso_range as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SET_BRIGHTNESS,
+            "destack.device.camera.stream.setBrightness",
+            destack_device_camera_stream_set_brightness as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SET_CONTRAST,
+            "destack.device.camera.stream.setContrast",
+            destack_device_camera_stream_set_contrast as *const (),
         ),
         NativeBinding::new(
             DEVICE_CAMERA_STREAM_SET_EXPOSURE_COMPENSATION,
@@ -8059,14 +9685,49 @@ pub(crate) const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_device_camera_stream_set_exposure_mode as *const (),
         ),
         NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SET_EXPOSURE_TIME_NS,
+            "destack.device.camera.stream.setExposureTimeNs",
+            destack_device_camera_stream_set_exposure_time_ns as *const (),
+        ),
+        NativeBinding::new(
             DEVICE_CAMERA_STREAM_SET_FOCUS_DISTANCE_DIOPTERS,
             "destack.device.camera.stream.setFocusDistanceDiopters",
             destack_device_camera_stream_set_focus_distance_diopters as *const (),
         ),
         NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SET_FOCUS_MODE,
+            "destack.device.camera.stream.setFocusMode",
+            destack_device_camera_stream_set_focus_mode as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SET_PAN_DEGREES,
+            "destack.device.camera.stream.setPanDegrees",
+            destack_device_camera_stream_set_pan_degrees as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SET_SATURATION,
+            "destack.device.camera.stream.setSaturation",
+            destack_device_camera_stream_set_saturation as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SET_SENSOR_ISO,
+            "destack.device.camera.stream.setSensorIso",
+            destack_device_camera_stream_set_sensor_iso as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SET_SHARPNESS,
+            "destack.device.camera.stream.setSharpness",
+            destack_device_camera_stream_set_sharpness as *const (),
+        ),
+        NativeBinding::new(
             DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE,
             "destack.device.camera.stream.setStabilizationMode",
             destack_device_camera_stream_set_stabilization_mode as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SET_TILT_DEGREES,
+            "destack.device.camera.stream.setTiltDegrees",
+            destack_device_camera_stream_set_tilt_degrees as *const (),
         ),
         NativeBinding::new(
             DEVICE_CAMERA_STREAM_SET_TORCH_MODE,
@@ -8079,9 +9740,24 @@ pub(crate) const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_device_camera_stream_set_white_balance_kelvin as *const (),
         ),
         NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SET_WHITE_BALANCE_MODE,
+            "destack.device.camera.stream.setWhiteBalanceMode",
+            destack_device_camera_stream_set_white_balance_mode as *const (),
+        ),
+        NativeBinding::new(
             DEVICE_CAMERA_STREAM_SET_ZOOM_RATIO,
             "destack.device.camera.stream.setZoomRatio",
             destack_device_camera_stream_set_zoom_ratio as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SHARPNESS,
+            "destack.device.camera.stream.sharpness",
+            destack_device_camera_stream_sharpness as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_SHARPNESS_RANGE,
+            "destack.device.camera.stream.sharpnessRange",
+            destack_device_camera_stream_sharpness_range as *const (),
         ),
         NativeBinding::new(
             DEVICE_CAMERA_STREAM_STABILIZATION_MODE,
@@ -8099,6 +9775,16 @@ pub(crate) const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_device_camera_stream_stop as *const (),
         ),
         NativeBinding::new(
+            DEVICE_CAMERA_STREAM_TILT_DEGREES,
+            "destack.device.camera.stream.tiltDegrees",
+            destack_device_camera_stream_tilt_degrees as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_TILT_RANGE,
+            "destack.device.camera.stream.tiltRange",
+            destack_device_camera_stream_tilt_range as *const (),
+        ),
+        NativeBinding::new(
             DEVICE_CAMERA_STREAM_TORCH_MODE,
             "destack.device.camera.stream.torchMode",
             destack_device_camera_stream_torch_mode as *const (),
@@ -8112,6 +9798,11 @@ pub(crate) const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             DEVICE_CAMERA_STREAM_WHITE_BALANCE_KELVIN,
             "destack.device.camera.stream.whiteBalanceKelvin",
             destack_device_camera_stream_white_balance_kelvin as *const (),
+        ),
+        NativeBinding::new(
+            DEVICE_CAMERA_STREAM_WHITE_BALANCE_MODE,
+            "destack.device.camera.stream.whiteBalanceMode",
+            destack_device_camera_stream_white_balance_mode as *const (),
         ),
         NativeBinding::new(
             DEVICE_CAMERA_STREAM_WHITE_BALANCE_RANGE,
@@ -8514,23 +10205,24 @@ fn destack_device_bluetooth_gatt_characteristic_list_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<BluetoothGattCharacteristicDescriptor>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
+    serviceid: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &serviceuuid);
+    let _ = (&handle, &serviceid);
 
     binding.trace().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_device_bluetooth_gatt_characteristic_list(binding, out, handle, serviceuuid) },
-            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_bluetooth_gatt_characteristic_list(binding, out, handle, serviceuuid) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_device_bluetooth_gatt_characteristic_list(binding, out, handle, serviceid) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_device_bluetooth_gatt_characteristic_list(binding, out, handle, serviceid) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<BluetoothGattCharacteristicDescriptor> = unsafe { out.read() };
                 let mut result_recorded = Vec::new();
                 for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
-                    let result_recorded_item_recorded_service_uuid = unsafe { result_recorded_item.service_uuid.as_str()? }.to_string();
+                    let result_recorded_item_recorded_id = unsafe { result_recorded_item.id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_service_id = unsafe { result_recorded_item.service_id.as_str()? }.to_string();
                     let result_recorded_item_recorded_uuid = unsafe { result_recorded_item.uuid.as_str()? }.to_string();
                     let result_recorded_item_recorded_properties_broadcast = result_recorded_item.properties.broadcast;
                     let result_recorded_item_recorded_properties_read = result_recorded_item.properties.read;
@@ -8553,7 +10245,8 @@ fn destack_device_bluetooth_gatt_characteristic_list_replay(
                         writable_auxiliaries: result_recorded_item_recorded_properties_writable_auxiliaries,
                     };
                     let result_recorded_item_recorded = BluetoothgattcharacteristicdescriptorReplayRecord {
-                        service_uuid: result_recorded_item_recorded_service_uuid,
+                        id: result_recorded_item_recorded_id,
+                        service_id: result_recorded_item_recorded_service_id,
                         uuid: result_recorded_item_recorded_uuid,
                         properties: result_recorded_item_recorded_properties,
                     };
@@ -8583,7 +10276,8 @@ fn destack_device_bluetooth_gatt_characteristic_list_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::new();
                     for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_service_uuid = binding.store_string(value_native_item.service_uuid.as_str());
+                        let value_native_decoded_id = binding.store_string(value_native_item.id.as_str());
+                        let value_native_decoded_service_id = binding.store_string(value_native_item.service_id.as_str());
                         let value_native_decoded_uuid = binding.store_string(value_native_item.uuid.as_str());
                         let value_native_decoded_properties_broadcast = value_native_item.properties.broadcast;
                         let value_native_decoded_properties_read = value_native_item.properties.read;
@@ -8606,7 +10300,8 @@ fn destack_device_bluetooth_gatt_characteristic_list_replay(
                             writable_auxiliaries: value_native_decoded_properties_writable_auxiliaries,
                         };
                         let value_native_decoded = BluetoothGattCharacteristicDescriptor {
-                            service_uuid: value_native_decoded_service_uuid,
+                            id: value_native_decoded_id,
+                            service_id: value_native_decoded_service_id,
                             uuid: value_native_decoded_uuid,
                             properties: value_native_decoded_properties,
                         };
@@ -8628,10 +10323,9 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<BluetoothGattDescriptorDescriptor>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
-    characteristicuuid: NativeStringRef,
+    characteristicid: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &serviceuuid, &characteristicuuid);
+    let _ = (&handle, &characteristicid);
 
     binding.trace().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST,
@@ -8642,8 +10336,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
                     binding,
                     out,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
+                    characteristicid,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
@@ -8651,8 +10344,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
                     binding,
                     out,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
+                    characteristicid,
                 )
             },
         },
@@ -8662,16 +10354,19 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
                     unsafe { out.read() };
                 let mut result_recorded = Vec::new();
                 for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
-                    let result_recorded_item_recorded_service_uuid =
-                        unsafe { result_recorded_item.service_uuid.as_str()? }.to_string();
-                    let result_recorded_item_recorded_characteristic_uuid =
-                        unsafe { result_recorded_item.characteristic_uuid.as_str()? }.to_string();
+                    let result_recorded_item_recorded_id =
+                        unsafe { result_recorded_item.id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_service_id =
+                        unsafe { result_recorded_item.service_id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_characteristic_id =
+                        unsafe { result_recorded_item.characteristic_id.as_str()? }.to_string();
                     let result_recorded_item_recorded_uuid =
                         unsafe { result_recorded_item.uuid.as_str()? }.to_string();
                     let result_recorded_item_recorded =
                         BluetoothgattdescriptordescriptorReplayRecord {
-                            service_uuid: result_recorded_item_recorded_service_uuid,
-                            characteristic_uuid: result_recorded_item_recorded_characteristic_uuid,
+                            id: result_recorded_item_recorded_id,
+                            service_id: result_recorded_item_recorded_service_id,
+                            characteristic_id: result_recorded_item_recorded_characteristic_id,
                             uuid: result_recorded_item_recorded_uuid,
                         };
                     result_recorded.push(result_recorded_item_recorded);
@@ -8698,15 +10393,18 @@ fn destack_device_bluetooth_gatt_descriptor_list_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::new();
                     for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_service_uuid =
-                            binding.store_string(value_native_item.service_uuid.as_str());
-                        let value_native_decoded_characteristic_uuid =
-                            binding.store_string(value_native_item.characteristic_uuid.as_str());
+                        let value_native_decoded_id =
+                            binding.store_string(value_native_item.id.as_str());
+                        let value_native_decoded_service_id =
+                            binding.store_string(value_native_item.service_id.as_str());
+                        let value_native_decoded_characteristic_id =
+                            binding.store_string(value_native_item.characteristic_id.as_str());
                         let value_native_decoded_uuid =
                             binding.store_string(value_native_item.uuid.as_str());
                         let value_native_decoded = BluetoothGattDescriptorDescriptor {
-                            service_uuid: value_native_decoded_service_uuid,
-                            characteristic_uuid: value_native_decoded_characteristic_uuid,
+                            id: value_native_decoded_id,
+                            service_id: value_native_decoded_service_id,
+                            characteristic_id: value_native_decoded_characteristic_id,
                             uuid: value_native_decoded_uuid,
                         };
                         value_native_values.push(value_native_decoded);
@@ -8780,11 +10478,10 @@ fn destack_device_bluetooth_gatt_read_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
-    characteristicuuid: NativeStringRef,
+    characteristicid: NativeStringRef,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &serviceuuid, &characteristicuuid, &timeoutns);
+    let _ = (&handle, &characteristicid, &timeoutns);
 
     binding.trace().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_READ,
@@ -8795,8 +10492,7 @@ fn destack_device_bluetooth_gatt_read_replay(
                     binding,
                     out,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
+                    characteristicid,
                     timeoutns,
                 )
             },
@@ -8805,8 +10501,7 @@ fn destack_device_bluetooth_gatt_read_replay(
                     binding,
                     out,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
+                    characteristicid,
                     timeoutns,
                 )
             },
@@ -8860,18 +10555,10 @@ fn destack_device_bluetooth_gatt_read_descriptor_replay(
     world: RuntimeWorld,
     out: *mut NativeSlice<u8>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
-    characteristicuuid: NativeStringRef,
-    descriptoruuid: NativeStringRef,
+    descriptorid: NativeStringRef,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (
-        &handle,
-        &serviceuuid,
-        &characteristicuuid,
-        &descriptoruuid,
-        &timeoutns,
-    );
+    let _ = (&handle, &descriptorid, &timeoutns);
 
     binding.trace().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR,
@@ -8882,9 +10569,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_replay(
                     binding,
                     out,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
-                    descriptoruuid,
+                    descriptorid,
                     timeoutns,
                 )
             },
@@ -8893,9 +10578,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_replay(
                     binding,
                     out,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
-                    descriptoruuid,
+                    descriptorid,
                     timeoutns,
                 )
             },
@@ -8972,6 +10655,10 @@ fn destack_device_bluetooth_gatt_read_event_replay(
             if let Ok(()) = result {
                 let result_value: BluetoothGattValueEvent = unsafe { out.read() };
                 let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_service_id =
+                    unsafe { result_value.service_id.as_str()? }.to_string();
+                let result_recorded_characteristic_id =
+                    unsafe { result_value.characteristic_id.as_str()? }.to_string();
                 let result_recorded_service_uuid =
                     unsafe { result_value.service_uuid.as_str()? }.to_string();
                 let result_recorded_characteristic_uuid =
@@ -8985,6 +10672,8 @@ fn destack_device_bluetooth_gatt_read_event_replay(
                 }
                 let result_recorded = BluetoothgattvalueeventReplayRecord {
                     timestamp_ns: result_recorded_timestamp_ns,
+                    service_id: result_recorded_service_id,
+                    characteristic_id: result_recorded_characteristic_id,
                     service_uuid: result_recorded_service_uuid,
                     characteristic_uuid: result_recorded_characteristic_uuid,
                     value: result_recorded_value,
@@ -9010,6 +10699,9 @@ fn destack_device_bluetooth_gatt_read_event_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_service_id = binding.store_string(value.service_id.as_str());
+                    let value_native_characteristic_id =
+                        binding.store_string(value.characteristic_id.as_str());
                     let value_native_service_uuid =
                         binding.store_string(value.service_uuid.as_str());
                     let value_native_characteristic_uuid =
@@ -9022,70 +10714,13 @@ fn destack_device_bluetooth_gatt_read_event_replay(
                     let value_native_value = binding.store_slice(value_native_value_values);
                     let value_native = BluetoothGattValueEvent {
                         timestamp_ns: value_native_timestamp_ns,
+                        service_id: value_native_service_id,
+                        characteristic_id: value_native_characteristic_id,
                         service_uuid: value_native_service_uuid,
                         characteristic_uuid: value_native_characteristic_uuid,
                         value: value_native_value,
                     };
                     unsafe { out.write(value_native) };
-                    Ok(())
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    )
-}
-
-#[inline]
-fn destack_device_bluetooth_gatt_request_mtu_replay(
-    binding: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut u16,
-    handle: resource::BluetoothDeviceHandle,
-    mtu: u16,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    let _ = (&handle, &mtu, &timeoutns);
-
-    binding.trace().run_binding_without_context(
-        DEVICE_BLUETOOTH_GATT_REQUEST_MTU,
-        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_device_bluetooth_gatt_request_mtu(
-                    binding, out, handle, mtu, timeoutns,
-                )
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_device_bluetooth_gatt_request_mtu(
-                    binding, out, handle, mtu, timeoutns,
-                )
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value: u16 = unsafe { out.read() };
-                let result_recorded = result_value;
-                let payload = DeviceBluetoothGattRequestMtuReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    DeviceBluetoothGattRequestMtuReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    unsafe { out.write(value) };
                     Ok(())
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -9122,13 +10757,30 @@ fn destack_device_bluetooth_gatt_service_list_replay(
                     unsafe { out.read() };
                 let mut result_recorded = Vec::new();
                 for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                    let result_recorded_item_recorded_id =
+                        unsafe { result_recorded_item.id.as_str()? }.to_string();
                     let result_recorded_item_recorded_uuid =
                         unsafe { result_recorded_item.uuid.as_str()? }.to_string();
                     let result_recorded_item_recorded_primary = result_recorded_item.primary;
+                    let mut result_recorded_item_recorded_included_service_ids = Vec::new();
+                    for result_recorded_item_recorded_included_service_ids_item in
+                        unsafe { result_recorded_item.included_service_ids.as_slice()? }.iter()
+                    {
+                        let result_recorded_item_recorded_included_service_ids_item_recorded =
+                            unsafe {
+                                result_recorded_item_recorded_included_service_ids_item.as_str()?
+                            }
+                            .to_string();
+                        result_recorded_item_recorded_included_service_ids
+                            .push(result_recorded_item_recorded_included_service_ids_item_recorded);
+                    }
                     let result_recorded_item_recorded =
                         BluetoothgattservicedescriptorReplayRecord {
+                            id: result_recorded_item_recorded_id,
                             uuid: result_recorded_item_recorded_uuid,
                             primary: result_recorded_item_recorded_primary,
+                            included_service_ids:
+                                result_recorded_item_recorded_included_service_ids,
                         };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -9154,12 +10806,29 @@ fn destack_device_bluetooth_gatt_service_list_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::new();
                     for value_native_item in value.iter().cloned() {
+                        let value_native_decoded_id =
+                            binding.store_string(value_native_item.id.as_str());
                         let value_native_decoded_uuid =
                             binding.store_string(value_native_item.uuid.as_str());
                         let value_native_decoded_primary = value_native_item.primary;
+                        let mut value_native_decoded_included_service_ids_values = Vec::new();
+                        for value_native_decoded_included_service_ids_item in
+                            value_native_item.included_service_ids.iter()
+                        {
+                            let value_native_decoded_included_service_ids_decoded = binding
+                                .store_string(
+                                    value_native_decoded_included_service_ids_item.as_str(),
+                                );
+                            value_native_decoded_included_service_ids_values
+                                .push(value_native_decoded_included_service_ids_decoded);
+                        }
+                        let value_native_decoded_included_service_ids =
+                            binding.store_array(value_native_decoded_included_service_ids_values);
                         let value_native_decoded = BluetoothGattServiceDescriptor {
+                            id: value_native_decoded_id,
                             uuid: value_native_decoded_uuid,
                             primary: value_native_decoded_primary,
+                            included_service_ids: value_native_decoded_included_service_ids,
                         };
                         value_native_values.push(value_native_decoded);
                     }
@@ -9179,10 +10848,9 @@ fn destack_device_bluetooth_gatt_subscribe_replay(
     world: RuntimeWorld,
     out: *mut resource::BluetoothSubscriptionHandle,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
-    characteristicuuid: NativeStringRef,
+    characteristicid: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &serviceuuid, &characteristicuuid);
+    let _ = (&handle, &characteristicid);
 
     binding.trace().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_SUBSCRIBE,
@@ -9193,8 +10861,7 @@ fn destack_device_bluetooth_gatt_subscribe_replay(
                     binding,
                     out,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
+                    characteristicid,
                 )
             },
             RuntimeWorld::Simulation => unsafe {
@@ -9202,8 +10869,7 @@ fn destack_device_bluetooth_gatt_subscribe_replay(
                     binding,
                     out,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
+                    characteristicid,
                 )
             },
         },
@@ -9266,6 +10932,10 @@ fn destack_device_bluetooth_gatt_try_read_event_replay(
             if let Ok(()) = result {
                 let result_value: BluetoothGattValueEvent = unsafe { out.read() };
                 let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_service_id =
+                    unsafe { result_value.service_id.as_str()? }.to_string();
+                let result_recorded_characteristic_id =
+                    unsafe { result_value.characteristic_id.as_str()? }.to_string();
                 let result_recorded_service_uuid =
                     unsafe { result_value.service_uuid.as_str()? }.to_string();
                 let result_recorded_characteristic_uuid =
@@ -9279,6 +10949,8 @@ fn destack_device_bluetooth_gatt_try_read_event_replay(
                 }
                 let result_recorded = BluetoothgattvalueeventReplayRecord {
                     timestamp_ns: result_recorded_timestamp_ns,
+                    service_id: result_recorded_service_id,
+                    characteristic_id: result_recorded_characteristic_id,
                     service_uuid: result_recorded_service_uuid,
                     characteristic_uuid: result_recorded_characteristic_uuid,
                     value: result_recorded_value,
@@ -9304,6 +10976,9 @@ fn destack_device_bluetooth_gatt_try_read_event_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_service_id = binding.store_string(value.service_id.as_str());
+                    let value_native_characteristic_id =
+                        binding.store_string(value.characteristic_id.as_str());
                     let value_native_service_uuid =
                         binding.store_string(value.service_uuid.as_str());
                     let value_native_characteristic_uuid =
@@ -9316,6 +10991,8 @@ fn destack_device_bluetooth_gatt_try_read_event_replay(
                     let value_native_value = binding.store_slice(value_native_value_values);
                     let value_native = BluetoothGattValueEvent {
                         timestamp_ns: value_native_timestamp_ns,
+                        service_id: value_native_service_id,
+                        characteristic_id: value_native_characteristic_id,
                         service_uuid: value_native_service_uuid,
                         characteristic_uuid: value_native_characteristic_uuid,
                         value: value_native_value,
@@ -9384,16 +11061,14 @@ fn destack_device_bluetooth_gatt_write_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
-    characteristicuuid: NativeStringRef,
+    characteristicid: NativeStringRef,
     argument_value: NativeSlice<u8>,
     mode: BluetoothGattWriteMode,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (
         &handle,
-        &serviceuuid,
-        &characteristicuuid,
+        &characteristicid,
         &argument_value,
         &mode,
         &timeoutns,
@@ -9407,8 +11082,7 @@ fn destack_device_bluetooth_gatt_write_replay(
                 platform_native::destack_device_bluetooth_gatt_write(
                     binding,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
+                    characteristicid,
                     argument_value,
                     mode,
                     timeoutns,
@@ -9418,8 +11092,7 @@ fn destack_device_bluetooth_gatt_write_replay(
                 platform_simulation_native::destack_device_bluetooth_gatt_write(
                     binding,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
+                    characteristicid,
                     argument_value,
                     mode,
                     timeoutns,
@@ -9460,20 +11133,11 @@ fn destack_device_bluetooth_gatt_write_descriptor_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
-    characteristicuuid: NativeStringRef,
-    descriptoruuid: NativeStringRef,
+    descriptorid: NativeStringRef,
     argument_value: NativeSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (
-        &handle,
-        &serviceuuid,
-        &characteristicuuid,
-        &descriptoruuid,
-        &argument_value,
-        &timeoutns,
-    );
+    let _ = (&handle, &descriptorid, &argument_value, &timeoutns);
 
     binding.trace().run_binding_without_context(
         DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR,
@@ -9483,9 +11147,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_replay(
                 platform_native::destack_device_bluetooth_gatt_write_descriptor(
                     binding,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
-                    descriptoruuid,
+                    descriptorid,
                     argument_value,
                     timeoutns,
                 )
@@ -9494,9 +11156,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_replay(
                 platform_simulation_native::destack_device_bluetooth_gatt_write_descriptor(
                     binding,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
-                    descriptoruuid,
+                    descriptorid,
                     argument_value,
                     timeoutns,
                 )
@@ -9656,7 +11316,12 @@ fn destack_device_bluetooth_scan_read_replay(
             if let Ok(()) = result {
                 let result_value: BluetoothDeviceDescriptor = unsafe { out.read() };
                 let result_recorded_id = unsafe { result_value.id.as_str()? }.to_string();
-                let result_recorded_address = unsafe { result_value.address.as_str()? }.to_string();
+                let result_recorded_address = if let Some(value) = result_value.address {
+                    let result_recorded_address_inner = unsafe { value.as_str()? }.to_string();
+                    Some(result_recorded_address_inner)
+                } else {
+                    None
+                };
                 let result_recorded_name = if let Some(value) = result_value.name {
                     let result_recorded_name_inner = unsafe { value.as_str()? }.to_string();
                     Some(result_recorded_name_inner)
@@ -9669,10 +11334,25 @@ fn destack_device_bluetooth_scan_read_replay(
                 } else {
                     None
                 };
-                let result_recorded_paired = result_value.paired;
-                let result_recorded_pair_state = result_value.pair_state;
+                let result_recorded_paired = if let Some(value) = result_value.paired {
+                    let result_recorded_paired_inner = value;
+                    Some(result_recorded_paired_inner)
+                } else {
+                    None
+                };
+                let result_recorded_pair_state = if let Some(value) = result_value.pair_state {
+                    let result_recorded_pair_state_inner = value;
+                    Some(result_recorded_pair_state_inner)
+                } else {
+                    None
+                };
                 let result_recorded_connected = result_value.connected;
-                let result_recorded_connectable = result_value.connectable;
+                let result_recorded_connectable = if let Some(value) = result_value.connectable {
+                    let result_recorded_connectable_inner = value;
+                    Some(result_recorded_connectable_inner)
+                } else {
+                    None
+                };
                 let result_recorded_transport = if let Some(value) = result_value.transport {
                     let result_recorded_transport_inner = value;
                     Some(result_recorded_transport_inner)
@@ -9766,7 +11446,12 @@ fn destack_device_bluetooth_scan_read_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_id = binding.store_string(value.id.as_str());
-                    let value_native_address = binding.store_string(value.address.as_str());
+                    let value_native_address = if let Some(value) = value.address {
+                        let value_native_address_inner = binding.store_string(value.as_str());
+                        Some(value_native_address_inner)
+                    } else {
+                        None
+                    };
                     let value_native_name = if let Some(value) = value.name {
                         let value_native_name_inner = binding.store_string(value.as_str());
                         Some(value_native_name_inner)
@@ -9779,10 +11464,25 @@ fn destack_device_bluetooth_scan_read_replay(
                     } else {
                         None
                     };
-                    let value_native_paired = value.paired;
-                    let value_native_pair_state = value.pair_state;
+                    let value_native_paired = if let Some(value) = value.paired {
+                        let value_native_paired_inner = value;
+                        Some(value_native_paired_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_pair_state = if let Some(value) = value.pair_state {
+                        let value_native_pair_state_inner = value;
+                        Some(value_native_pair_state_inner)
+                    } else {
+                        None
+                    };
                     let value_native_connected = value.connected;
-                    let value_native_connectable = value.connectable;
+                    let value_native_connectable = if let Some(value) = value.connectable {
+                        let value_native_connectable_inner = value;
+                        Some(value_native_connectable_inner)
+                    } else {
+                        None
+                    };
                     let value_native_transport = if let Some(value) = value.transport {
                         let value_native_transport_inner = value;
                         Some(value_native_transport_inner)
@@ -9893,7 +11593,12 @@ fn destack_device_bluetooth_scan_read_event_replay(
                         let result_recorded_bluetooth_scan_discovered_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_bluetooth_scan_discovered_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_id = unsafe { value.metadata.device.id.as_str()? }.to_string();
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_address = unsafe { value.metadata.device.address.as_str()? }.to_string();
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_address_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_address_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_name_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_name_inner)
@@ -9906,10 +11611,25 @@ fn destack_device_bluetooth_scan_read_event_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_paired = value.metadata.device.paired;
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_paired_inner = value;
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_paired_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state_inner = value;
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_connected = value.metadata.device.connected;
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable = value.metadata.device.connectable;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable_inner = value;
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_transport_inner = value;
                             Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_transport_inner)
@@ -9996,7 +11716,12 @@ fn destack_device_bluetooth_scan_read_event_replay(
                         let result_recorded_bluetooth_scan_lost_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_bluetooth_scan_lost_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_id = unsafe { value.metadata.device.id.as_str()? }.to_string();
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_address = unsafe { value.metadata.device.address.as_str()? }.to_string();
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_address_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_address_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_name_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_bluetooth_scan_lost_event_metadata_device_name_inner)
@@ -10009,10 +11734,25 @@ fn destack_device_bluetooth_scan_read_event_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_paired = value.metadata.device.paired;
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_paired_inner = value;
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_paired_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state_inner = value;
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_connected = value.metadata.device.connected;
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_connectable = value.metadata.device.connectable;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_connectable_inner = value;
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_connectable_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_transport_inner = value;
                             Some(result_recorded_bluetooth_scan_lost_event_metadata_device_transport_inner)
@@ -10099,7 +11839,12 @@ fn destack_device_bluetooth_scan_read_event_replay(
                         let result_recorded_bluetooth_scan_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_bluetooth_scan_updated_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_id = unsafe { value.metadata.device.id.as_str()? }.to_string();
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_address = unsafe { value.metadata.device.address.as_str()? }.to_string();
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_address_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_address_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_name_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_bluetooth_scan_updated_event_metadata_device_name_inner)
@@ -10112,10 +11857,25 @@ fn destack_device_bluetooth_scan_read_event_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_paired = value.metadata.device.paired;
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_paired_inner = value;
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_paired_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state_inner = value;
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_connected = value.metadata.device.connected;
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_connectable = value.metadata.device.connectable;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_connectable_inner = value;
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_connectable_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_transport_inner = value;
                             Some(result_recorded_bluetooth_scan_updated_event_metadata_device_transport_inner)
@@ -10226,7 +11986,12 @@ fn destack_device_bluetooth_scan_read_event_replay(
                             let value_native_bluetooth_scan_discovered_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_bluetooth_scan_discovered_event_metadata_sequence = value.metadata.sequence;
                             let value_native_bluetooth_scan_discovered_event_metadata_device_id = binding.store_string(value.metadata.device.id.as_str());
-                            let value_native_bluetooth_scan_discovered_event_metadata_device_address = binding.store_string(value.metadata.device.address.as_str());
+                            let value_native_bluetooth_scan_discovered_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                                let value_native_bluetooth_scan_discovered_event_metadata_device_address_inner = binding.store_string(value.as_str());
+                                Some(value_native_bluetooth_scan_discovered_event_metadata_device_address_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_discovered_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                                 let value_native_bluetooth_scan_discovered_event_metadata_device_name_inner = binding.store_string(value.as_str());
                                 Some(value_native_bluetooth_scan_discovered_event_metadata_device_name_inner)
@@ -10239,10 +12004,25 @@ fn destack_device_bluetooth_scan_read_event_replay(
                             } else {
                                 None
                             };
-                            let value_native_bluetooth_scan_discovered_event_metadata_device_paired = value.metadata.device.paired;
-                            let value_native_bluetooth_scan_discovered_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                            let value_native_bluetooth_scan_discovered_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                                let value_native_bluetooth_scan_discovered_event_metadata_device_paired_inner = value;
+                                Some(value_native_bluetooth_scan_discovered_event_metadata_device_paired_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_bluetooth_scan_discovered_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                                let value_native_bluetooth_scan_discovered_event_metadata_device_pair_state_inner = value;
+                                Some(value_native_bluetooth_scan_discovered_event_metadata_device_pair_state_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_discovered_event_metadata_device_connected = value.metadata.device.connected;
-                            let value_native_bluetooth_scan_discovered_event_metadata_device_connectable = value.metadata.device.connectable;
+                            let value_native_bluetooth_scan_discovered_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                                let value_native_bluetooth_scan_discovered_event_metadata_device_connectable_inner = value;
+                                Some(value_native_bluetooth_scan_discovered_event_metadata_device_connectable_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_discovered_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                                 let value_native_bluetooth_scan_discovered_event_metadata_device_transport_inner = value;
                                 Some(value_native_bluetooth_scan_discovered_event_metadata_device_transport_inner)
@@ -10334,7 +12114,12 @@ fn destack_device_bluetooth_scan_read_event_replay(
                             let value_native_bluetooth_scan_lost_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_bluetooth_scan_lost_event_metadata_sequence = value.metadata.sequence;
                             let value_native_bluetooth_scan_lost_event_metadata_device_id = binding.store_string(value.metadata.device.id.as_str());
-                            let value_native_bluetooth_scan_lost_event_metadata_device_address = binding.store_string(value.metadata.device.address.as_str());
+                            let value_native_bluetooth_scan_lost_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                                let value_native_bluetooth_scan_lost_event_metadata_device_address_inner = binding.store_string(value.as_str());
+                                Some(value_native_bluetooth_scan_lost_event_metadata_device_address_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_lost_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                                 let value_native_bluetooth_scan_lost_event_metadata_device_name_inner = binding.store_string(value.as_str());
                                 Some(value_native_bluetooth_scan_lost_event_metadata_device_name_inner)
@@ -10347,10 +12132,25 @@ fn destack_device_bluetooth_scan_read_event_replay(
                             } else {
                                 None
                             };
-                            let value_native_bluetooth_scan_lost_event_metadata_device_paired = value.metadata.device.paired;
-                            let value_native_bluetooth_scan_lost_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                            let value_native_bluetooth_scan_lost_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                                let value_native_bluetooth_scan_lost_event_metadata_device_paired_inner = value;
+                                Some(value_native_bluetooth_scan_lost_event_metadata_device_paired_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_bluetooth_scan_lost_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                                let value_native_bluetooth_scan_lost_event_metadata_device_pair_state_inner = value;
+                                Some(value_native_bluetooth_scan_lost_event_metadata_device_pair_state_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_lost_event_metadata_device_connected = value.metadata.device.connected;
-                            let value_native_bluetooth_scan_lost_event_metadata_device_connectable = value.metadata.device.connectable;
+                            let value_native_bluetooth_scan_lost_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                                let value_native_bluetooth_scan_lost_event_metadata_device_connectable_inner = value;
+                                Some(value_native_bluetooth_scan_lost_event_metadata_device_connectable_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_lost_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                                 let value_native_bluetooth_scan_lost_event_metadata_device_transport_inner = value;
                                 Some(value_native_bluetooth_scan_lost_event_metadata_device_transport_inner)
@@ -10442,7 +12242,12 @@ fn destack_device_bluetooth_scan_read_event_replay(
                             let value_native_bluetooth_scan_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_bluetooth_scan_updated_event_metadata_sequence = value.metadata.sequence;
                             let value_native_bluetooth_scan_updated_event_metadata_device_id = binding.store_string(value.metadata.device.id.as_str());
-                            let value_native_bluetooth_scan_updated_event_metadata_device_address = binding.store_string(value.metadata.device.address.as_str());
+                            let value_native_bluetooth_scan_updated_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                                let value_native_bluetooth_scan_updated_event_metadata_device_address_inner = binding.store_string(value.as_str());
+                                Some(value_native_bluetooth_scan_updated_event_metadata_device_address_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_updated_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                                 let value_native_bluetooth_scan_updated_event_metadata_device_name_inner = binding.store_string(value.as_str());
                                 Some(value_native_bluetooth_scan_updated_event_metadata_device_name_inner)
@@ -10455,10 +12260,25 @@ fn destack_device_bluetooth_scan_read_event_replay(
                             } else {
                                 None
                             };
-                            let value_native_bluetooth_scan_updated_event_metadata_device_paired = value.metadata.device.paired;
-                            let value_native_bluetooth_scan_updated_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                            let value_native_bluetooth_scan_updated_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                                let value_native_bluetooth_scan_updated_event_metadata_device_paired_inner = value;
+                                Some(value_native_bluetooth_scan_updated_event_metadata_device_paired_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_bluetooth_scan_updated_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                                let value_native_bluetooth_scan_updated_event_metadata_device_pair_state_inner = value;
+                                Some(value_native_bluetooth_scan_updated_event_metadata_device_pair_state_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_updated_event_metadata_device_connected = value.metadata.device.connected;
-                            let value_native_bluetooth_scan_updated_event_metadata_device_connectable = value.metadata.device.connectable;
+                            let value_native_bluetooth_scan_updated_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                                let value_native_bluetooth_scan_updated_event_metadata_device_connectable_inner = value;
+                                Some(value_native_bluetooth_scan_updated_event_metadata_device_connectable_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_updated_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                                 let value_native_bluetooth_scan_updated_event_metadata_device_transport_inner = value;
                                 Some(value_native_bluetooth_scan_updated_event_metadata_device_transport_inner)
@@ -10575,7 +12395,12 @@ fn destack_device_bluetooth_scan_try_read_replay(
             if let Ok(()) = result {
                 let result_value: BluetoothDeviceDescriptor = unsafe { out.read() };
                 let result_recorded_id = unsafe { result_value.id.as_str()? }.to_string();
-                let result_recorded_address = unsafe { result_value.address.as_str()? }.to_string();
+                let result_recorded_address = if let Some(value) = result_value.address {
+                    let result_recorded_address_inner = unsafe { value.as_str()? }.to_string();
+                    Some(result_recorded_address_inner)
+                } else {
+                    None
+                };
                 let result_recorded_name = if let Some(value) = result_value.name {
                     let result_recorded_name_inner = unsafe { value.as_str()? }.to_string();
                     Some(result_recorded_name_inner)
@@ -10588,10 +12413,25 @@ fn destack_device_bluetooth_scan_try_read_replay(
                 } else {
                     None
                 };
-                let result_recorded_paired = result_value.paired;
-                let result_recorded_pair_state = result_value.pair_state;
+                let result_recorded_paired = if let Some(value) = result_value.paired {
+                    let result_recorded_paired_inner = value;
+                    Some(result_recorded_paired_inner)
+                } else {
+                    None
+                };
+                let result_recorded_pair_state = if let Some(value) = result_value.pair_state {
+                    let result_recorded_pair_state_inner = value;
+                    Some(result_recorded_pair_state_inner)
+                } else {
+                    None
+                };
                 let result_recorded_connected = result_value.connected;
-                let result_recorded_connectable = result_value.connectable;
+                let result_recorded_connectable = if let Some(value) = result_value.connectable {
+                    let result_recorded_connectable_inner = value;
+                    Some(result_recorded_connectable_inner)
+                } else {
+                    None
+                };
                 let result_recorded_transport = if let Some(value) = result_value.transport {
                     let result_recorded_transport_inner = value;
                     Some(result_recorded_transport_inner)
@@ -10685,7 +12525,12 @@ fn destack_device_bluetooth_scan_try_read_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_id = binding.store_string(value.id.as_str());
-                    let value_native_address = binding.store_string(value.address.as_str());
+                    let value_native_address = if let Some(value) = value.address {
+                        let value_native_address_inner = binding.store_string(value.as_str());
+                        Some(value_native_address_inner)
+                    } else {
+                        None
+                    };
                     let value_native_name = if let Some(value) = value.name {
                         let value_native_name_inner = binding.store_string(value.as_str());
                         Some(value_native_name_inner)
@@ -10698,10 +12543,25 @@ fn destack_device_bluetooth_scan_try_read_replay(
                     } else {
                         None
                     };
-                    let value_native_paired = value.paired;
-                    let value_native_pair_state = value.pair_state;
+                    let value_native_paired = if let Some(value) = value.paired {
+                        let value_native_paired_inner = value;
+                        Some(value_native_paired_inner)
+                    } else {
+                        None
+                    };
+                    let value_native_pair_state = if let Some(value) = value.pair_state {
+                        let value_native_pair_state_inner = value;
+                        Some(value_native_pair_state_inner)
+                    } else {
+                        None
+                    };
                     let value_native_connected = value.connected;
-                    let value_native_connectable = value.connectable;
+                    let value_native_connectable = if let Some(value) = value.connectable {
+                        let value_native_connectable_inner = value;
+                        Some(value_native_connectable_inner)
+                    } else {
+                        None
+                    };
                     let value_native_transport = if let Some(value) = value.transport {
                         let value_native_transport_inner = value;
                         Some(value_native_transport_inner)
@@ -10811,7 +12671,12 @@ fn destack_device_bluetooth_scan_try_read_event_replay(
                         let result_recorded_bluetooth_scan_discovered_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_bluetooth_scan_discovered_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_id = unsafe { value.metadata.device.id.as_str()? }.to_string();
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_address = unsafe { value.metadata.device.address.as_str()? }.to_string();
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_address_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_address_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_name_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_name_inner)
@@ -10824,10 +12689,25 @@ fn destack_device_bluetooth_scan_try_read_event_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_paired = value.metadata.device.paired;
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_paired_inner = value;
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_paired_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state_inner = value;
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_connected = value.metadata.device.connected;
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable = value.metadata.device.connectable;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable_inner = value;
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_transport_inner = value;
                             Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_transport_inner)
@@ -10914,7 +12794,12 @@ fn destack_device_bluetooth_scan_try_read_event_replay(
                         let result_recorded_bluetooth_scan_lost_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_bluetooth_scan_lost_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_id = unsafe { value.metadata.device.id.as_str()? }.to_string();
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_address = unsafe { value.metadata.device.address.as_str()? }.to_string();
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_address_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_address_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_name_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_bluetooth_scan_lost_event_metadata_device_name_inner)
@@ -10927,10 +12812,25 @@ fn destack_device_bluetooth_scan_try_read_event_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_paired = value.metadata.device.paired;
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_paired_inner = value;
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_paired_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state_inner = value;
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_connected = value.metadata.device.connected;
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_connectable = value.metadata.device.connectable;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_connectable_inner = value;
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_connectable_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_transport_inner = value;
                             Some(result_recorded_bluetooth_scan_lost_event_metadata_device_transport_inner)
@@ -11017,7 +12917,12 @@ fn destack_device_bluetooth_scan_try_read_event_replay(
                         let result_recorded_bluetooth_scan_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_bluetooth_scan_updated_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_id = unsafe { value.metadata.device.id.as_str()? }.to_string();
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_address = unsafe { value.metadata.device.address.as_str()? }.to_string();
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_address_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_address_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_name_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_bluetooth_scan_updated_event_metadata_device_name_inner)
@@ -11030,10 +12935,25 @@ fn destack_device_bluetooth_scan_try_read_event_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_paired = value.metadata.device.paired;
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_paired_inner = value;
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_paired_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state_inner = value;
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_connected = value.metadata.device.connected;
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_connectable = value.metadata.device.connectable;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_connectable_inner = value;
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_connectable_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_transport_inner = value;
                             Some(result_recorded_bluetooth_scan_updated_event_metadata_device_transport_inner)
@@ -11144,7 +13064,12 @@ fn destack_device_bluetooth_scan_try_read_event_replay(
                             let value_native_bluetooth_scan_discovered_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_bluetooth_scan_discovered_event_metadata_sequence = value.metadata.sequence;
                             let value_native_bluetooth_scan_discovered_event_metadata_device_id = binding.store_string(value.metadata.device.id.as_str());
-                            let value_native_bluetooth_scan_discovered_event_metadata_device_address = binding.store_string(value.metadata.device.address.as_str());
+                            let value_native_bluetooth_scan_discovered_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                                let value_native_bluetooth_scan_discovered_event_metadata_device_address_inner = binding.store_string(value.as_str());
+                                Some(value_native_bluetooth_scan_discovered_event_metadata_device_address_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_discovered_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                                 let value_native_bluetooth_scan_discovered_event_metadata_device_name_inner = binding.store_string(value.as_str());
                                 Some(value_native_bluetooth_scan_discovered_event_metadata_device_name_inner)
@@ -11157,10 +13082,25 @@ fn destack_device_bluetooth_scan_try_read_event_replay(
                             } else {
                                 None
                             };
-                            let value_native_bluetooth_scan_discovered_event_metadata_device_paired = value.metadata.device.paired;
-                            let value_native_bluetooth_scan_discovered_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                            let value_native_bluetooth_scan_discovered_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                                let value_native_bluetooth_scan_discovered_event_metadata_device_paired_inner = value;
+                                Some(value_native_bluetooth_scan_discovered_event_metadata_device_paired_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_bluetooth_scan_discovered_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                                let value_native_bluetooth_scan_discovered_event_metadata_device_pair_state_inner = value;
+                                Some(value_native_bluetooth_scan_discovered_event_metadata_device_pair_state_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_discovered_event_metadata_device_connected = value.metadata.device.connected;
-                            let value_native_bluetooth_scan_discovered_event_metadata_device_connectable = value.metadata.device.connectable;
+                            let value_native_bluetooth_scan_discovered_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                                let value_native_bluetooth_scan_discovered_event_metadata_device_connectable_inner = value;
+                                Some(value_native_bluetooth_scan_discovered_event_metadata_device_connectable_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_discovered_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                                 let value_native_bluetooth_scan_discovered_event_metadata_device_transport_inner = value;
                                 Some(value_native_bluetooth_scan_discovered_event_metadata_device_transport_inner)
@@ -11252,7 +13192,12 @@ fn destack_device_bluetooth_scan_try_read_event_replay(
                             let value_native_bluetooth_scan_lost_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_bluetooth_scan_lost_event_metadata_sequence = value.metadata.sequence;
                             let value_native_bluetooth_scan_lost_event_metadata_device_id = binding.store_string(value.metadata.device.id.as_str());
-                            let value_native_bluetooth_scan_lost_event_metadata_device_address = binding.store_string(value.metadata.device.address.as_str());
+                            let value_native_bluetooth_scan_lost_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                                let value_native_bluetooth_scan_lost_event_metadata_device_address_inner = binding.store_string(value.as_str());
+                                Some(value_native_bluetooth_scan_lost_event_metadata_device_address_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_lost_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                                 let value_native_bluetooth_scan_lost_event_metadata_device_name_inner = binding.store_string(value.as_str());
                                 Some(value_native_bluetooth_scan_lost_event_metadata_device_name_inner)
@@ -11265,10 +13210,25 @@ fn destack_device_bluetooth_scan_try_read_event_replay(
                             } else {
                                 None
                             };
-                            let value_native_bluetooth_scan_lost_event_metadata_device_paired = value.metadata.device.paired;
-                            let value_native_bluetooth_scan_lost_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                            let value_native_bluetooth_scan_lost_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                                let value_native_bluetooth_scan_lost_event_metadata_device_paired_inner = value;
+                                Some(value_native_bluetooth_scan_lost_event_metadata_device_paired_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_bluetooth_scan_lost_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                                let value_native_bluetooth_scan_lost_event_metadata_device_pair_state_inner = value;
+                                Some(value_native_bluetooth_scan_lost_event_metadata_device_pair_state_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_lost_event_metadata_device_connected = value.metadata.device.connected;
-                            let value_native_bluetooth_scan_lost_event_metadata_device_connectable = value.metadata.device.connectable;
+                            let value_native_bluetooth_scan_lost_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                                let value_native_bluetooth_scan_lost_event_metadata_device_connectable_inner = value;
+                                Some(value_native_bluetooth_scan_lost_event_metadata_device_connectable_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_lost_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                                 let value_native_bluetooth_scan_lost_event_metadata_device_transport_inner = value;
                                 Some(value_native_bluetooth_scan_lost_event_metadata_device_transport_inner)
@@ -11360,7 +13320,12 @@ fn destack_device_bluetooth_scan_try_read_event_replay(
                             let value_native_bluetooth_scan_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_bluetooth_scan_updated_event_metadata_sequence = value.metadata.sequence;
                             let value_native_bluetooth_scan_updated_event_metadata_device_id = binding.store_string(value.metadata.device.id.as_str());
-                            let value_native_bluetooth_scan_updated_event_metadata_device_address = binding.store_string(value.metadata.device.address.as_str());
+                            let value_native_bluetooth_scan_updated_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                                let value_native_bluetooth_scan_updated_event_metadata_device_address_inner = binding.store_string(value.as_str());
+                                Some(value_native_bluetooth_scan_updated_event_metadata_device_address_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_updated_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                                 let value_native_bluetooth_scan_updated_event_metadata_device_name_inner = binding.store_string(value.as_str());
                                 Some(value_native_bluetooth_scan_updated_event_metadata_device_name_inner)
@@ -11373,10 +13338,25 @@ fn destack_device_bluetooth_scan_try_read_event_replay(
                             } else {
                                 None
                             };
-                            let value_native_bluetooth_scan_updated_event_metadata_device_paired = value.metadata.device.paired;
-                            let value_native_bluetooth_scan_updated_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                            let value_native_bluetooth_scan_updated_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                                let value_native_bluetooth_scan_updated_event_metadata_device_paired_inner = value;
+                                Some(value_native_bluetooth_scan_updated_event_metadata_device_paired_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_bluetooth_scan_updated_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                                let value_native_bluetooth_scan_updated_event_metadata_device_pair_state_inner = value;
+                                Some(value_native_bluetooth_scan_updated_event_metadata_device_pair_state_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_updated_event_metadata_device_connected = value.metadata.device.connected;
-                            let value_native_bluetooth_scan_updated_event_metadata_device_connectable = value.metadata.device.connectable;
+                            let value_native_bluetooth_scan_updated_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                                let value_native_bluetooth_scan_updated_event_metadata_device_connectable_inner = value;
+                                Some(value_native_bluetooth_scan_updated_event_metadata_device_connectable_inner)
+                            } else {
+                                None
+                            };
                             let value_native_bluetooth_scan_updated_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                                 let value_native_bluetooth_scan_updated_event_metadata_device_transport_inner = value;
                                 Some(value_native_bluetooth_scan_updated_event_metadata_device_transport_inner)
@@ -11615,6 +13595,23 @@ fn destack_device_bluetooth_session_read_event_replay(
                         };
                         BluetoothsessioneventReplayRecord::BluetoothSessionDisconnectedEvent(result_recorded_bluetooth_session_disconnected_event)
                     }
+                    BluetoothSessionEvent::BluetoothSessionGattDatabaseChangedEvent(value) => {
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_metadata = BluetoothSessionEventMetadata {
+                            timestamp_ns: result_recorded_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_bluetooth_session_gatt_database_changed_event_metadata_sequence,
+                        };
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_payload = BluetoothSessionGattDatabaseChangedPayload {
+                        };
+                        let result_recorded_bluetooth_session_gatt_database_changed_event = BluetoothsessiongattdatabasechangedeventReplayRecord {
+                            kind: result_recorded_bluetooth_session_gatt_database_changed_event_kind,
+                            metadata: result_recorded_bluetooth_session_gatt_database_changed_event_metadata,
+                            payload: result_recorded_bluetooth_session_gatt_database_changed_event_payload,
+                        };
+                        BluetoothsessioneventReplayRecord::BluetoothSessionGattDatabaseChangedEvent(result_recorded_bluetooth_session_gatt_database_changed_event)
+                    }
                     BluetoothSessionEvent::BluetoothSessionPairStateChangedEvent(value) => {
                         let result_recorded_bluetooth_session_pair_state_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_bluetooth_session_pair_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -11674,6 +13671,23 @@ fn destack_device_bluetooth_session_read_event_replay(
                                 payload: value_native_bluetooth_session_disconnected_event_payload,
                             };
                             BluetoothSessionEvent::BluetoothSessionDisconnectedEvent(value_native_bluetooth_session_disconnected_event)
+                        }
+                        BluetoothsessioneventReplayRecord::BluetoothSessionGattDatabaseChangedEvent(value) => {
+                            let value_native_bluetooth_session_gatt_database_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_bluetooth_session_gatt_database_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_bluetooth_session_gatt_database_changed_event_metadata = BluetoothSessionEventMetadata {
+                                timestamp_ns: value_native_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_bluetooth_session_gatt_database_changed_event_metadata_sequence,
+                            };
+                            let value_native_bluetooth_session_gatt_database_changed_event_payload = BluetoothSessionGattDatabaseChangedPayload {
+                            };
+                            let value_native_bluetooth_session_gatt_database_changed_event = BluetoothSessionGattDatabaseChangedEvent {
+                                kind: value_native_bluetooth_session_gatt_database_changed_event_kind,
+                                metadata: value_native_bluetooth_session_gatt_database_changed_event_metadata,
+                                payload: value_native_bluetooth_session_gatt_database_changed_event_payload,
+                            };
+                            BluetoothSessionEvent::BluetoothSessionGattDatabaseChangedEvent(value_native_bluetooth_session_gatt_database_changed_event)
                         }
                         BluetoothsessioneventReplayRecord::BluetoothSessionPairStateChangedEvent(value) => {
                             let value_native_bluetooth_session_pair_state_changed_event_kind = binding.store_string(value.kind.as_str());
@@ -11797,6 +13811,23 @@ fn destack_device_bluetooth_session_try_read_event_replay(
                         };
                         BluetoothsessioneventReplayRecord::BluetoothSessionDisconnectedEvent(result_recorded_bluetooth_session_disconnected_event)
                     }
+                    BluetoothSessionEvent::BluetoothSessionGattDatabaseChangedEvent(value) => {
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_metadata = BluetoothSessionEventMetadata {
+                            timestamp_ns: result_recorded_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_bluetooth_session_gatt_database_changed_event_metadata_sequence,
+                        };
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_payload = BluetoothSessionGattDatabaseChangedPayload {
+                        };
+                        let result_recorded_bluetooth_session_gatt_database_changed_event = BluetoothsessiongattdatabasechangedeventReplayRecord {
+                            kind: result_recorded_bluetooth_session_gatt_database_changed_event_kind,
+                            metadata: result_recorded_bluetooth_session_gatt_database_changed_event_metadata,
+                            payload: result_recorded_bluetooth_session_gatt_database_changed_event_payload,
+                        };
+                        BluetoothsessioneventReplayRecord::BluetoothSessionGattDatabaseChangedEvent(result_recorded_bluetooth_session_gatt_database_changed_event)
+                    }
                     BluetoothSessionEvent::BluetoothSessionPairStateChangedEvent(value) => {
                         let result_recorded_bluetooth_session_pair_state_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
                         let result_recorded_bluetooth_session_pair_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -11856,6 +13887,23 @@ fn destack_device_bluetooth_session_try_read_event_replay(
                                 payload: value_native_bluetooth_session_disconnected_event_payload,
                             };
                             BluetoothSessionEvent::BluetoothSessionDisconnectedEvent(value_native_bluetooth_session_disconnected_event)
+                        }
+                        BluetoothsessioneventReplayRecord::BluetoothSessionGattDatabaseChangedEvent(value) => {
+                            let value_native_bluetooth_session_gatt_database_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_bluetooth_session_gatt_database_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_bluetooth_session_gatt_database_changed_event_metadata = BluetoothSessionEventMetadata {
+                                timestamp_ns: value_native_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_bluetooth_session_gatt_database_changed_event_metadata_sequence,
+                            };
+                            let value_native_bluetooth_session_gatt_database_changed_event_payload = BluetoothSessionGattDatabaseChangedPayload {
+                            };
+                            let value_native_bluetooth_session_gatt_database_changed_event = BluetoothSessionGattDatabaseChangedEvent {
+                                kind: value_native_bluetooth_session_gatt_database_changed_event_kind,
+                                metadata: value_native_bluetooth_session_gatt_database_changed_event_metadata,
+                                payload: value_native_bluetooth_session_gatt_database_changed_event_payload,
+                            };
+                            BluetoothSessionEvent::BluetoothSessionGattDatabaseChangedEvent(value_native_bluetooth_session_gatt_database_changed_event)
                         }
                         BluetoothsessioneventReplayRecord::BluetoothSessionPairStateChangedEvent(value) => {
                             let value_native_bluetooth_session_pair_state_changed_event_kind = binding.store_string(value.kind.as_str());
@@ -12166,6 +14214,17 @@ fn destack_device_camera_device_stream_capability_list_replay(
                         result_recorded_item.minimum_frame_rate_milli_hz;
                     let result_recorded_item_recorded_maximum_frame_rate_milli_hz =
                         result_recorded_item.maximum_frame_rate_milli_hz;
+                    let mut result_recorded_item_recorded_color_spaces = Vec::new();
+                    for result_recorded_item_recorded_color_spaces_item in
+                        unsafe { result_recorded_item.color_spaces.as_slice()? }
+                            .iter()
+                            .cloned()
+                    {
+                        let result_recorded_item_recorded_color_spaces_item_recorded =
+                            result_recorded_item_recorded_color_spaces_item;
+                        result_recorded_item_recorded_color_spaces
+                            .push(result_recorded_item_recorded_color_spaces_item_recorded);
+                    }
                     let mut result_recorded_item_recorded_dynamic_ranges = Vec::new();
                     for result_recorded_item_recorded_dynamic_ranges_item in
                         unsafe { result_recorded_item.dynamic_ranges.as_slice()? }
@@ -12176,6 +14235,39 @@ fn destack_device_camera_device_stream_capability_list_replay(
                             result_recorded_item_recorded_dynamic_ranges_item;
                         result_recorded_item_recorded_dynamic_ranges
                             .push(result_recorded_item_recorded_dynamic_ranges_item_recorded);
+                    }
+                    let mut result_recorded_item_recorded_exposure_modes = Vec::new();
+                    for result_recorded_item_recorded_exposure_modes_item in
+                        unsafe { result_recorded_item.exposure_modes.as_slice()? }
+                            .iter()
+                            .cloned()
+                    {
+                        let result_recorded_item_recorded_exposure_modes_item_recorded =
+                            result_recorded_item_recorded_exposure_modes_item;
+                        result_recorded_item_recorded_exposure_modes
+                            .push(result_recorded_item_recorded_exposure_modes_item_recorded);
+                    }
+                    let mut result_recorded_item_recorded_white_balance_modes = Vec::new();
+                    for result_recorded_item_recorded_white_balance_modes_item in
+                        unsafe { result_recorded_item.white_balance_modes.as_slice()? }
+                            .iter()
+                            .cloned()
+                    {
+                        let result_recorded_item_recorded_white_balance_modes_item_recorded =
+                            result_recorded_item_recorded_white_balance_modes_item;
+                        result_recorded_item_recorded_white_balance_modes
+                            .push(result_recorded_item_recorded_white_balance_modes_item_recorded);
+                    }
+                    let mut result_recorded_item_recorded_focus_modes = Vec::new();
+                    for result_recorded_item_recorded_focus_modes_item in
+                        unsafe { result_recorded_item.focus_modes.as_slice()? }
+                            .iter()
+                            .cloned()
+                    {
+                        let result_recorded_item_recorded_focus_modes_item_recorded =
+                            result_recorded_item_recorded_focus_modes_item;
+                        result_recorded_item_recorded_focus_modes
+                            .push(result_recorded_item_recorded_focus_modes_item_recorded);
                     }
                     let mut result_recorded_item_recorded_stabilization_modes = Vec::new();
                     for result_recorded_item_recorded_stabilization_modes_item in
@@ -12188,14 +14280,30 @@ fn destack_device_camera_device_stream_capability_list_replay(
                         result_recorded_item_recorded_stabilization_modes
                             .push(result_recorded_item_recorded_stabilization_modes_item_recorded);
                     }
+                    let mut result_recorded_item_recorded_torch_modes = Vec::new();
+                    for result_recorded_item_recorded_torch_modes_item in
+                        unsafe { result_recorded_item.torch_modes.as_slice()? }
+                            .iter()
+                            .cloned()
+                    {
+                        let result_recorded_item_recorded_torch_modes_item_recorded =
+                            result_recorded_item_recorded_torch_modes_item;
+                        result_recorded_item_recorded_torch_modes
+                            .push(result_recorded_item_recorded_torch_modes_item_recorded);
+                    }
                     let result_recorded_item_recorded = CamerastreamcapabilityReplayRecord {
                         config: result_recorded_item_recorded_config,
                         minimum_frame_rate_milli_hz:
                             result_recorded_item_recorded_minimum_frame_rate_milli_hz,
                         maximum_frame_rate_milli_hz:
                             result_recorded_item_recorded_maximum_frame_rate_milli_hz,
+                        color_spaces: result_recorded_item_recorded_color_spaces,
                         dynamic_ranges: result_recorded_item_recorded_dynamic_ranges,
+                        exposure_modes: result_recorded_item_recorded_exposure_modes,
+                        white_balance_modes: result_recorded_item_recorded_white_balance_modes,
+                        focus_modes: result_recorded_item_recorded_focus_modes,
                         stabilization_modes: result_recorded_item_recorded_stabilization_modes,
+                        torch_modes: result_recorded_item_recorded_torch_modes,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -12247,6 +14355,17 @@ fn destack_device_camera_device_stream_capability_list_replay(
                             value_native_item.minimum_frame_rate_milli_hz;
                         let value_native_decoded_maximum_frame_rate_milli_hz =
                             value_native_item.maximum_frame_rate_milli_hz;
+                        let mut value_native_decoded_color_spaces_values = Vec::new();
+                        for value_native_decoded_color_spaces_item in
+                            value_native_item.color_spaces.iter().cloned()
+                        {
+                            let value_native_decoded_color_spaces_decoded =
+                                value_native_decoded_color_spaces_item;
+                            value_native_decoded_color_spaces_values
+                                .push(value_native_decoded_color_spaces_decoded);
+                        }
+                        let value_native_decoded_color_spaces =
+                            binding.store_slice(value_native_decoded_color_spaces_values);
                         let mut value_native_decoded_dynamic_ranges_values = Vec::new();
                         for value_native_decoded_dynamic_ranges_item in
                             value_native_item.dynamic_ranges.iter().cloned()
@@ -12258,6 +14377,39 @@ fn destack_device_camera_device_stream_capability_list_replay(
                         }
                         let value_native_decoded_dynamic_ranges =
                             binding.store_slice(value_native_decoded_dynamic_ranges_values);
+                        let mut value_native_decoded_exposure_modes_values = Vec::new();
+                        for value_native_decoded_exposure_modes_item in
+                            value_native_item.exposure_modes.iter().cloned()
+                        {
+                            let value_native_decoded_exposure_modes_decoded =
+                                value_native_decoded_exposure_modes_item;
+                            value_native_decoded_exposure_modes_values
+                                .push(value_native_decoded_exposure_modes_decoded);
+                        }
+                        let value_native_decoded_exposure_modes =
+                            binding.store_slice(value_native_decoded_exposure_modes_values);
+                        let mut value_native_decoded_white_balance_modes_values = Vec::new();
+                        for value_native_decoded_white_balance_modes_item in
+                            value_native_item.white_balance_modes.iter().cloned()
+                        {
+                            let value_native_decoded_white_balance_modes_decoded =
+                                value_native_decoded_white_balance_modes_item;
+                            value_native_decoded_white_balance_modes_values
+                                .push(value_native_decoded_white_balance_modes_decoded);
+                        }
+                        let value_native_decoded_white_balance_modes =
+                            binding.store_slice(value_native_decoded_white_balance_modes_values);
+                        let mut value_native_decoded_focus_modes_values = Vec::new();
+                        for value_native_decoded_focus_modes_item in
+                            value_native_item.focus_modes.iter().cloned()
+                        {
+                            let value_native_decoded_focus_modes_decoded =
+                                value_native_decoded_focus_modes_item;
+                            value_native_decoded_focus_modes_values
+                                .push(value_native_decoded_focus_modes_decoded);
+                        }
+                        let value_native_decoded_focus_modes =
+                            binding.store_slice(value_native_decoded_focus_modes_values);
                         let mut value_native_decoded_stabilization_modes_values = Vec::new();
                         for value_native_decoded_stabilization_modes_item in
                             value_native_item.stabilization_modes.iter().cloned()
@@ -12269,14 +14421,30 @@ fn destack_device_camera_device_stream_capability_list_replay(
                         }
                         let value_native_decoded_stabilization_modes =
                             binding.store_slice(value_native_decoded_stabilization_modes_values);
+                        let mut value_native_decoded_torch_modes_values = Vec::new();
+                        for value_native_decoded_torch_modes_item in
+                            value_native_item.torch_modes.iter().cloned()
+                        {
+                            let value_native_decoded_torch_modes_decoded =
+                                value_native_decoded_torch_modes_item;
+                            value_native_decoded_torch_modes_values
+                                .push(value_native_decoded_torch_modes_decoded);
+                        }
+                        let value_native_decoded_torch_modes =
+                            binding.store_slice(value_native_decoded_torch_modes_values);
                         let value_native_decoded = CameraStreamCapability {
                             config: value_native_decoded_config,
                             minimum_frame_rate_milli_hz:
                                 value_native_decoded_minimum_frame_rate_milli_hz,
                             maximum_frame_rate_milli_hz:
                                 value_native_decoded_maximum_frame_rate_milli_hz,
+                            color_spaces: value_native_decoded_color_spaces,
                             dynamic_ranges: value_native_decoded_dynamic_ranges,
+                            exposure_modes: value_native_decoded_exposure_modes,
+                            white_balance_modes: value_native_decoded_white_balance_modes,
+                            focus_modes: value_native_decoded_focus_modes,
                             stabilization_modes: value_native_decoded_stabilization_modes,
+                            torch_modes: value_native_decoded_torch_modes,
                         };
                         value_native_values.push(value_native_decoded);
                     }
@@ -12388,6 +14556,135 @@ fn destack_device_camera_device_stream_config_list_replay(
                         value_native_values.push(value_native_decoded);
                     }
                     let value_native = binding.store_slice(value_native_values);
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_brightness_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_BRIGHTNESS,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_BRIGHTNESS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_brightness(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_brightness(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: f64 = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamBrightnessReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamBrightnessReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_brightness_range_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut CameraFloatControlRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_BRIGHTNESS_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_BRIGHTNESS_RANGE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_brightness_range(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_brightness_range(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: CameraFloatControlRange = unsafe { out.read() };
+                let result_recorded_minimum = result_value.minimum;
+                let result_recorded_maximum = result_value.maximum;
+                let result_recorded_default = result_value.default;
+                let result_recorded_step = result_value.step;
+                let result_recorded = CameraFloatControlRange {
+                    minimum: result_recorded_minimum,
+                    maximum: result_recorded_maximum,
+                    default: result_recorded_default,
+                    step: result_recorded_step,
+                };
+                let payload = DeviceCameraStreamBrightnessRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamBrightnessRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_minimum = value.minimum;
+                    let value_native_maximum = value.maximum;
+                    let value_native_default = value.default;
+                    let value_native_step = value.step;
+                    let value_native = CameraFloatControlRange {
+                        minimum: value_native_minimum,
+                        maximum: value_native_maximum,
+                        default: value_native_default,
+                        step: value_native_step,
+                    };
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -12523,6 +14820,135 @@ fn destack_device_camera_stream_config_replay(
                         height: value_native_height,
                         frame_rate_milli_hz: value_native_frame_rate_milli_hz,
                         pixel_format: value_native_pixel_format,
+                    };
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_contrast_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_CONTRAST,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_CONTRAST)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_contrast(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_contrast(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: f64 = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamContrastReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamContrastReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_contrast_range_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut CameraFloatControlRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_CONTRAST_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_CONTRAST_RANGE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_contrast_range(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_contrast_range(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: CameraFloatControlRange = unsafe { out.read() };
+                let result_recorded_minimum = result_value.minimum;
+                let result_recorded_maximum = result_value.maximum;
+                let result_recorded_default = result_value.default;
+                let result_recorded_step = result_value.step;
+                let result_recorded = CameraFloatControlRange {
+                    minimum: result_recorded_minimum,
+                    maximum: result_recorded_maximum,
+                    default: result_recorded_default,
+                    step: result_recorded_step,
+                };
+                let payload = DeviceCameraStreamContrastRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamContrastRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_minimum = value.minimum;
+                    let value_native_maximum = value.maximum;
+                    let value_native_default = value.default;
+                    let value_native_step = value.step;
+                    let value_native = CameraFloatControlRange {
+                        minimum: value_native_minimum,
+                        maximum: value_native_maximum,
+                        default: value_native_default,
+                        step: value_native_step,
                     };
                     unsafe { out.write(value_native) };
                     Ok(())
@@ -12720,6 +15146,141 @@ fn destack_device_camera_stream_exposure_mode_replay(
 }
 
 #[inline]
+fn destack_device_camera_stream_exposure_time_ns_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_EXPOSURE_TIME_NS,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_EXPOSURE_TIME_NS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_exposure_time_ns(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_exposure_time_ns(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: u64 = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamExposureTimeNsReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamExposureTimeNsReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_exposure_time_range_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut CameraExposureTimeRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_EXPOSURE_TIME_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_EXPOSURE_TIME_RANGE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_exposure_time_range(
+                    binding, out, handle,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_exposure_time_range(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: CameraExposureTimeRange = unsafe { out.read() };
+                let result_recorded_minimum_ns = result_value.minimum_ns;
+                let result_recorded_maximum_ns = result_value.maximum_ns;
+                let result_recorded_default_ns = result_value.default_ns;
+                let result_recorded_step_ns = result_value.step_ns;
+                let result_recorded_auto_supported = result_value.auto_supported;
+                let result_recorded = CameraExposureTimeRange {
+                    minimum_ns: result_recorded_minimum_ns,
+                    maximum_ns: result_recorded_maximum_ns,
+                    default_ns: result_recorded_default_ns,
+                    step_ns: result_recorded_step_ns,
+                    auto_supported: result_recorded_auto_supported,
+                };
+                let payload = DeviceCameraStreamExposureTimeRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamExposureTimeRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_minimum_ns = value.minimum_ns;
+                    let value_native_maximum_ns = value.maximum_ns;
+                    let value_native_default_ns = value.default_ns;
+                    let value_native_step_ns = value.step_ns;
+                    let value_native_auto_supported = value.auto_supported;
+                    let value_native = CameraExposureTimeRange {
+                        minimum_ns: value_native_minimum_ns,
+                        maximum_ns: value_native_maximum_ns,
+                        default_ns: value_native_default_ns,
+                        step_ns: value_native_step_ns,
+                        auto_supported: value_native_auto_supported,
+                    };
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_device_camera_stream_focus_distance_diopters_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
@@ -12857,6 +15418,61 @@ fn destack_device_camera_stream_focus_distance_range_replay(
 }
 
 #[inline]
+fn destack_device_camera_stream_focus_mode_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut CameraFocusMode,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_FOCUS_MODE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_FOCUS_MODE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_focus_mode(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_focus_mode(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: CameraFocusMode = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamFocusModeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamFocusModeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_device_camera_stream_open_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
@@ -12904,6 +15520,135 @@ fn destack_device_camera_stream_open_replay(
             match payload.result {
                 Ok(value) => {
                     unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_pan_degrees_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_PAN_DEGREES,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_PAN_DEGREES)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_pan_degrees(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_pan_degrees(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: f64 = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamPanDegreesReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamPanDegreesReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_pan_range_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut CameraPanAngleRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_PAN_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_PAN_RANGE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_pan_range(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_pan_range(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: CameraPanAngleRange = unsafe { out.read() };
+                let result_recorded_minimum_degrees = result_value.minimum_degrees;
+                let result_recorded_maximum_degrees = result_value.maximum_degrees;
+                let result_recorded_default_degrees = result_value.default_degrees;
+                let result_recorded_step_degrees = result_value.step_degrees;
+                let result_recorded = CameraPanAngleRange {
+                    minimum_degrees: result_recorded_minimum_degrees,
+                    maximum_degrees: result_recorded_maximum_degrees,
+                    default_degrees: result_recorded_default_degrees,
+                    step_degrees: result_recorded_step_degrees,
+                };
+                let payload = DeviceCameraStreamPanRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamPanRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_minimum_degrees = value.minimum_degrees;
+                    let value_native_maximum_degrees = value.maximum_degrees;
+                    let value_native_default_degrees = value.default_degrees;
+                    let value_native_step_degrees = value.step_degrees;
+                    let value_native = CameraPanAngleRange {
+                        minimum_degrees: value_native_minimum_degrees,
+                        maximum_degrees: value_native_maximum_degrees,
+                        default_degrees: value_native_default_degrees,
+                        step_degrees: value_native_step_degrees,
+                    };
+                    unsafe { out.write(value_native) };
                     Ok(())
                 }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
@@ -13152,6 +15897,382 @@ fn destack_device_camera_stream_read_replay(
 }
 
 #[inline]
+fn destack_device_camera_stream_saturation_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SATURATION,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SATURATION)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_saturation(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_saturation(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: f64 = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamSaturationReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSaturationReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_saturation_range_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut CameraFloatControlRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SATURATION_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SATURATION_RANGE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_saturation_range(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_saturation_range(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: CameraFloatControlRange = unsafe { out.read() };
+                let result_recorded_minimum = result_value.minimum;
+                let result_recorded_maximum = result_value.maximum;
+                let result_recorded_default = result_value.default;
+                let result_recorded_step = result_value.step;
+                let result_recorded = CameraFloatControlRange {
+                    minimum: result_recorded_minimum,
+                    maximum: result_recorded_maximum,
+                    default: result_recorded_default,
+                    step: result_recorded_step,
+                };
+                let payload = DeviceCameraStreamSaturationRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSaturationRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_minimum = value.minimum;
+                    let value_native_maximum = value.maximum;
+                    let value_native_default = value.default;
+                    let value_native_step = value.step;
+                    let value_native = CameraFloatControlRange {
+                        minimum: value_native_minimum,
+                        maximum: value_native_maximum,
+                        default: value_native_default,
+                        step: value_native_step,
+                    };
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_sensor_iso_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut u32,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SENSOR_ISO,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SENSOR_ISO)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_sensor_iso(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_sensor_iso(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: u32 = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamSensorIsoReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSensorIsoReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_sensor_iso_range_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut CameraSensorIsoRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SENSOR_ISO_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SENSOR_ISO_RANGE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_sensor_iso_range(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_sensor_iso_range(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: CameraSensorIsoRange = unsafe { out.read() };
+                let result_recorded_minimum = result_value.minimum;
+                let result_recorded_maximum = result_value.maximum;
+                let result_recorded_default = result_value.default;
+                let result_recorded_step = result_value.step;
+                let result_recorded_auto_supported = result_value.auto_supported;
+                let result_recorded = CameraSensorIsoRange {
+                    minimum: result_recorded_minimum,
+                    maximum: result_recorded_maximum,
+                    default: result_recorded_default,
+                    step: result_recorded_step,
+                    auto_supported: result_recorded_auto_supported,
+                };
+                let payload = DeviceCameraStreamSensorIsoRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSensorIsoRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_minimum = value.minimum;
+                    let value_native_maximum = value.maximum;
+                    let value_native_default = value.default;
+                    let value_native_step = value.step;
+                    let value_native_auto_supported = value.auto_supported;
+                    let value_native = CameraSensorIsoRange {
+                        minimum: value_native_minimum,
+                        maximum: value_native_maximum,
+                        default: value_native_default,
+                        step: value_native_step,
+                        auto_supported: value_native_auto_supported,
+                    };
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_set_brightness_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &argument_value);
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SET_BRIGHTNESS,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_BRIGHTNESS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_set_brightness(
+                    binding,
+                    handle,
+                    argument_value,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_set_brightness(
+                    binding,
+                    handle,
+                    argument_value,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetBrightnessReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetBrightnessReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_set_contrast_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &argument_value);
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SET_CONTRAST,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_CONTRAST)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_set_contrast(
+                    binding,
+                    handle,
+                    argument_value,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_set_contrast(
+                    binding,
+                    handle,
+                    argument_value,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetContrastReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetContrastReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_device_camera_stream_set_exposure_compensation_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
@@ -13258,6 +16379,59 @@ fn destack_device_camera_stream_set_exposure_mode_replay(
 }
 
 #[inline]
+fn destack_device_camera_stream_set_exposure_time_ns_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    valuens: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &valuens);
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SET_EXPOSURE_TIME_NS,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_EXPOSURE_TIME_NS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_set_exposure_time_ns(
+                    binding, handle, valuens,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_set_exposure_time_ns(
+                    binding, handle, valuens,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetExposureTimeNsReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetExposureTimeNsReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_device_camera_stream_set_focus_distance_diopters_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
@@ -13288,6 +16462,275 @@ fn destack_device_camera_stream_set_focus_distance_diopters_replay(
                     DeviceCameraStreamSetFocusDistanceDioptersReplayRecord {
                         result,
                     }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_set_focus_mode_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    mode: CameraFocusMode,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &mode);
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SET_FOCUS_MODE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_FOCUS_MODE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_set_focus_mode(binding, handle, mode)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_set_focus_mode(
+                    binding, handle, mode,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetFocusModeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetFocusModeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_set_pan_degrees_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    degrees: f64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &degrees);
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SET_PAN_DEGREES,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_PAN_DEGREES)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_set_pan_degrees(
+                    binding, handle, degrees,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_set_pan_degrees(
+                    binding, handle, degrees,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetPanDegreesReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetPanDegreesReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_set_saturation_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &argument_value);
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SET_SATURATION,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_SATURATION)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_set_saturation(
+                    binding,
+                    handle,
+                    argument_value,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_set_saturation(
+                    binding,
+                    handle,
+                    argument_value,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetSaturationReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetSaturationReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_set_sensor_iso_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    iso: u32,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &iso);
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SET_SENSOR_ISO,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_SENSOR_ISO)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_set_sensor_iso(binding, handle, iso)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_set_sensor_iso(
+                    binding, handle, iso,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetSensorIsoReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetSensorIsoReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_set_sharpness_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &argument_value);
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SET_SHARPNESS,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_SHARPNESS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_set_sharpness(
+                    binding,
+                    handle,
+                    argument_value,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_set_sharpness(
+                    binding,
+                    handle,
+                    argument_value,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetSharpnessReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetSharpnessReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13341,6 +16784,59 @@ fn destack_device_camera_stream_set_stabilization_mode_replay(
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
                     DeviceCameraStreamSetStabilizationModeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_set_tilt_degrees_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    degrees: f64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &degrees);
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SET_TILT_DEGREES,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_TILT_DEGREES)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_set_tilt_degrees(
+                    binding, handle, degrees,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_set_tilt_degrees(
+                    binding, handle, degrees,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetTiltDegreesReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetTiltDegreesReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -13462,6 +16958,59 @@ fn destack_device_camera_stream_set_white_balance_kelvin_replay(
 }
 
 #[inline]
+fn destack_device_camera_stream_set_white_balance_mode_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    mode: CameraWhiteBalanceMode,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &mode);
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SET_WHITE_BALANCE_MODE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_WHITE_BALANCE_MODE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_set_white_balance_mode(
+                    binding, handle, mode,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_set_white_balance_mode(
+                    binding, handle, mode,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetWhiteBalanceModeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetWhiteBalanceModeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_device_camera_stream_set_zoom_ratio_replay(
     binding: &BindingCallContext,
     world: RuntimeWorld,
@@ -13506,6 +17055,135 @@ fn destack_device_camera_stream_set_zoom_ratio_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_sharpness_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SHARPNESS,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SHARPNESS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_sharpness(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_sharpness(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: f64 = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamSharpnessReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSharpnessReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_sharpness_range_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut CameraFloatControlRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_SHARPNESS_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SHARPNESS_RANGE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_sharpness_range(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_sharpness_range(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: CameraFloatControlRange = unsafe { out.read() };
+                let result_recorded_minimum = result_value.minimum;
+                let result_recorded_maximum = result_value.maximum;
+                let result_recorded_default = result_value.default;
+                let result_recorded_step = result_value.step;
+                let result_recorded = CameraFloatControlRange {
+                    minimum: result_recorded_minimum,
+                    maximum: result_recorded_maximum,
+                    default: result_recorded_default,
+                    step: result_recorded_step,
+                };
+                let payload = DeviceCameraStreamSharpnessRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSharpnessRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_minimum = value.minimum;
+                    let value_native_maximum = value.maximum;
+                    let value_native_default = value.default;
+                    let value_native_step = value.step;
+                    let value_native = CameraFloatControlRange {
+                        minimum: value_native_minimum,
+                        maximum: value_native_maximum,
+                        default: value_native_default,
+                        step: value_native_step,
+                    };
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
@@ -13659,6 +17337,135 @@ fn destack_device_camera_stream_stop_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_tilt_degrees_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_TILT_DEGREES,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_TILT_DEGREES)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_tilt_degrees(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_tilt_degrees(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: f64 = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamTiltDegreesReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamTiltDegreesReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_tilt_range_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut CameraTiltAngleRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_TILT_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_TILT_RANGE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_tilt_range(binding, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_tilt_range(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: CameraTiltAngleRange = unsafe { out.read() };
+                let result_recorded_minimum_degrees = result_value.minimum_degrees;
+                let result_recorded_maximum_degrees = result_value.maximum_degrees;
+                let result_recorded_default_degrees = result_value.default_degrees;
+                let result_recorded_step_degrees = result_value.step_degrees;
+                let result_recorded = CameraTiltAngleRange {
+                    minimum_degrees: result_recorded_minimum_degrees,
+                    maximum_degrees: result_recorded_maximum_degrees,
+                    default_degrees: result_recorded_default_degrees,
+                    step_degrees: result_recorded_step_degrees,
+                };
+                let payload = DeviceCameraStreamTiltRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamTiltRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_minimum_degrees = value.minimum_degrees;
+                    let value_native_maximum_degrees = value.maximum_degrees;
+                    let value_native_default_degrees = value.default_degrees;
+                    let value_native_step_degrees = value.step_degrees;
+                    let value_native = CameraTiltAngleRange {
+                        minimum_degrees: value_native_minimum_degrees,
+                        maximum_degrees: value_native_maximum_degrees,
+                        default_degrees: value_native_default_degrees,
+                        step_degrees: value_native_step_degrees,
+                    };
+                    unsafe { out.write(value_native) };
+                    Ok(())
+                }
                 Err(error) => Err(Box::<RuntimeError>::from(error)),
             }
         },
@@ -13996,6 +17803,63 @@ fn destack_device_camera_stream_white_balance_kelvin_replay(
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
                     DeviceCameraStreamWhiteBalanceKelvinReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    unsafe { out.write(value) };
+                    Ok(())
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_device_camera_stream_white_balance_mode_replay(
+    binding: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut CameraWhiteBalanceMode,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    binding.trace().run_binding_without_context(
+        DEVICE_CAMERA_STREAM_WHITE_BALANCE_MODE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_WHITE_BALANCE_MODE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_device_camera_stream_white_balance_mode(
+                    binding, out, handle,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_device_camera_stream_white_balance_mode(
+                    binding, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value: CameraWhiteBalanceMode = unsafe { out.read() };
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamWhiteBalanceModeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamWhiteBalanceModeReplayRecord { result }
                 };
                 return Ok(Some(payload));
             }
@@ -15294,23 +19158,6 @@ fn destack_device_serial_read_event_replay(
                         };
                         SerialeventReplayRecord::SerialReadReadyEvent(result_recorded_serial_read_ready_event)
                     }
-                    SerialEvent::SerialWriteDrainedEvent(value) => {
-                        let result_recorded_serial_write_drained_event_kind = unsafe { value.kind.as_str()? }.to_string();
-                        let result_recorded_serial_write_drained_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_serial_write_drained_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_serial_write_drained_event_metadata = SerialEventMetadata {
-                            timestamp_ns: result_recorded_serial_write_drained_event_metadata_timestamp_ns,
-                            sequence: result_recorded_serial_write_drained_event_metadata_sequence,
-                        };
-                        let result_recorded_serial_write_drained_event_payload = SerialWriteDrainedPayload {
-                        };
-                        let result_recorded_serial_write_drained_event = SerialwritedrainedeventReplayRecord {
-                            kind: result_recorded_serial_write_drained_event_kind,
-                            metadata: result_recorded_serial_write_drained_event_metadata,
-                            payload: result_recorded_serial_write_drained_event_payload,
-                        };
-                        SerialeventReplayRecord::SerialWriteDrainedEvent(result_recorded_serial_write_drained_event)
-                    }
                 };
                 let payload = DeviceSerialReadEventReplayRecord {
                     result: Ok(result_recorded),
@@ -15436,23 +19283,6 @@ fn destack_device_serial_read_event_replay(
                                 payload: value_native_serial_read_ready_event_payload,
                             };
                             SerialEvent::SerialReadReadyEvent(value_native_serial_read_ready_event)
-                        }
-                        SerialeventReplayRecord::SerialWriteDrainedEvent(value) => {
-                            let value_native_serial_write_drained_event_kind = binding.store_string(value.kind.as_str());
-                            let value_native_serial_write_drained_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let value_native_serial_write_drained_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_serial_write_drained_event_metadata = SerialEventMetadata {
-                                timestamp_ns: value_native_serial_write_drained_event_metadata_timestamp_ns,
-                                sequence: value_native_serial_write_drained_event_metadata_sequence,
-                            };
-                            let value_native_serial_write_drained_event_payload = SerialWriteDrainedPayload {
-                            };
-                            let value_native_serial_write_drained_event = SerialWriteDrainedEvent {
-                                kind: value_native_serial_write_drained_event_kind,
-                                metadata: value_native_serial_write_drained_event_metadata,
-                                payload: value_native_serial_write_drained_event_payload,
-                            };
-                            SerialEvent::SerialWriteDrainedEvent(value_native_serial_write_drained_event)
                         }
                     };
                     unsafe { out.write(value_native) };
@@ -15696,23 +19526,6 @@ fn destack_device_serial_try_event_replay(
                         };
                         SerialeventReplayRecord::SerialReadReadyEvent(result_recorded_serial_read_ready_event)
                     }
-                    SerialEvent::SerialWriteDrainedEvent(value) => {
-                        let result_recorded_serial_write_drained_event_kind = unsafe { value.kind.as_str()? }.to_string();
-                        let result_recorded_serial_write_drained_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_serial_write_drained_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_serial_write_drained_event_metadata = SerialEventMetadata {
-                            timestamp_ns: result_recorded_serial_write_drained_event_metadata_timestamp_ns,
-                            sequence: result_recorded_serial_write_drained_event_metadata_sequence,
-                        };
-                        let result_recorded_serial_write_drained_event_payload = SerialWriteDrainedPayload {
-                        };
-                        let result_recorded_serial_write_drained_event = SerialwritedrainedeventReplayRecord {
-                            kind: result_recorded_serial_write_drained_event_kind,
-                            metadata: result_recorded_serial_write_drained_event_metadata,
-                            payload: result_recorded_serial_write_drained_event_payload,
-                        };
-                        SerialeventReplayRecord::SerialWriteDrainedEvent(result_recorded_serial_write_drained_event)
-                    }
                 };
                 let payload = DeviceSerialTryEventReplayRecord {
                     result: Ok(result_recorded),
@@ -15838,23 +19651,6 @@ fn destack_device_serial_try_event_replay(
                                 payload: value_native_serial_read_ready_event_payload,
                             };
                             SerialEvent::SerialReadReadyEvent(value_native_serial_read_ready_event)
-                        }
-                        SerialeventReplayRecord::SerialWriteDrainedEvent(value) => {
-                            let value_native_serial_write_drained_event_kind = binding.store_string(value.kind.as_str());
-                            let value_native_serial_write_drained_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let value_native_serial_write_drained_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_serial_write_drained_event_metadata = SerialEventMetadata {
-                                timestamp_ns: value_native_serial_write_drained_event_metadata_timestamp_ns,
-                                sequence: value_native_serial_write_drained_event_metadata_sequence,
-                            };
-                            let value_native_serial_write_drained_event_payload = SerialWriteDrainedPayload {
-                            };
-                            let value_native_serial_write_drained_event = SerialWriteDrainedEvent {
-                                kind: value_native_serial_write_drained_event_kind,
-                                metadata: value_native_serial_write_drained_event_metadata,
-                                payload: value_native_serial_write_drained_event_payload,
-                            };
-                            SerialEvent::SerialWriteDrainedEvent(value_native_serial_write_drained_event)
                         }
                     };
                     unsafe { out.write(value_native) };
@@ -18572,22 +22368,18 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_adapter_list(
 pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_characteristic_list(
     out: *mut NativeSlice<BluetoothGattCharacteristicDescriptor>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
+    serviceid: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &serviceuuid);
+        let _ = (&out, &handle, &serviceid);
 
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST)?;
         destack_device_bluetooth_gatt_characteristic_list_replay(
-            context,
-            world,
-            out,
-            handle,
-            serviceuuid,
+            context, world, out, handle, serviceid,
         )
     })
 }
@@ -18596,14 +22388,13 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_characteristic_lis
 pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_descriptor_list(
     out: *mut NativeSlice<BluetoothGattDescriptorDescriptor>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
-    characteristicuuid: NativeStringRef,
+    characteristicid: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &serviceuuid, &characteristicuuid);
+        let _ = (&out, &handle, &characteristicid);
 
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST)?;
@@ -18612,8 +22403,7 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_descriptor_list(
             world,
             out,
             handle,
-            serviceuuid,
-            characteristicuuid,
+            characteristicid,
         )
     })
 }
@@ -18639,15 +22429,14 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_mtu(
 pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_read(
     out: *mut NativeSlice<u8>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
-    characteristicuuid: NativeStringRef,
+    characteristicid: NativeStringRef,
     timeoutns: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &serviceuuid, &characteristicuuid, &timeoutns);
+        let _ = (&out, &handle, &characteristicid, &timeoutns);
 
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ)?;
@@ -18656,8 +22445,7 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_read(
             world,
             out,
             handle,
-            serviceuuid,
-            characteristicuuid,
+            characteristicid,
             timeoutns,
         )
     })
@@ -18667,23 +22455,14 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_read(
 pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_read_descriptor(
     out: *mut NativeSlice<u8>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
-    characteristicuuid: NativeStringRef,
-    descriptoruuid: NativeStringRef,
+    descriptorid: NativeStringRef,
     timeoutns: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (
-            &out,
-            &handle,
-            &serviceuuid,
-            &characteristicuuid,
-            &descriptoruuid,
-            &timeoutns,
-        );
+        let _ = (&out, &handle, &descriptorid, &timeoutns);
 
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR)?;
@@ -18692,9 +22471,7 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_read_descriptor(
             world,
             out,
             handle,
-            serviceuuid,
-            characteristicuuid,
-            descriptoruuid,
+            descriptorid,
             timeoutns,
         )
     })
@@ -18715,27 +22492,6 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_read_event(
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ_EVENT)?;
         destack_device_bluetooth_gatt_read_event_replay(context, world, out, handle, timeoutns)
-    })
-}
-
-#[unsafe(export_name = "destack.device.bluetooth.gatt.requestMtu")]
-pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_request_mtu(
-    out: *mut u16,
-    handle: resource::BluetoothDeviceHandle,
-    mtu: u16,
-    timeoutns: u64,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle, &mtu, &timeoutns);
-
-        let (world, _binding_hook_guard) =
-            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?;
-        destack_device_bluetooth_gatt_request_mtu_replay(
-            context, world, out, handle, mtu, timeoutns,
-        )
     })
 }
 
@@ -18760,14 +22516,13 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_service_list(
 pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_subscribe(
     out: *mut resource::BluetoothSubscriptionHandle,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
-    characteristicuuid: NativeStringRef,
+    characteristicid: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &serviceuuid, &characteristicuuid);
+        let _ = (&out, &handle, &characteristicid);
 
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?;
@@ -18776,8 +22531,7 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_subscribe(
             world,
             out,
             handle,
-            serviceuuid,
-            characteristicuuid,
+            characteristicid,
         )
     })
 }
@@ -18815,8 +22569,7 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_unsubscribe(
 #[unsafe(export_name = "destack.device.bluetooth.gatt.write")]
 pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_write(
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
-    characteristicuuid: NativeStringRef,
+    characteristicid: NativeStringRef,
     argument_value: NativeSlice<u8>,
     mode: BluetoothGattWriteMode,
     timeoutns: u64,
@@ -18824,8 +22577,7 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_write(
     native_call(|context| {
         let _ = (
             &handle,
-            &serviceuuid,
-            &characteristicuuid,
+            &characteristicid,
             &argument_value,
             &mode,
             &timeoutns,
@@ -18837,8 +22589,7 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_write(
             context,
             world,
             handle,
-            serviceuuid,
-            characteristicuuid,
+            characteristicid,
             argument_value,
             mode,
             timeoutns,
@@ -18849,21 +22600,12 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_write(
 #[unsafe(export_name = "destack.device.bluetooth.gatt.writeDescriptor")]
 pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_write_descriptor(
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: NativeStringRef,
-    characteristicuuid: NativeStringRef,
-    descriptoruuid: NativeStringRef,
+    descriptorid: NativeStringRef,
     argument_value: NativeSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (
-            &handle,
-            &serviceuuid,
-            &characteristicuuid,
-            &descriptoruuid,
-            &argument_value,
-            &timeoutns,
-        );
+        let _ = (&handle, &descriptorid, &argument_value, &timeoutns);
 
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR)?;
@@ -18871,9 +22613,7 @@ pub(crate) unsafe extern "C" fn destack_device_bluetooth_gatt_write_descriptor(
             context,
             world,
             handle,
-            serviceuuid,
-            characteristicuuid,
-            descriptoruuid,
+            descriptorid,
             argument_value,
             timeoutns,
         )
@@ -19195,6 +22935,40 @@ pub(crate) unsafe extern "C" fn destack_device_camera_device_stream_config_list(
     })
 }
 
+#[unsafe(export_name = "destack.device.camera.stream.brightness")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_brightness(
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_BRIGHTNESS)?;
+        destack_device_camera_stream_brightness_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.brightnessRange")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_brightness_range(
+    out: *mut CameraFloatControlRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_BRIGHTNESS_RANGE)?;
+        destack_device_camera_stream_brightness_range_replay(context, world, out, handle)
+    })
+}
+
 #[unsafe(export_name = "destack.device.camera.stream.close")]
 pub(crate) unsafe extern "C" fn destack_device_camera_stream_close(
     handle: resource::CameraStreamHandle,
@@ -19222,6 +22996,40 @@ pub(crate) unsafe extern "C" fn destack_device_camera_stream_config(
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CONFIG)?;
         destack_device_camera_stream_config_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.contrast")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_contrast(
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CONTRAST)?;
+        destack_device_camera_stream_contrast_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.contrastRange")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_contrast_range(
+    out: *mut CameraFloatControlRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CONTRAST_RANGE)?;
+        destack_device_camera_stream_contrast_range_replay(context, world, out, handle)
     })
 }
 
@@ -19276,6 +23084,40 @@ pub(crate) unsafe extern "C" fn destack_device_camera_stream_exposure_mode(
     })
 }
 
+#[unsafe(export_name = "destack.device.camera.stream.exposureTimeNs")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_exposure_time_ns(
+    out: *mut u64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_EXPOSURE_TIME_NS)?;
+        destack_device_camera_stream_exposure_time_ns_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.exposureTimeRange")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_exposure_time_range(
+    out: *mut CameraExposureTimeRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_EXPOSURE_TIME_RANGE)?;
+        destack_device_camera_stream_exposure_time_range_replay(context, world, out, handle)
+    })
+}
+
 #[unsafe(export_name = "destack.device.camera.stream.focusDistanceDiopters")]
 pub(crate) unsafe extern "C" fn destack_device_camera_stream_focus_distance_diopters(
     out: *mut f64,
@@ -19310,6 +23152,23 @@ pub(crate) unsafe extern "C" fn destack_device_camera_stream_focus_distance_rang
     })
 }
 
+#[unsafe(export_name = "destack.device.camera.stream.focusMode")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_focus_mode(
+    out: *mut CameraFocusMode,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_FOCUS_MODE)?;
+        destack_device_camera_stream_focus_mode_replay(context, world, out, handle)
+    })
+}
+
 #[unsafe(export_name = "destack.device.camera.stream.open")]
 pub(crate) unsafe extern "C" fn destack_device_camera_stream_open(
     out: *mut resource::CameraStreamHandle,
@@ -19328,6 +23187,40 @@ pub(crate) unsafe extern "C" fn destack_device_camera_stream_open(
     })
 }
 
+#[unsafe(export_name = "destack.device.camera.stream.panDegrees")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_pan_degrees(
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_PAN_DEGREES)?;
+        destack_device_camera_stream_pan_degrees_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.panRange")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_pan_range(
+    out: *mut CameraPanAngleRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_PAN_RANGE)?;
+        destack_device_camera_stream_pan_range_replay(context, world, out, handle)
+    })
+}
+
 #[unsafe(export_name = "destack.device.camera.stream.read")]
 pub(crate) unsafe extern "C" fn destack_device_camera_stream_read(
     out: *mut CameraFrame,
@@ -19343,6 +23236,102 @@ pub(crate) unsafe extern "C" fn destack_device_camera_stream_read(
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_READ)?;
         destack_device_camera_stream_read_replay(context, world, out, handle, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.saturation")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_saturation(
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SATURATION)?;
+        destack_device_camera_stream_saturation_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.saturationRange")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_saturation_range(
+    out: *mut CameraFloatControlRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SATURATION_RANGE)?;
+        destack_device_camera_stream_saturation_range_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.sensorIso")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_sensor_iso(
+    out: *mut u32,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SENSOR_ISO)?;
+        destack_device_camera_stream_sensor_iso_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.sensorIsoRange")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_sensor_iso_range(
+    out: *mut CameraSensorIsoRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SENSOR_ISO_RANGE)?;
+        destack_device_camera_stream_sensor_iso_range_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.setBrightness")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_brightness(
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &argument_value);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_BRIGHTNESS)?;
+        destack_device_camera_stream_set_brightness_replay(context, world, handle, argument_value)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.setContrast")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_contrast(
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &argument_value);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_CONTRAST)?;
+        destack_device_camera_stream_set_contrast_replay(context, world, handle, argument_value)
     })
 }
 
@@ -19376,6 +23365,20 @@ pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_exposure_mode(
     })
 }
 
+#[unsafe(export_name = "destack.device.camera.stream.setExposureTimeNs")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_exposure_time_ns(
+    handle: resource::CameraStreamHandle,
+    valuens: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &valuens);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_EXPOSURE_TIME_NS)?;
+        destack_device_camera_stream_set_exposure_time_ns_replay(context, world, handle, valuens)
+    })
+}
+
 #[unsafe(export_name = "destack.device.camera.stream.setFocusDistanceDiopters")]
 pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_focus_distance_diopters(
     handle: resource::CameraStreamHandle,
@@ -19392,6 +23395,76 @@ pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_focus_distance_
     })
 }
 
+#[unsafe(export_name = "destack.device.camera.stream.setFocusMode")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_focus_mode(
+    handle: resource::CameraStreamHandle,
+    mode: CameraFocusMode,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &mode);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_FOCUS_MODE)?;
+        destack_device_camera_stream_set_focus_mode_replay(context, world, handle, mode)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.setPanDegrees")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_pan_degrees(
+    handle: resource::CameraStreamHandle,
+    degrees: f64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &degrees);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_PAN_DEGREES)?;
+        destack_device_camera_stream_set_pan_degrees_replay(context, world, handle, degrees)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.setSaturation")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_saturation(
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &argument_value);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_SATURATION)?;
+        destack_device_camera_stream_set_saturation_replay(context, world, handle, argument_value)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.setSensorIso")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_sensor_iso(
+    handle: resource::CameraStreamHandle,
+    iso: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &iso);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_SENSOR_ISO)?;
+        destack_device_camera_stream_set_sensor_iso_replay(context, world, handle, iso)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.setSharpness")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_sharpness(
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &argument_value);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_SHARPNESS)?;
+        destack_device_camera_stream_set_sharpness_replay(context, world, handle, argument_value)
+    })
+}
+
 #[unsafe(export_name = "destack.device.camera.stream.setStabilizationMode")]
 pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_stabilization_mode(
     handle: resource::CameraStreamHandle,
@@ -19403,6 +23476,20 @@ pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_stabilization_m
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE)?;
         destack_device_camera_stream_set_stabilization_mode_replay(context, world, handle, mode)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.setTiltDegrees")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_tilt_degrees(
+    handle: resource::CameraStreamHandle,
+    degrees: f64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &degrees);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_TILT_DEGREES)?;
+        destack_device_camera_stream_set_tilt_degrees_replay(context, world, handle, degrees)
     })
 }
 
@@ -19434,6 +23521,20 @@ pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_white_balance_k
     })
 }
 
+#[unsafe(export_name = "destack.device.camera.stream.setWhiteBalanceMode")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_white_balance_mode(
+    handle: resource::CameraStreamHandle,
+    mode: CameraWhiteBalanceMode,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &mode);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_WHITE_BALANCE_MODE)?;
+        destack_device_camera_stream_set_white_balance_mode_replay(context, world, handle, mode)
+    })
+}
+
 #[unsafe(export_name = "destack.device.camera.stream.setZoomRatio")]
 pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_zoom_ratio(
     handle: resource::CameraStreamHandle,
@@ -19445,6 +23546,40 @@ pub(crate) unsafe extern "C" fn destack_device_camera_stream_set_zoom_ratio(
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_ZOOM_RATIO)?;
         destack_device_camera_stream_set_zoom_ratio_replay(context, world, handle, ratio)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.sharpness")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_sharpness(
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SHARPNESS)?;
+        destack_device_camera_stream_sharpness_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.sharpnessRange")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_sharpness_range(
+    out: *mut CameraFloatControlRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SHARPNESS_RANGE)?;
+        destack_device_camera_stream_sharpness_range_replay(context, world, out, handle)
     })
 }
 
@@ -19488,6 +23623,40 @@ pub(crate) unsafe extern "C" fn destack_device_camera_stream_stop(
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_STOP)?;
         destack_device_camera_stream_stop_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.tiltDegrees")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_tilt_degrees(
+    out: *mut f64,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_TILT_DEGREES)?;
+        destack_device_camera_stream_tilt_degrees_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.tiltRange")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_tilt_range(
+    out: *mut CameraTiltAngleRange,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_TILT_RANGE)?;
+        destack_device_camera_stream_tilt_range_replay(context, world, out, handle)
     })
 }
 
@@ -19539,6 +23708,23 @@ pub(crate) unsafe extern "C" fn destack_device_camera_stream_white_balance_kelvi
         let (world, _binding_hook_guard) =
             context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_WHITE_BALANCE_KELVIN)?;
         destack_device_camera_stream_white_balance_kelvin_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.device.camera.stream.whiteBalanceMode")]
+pub(crate) unsafe extern "C" fn destack_device_camera_stream_white_balance_mode(
+    out: *mut CameraWhiteBalanceMode,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_WHITE_BALANCE_MODE)?;
+        destack_device_camera_stream_white_balance_mode_replay(context, world, out, handle)
     })
 }
 
@@ -20708,7 +24894,7 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
+    serviceid: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
         DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST,
@@ -20716,8 +24902,8 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
         context,
         |context| {
             match world {
-                RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_characteristic_list(binding, context, handle, serviceuuid),
-                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_bluetooth_gatt_characteristic_list(binding, context, handle, serviceuuid),
+                RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_characteristic_list(binding, context, handle, serviceid),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_bluetooth_gatt_characteristic_list(binding, context, handle, serviceid),
             }
         },
         |context, result| {
@@ -20730,12 +24916,13 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
                     let result_recorded_item = {
                         if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
                         let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 3 fields")).boxed()); }
-                        let result_recorded_item_service_uuid = decode_string(slots[0], "result_recorded_item_service_uuid", "serviceUuid")?;
-                        let result_recorded_item_uuid = decode_string(slots[1], "result_recorded_item_uuid", "uuid")?;
+                        if slots.len() != 4 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 4 fields")).boxed()); }
+                        let result_recorded_item_id = decode_string(slots[0], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_service_id = decode_string(slots[1], "result_recorded_item_service_id", "serviceId")?;
+                        let result_recorded_item_uuid = decode_string(slots[2], "result_recorded_item_uuid", "uuid")?;
                         let result_recorded_item_properties = {
-                            if slots[2].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_properties", "properties")).boxed()); }
-                            let slots = context.aggregate_slots(slots[2]).map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots[3].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_properties", "properties")).boxed()); }
+                            let slots = context.aggregate_slots(slots[3]).map_err(|error| RuntimeError::from(error).boxed())?;
                             if slots.len() != 9 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_properties", "expected 9 fields")).boxed()); }
                             let result_recorded_item_properties_broadcast = decode_bool(slots[0], "result_recorded_item_properties_broadcast", "broadcast")?;
                             let result_recorded_item_properties_read = decode_bool(slots[1], "result_recorded_item_properties_read", "read")?;
@@ -20759,14 +24946,19 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
                             }
                         };
                         BluetoothGattCharacteristicDescriptorVm {
-                            service_uuid: result_recorded_item_service_uuid,
+                            id: result_recorded_item_id,
+                            service_id: result_recorded_item_service_id,
                             uuid: result_recorded_item_uuid,
                             properties: result_recorded_item_properties,
                         }
                     };
-                    let result_recorded_item_recorded_service_uuid = {
-                        let result_recorded_item_recorded_service_uuid_ref = context.string_ref(result_recorded_item.service_uuid).map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_item_recorded_service_uuid_ref.as_str().to_string()
+                    let result_recorded_item_recorded_id = {
+                        let result_recorded_item_recorded_id_ref = context.string_ref(result_recorded_item.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_service_id = {
+                        let result_recorded_item_recorded_service_id_ref = context.string_ref(result_recorded_item.service_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_service_id_ref.as_str().to_string()
                     };
                     let result_recorded_item_recorded_uuid = {
                         let result_recorded_item_recorded_uuid_ref = context.string_ref(result_recorded_item.uuid).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -20793,7 +24985,8 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
                         writable_auxiliaries: result_recorded_item_recorded_properties_writable_auxiliaries,
                     };
                     let result_recorded_item_recorded = BluetoothgattcharacteristicdescriptorReplayRecord {
-                        service_uuid: result_recorded_item_recorded_service_uuid,
+                        id: result_recorded_item_recorded_id,
+                        service_id: result_recorded_item_recorded_service_id,
                         uuid: result_recorded_item_recorded_uuid,
                         properties: result_recorded_item_recorded_properties,
                     };
@@ -20824,7 +25017,8 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_service_uuid = context.string_handle(vm_result_item.service_uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_service_id = context.string_handle(vm_result_item.service_id.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_uuid = context.string_handle(vm_result_item.uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_properties_broadcast = vm_result_item.properties.broadcast;
                         let vm_result_item_value_properties_read = vm_result_item.properties.read;
@@ -20847,7 +25041,8 @@ fn destack_device_bluetooth_gatt_characteristic_list_vm_replay(
                             writable_auxiliaries: vm_result_item_value_properties_writable_auxiliaries,
                         };
                         let vm_result_item_value = BluetoothGattCharacteristicDescriptorVm {
-                            service_uuid: vm_result_item_value_service_uuid,
+                            id: vm_result_item_value_id,
+                            service_id: vm_result_item_value_service_id,
                             uuid: vm_result_item_value_uuid,
                             properties: vm_result_item_value_properties,
                         };
@@ -20870,8 +25065,7 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
-    characteristicuuid: vm::StringHandle,
+    characteristicid: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
         DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST,
@@ -20882,16 +25076,14 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
                 binding,
                 context,
                 handle,
-                serviceuuid,
-                characteristicuuid,
+                characteristicid,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_descriptor_list(
                     binding,
                     context,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
+                    characteristicid,
                 )
             }
         },
@@ -20913,44 +25105,53 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
                         let slots = context
                             .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 3 {
+                        if slots.len() != 4 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                                 "result_recorded_item",
-                                "expected 3 fields",
+                                "expected 4 fields",
                             ))
                             .boxed());
                         }
-                        let result_recorded_item_service_uuid = decode_string(
-                            slots[0],
-                            "result_recorded_item_service_uuid",
-                            "serviceUuid",
-                        )?;
-                        let result_recorded_item_characteristic_uuid = decode_string(
+                        let result_recorded_item_id =
+                            decode_string(slots[0], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_service_id = decode_string(
                             slots[1],
-                            "result_recorded_item_characteristic_uuid",
-                            "characteristicUuid",
+                            "result_recorded_item_service_id",
+                            "serviceId",
+                        )?;
+                        let result_recorded_item_characteristic_id = decode_string(
+                            slots[2],
+                            "result_recorded_item_characteristic_id",
+                            "characteristicId",
                         )?;
                         let result_recorded_item_uuid =
-                            decode_string(slots[2], "result_recorded_item_uuid", "uuid")?;
+                            decode_string(slots[3], "result_recorded_item_uuid", "uuid")?;
                         BluetoothGattDescriptorDescriptorVm {
-                            service_uuid: result_recorded_item_service_uuid,
-                            characteristic_uuid: result_recorded_item_characteristic_uuid,
+                            id: result_recorded_item_id,
+                            service_id: result_recorded_item_service_id,
+                            characteristic_id: result_recorded_item_characteristic_id,
                             uuid: result_recorded_item_uuid,
                         }
                     };
-                    let result_recorded_item_recorded_service_uuid = {
-                        let result_recorded_item_recorded_service_uuid_ref = context
-                            .string_ref(result_recorded_item.service_uuid)
+                    let result_recorded_item_recorded_id = {
+                        let result_recorded_item_recorded_id_ref = context
+                            .string_ref(result_recorded_item.id)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_item_recorded_service_uuid_ref
+                        result_recorded_item_recorded_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_service_id = {
+                        let result_recorded_item_recorded_service_id_ref = context
+                            .string_ref(result_recorded_item.service_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_service_id_ref
                             .as_str()
                             .to_string()
                     };
-                    let result_recorded_item_recorded_characteristic_uuid = {
-                        let result_recorded_item_recorded_characteristic_uuid_ref = context
-                            .string_ref(result_recorded_item.characteristic_uuid)
+                    let result_recorded_item_recorded_characteristic_id = {
+                        let result_recorded_item_recorded_characteristic_id_ref = context
+                            .string_ref(result_recorded_item.characteristic_id)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_item_recorded_characteristic_uuid_ref
+                        result_recorded_item_recorded_characteristic_id_ref
                             .as_str()
                             .to_string()
                     };
@@ -20962,8 +25163,9 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
                     };
                     let result_recorded_item_recorded =
                         BluetoothgattdescriptordescriptorReplayRecord {
-                            service_uuid: result_recorded_item_recorded_service_uuid,
-                            characteristic_uuid: result_recorded_item_recorded_characteristic_uuid,
+                            id: result_recorded_item_recorded_id,
+                            service_id: result_recorded_item_recorded_service_id,
+                            characteristic_id: result_recorded_item_recorded_characteristic_id,
                             uuid: result_recorded_item_recorded_uuid,
                         };
                     result_recorded.push(result_recorded_item_recorded);
@@ -20991,18 +25193,22 @@ fn destack_device_bluetooth_gatt_descriptor_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_service_uuid = context
-                            .string_handle(vm_result_item.service_uuid.as_str())
+                        let vm_result_item_value_id = context
+                            .string_handle(vm_result_item.id.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
-                        let vm_result_item_value_characteristic_uuid = context
-                            .string_handle(vm_result_item.characteristic_uuid.as_str())
+                        let vm_result_item_value_service_id = context
+                            .string_handle(vm_result_item.service_id.as_str())
+                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_characteristic_id = context
+                            .string_handle(vm_result_item.characteristic_id.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_uuid = context
                             .string_handle(vm_result_item.uuid.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value = BluetoothGattDescriptorDescriptorVm {
-                            service_uuid: vm_result_item_value_service_uuid,
-                            characteristic_uuid: vm_result_item_value_characteristic_uuid,
+                            id: vm_result_item_value_id,
+                            service_id: vm_result_item_value_service_id,
+                            characteristic_id: vm_result_item_value_characteristic_id,
                             uuid: vm_result_item_value_uuid,
                         };
                         vm_result_values.push(vm_result_item_value);
@@ -21080,8 +25286,7 @@ fn destack_device_bluetooth_gatt_read_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
-    characteristicuuid: vm::StringHandle,
+    characteristicid: vm::StringHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
@@ -21093,16 +25298,14 @@ fn destack_device_bluetooth_gatt_read_vm_replay(
                 binding,
                 context,
                 handle,
-                serviceuuid,
-                characteristicuuid,
+                characteristicid,
                 timeoutns,
             ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_device_bluetooth_gatt_read(
                 binding,
                 context,
                 handle,
-                serviceuuid,
-                characteristicuuid,
+                characteristicid,
                 timeoutns,
             ),
         },
@@ -21149,9 +25352,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
-    characteristicuuid: vm::StringHandle,
-    descriptoruuid: vm::StringHandle,
+    descriptorid: vm::StringHandle,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
@@ -21163,9 +25364,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
                 binding,
                 context,
                 handle,
-                serviceuuid,
-                characteristicuuid,
-                descriptoruuid,
+                descriptorid,
                 timeoutns,
             ),
             RuntimeWorld::Simulation => {
@@ -21173,9 +25372,7 @@ fn destack_device_bluetooth_gatt_read_descriptor_vm_replay(
                     binding,
                     context,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
-                    descriptoruuid,
+                    descriptorid,
                     timeoutns,
                 )
             }
@@ -21244,6 +25441,18 @@ fn destack_device_bluetooth_gatt_read_event_vm_replay(
             if let Ok(value) = result {
                 let result_value: BluetoothGattValueEventVm = value.clone();
                 let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_service_id = {
+                    let result_recorded_service_id_ref = context
+                        .string_ref(result_value.service_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_service_id_ref.as_str().to_string()
+                };
+                let result_recorded_characteristic_id = {
+                    let result_recorded_characteristic_id_ref = context
+                        .string_ref(result_value.characteristic_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_characteristic_id_ref.as_str().to_string()
+                };
                 let result_recorded_service_uuid = {
                     let result_recorded_service_uuid_ref = context
                         .string_ref(result_value.service_uuid)
@@ -21259,6 +25468,8 @@ fn destack_device_bluetooth_gatt_read_event_vm_replay(
                 let result_recorded_value = result_value.value.read_bytes(context)?;
                 let result_recorded = BluetoothgattvalueeventReplayRecord {
                     timestamp_ns: result_recorded_timestamp_ns,
+                    service_id: result_recorded_service_id,
+                    characteristic_id: result_recorded_characteristic_id,
                     service_uuid: result_recorded_service_uuid,
                     characteristic_uuid: result_recorded_characteristic_uuid,
                     value: result_recorded_value,
@@ -21285,6 +25496,12 @@ fn destack_device_bluetooth_gatt_read_event_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_service_id = context
+                        .string_handle(value.service_id.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_characteristic_id = context
+                        .string_handle(value.characteristic_id.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
                     let vm_result_service_uuid = context
                         .string_handle(value.service_uuid.as_str())
                         .map_err(Box::<RuntimeError>::from)?;
@@ -21294,6 +25511,8 @@ fn destack_device_bluetooth_gatt_read_event_vm_replay(
                     let vm_result_value = VmSlice::<u8>::from_bytes(context, value.value.as_ref())?;
                     let vm_result = BluetoothGattValueEventVm {
                         timestamp_ns: vm_result_timestamp_ns,
+                        service_id: vm_result_service_id,
+                        characteristic_id: vm_result_characteristic_id,
                         service_uuid: vm_result_service_uuid,
                         characteristic_uuid: vm_result_characteristic_uuid,
                         value: vm_result_value,
@@ -21309,66 +25528,6 @@ fn destack_device_bluetooth_gatt_read_event_vm_replay(
 }
 
 #[inline]
-fn destack_device_bluetooth_gatt_request_mtu_vm_replay(
-    binding: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::BluetoothDeviceHandle,
-    mtu: u16,
-    timeoutns: u64,
-) -> RuntimeResult<vm::Value> {
-    let result = binding.trace().run_binding(
-        DEVICE_BLUETOOTH_GATT_REQUEST_MTU,
-        binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_request_mtu(
-                binding, context, handle, mtu, timeoutns,
-            ),
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_bluetooth_gatt_request_mtu(
-                    binding, context, handle, mtu, timeoutns,
-                )
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: u16 = value.clone();
-                let result_recorded = result_value;
-                let payload = DeviceBluetoothGattRequestMtuReplayRecord {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(TraceError::from(error.as_ref()));
-                    DeviceBluetoothGattRequestMtuReplayRecord { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result = value;
-                    Ok(vm_result)
-                }
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
-            }
-        },
-    );
-    let result = encode_destack_device_bluetooth_gatt_request_mtu_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
 fn destack_device_bluetooth_gatt_service_list_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -21379,14 +25538,10 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
         DEVICE_BLUETOOTH_GATT_SERVICE_LIST,
         binding.replay_payload_for(DEVICE_BLUETOOTH_GATT_SERVICE_LIST)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_device_bluetooth_gatt_service_list(binding, context, handle)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_device_bluetooth_gatt_service_list(
-                    binding, context, handle,
-                )
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_device_bluetooth_gatt_service_list(binding, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_device_bluetooth_gatt_service_list(binding, context, handle),
             }
         },
         |context, result| {
@@ -21397,44 +25552,45 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 2 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 2 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_uuid =
-                            decode_string(slots[0], "result_recorded_item_uuid", "uuid")?;
-                        let result_recorded_item_primary =
-                            decode_bool(slots[1], "result_recorded_item_primary", "primary")?;
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 4 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 4 fields")).boxed()); }
+                        let result_recorded_item_id = decode_string(slots[0], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_uuid = decode_string(slots[1], "result_recorded_item_uuid", "uuid")?;
+                        let result_recorded_item_primary = decode_bool(slots[2], "result_recorded_item_primary", "primary")?;
+                        let result_recorded_item_included_service_ids = decode_array::<vm::StringHandle>(context, slots[3], "result_recorded_item_included_service_ids", "includedServiceIds")?;
                         BluetoothGattServiceDescriptorVm {
+                            id: result_recorded_item_id,
                             uuid: result_recorded_item_uuid,
                             primary: result_recorded_item_primary,
+                            included_service_ids: result_recorded_item_included_service_ids,
                         }
                     };
+                    let result_recorded_item_recorded_id = {
+                        let result_recorded_item_recorded_id_ref = context.string_ref(result_recorded_item.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_id_ref.as_str().to_string()
+                    };
                     let result_recorded_item_recorded_uuid = {
-                        let result_recorded_item_recorded_uuid_ref = context
-                            .string_ref(result_recorded_item.uuid)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        let result_recorded_item_recorded_uuid_ref = context.string_ref(result_recorded_item.uuid).map_err(|error| RuntimeError::from(error).boxed())?;
                         result_recorded_item_recorded_uuid_ref.as_str().to_string()
                     };
                     let result_recorded_item_recorded_primary = result_recorded_item.primary;
-                    let result_recorded_item_recorded =
-                        BluetoothgattservicedescriptorReplayRecord {
-                            uuid: result_recorded_item_recorded_uuid,
-                            primary: result_recorded_item_recorded_primary,
+                    let result_recorded_item_recorded_included_service_ids_raw = result_recorded_item.included_service_ids.raw_values(context)?;
+                    let mut result_recorded_item_recorded_included_service_ids = Vec::with_capacity(result_recorded_item_recorded_included_service_ids_raw.len());
+                    for result_recorded_item_recorded_included_service_ids_item_value in result_recorded_item_recorded_included_service_ids_raw {
+                        let result_recorded_item_recorded_included_service_ids_item = decode_string(result_recorded_item_recorded_included_service_ids_item_value, "result_recorded_item_recorded_included_service_ids_item", "item")?;
+                        let result_recorded_item_recorded_included_service_ids_item_recorded = {
+                            let result_recorded_item_recorded_included_service_ids_item_recorded_ref = context.string_ref(result_recorded_item_recorded_included_service_ids_item).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_item_recorded_included_service_ids_item_recorded_ref.as_str().to_string()
                         };
+                        result_recorded_item_recorded_included_service_ids.push(result_recorded_item_recorded_included_service_ids_item_recorded);
+                    }
+                    let result_recorded_item_recorded = BluetoothgattservicedescriptorReplayRecord {
+                        id: result_recorded_item_recorded_id,
+                        uuid: result_recorded_item_recorded_uuid,
+                        primary: result_recorded_item_recorded_primary,
+                        included_service_ids: result_recorded_item_recorded_included_service_ids,
+                    };
                     result_recorded.push(result_recorded_item_recorded);
                 }
                 let payload = DeviceBluetoothGattServiceListReplayRecord {
@@ -21446,7 +25602,9 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    DeviceBluetoothGattServiceListReplayRecord { result }
+                    DeviceBluetoothGattServiceListReplayRecord {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -21460,13 +25618,20 @@ fn destack_device_bluetooth_gatt_service_list_vm_replay(
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter().cloned() {
-                        let vm_result_item_value_uuid = context
-                            .string_handle(vm_result_item.uuid.as_str())
-                            .map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        let vm_result_item_value_uuid = context.string_handle(vm_result_item.uuid.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_primary = vm_result_item.primary;
+                        let mut vm_result_item_value_included_service_ids_values = Vec::with_capacity(vm_result_item.included_service_ids.len());
+                        for vm_result_item_value_included_service_ids_item in vm_result_item.included_service_ids.iter() {
+                            let vm_result_item_value_included_service_ids_item_value = context.string_handle(vm_result_item_value_included_service_ids_item.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            vm_result_item_value_included_service_ids_values.push(vm_result_item_value_included_service_ids_item_value);
+                        }
+                        let vm_result_item_value_included_service_ids = VmArray::from_values(context, &vm_result_item_value_included_service_ids_values)?;
                         let vm_result_item_value = BluetoothGattServiceDescriptorVm {
+                            id: vm_result_item_value_id,
                             uuid: vm_result_item_value_uuid,
                             primary: vm_result_item_value_primary,
+                            included_service_ids: vm_result_item_value_included_service_ids,
                         };
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -21487,8 +25652,7 @@ fn destack_device_bluetooth_gatt_subscribe_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
-    characteristicuuid: vm::StringHandle,
+    characteristicid: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = binding.trace().run_binding(
         DEVICE_BLUETOOTH_GATT_SUBSCRIBE,
@@ -21499,16 +25663,14 @@ fn destack_device_bluetooth_gatt_subscribe_vm_replay(
                 binding,
                 context,
                 handle,
-                serviceuuid,
-                characteristicuuid,
+                characteristicid,
             ),
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_device_bluetooth_gatt_subscribe(
                     binding,
                     context,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
+                    characteristicid,
                 )
             }
         },
@@ -21575,6 +25737,18 @@ fn destack_device_bluetooth_gatt_try_read_event_vm_replay(
             if let Ok(value) = result {
                 let result_value: BluetoothGattValueEventVm = value.clone();
                 let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_service_id = {
+                    let result_recorded_service_id_ref = context
+                        .string_ref(result_value.service_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_service_id_ref.as_str().to_string()
+                };
+                let result_recorded_characteristic_id = {
+                    let result_recorded_characteristic_id_ref = context
+                        .string_ref(result_value.characteristic_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_characteristic_id_ref.as_str().to_string()
+                };
                 let result_recorded_service_uuid = {
                     let result_recorded_service_uuid_ref = context
                         .string_ref(result_value.service_uuid)
@@ -21590,6 +25764,8 @@ fn destack_device_bluetooth_gatt_try_read_event_vm_replay(
                 let result_recorded_value = result_value.value.read_bytes(context)?;
                 let result_recorded = BluetoothgattvalueeventReplayRecord {
                     timestamp_ns: result_recorded_timestamp_ns,
+                    service_id: result_recorded_service_id,
+                    characteristic_id: result_recorded_characteristic_id,
                     service_uuid: result_recorded_service_uuid,
                     characteristic_uuid: result_recorded_characteristic_uuid,
                     value: result_recorded_value,
@@ -21616,6 +25792,12 @@ fn destack_device_bluetooth_gatt_try_read_event_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_service_id = context
+                        .string_handle(value.service_id.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_characteristic_id = context
+                        .string_handle(value.characteristic_id.as_str())
+                        .map_err(Box::<RuntimeError>::from)?;
                     let vm_result_service_uuid = context
                         .string_handle(value.service_uuid.as_str())
                         .map_err(Box::<RuntimeError>::from)?;
@@ -21625,6 +25807,8 @@ fn destack_device_bluetooth_gatt_try_read_event_vm_replay(
                     let vm_result_value = VmSlice::<u8>::from_bytes(context, value.value.as_ref())?;
                     let vm_result = BluetoothGattValueEventVm {
                         timestamp_ns: vm_result_timestamp_ns,
+                        service_id: vm_result_service_id,
+                        characteristic_id: vm_result_characteristic_id,
                         service_uuid: vm_result_service_uuid,
                         characteristic_uuid: vm_result_characteristic_uuid,
                         value: vm_result_value,
@@ -21699,8 +25883,7 @@ fn destack_device_bluetooth_gatt_write_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
-    characteristicuuid: vm::StringHandle,
+    characteristicid: vm::StringHandle,
     argument_value: VmSlice<u8>,
     mode: BluetoothGattWriteMode,
     timeoutns: u64,
@@ -21714,8 +25897,7 @@ fn destack_device_bluetooth_gatt_write_vm_replay(
                 binding,
                 context,
                 handle,
-                serviceuuid,
-                characteristicuuid,
+                characteristicid,
                 argument_value,
                 mode,
                 timeoutns,
@@ -21725,8 +25907,7 @@ fn destack_device_bluetooth_gatt_write_vm_replay(
                     binding,
                     context,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
+                    characteristicid,
                     argument_value,
                     mode,
                     timeoutns,
@@ -21772,9 +25953,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
-    characteristicuuid: vm::StringHandle,
-    descriptoruuid: vm::StringHandle,
+    descriptorid: vm::StringHandle,
     argument_value: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<vm::Value> {
@@ -21787,9 +25966,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_vm_replay(
                 binding,
                 context,
                 handle,
-                serviceuuid,
-                characteristicuuid,
-                descriptoruuid,
+                descriptorid,
                 argument_value,
                 timeoutns,
             ),
@@ -21798,9 +25975,7 @@ fn destack_device_bluetooth_gatt_write_descriptor_vm_replay(
                     binding,
                     context,
                     handle,
-                    serviceuuid,
-                    characteristicuuid,
-                    descriptoruuid,
+                    descriptorid,
                     argument_value,
                     timeoutns,
                 )
@@ -21976,9 +26151,14 @@ fn destack_device_bluetooth_scan_read_vm_replay(
                     let result_recorded_id_ref = context.string_ref(result_value.id).map_err(|error| RuntimeError::from(error).boxed())?;
                     result_recorded_id_ref.as_str().to_string()
                 };
-                let result_recorded_address = {
-                    let result_recorded_address_ref = context.string_ref(result_value.address).map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_address_ref.as_str().to_string()
+                let result_recorded_address = if let Some(value) = result_value.address {
+                    let result_recorded_address_inner = {
+                        let result_recorded_address_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_address_inner_ref.as_str().to_string()
+                    };
+                    Some(result_recorded_address_inner)
+                } else {
+                    None
                 };
                 let result_recorded_name = if let Some(value) = result_value.name {
                     let result_recorded_name_inner = {
@@ -21995,10 +26175,25 @@ fn destack_device_bluetooth_scan_read_vm_replay(
                 } else {
                     None
                 };
-                let result_recorded_paired = result_value.paired;
-                let result_recorded_pair_state = result_value.pair_state;
+                let result_recorded_paired = if let Some(value) = result_value.paired {
+                    let result_recorded_paired_inner = value;
+                    Some(result_recorded_paired_inner)
+                } else {
+                    None
+                };
+                let result_recorded_pair_state = if let Some(value) = result_value.pair_state {
+                    let result_recorded_pair_state_inner = value;
+                    Some(result_recorded_pair_state_inner)
+                } else {
+                    None
+                };
                 let result_recorded_connected = result_value.connected;
-                let result_recorded_connectable = result_value.connectable;
+                let result_recorded_connectable = if let Some(value) = result_value.connectable {
+                    let result_recorded_connectable_inner = value;
+                    Some(result_recorded_connectable_inner)
+                } else {
+                    None
+                };
                 let result_recorded_transport = if let Some(value) = result_value.transport {
                     let result_recorded_transport_inner = value;
                     Some(result_recorded_transport_inner)
@@ -22120,7 +26315,12 @@ fn destack_device_bluetooth_scan_read_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_id = context.string_handle(value.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_address = context.string_handle(value.address.as_str()).map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_address = if let Some(value) = value.address {
+                        let vm_result_address_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        Some(vm_result_address_inner)
+                    } else {
+                        None
+                    };
                     let vm_result_name = if let Some(value) = value.name {
                         let vm_result_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_name_inner)
@@ -22133,10 +26333,25 @@ fn destack_device_bluetooth_scan_read_vm_replay(
                     } else {
                         None
                     };
-                    let vm_result_paired = value.paired;
-                    let vm_result_pair_state = value.pair_state;
+                    let vm_result_paired = if let Some(value) = value.paired {
+                        let vm_result_paired_inner = value;
+                        Some(vm_result_paired_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_pair_state = if let Some(value) = value.pair_state {
+                        let vm_result_pair_state_inner = value;
+                        Some(vm_result_pair_state_inner)
+                    } else {
+                        None
+                    };
                     let vm_result_connected = value.connected;
-                    let vm_result_connectable = value.connectable;
+                    let vm_result_connectable = if let Some(value) = value.connectable {
+                        let vm_result_connectable_inner = value;
+                        Some(vm_result_connectable_inner)
+                    } else {
+                        None
+                    };
                     let vm_result_transport = if let Some(value) = value.transport {
                         let vm_result_transport_inner = value;
                         Some(vm_result_transport_inner)
@@ -22246,9 +26461,14 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_id_ref = context.string_ref(value.metadata.device.id).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_bluetooth_scan_discovered_event_metadata_device_id_ref.as_str().to_string()
                         };
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_address = {
-                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_address_ref = context.string_ref(value.metadata.device.address).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_bluetooth_scan_discovered_event_metadata_device_address_ref.as_str().to_string()
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_address_inner = {
+                                let result_recorded_bluetooth_scan_discovered_event_metadata_device_address_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_bluetooth_scan_discovered_event_metadata_device_address_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_address_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_name_inner = {
@@ -22265,10 +26485,25 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_paired = value.metadata.device.paired;
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_paired_inner = value;
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_paired_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state_inner = value;
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_connected = value.metadata.device.connected;
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable = value.metadata.device.connectable;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable_inner = value;
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_transport_inner = value;
                             Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_transport_inner)
@@ -22388,9 +26623,14 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_id_ref = context.string_ref(value.metadata.device.id).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_bluetooth_scan_lost_event_metadata_device_id_ref.as_str().to_string()
                         };
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_address = {
-                            let result_recorded_bluetooth_scan_lost_event_metadata_device_address_ref = context.string_ref(value.metadata.device.address).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_bluetooth_scan_lost_event_metadata_device_address_ref.as_str().to_string()
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_address_inner = {
+                                let result_recorded_bluetooth_scan_lost_event_metadata_device_address_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_bluetooth_scan_lost_event_metadata_device_address_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_address_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_name_inner = {
@@ -22407,10 +26647,25 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_paired = value.metadata.device.paired;
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_paired_inner = value;
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_paired_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state_inner = value;
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_connected = value.metadata.device.connected;
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_connectable = value.metadata.device.connectable;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_connectable_inner = value;
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_connectable_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_transport_inner = value;
                             Some(result_recorded_bluetooth_scan_lost_event_metadata_device_transport_inner)
@@ -22530,9 +26785,14 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_id_ref = context.string_ref(value.metadata.device.id).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_bluetooth_scan_updated_event_metadata_device_id_ref.as_str().to_string()
                         };
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_address = {
-                            let result_recorded_bluetooth_scan_updated_event_metadata_device_address_ref = context.string_ref(value.metadata.device.address).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_bluetooth_scan_updated_event_metadata_device_address_ref.as_str().to_string()
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_address_inner = {
+                                let result_recorded_bluetooth_scan_updated_event_metadata_device_address_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_bluetooth_scan_updated_event_metadata_device_address_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_address_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_name_inner = {
@@ -22549,10 +26809,25 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_paired = value.metadata.device.paired;
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_paired_inner = value;
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_paired_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state_inner = value;
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_connected = value.metadata.device.connected;
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_connectable = value.metadata.device.connectable;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_connectable_inner = value;
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_connectable_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_transport_inner = value;
                             Some(result_recorded_bluetooth_scan_updated_event_metadata_device_transport_inner)
@@ -22691,7 +26966,12 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             let vm_result_bluetooth_scan_discovered_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_bluetooth_scan_discovered_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_bluetooth_scan_discovered_event_metadata_device_id = context.string_handle(value.metadata.device.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_address = context.string_handle(value.metadata.device.address.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                                let vm_result_bluetooth_scan_discovered_event_metadata_device_address_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_bluetooth_scan_discovered_event_metadata_device_address_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_discovered_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_bluetooth_scan_discovered_event_metadata_device_name_inner)
@@ -22704,10 +26984,25 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_paired = value.metadata.device.paired;
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                                let vm_result_bluetooth_scan_discovered_event_metadata_device_paired_inner = value;
+                                Some(vm_result_bluetooth_scan_discovered_event_metadata_device_paired_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                                let vm_result_bluetooth_scan_discovered_event_metadata_device_pair_state_inner = value;
+                                Some(vm_result_bluetooth_scan_discovered_event_metadata_device_pair_state_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_discovered_event_metadata_device_connected = value.metadata.device.connected;
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_connectable = value.metadata.device.connectable;
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                                let vm_result_bluetooth_scan_discovered_event_metadata_device_connectable_inner = value;
+                                Some(vm_result_bluetooth_scan_discovered_event_metadata_device_connectable_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_discovered_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_transport_inner = value;
                                 Some(vm_result_bluetooth_scan_discovered_event_metadata_device_transport_inner)
@@ -22789,7 +27084,12 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             let vm_result_bluetooth_scan_lost_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_bluetooth_scan_lost_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_bluetooth_scan_lost_event_metadata_device_id = context.string_handle(value.metadata.device.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_address = context.string_handle(value.metadata.device.address.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                                let vm_result_bluetooth_scan_lost_event_metadata_device_address_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_bluetooth_scan_lost_event_metadata_device_address_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_lost_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_bluetooth_scan_lost_event_metadata_device_name_inner)
@@ -22802,10 +27102,25 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_paired = value.metadata.device.paired;
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                                let vm_result_bluetooth_scan_lost_event_metadata_device_paired_inner = value;
+                                Some(vm_result_bluetooth_scan_lost_event_metadata_device_paired_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                                let vm_result_bluetooth_scan_lost_event_metadata_device_pair_state_inner = value;
+                                Some(vm_result_bluetooth_scan_lost_event_metadata_device_pair_state_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_lost_event_metadata_device_connected = value.metadata.device.connected;
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_connectable = value.metadata.device.connectable;
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                                let vm_result_bluetooth_scan_lost_event_metadata_device_connectable_inner = value;
+                                Some(vm_result_bluetooth_scan_lost_event_metadata_device_connectable_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_lost_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_transport_inner = value;
                                 Some(vm_result_bluetooth_scan_lost_event_metadata_device_transport_inner)
@@ -22887,7 +27202,12 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             let vm_result_bluetooth_scan_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_bluetooth_scan_updated_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_bluetooth_scan_updated_event_metadata_device_id = context.string_handle(value.metadata.device.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_address = context.string_handle(value.metadata.device.address.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                                let vm_result_bluetooth_scan_updated_event_metadata_device_address_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_bluetooth_scan_updated_event_metadata_device_address_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_updated_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_bluetooth_scan_updated_event_metadata_device_name_inner)
@@ -22900,10 +27220,25 @@ fn destack_device_bluetooth_scan_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_paired = value.metadata.device.paired;
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                                let vm_result_bluetooth_scan_updated_event_metadata_device_paired_inner = value;
+                                Some(vm_result_bluetooth_scan_updated_event_metadata_device_paired_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                                let vm_result_bluetooth_scan_updated_event_metadata_device_pair_state_inner = value;
+                                Some(vm_result_bluetooth_scan_updated_event_metadata_device_pair_state_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_updated_event_metadata_device_connected = value.metadata.device.connected;
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_connectable = value.metadata.device.connectable;
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                                let vm_result_bluetooth_scan_updated_event_metadata_device_connectable_inner = value;
+                                Some(vm_result_bluetooth_scan_updated_event_metadata_device_connectable_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_updated_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_transport_inner = value;
                                 Some(vm_result_bluetooth_scan_updated_event_metadata_device_transport_inner)
@@ -23016,9 +27351,14 @@ fn destack_device_bluetooth_scan_try_read_vm_replay(
                     let result_recorded_id_ref = context.string_ref(result_value.id).map_err(|error| RuntimeError::from(error).boxed())?;
                     result_recorded_id_ref.as_str().to_string()
                 };
-                let result_recorded_address = {
-                    let result_recorded_address_ref = context.string_ref(result_value.address).map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_address_ref.as_str().to_string()
+                let result_recorded_address = if let Some(value) = result_value.address {
+                    let result_recorded_address_inner = {
+                        let result_recorded_address_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_address_inner_ref.as_str().to_string()
+                    };
+                    Some(result_recorded_address_inner)
+                } else {
+                    None
                 };
                 let result_recorded_name = if let Some(value) = result_value.name {
                     let result_recorded_name_inner = {
@@ -23035,10 +27375,25 @@ fn destack_device_bluetooth_scan_try_read_vm_replay(
                 } else {
                     None
                 };
-                let result_recorded_paired = result_value.paired;
-                let result_recorded_pair_state = result_value.pair_state;
+                let result_recorded_paired = if let Some(value) = result_value.paired {
+                    let result_recorded_paired_inner = value;
+                    Some(result_recorded_paired_inner)
+                } else {
+                    None
+                };
+                let result_recorded_pair_state = if let Some(value) = result_value.pair_state {
+                    let result_recorded_pair_state_inner = value;
+                    Some(result_recorded_pair_state_inner)
+                } else {
+                    None
+                };
                 let result_recorded_connected = result_value.connected;
-                let result_recorded_connectable = result_value.connectable;
+                let result_recorded_connectable = if let Some(value) = result_value.connectable {
+                    let result_recorded_connectable_inner = value;
+                    Some(result_recorded_connectable_inner)
+                } else {
+                    None
+                };
                 let result_recorded_transport = if let Some(value) = result_value.transport {
                     let result_recorded_transport_inner = value;
                     Some(result_recorded_transport_inner)
@@ -23160,7 +27515,12 @@ fn destack_device_bluetooth_scan_try_read_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_id = context.string_handle(value.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                    let vm_result_address = context.string_handle(value.address.as_str()).map_err(Box::<RuntimeError>::from)?;
+                    let vm_result_address = if let Some(value) = value.address {
+                        let vm_result_address_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                        Some(vm_result_address_inner)
+                    } else {
+                        None
+                    };
                     let vm_result_name = if let Some(value) = value.name {
                         let vm_result_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                         Some(vm_result_name_inner)
@@ -23173,10 +27533,25 @@ fn destack_device_bluetooth_scan_try_read_vm_replay(
                     } else {
                         None
                     };
-                    let vm_result_paired = value.paired;
-                    let vm_result_pair_state = value.pair_state;
+                    let vm_result_paired = if let Some(value) = value.paired {
+                        let vm_result_paired_inner = value;
+                        Some(vm_result_paired_inner)
+                    } else {
+                        None
+                    };
+                    let vm_result_pair_state = if let Some(value) = value.pair_state {
+                        let vm_result_pair_state_inner = value;
+                        Some(vm_result_pair_state_inner)
+                    } else {
+                        None
+                    };
                     let vm_result_connected = value.connected;
-                    let vm_result_connectable = value.connectable;
+                    let vm_result_connectable = if let Some(value) = value.connectable {
+                        let vm_result_connectable_inner = value;
+                        Some(vm_result_connectable_inner)
+                    } else {
+                        None
+                    };
                     let vm_result_transport = if let Some(value) = value.transport {
                         let vm_result_transport_inner = value;
                         Some(vm_result_transport_inner)
@@ -23285,9 +27660,14 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_id_ref = context.string_ref(value.metadata.device.id).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_bluetooth_scan_discovered_event_metadata_device_id_ref.as_str().to_string()
                         };
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_address = {
-                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_address_ref = context.string_ref(value.metadata.device.address).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_bluetooth_scan_discovered_event_metadata_device_address_ref.as_str().to_string()
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_address_inner = {
+                                let result_recorded_bluetooth_scan_discovered_event_metadata_device_address_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_bluetooth_scan_discovered_event_metadata_device_address_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_address_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_name_inner = {
@@ -23304,10 +27684,25 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_paired = value.metadata.device.paired;
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_paired_inner = value;
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_paired_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state_inner = value;
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_pair_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_connected = value.metadata.device.connected;
-                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable = value.metadata.device.connectable;
+                        let result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                            let result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable_inner = value;
+                            Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_connectable_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_discovered_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                             let result_recorded_bluetooth_scan_discovered_event_metadata_device_transport_inner = value;
                             Some(result_recorded_bluetooth_scan_discovered_event_metadata_device_transport_inner)
@@ -23427,9 +27822,14 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_id_ref = context.string_ref(value.metadata.device.id).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_bluetooth_scan_lost_event_metadata_device_id_ref.as_str().to_string()
                         };
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_address = {
-                            let result_recorded_bluetooth_scan_lost_event_metadata_device_address_ref = context.string_ref(value.metadata.device.address).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_bluetooth_scan_lost_event_metadata_device_address_ref.as_str().to_string()
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_address_inner = {
+                                let result_recorded_bluetooth_scan_lost_event_metadata_device_address_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_bluetooth_scan_lost_event_metadata_device_address_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_address_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_name_inner = {
@@ -23446,10 +27846,25 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_paired = value.metadata.device.paired;
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_paired_inner = value;
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_paired_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state_inner = value;
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_pair_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_connected = value.metadata.device.connected;
-                        let result_recorded_bluetooth_scan_lost_event_metadata_device_connectable = value.metadata.device.connectable;
+                        let result_recorded_bluetooth_scan_lost_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                            let result_recorded_bluetooth_scan_lost_event_metadata_device_connectable_inner = value;
+                            Some(result_recorded_bluetooth_scan_lost_event_metadata_device_connectable_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_lost_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                             let result_recorded_bluetooth_scan_lost_event_metadata_device_transport_inner = value;
                             Some(result_recorded_bluetooth_scan_lost_event_metadata_device_transport_inner)
@@ -23569,9 +27984,14 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_id_ref = context.string_ref(value.metadata.device.id).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_bluetooth_scan_updated_event_metadata_device_id_ref.as_str().to_string()
                         };
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_address = {
-                            let result_recorded_bluetooth_scan_updated_event_metadata_device_address_ref = context.string_ref(value.metadata.device.address).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_bluetooth_scan_updated_event_metadata_device_address_ref.as_str().to_string()
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_address_inner = {
+                                let result_recorded_bluetooth_scan_updated_event_metadata_device_address_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_bluetooth_scan_updated_event_metadata_device_address_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_address_inner)
+                        } else {
+                            None
                         };
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_name_inner = {
@@ -23588,10 +28008,25 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                         } else {
                             None
                         };
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_paired = value.metadata.device.paired;
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_paired_inner = value;
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_paired_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state_inner = value;
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_pair_state_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_connected = value.metadata.device.connected;
-                        let result_recorded_bluetooth_scan_updated_event_metadata_device_connectable = value.metadata.device.connectable;
+                        let result_recorded_bluetooth_scan_updated_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                            let result_recorded_bluetooth_scan_updated_event_metadata_device_connectable_inner = value;
+                            Some(result_recorded_bluetooth_scan_updated_event_metadata_device_connectable_inner)
+                        } else {
+                            None
+                        };
                         let result_recorded_bluetooth_scan_updated_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                             let result_recorded_bluetooth_scan_updated_event_metadata_device_transport_inner = value;
                             Some(result_recorded_bluetooth_scan_updated_event_metadata_device_transport_inner)
@@ -23730,7 +28165,12 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             let vm_result_bluetooth_scan_discovered_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_bluetooth_scan_discovered_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_bluetooth_scan_discovered_event_metadata_device_id = context.string_handle(value.metadata.device.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_address = context.string_handle(value.metadata.device.address.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                                let vm_result_bluetooth_scan_discovered_event_metadata_device_address_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_bluetooth_scan_discovered_event_metadata_device_address_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_discovered_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_bluetooth_scan_discovered_event_metadata_device_name_inner)
@@ -23743,10 +28183,25 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_paired = value.metadata.device.paired;
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                                let vm_result_bluetooth_scan_discovered_event_metadata_device_paired_inner = value;
+                                Some(vm_result_bluetooth_scan_discovered_event_metadata_device_paired_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                                let vm_result_bluetooth_scan_discovered_event_metadata_device_pair_state_inner = value;
+                                Some(vm_result_bluetooth_scan_discovered_event_metadata_device_pair_state_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_discovered_event_metadata_device_connected = value.metadata.device.connected;
-                            let vm_result_bluetooth_scan_discovered_event_metadata_device_connectable = value.metadata.device.connectable;
+                            let vm_result_bluetooth_scan_discovered_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                                let vm_result_bluetooth_scan_discovered_event_metadata_device_connectable_inner = value;
+                                Some(vm_result_bluetooth_scan_discovered_event_metadata_device_connectable_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_discovered_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                                 let vm_result_bluetooth_scan_discovered_event_metadata_device_transport_inner = value;
                                 Some(vm_result_bluetooth_scan_discovered_event_metadata_device_transport_inner)
@@ -23828,7 +28283,12 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             let vm_result_bluetooth_scan_lost_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_bluetooth_scan_lost_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_bluetooth_scan_lost_event_metadata_device_id = context.string_handle(value.metadata.device.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_address = context.string_handle(value.metadata.device.address.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                                let vm_result_bluetooth_scan_lost_event_metadata_device_address_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_bluetooth_scan_lost_event_metadata_device_address_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_lost_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_bluetooth_scan_lost_event_metadata_device_name_inner)
@@ -23841,10 +28301,25 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_paired = value.metadata.device.paired;
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                                let vm_result_bluetooth_scan_lost_event_metadata_device_paired_inner = value;
+                                Some(vm_result_bluetooth_scan_lost_event_metadata_device_paired_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                                let vm_result_bluetooth_scan_lost_event_metadata_device_pair_state_inner = value;
+                                Some(vm_result_bluetooth_scan_lost_event_metadata_device_pair_state_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_lost_event_metadata_device_connected = value.metadata.device.connected;
-                            let vm_result_bluetooth_scan_lost_event_metadata_device_connectable = value.metadata.device.connectable;
+                            let vm_result_bluetooth_scan_lost_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                                let vm_result_bluetooth_scan_lost_event_metadata_device_connectable_inner = value;
+                                Some(vm_result_bluetooth_scan_lost_event_metadata_device_connectable_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_lost_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                                 let vm_result_bluetooth_scan_lost_event_metadata_device_transport_inner = value;
                                 Some(vm_result_bluetooth_scan_lost_event_metadata_device_transport_inner)
@@ -23926,7 +28401,12 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             let vm_result_bluetooth_scan_updated_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_bluetooth_scan_updated_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_bluetooth_scan_updated_event_metadata_device_id = context.string_handle(value.metadata.device.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_address = context.string_handle(value.metadata.device.address.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_address = if let Some(value) = value.metadata.device.address {
+                                let vm_result_bluetooth_scan_updated_event_metadata_device_address_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_bluetooth_scan_updated_event_metadata_device_address_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_updated_event_metadata_device_name = if let Some(value) = value.metadata.device.name {
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 Some(vm_result_bluetooth_scan_updated_event_metadata_device_name_inner)
@@ -23939,10 +28419,25 @@ fn destack_device_bluetooth_scan_try_read_event_vm_replay(
                             } else {
                                 None
                             };
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_paired = value.metadata.device.paired;
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_pair_state = value.metadata.device.pair_state;
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_paired = if let Some(value) = value.metadata.device.paired {
+                                let vm_result_bluetooth_scan_updated_event_metadata_device_paired_inner = value;
+                                Some(vm_result_bluetooth_scan_updated_event_metadata_device_paired_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_pair_state = if let Some(value) = value.metadata.device.pair_state {
+                                let vm_result_bluetooth_scan_updated_event_metadata_device_pair_state_inner = value;
+                                Some(vm_result_bluetooth_scan_updated_event_metadata_device_pair_state_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_updated_event_metadata_device_connected = value.metadata.device.connected;
-                            let vm_result_bluetooth_scan_updated_event_metadata_device_connectable = value.metadata.device.connectable;
+                            let vm_result_bluetooth_scan_updated_event_metadata_device_connectable = if let Some(value) = value.metadata.device.connectable {
+                                let vm_result_bluetooth_scan_updated_event_metadata_device_connectable_inner = value;
+                                Some(vm_result_bluetooth_scan_updated_event_metadata_device_connectable_inner)
+                            } else {
+                                None
+                            };
                             let vm_result_bluetooth_scan_updated_event_metadata_device_transport = if let Some(value) = value.metadata.device.transport {
                                 let vm_result_bluetooth_scan_updated_event_metadata_device_transport_inner = value;
                                 Some(vm_result_bluetooth_scan_updated_event_metadata_device_transport_inner)
@@ -24182,6 +28677,26 @@ fn destack_device_bluetooth_session_read_event_vm_replay(
                         };
                         BluetoothsessioneventReplayRecord::BluetoothSessionDisconnectedEvent(result_recorded_bluetooth_session_disconnected_event)
                     }
+                    BluetoothSessionEventVm::BluetoothSessionGattDatabaseChangedEvent(value) => {
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_kind = {
+                            let result_recorded_bluetooth_session_gatt_database_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_bluetooth_session_gatt_database_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_metadata = BluetoothSessionEventMetadata {
+                            timestamp_ns: result_recorded_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_bluetooth_session_gatt_database_changed_event_metadata_sequence,
+                        };
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_payload = BluetoothSessionGattDatabaseChangedPayload {
+                        };
+                        let result_recorded_bluetooth_session_gatt_database_changed_event = BluetoothsessiongattdatabasechangedeventReplayRecord {
+                            kind: result_recorded_bluetooth_session_gatt_database_changed_event_kind,
+                            metadata: result_recorded_bluetooth_session_gatt_database_changed_event_metadata,
+                            payload: result_recorded_bluetooth_session_gatt_database_changed_event_payload,
+                        };
+                        BluetoothsessioneventReplayRecord::BluetoothSessionGattDatabaseChangedEvent(result_recorded_bluetooth_session_gatt_database_changed_event)
+                    }
                     BluetoothSessionEventVm::BluetoothSessionPairStateChangedEvent(value) => {
                         let result_recorded_bluetooth_session_pair_state_changed_event_kind = {
                             let result_recorded_bluetooth_session_pair_state_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -24245,6 +28760,23 @@ fn destack_device_bluetooth_session_read_event_vm_replay(
                                 payload: vm_result_bluetooth_session_disconnected_event_payload,
                             };
                             BluetoothSessionEventVm::BluetoothSessionDisconnectedEvent(vm_result_bluetooth_session_disconnected_event)
+                        }
+                        BluetoothsessioneventReplayRecord::BluetoothSessionGattDatabaseChangedEvent(value) => {
+                            let vm_result_bluetooth_session_gatt_database_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_bluetooth_session_gatt_database_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_bluetooth_session_gatt_database_changed_event_metadata = BluetoothSessionEventMetadata {
+                                timestamp_ns: vm_result_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_bluetooth_session_gatt_database_changed_event_metadata_sequence,
+                            };
+                            let vm_result_bluetooth_session_gatt_database_changed_event_payload = BluetoothSessionGattDatabaseChangedPayload {
+                            };
+                            let vm_result_bluetooth_session_gatt_database_changed_event = BluetoothSessionGattDatabaseChangedEventVm {
+                                kind: vm_result_bluetooth_session_gatt_database_changed_event_kind,
+                                metadata: vm_result_bluetooth_session_gatt_database_changed_event_metadata,
+                                payload: vm_result_bluetooth_session_gatt_database_changed_event_payload,
+                            };
+                            BluetoothSessionEventVm::BluetoothSessionGattDatabaseChangedEvent(vm_result_bluetooth_session_gatt_database_changed_event)
                         }
                         BluetoothsessioneventReplayRecord::BluetoothSessionPairStateChangedEvent(value) => {
                             let vm_result_bluetooth_session_pair_state_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -24375,6 +28907,26 @@ fn destack_device_bluetooth_session_try_read_event_vm_replay(
                         };
                         BluetoothsessioneventReplayRecord::BluetoothSessionDisconnectedEvent(result_recorded_bluetooth_session_disconnected_event)
                     }
+                    BluetoothSessionEventVm::BluetoothSessionGattDatabaseChangedEvent(value) => {
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_kind = {
+                            let result_recorded_bluetooth_session_gatt_database_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_bluetooth_session_gatt_database_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_metadata = BluetoothSessionEventMetadata {
+                            timestamp_ns: result_recorded_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_bluetooth_session_gatt_database_changed_event_metadata_sequence,
+                        };
+                        let result_recorded_bluetooth_session_gatt_database_changed_event_payload = BluetoothSessionGattDatabaseChangedPayload {
+                        };
+                        let result_recorded_bluetooth_session_gatt_database_changed_event = BluetoothsessiongattdatabasechangedeventReplayRecord {
+                            kind: result_recorded_bluetooth_session_gatt_database_changed_event_kind,
+                            metadata: result_recorded_bluetooth_session_gatt_database_changed_event_metadata,
+                            payload: result_recorded_bluetooth_session_gatt_database_changed_event_payload,
+                        };
+                        BluetoothsessioneventReplayRecord::BluetoothSessionGattDatabaseChangedEvent(result_recorded_bluetooth_session_gatt_database_changed_event)
+                    }
                     BluetoothSessionEventVm::BluetoothSessionPairStateChangedEvent(value) => {
                         let result_recorded_bluetooth_session_pair_state_changed_event_kind = {
                             let result_recorded_bluetooth_session_pair_state_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -24438,6 +28990,23 @@ fn destack_device_bluetooth_session_try_read_event_vm_replay(
                                 payload: vm_result_bluetooth_session_disconnected_event_payload,
                             };
                             BluetoothSessionEventVm::BluetoothSessionDisconnectedEvent(vm_result_bluetooth_session_disconnected_event)
+                        }
+                        BluetoothsessioneventReplayRecord::BluetoothSessionGattDatabaseChangedEvent(value) => {
+                            let vm_result_bluetooth_session_gatt_database_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_bluetooth_session_gatt_database_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_bluetooth_session_gatt_database_changed_event_metadata = BluetoothSessionEventMetadata {
+                                timestamp_ns: vm_result_bluetooth_session_gatt_database_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_bluetooth_session_gatt_database_changed_event_metadata_sequence,
+                            };
+                            let vm_result_bluetooth_session_gatt_database_changed_event_payload = BluetoothSessionGattDatabaseChangedPayload {
+                            };
+                            let vm_result_bluetooth_session_gatt_database_changed_event = BluetoothSessionGattDatabaseChangedEventVm {
+                                kind: vm_result_bluetooth_session_gatt_database_changed_event_kind,
+                                metadata: vm_result_bluetooth_session_gatt_database_changed_event_metadata,
+                                payload: vm_result_bluetooth_session_gatt_database_changed_event_payload,
+                            };
+                            BluetoothSessionEventVm::BluetoothSessionGattDatabaseChangedEvent(vm_result_bluetooth_session_gatt_database_changed_event)
                         }
                         BluetoothsessioneventReplayRecord::BluetoothSessionPairStateChangedEvent(value) => {
                             let vm_result_bluetooth_session_pair_state_changed_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -24832,7 +29401,7 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                     let result_recorded_item = {
                         if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
                         let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 5 fields")).boxed()); }
+                        if slots.len() != 10 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 10 fields")).boxed()); }
                         let result_recorded_item_config = {
                             if slots[0].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_config", "config")).boxed()); }
                             let slots = context.aggregate_slots(slots[0]).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -24864,14 +29433,24 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                         };
                         let result_recorded_item_minimum_frame_rate_milli_hz = decode_uint32(slots[1], "result_recorded_item_minimum_frame_rate_milli_hz", "minimumFrameRateMilliHz")?;
                         let result_recorded_item_maximum_frame_rate_milli_hz = decode_uint32(slots[2], "result_recorded_item_maximum_frame_rate_milli_hz", "maximumFrameRateMilliHz")?;
-                        let result_recorded_item_dynamic_ranges = decode_slice::<CameraDynamicRange>(context, slots[3], "result_recorded_item_dynamic_ranges", "dynamicRanges")?;
-                        let result_recorded_item_stabilization_modes = decode_slice::<CameraStabilizationMode>(context, slots[4], "result_recorded_item_stabilization_modes", "stabilizationModes")?;
+                        let result_recorded_item_color_spaces = decode_slice::<CameraColorSpace>(context, slots[3], "result_recorded_item_color_spaces", "colorSpaces")?;
+                        let result_recorded_item_dynamic_ranges = decode_slice::<CameraDynamicRange>(context, slots[4], "result_recorded_item_dynamic_ranges", "dynamicRanges")?;
+                        let result_recorded_item_exposure_modes = decode_slice::<CameraExposureMode>(context, slots[5], "result_recorded_item_exposure_modes", "exposureModes")?;
+                        let result_recorded_item_white_balance_modes = decode_slice::<CameraWhiteBalanceMode>(context, slots[6], "result_recorded_item_white_balance_modes", "whiteBalanceModes")?;
+                        let result_recorded_item_focus_modes = decode_slice::<CameraFocusMode>(context, slots[7], "result_recorded_item_focus_modes", "focusModes")?;
+                        let result_recorded_item_stabilization_modes = decode_slice::<CameraStabilizationMode>(context, slots[8], "result_recorded_item_stabilization_modes", "stabilizationModes")?;
+                        let result_recorded_item_torch_modes = decode_slice::<CameraTorchMode>(context, slots[9], "result_recorded_item_torch_modes", "torchModes")?;
                         CameraStreamCapabilityVm {
                             config: result_recorded_item_config,
                             minimum_frame_rate_milli_hz: result_recorded_item_minimum_frame_rate_milli_hz,
                             maximum_frame_rate_milli_hz: result_recorded_item_maximum_frame_rate_milli_hz,
+                            color_spaces: result_recorded_item_color_spaces,
                             dynamic_ranges: result_recorded_item_dynamic_ranges,
+                            exposure_modes: result_recorded_item_exposure_modes,
+                            white_balance_modes: result_recorded_item_white_balance_modes,
+                            focus_modes: result_recorded_item_focus_modes,
                             stabilization_modes: result_recorded_item_stabilization_modes,
+                            torch_modes: result_recorded_item_torch_modes,
                         }
                     };
                     let result_recorded_item_recorded_config_width = result_recorded_item.config.width;
@@ -24893,6 +29472,14 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                     };
                     let result_recorded_item_recorded_minimum_frame_rate_milli_hz = result_recorded_item.minimum_frame_rate_milli_hz;
                     let result_recorded_item_recorded_maximum_frame_rate_milli_hz = result_recorded_item.maximum_frame_rate_milli_hz;
+                    let result_recorded_item_recorded_color_spaces_raw = result_recorded_item.color_spaces.raw_values(context)?;
+                    let mut result_recorded_item_recorded_color_spaces = Vec::with_capacity(result_recorded_item_recorded_color_spaces_raw.len());
+                    for result_recorded_item_recorded_color_spaces_item_value in result_recorded_item_recorded_color_spaces_raw {
+                        let result_recorded_item_recorded_color_spaces_item_raw = decode_int32(result_recorded_item_recorded_color_spaces_item_value, "result_recorded_item_recorded_color_spaces_item_raw", "item")?;
+                        let result_recorded_item_recorded_color_spaces_item = match result_recorded_item_recorded_color_spaces_item_raw { 1i32 => CameraColorSpace::Unknown, 2i32 => CameraColorSpace::Srgb, 3i32 => CameraColorSpace::Bt601, 4i32 => CameraColorSpace::Bt709, 5i32 => CameraColorSpace::Bt2020 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_recorded_color_spaces_item", "unknown CameraColorSpace value")).boxed()), };
+                        let result_recorded_item_recorded_color_spaces_item_recorded = result_recorded_item_recorded_color_spaces_item;
+                        result_recorded_item_recorded_color_spaces.push(result_recorded_item_recorded_color_spaces_item_recorded);
+                    }
                     let result_recorded_item_recorded_dynamic_ranges_raw = result_recorded_item.dynamic_ranges.raw_values(context)?;
                     let mut result_recorded_item_recorded_dynamic_ranges = Vec::with_capacity(result_recorded_item_recorded_dynamic_ranges_raw.len());
                     for result_recorded_item_recorded_dynamic_ranges_item_value in result_recorded_item_recorded_dynamic_ranges_raw {
@@ -24900,6 +29487,30 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                         let result_recorded_item_recorded_dynamic_ranges_item = match result_recorded_item_recorded_dynamic_ranges_item_raw { 1i32 => CameraDynamicRange::Standard, 2i32 => CameraDynamicRange::Hdr10, 3i32 => CameraDynamicRange::Hlg , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_recorded_dynamic_ranges_item", "unknown CameraDynamicRange value")).boxed()), };
                         let result_recorded_item_recorded_dynamic_ranges_item_recorded = result_recorded_item_recorded_dynamic_ranges_item;
                         result_recorded_item_recorded_dynamic_ranges.push(result_recorded_item_recorded_dynamic_ranges_item_recorded);
+                    }
+                    let result_recorded_item_recorded_exposure_modes_raw = result_recorded_item.exposure_modes.raw_values(context)?;
+                    let mut result_recorded_item_recorded_exposure_modes = Vec::with_capacity(result_recorded_item_recorded_exposure_modes_raw.len());
+                    for result_recorded_item_recorded_exposure_modes_item_value in result_recorded_item_recorded_exposure_modes_raw {
+                        let result_recorded_item_recorded_exposure_modes_item_raw = decode_int32(result_recorded_item_recorded_exposure_modes_item_value, "result_recorded_item_recorded_exposure_modes_item_raw", "item")?;
+                        let result_recorded_item_recorded_exposure_modes_item = match result_recorded_item_recorded_exposure_modes_item_raw { 1i32 => CameraExposureMode::Auto, 2i32 => CameraExposureMode::ContinuousAuto, 3i32 => CameraExposureMode::Manual , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_recorded_exposure_modes_item", "unknown CameraExposureMode value")).boxed()), };
+                        let result_recorded_item_recorded_exposure_modes_item_recorded = result_recorded_item_recorded_exposure_modes_item;
+                        result_recorded_item_recorded_exposure_modes.push(result_recorded_item_recorded_exposure_modes_item_recorded);
+                    }
+                    let result_recorded_item_recorded_white_balance_modes_raw = result_recorded_item.white_balance_modes.raw_values(context)?;
+                    let mut result_recorded_item_recorded_white_balance_modes = Vec::with_capacity(result_recorded_item_recorded_white_balance_modes_raw.len());
+                    for result_recorded_item_recorded_white_balance_modes_item_value in result_recorded_item_recorded_white_balance_modes_raw {
+                        let result_recorded_item_recorded_white_balance_modes_item_raw = decode_int32(result_recorded_item_recorded_white_balance_modes_item_value, "result_recorded_item_recorded_white_balance_modes_item_raw", "item")?;
+                        let result_recorded_item_recorded_white_balance_modes_item = match result_recorded_item_recorded_white_balance_modes_item_raw { 1i32 => CameraWhiteBalanceMode::Auto, 2i32 => CameraWhiteBalanceMode::ContinuousAuto, 3i32 => CameraWhiteBalanceMode::Manual , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_recorded_white_balance_modes_item", "unknown CameraWhiteBalanceMode value")).boxed()), };
+                        let result_recorded_item_recorded_white_balance_modes_item_recorded = result_recorded_item_recorded_white_balance_modes_item;
+                        result_recorded_item_recorded_white_balance_modes.push(result_recorded_item_recorded_white_balance_modes_item_recorded);
+                    }
+                    let result_recorded_item_recorded_focus_modes_raw = result_recorded_item.focus_modes.raw_values(context)?;
+                    let mut result_recorded_item_recorded_focus_modes = Vec::with_capacity(result_recorded_item_recorded_focus_modes_raw.len());
+                    for result_recorded_item_recorded_focus_modes_item_value in result_recorded_item_recorded_focus_modes_raw {
+                        let result_recorded_item_recorded_focus_modes_item_raw = decode_int32(result_recorded_item_recorded_focus_modes_item_value, "result_recorded_item_recorded_focus_modes_item_raw", "item")?;
+                        let result_recorded_item_recorded_focus_modes_item = match result_recorded_item_recorded_focus_modes_item_raw { 1i32 => CameraFocusMode::Auto, 2i32 => CameraFocusMode::ContinuousAuto, 3i32 => CameraFocusMode::Manual , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_recorded_focus_modes_item", "unknown CameraFocusMode value")).boxed()), };
+                        let result_recorded_item_recorded_focus_modes_item_recorded = result_recorded_item_recorded_focus_modes_item;
+                        result_recorded_item_recorded_focus_modes.push(result_recorded_item_recorded_focus_modes_item_recorded);
                     }
                     let result_recorded_item_recorded_stabilization_modes_raw = result_recorded_item.stabilization_modes.raw_values(context)?;
                     let mut result_recorded_item_recorded_stabilization_modes = Vec::with_capacity(result_recorded_item_recorded_stabilization_modes_raw.len());
@@ -24909,12 +29520,25 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                         let result_recorded_item_recorded_stabilization_modes_item_recorded = result_recorded_item_recorded_stabilization_modes_item;
                         result_recorded_item_recorded_stabilization_modes.push(result_recorded_item_recorded_stabilization_modes_item_recorded);
                     }
+                    let result_recorded_item_recorded_torch_modes_raw = result_recorded_item.torch_modes.raw_values(context)?;
+                    let mut result_recorded_item_recorded_torch_modes = Vec::with_capacity(result_recorded_item_recorded_torch_modes_raw.len());
+                    for result_recorded_item_recorded_torch_modes_item_value in result_recorded_item_recorded_torch_modes_raw {
+                        let result_recorded_item_recorded_torch_modes_item_raw = decode_int32(result_recorded_item_recorded_torch_modes_item_value, "result_recorded_item_recorded_torch_modes_item_raw", "item")?;
+                        let result_recorded_item_recorded_torch_modes_item = match result_recorded_item_recorded_torch_modes_item_raw { 1i32 => CameraTorchMode::Off, 2i32 => CameraTorchMode::On, 3i32 => CameraTorchMode::Auto , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_recorded_torch_modes_item", "unknown CameraTorchMode value")).boxed()), };
+                        let result_recorded_item_recorded_torch_modes_item_recorded = result_recorded_item_recorded_torch_modes_item;
+                        result_recorded_item_recorded_torch_modes.push(result_recorded_item_recorded_torch_modes_item_recorded);
+                    }
                     let result_recorded_item_recorded = CamerastreamcapabilityReplayRecord {
                         config: result_recorded_item_recorded_config,
                         minimum_frame_rate_milli_hz: result_recorded_item_recorded_minimum_frame_rate_milli_hz,
                         maximum_frame_rate_milli_hz: result_recorded_item_recorded_maximum_frame_rate_milli_hz,
+                        color_spaces: result_recorded_item_recorded_color_spaces,
                         dynamic_ranges: result_recorded_item_recorded_dynamic_ranges,
+                        exposure_modes: result_recorded_item_recorded_exposure_modes,
+                        white_balance_modes: result_recorded_item_recorded_white_balance_modes,
+                        focus_modes: result_recorded_item_recorded_focus_modes,
                         stabilization_modes: result_recorded_item_recorded_stabilization_modes,
+                        torch_modes: result_recorded_item_recorded_torch_modes,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -24962,24 +29586,59 @@ fn destack_device_camera_device_stream_capability_list_vm_replay(
                         };
                         let vm_result_item_value_minimum_frame_rate_milli_hz = vm_result_item.minimum_frame_rate_milli_hz;
                         let vm_result_item_value_maximum_frame_rate_milli_hz = vm_result_item.maximum_frame_rate_milli_hz;
+                        let mut vm_result_item_value_color_spaces_values = Vec::with_capacity(vm_result_item.color_spaces.len());
+                        for vm_result_item_value_color_spaces_item in vm_result_item.color_spaces.iter().cloned() {
+                            let vm_result_item_value_color_spaces_item_value = vm_result_item_value_color_spaces_item;
+                            vm_result_item_value_color_spaces_values.push(vm_result_item_value_color_spaces_item_value);
+                        }
+                        let vm_result_item_value_color_spaces = VmSlice::from_values(context, &vm_result_item_value_color_spaces_values)?;
                         let mut vm_result_item_value_dynamic_ranges_values = Vec::with_capacity(vm_result_item.dynamic_ranges.len());
                         for vm_result_item_value_dynamic_ranges_item in vm_result_item.dynamic_ranges.iter().cloned() {
                             let vm_result_item_value_dynamic_ranges_item_value = vm_result_item_value_dynamic_ranges_item;
                             vm_result_item_value_dynamic_ranges_values.push(vm_result_item_value_dynamic_ranges_item_value);
                         }
                         let vm_result_item_value_dynamic_ranges = VmSlice::from_values(context, &vm_result_item_value_dynamic_ranges_values)?;
+                        let mut vm_result_item_value_exposure_modes_values = Vec::with_capacity(vm_result_item.exposure_modes.len());
+                        for vm_result_item_value_exposure_modes_item in vm_result_item.exposure_modes.iter().cloned() {
+                            let vm_result_item_value_exposure_modes_item_value = vm_result_item_value_exposure_modes_item;
+                            vm_result_item_value_exposure_modes_values.push(vm_result_item_value_exposure_modes_item_value);
+                        }
+                        let vm_result_item_value_exposure_modes = VmSlice::from_values(context, &vm_result_item_value_exposure_modes_values)?;
+                        let mut vm_result_item_value_white_balance_modes_values = Vec::with_capacity(vm_result_item.white_balance_modes.len());
+                        for vm_result_item_value_white_balance_modes_item in vm_result_item.white_balance_modes.iter().cloned() {
+                            let vm_result_item_value_white_balance_modes_item_value = vm_result_item_value_white_balance_modes_item;
+                            vm_result_item_value_white_balance_modes_values.push(vm_result_item_value_white_balance_modes_item_value);
+                        }
+                        let vm_result_item_value_white_balance_modes = VmSlice::from_values(context, &vm_result_item_value_white_balance_modes_values)?;
+                        let mut vm_result_item_value_focus_modes_values = Vec::with_capacity(vm_result_item.focus_modes.len());
+                        for vm_result_item_value_focus_modes_item in vm_result_item.focus_modes.iter().cloned() {
+                            let vm_result_item_value_focus_modes_item_value = vm_result_item_value_focus_modes_item;
+                            vm_result_item_value_focus_modes_values.push(vm_result_item_value_focus_modes_item_value);
+                        }
+                        let vm_result_item_value_focus_modes = VmSlice::from_values(context, &vm_result_item_value_focus_modes_values)?;
                         let mut vm_result_item_value_stabilization_modes_values = Vec::with_capacity(vm_result_item.stabilization_modes.len());
                         for vm_result_item_value_stabilization_modes_item in vm_result_item.stabilization_modes.iter().cloned() {
                             let vm_result_item_value_stabilization_modes_item_value = vm_result_item_value_stabilization_modes_item;
                             vm_result_item_value_stabilization_modes_values.push(vm_result_item_value_stabilization_modes_item_value);
                         }
                         let vm_result_item_value_stabilization_modes = VmSlice::from_values(context, &vm_result_item_value_stabilization_modes_values)?;
+                        let mut vm_result_item_value_torch_modes_values = Vec::with_capacity(vm_result_item.torch_modes.len());
+                        for vm_result_item_value_torch_modes_item in vm_result_item.torch_modes.iter().cloned() {
+                            let vm_result_item_value_torch_modes_item_value = vm_result_item_value_torch_modes_item;
+                            vm_result_item_value_torch_modes_values.push(vm_result_item_value_torch_modes_item_value);
+                        }
+                        let vm_result_item_value_torch_modes = VmSlice::from_values(context, &vm_result_item_value_torch_modes_values)?;
                         let vm_result_item_value = CameraStreamCapabilityVm {
                             config: vm_result_item_value_config,
                             minimum_frame_rate_milli_hz: vm_result_item_value_minimum_frame_rate_milli_hz,
                             maximum_frame_rate_milli_hz: vm_result_item_value_maximum_frame_rate_milli_hz,
+                            color_spaces: vm_result_item_value_color_spaces,
                             dynamic_ranges: vm_result_item_value_dynamic_ranges,
+                            exposure_modes: vm_result_item_value_exposure_modes,
+                            white_balance_modes: vm_result_item_value_white_balance_modes,
+                            focus_modes: vm_result_item_value_focus_modes,
                             stabilization_modes: vm_result_item_value_stabilization_modes,
+                            torch_modes: vm_result_item_value_torch_modes,
                         };
                         vm_result_values.push(vm_result_item_value);
                     }
@@ -25212,6 +29871,140 @@ fn destack_device_camera_device_stream_config_list_vm_replay(
 }
 
 #[inline]
+fn destack_device_camera_stream_brightness_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_BRIGHTNESS,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_BRIGHTNESS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_brightness(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_brightness(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: f64 = value.clone();
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamBrightnessReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamBrightnessReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_brightness_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_brightness_range_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_BRIGHTNESS_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_BRIGHTNESS_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_brightness_range(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_brightness_range(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: CameraFloatControlRangeVm = value.clone();
+                let result_recorded_minimum = result_value.minimum;
+                let result_recorded_maximum = result_value.maximum;
+                let result_recorded_default = result_value.default;
+                let result_recorded_step = result_value.step;
+                let result_recorded = CameraFloatControlRange {
+                    minimum: result_recorded_minimum,
+                    maximum: result_recorded_maximum,
+                    default: result_recorded_default,
+                    step: result_recorded_step,
+                };
+                let payload = DeviceCameraStreamBrightnessRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamBrightnessRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_minimum = value.minimum;
+                    let vm_result_maximum = value.maximum;
+                    let vm_result_default = value.default;
+                    let vm_result_step = value.step;
+                    let vm_result = CameraFloatControlRange {
+                        minimum: vm_result_minimum,
+                        maximum: vm_result_maximum,
+                        default: vm_result_default,
+                        step: vm_result_step,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_brightness_range_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_device_camera_stream_close_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -25350,6 +30143,140 @@ fn destack_device_camera_stream_config_vm_replay(
         },
     );
     let result = encode_destack_device_camera_stream_config_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_contrast_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_CONTRAST,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_CONTRAST)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_contrast(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_contrast(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: f64 = value.clone();
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamContrastReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamContrastReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_contrast_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_contrast_range_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_CONTRAST_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_CONTRAST_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_contrast_range(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_contrast_range(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: CameraFloatControlRangeVm = value.clone();
+                let result_recorded_minimum = result_value.minimum;
+                let result_recorded_maximum = result_value.maximum;
+                let result_recorded_default = result_value.default;
+                let result_recorded_step = result_value.step;
+                let result_recorded = CameraFloatControlRange {
+                    minimum: result_recorded_minimum,
+                    maximum: result_recorded_maximum,
+                    default: result_recorded_default,
+                    step: result_recorded_step,
+                };
+                let payload = DeviceCameraStreamContrastRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamContrastRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_minimum = value.minimum;
+                    let vm_result_maximum = value.maximum;
+                    let vm_result_default = value.default;
+                    let vm_result_step = value.step;
+                    let vm_result = CameraFloatControlRange {
+                        minimum: vm_result_minimum,
+                        maximum: vm_result_maximum,
+                        default: vm_result_default,
+                        step: vm_result_step,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_contrast_range_result(context, result)?;
     Ok(result)
 }
 
@@ -25553,6 +30480,144 @@ fn destack_device_camera_stream_exposure_mode_vm_replay(
 }
 
 #[inline]
+fn destack_device_camera_stream_exposure_time_ns_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_EXPOSURE_TIME_NS,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_EXPOSURE_TIME_NS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_exposure_time_ns(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_exposure_time_ns(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamExposureTimeNsReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamExposureTimeNsReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_exposure_time_ns_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_exposure_time_range_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_EXPOSURE_TIME_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_EXPOSURE_TIME_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_device_camera_stream_exposure_time_range(
+                binding, context, handle,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_exposure_time_range(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: CameraExposureTimeRangeVm = value.clone();
+                let result_recorded_minimum_ns = result_value.minimum_ns;
+                let result_recorded_maximum_ns = result_value.maximum_ns;
+                let result_recorded_default_ns = result_value.default_ns;
+                let result_recorded_step_ns = result_value.step_ns;
+                let result_recorded_auto_supported = result_value.auto_supported;
+                let result_recorded = CameraExposureTimeRange {
+                    minimum_ns: result_recorded_minimum_ns,
+                    maximum_ns: result_recorded_maximum_ns,
+                    default_ns: result_recorded_default_ns,
+                    step_ns: result_recorded_step_ns,
+                    auto_supported: result_recorded_auto_supported,
+                };
+                let payload = DeviceCameraStreamExposureTimeRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamExposureTimeRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_minimum_ns = value.minimum_ns;
+                    let vm_result_maximum_ns = value.maximum_ns;
+                    let vm_result_default_ns = value.default_ns;
+                    let vm_result_step_ns = value.step_ns;
+                    let vm_result_auto_supported = value.auto_supported;
+                    let vm_result = CameraExposureTimeRange {
+                        minimum_ns: vm_result_minimum_ns,
+                        maximum_ns: vm_result_maximum_ns,
+                        default_ns: vm_result_default_ns,
+                        step_ns: vm_result_step_ns,
+                        auto_supported: vm_result_auto_supported,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_exposure_time_range_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_device_camera_stream_focus_distance_diopters_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -25694,6 +30759,64 @@ fn destack_device_camera_stream_focus_distance_range_vm_replay(
 }
 
 #[inline]
+fn destack_device_camera_stream_focus_mode_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_FOCUS_MODE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_FOCUS_MODE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_focus_mode(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_focus_mode(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: CameraFocusMode = value.clone();
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamFocusModeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamFocusModeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_focus_mode_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_device_camera_stream_open_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -25747,6 +30870,140 @@ fn destack_device_camera_stream_open_vm_replay(
         },
     );
     let result = encode_destack_device_camera_stream_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_pan_degrees_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_PAN_DEGREES,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_PAN_DEGREES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_pan_degrees(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_pan_degrees(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: f64 = value.clone();
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamPanDegreesReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamPanDegreesReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_pan_degrees_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_pan_range_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_PAN_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_PAN_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_pan_range(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_pan_range(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: CameraPanAngleRangeVm = value.clone();
+                let result_recorded_minimum_degrees = result_value.minimum_degrees;
+                let result_recorded_maximum_degrees = result_value.maximum_degrees;
+                let result_recorded_default_degrees = result_value.default_degrees;
+                let result_recorded_step_degrees = result_value.step_degrees;
+                let result_recorded = CameraPanAngleRange {
+                    minimum_degrees: result_recorded_minimum_degrees,
+                    maximum_degrees: result_recorded_maximum_degrees,
+                    default_degrees: result_recorded_default_degrees,
+                    step_degrees: result_recorded_step_degrees,
+                };
+                let payload = DeviceCameraStreamPanRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamPanRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_minimum_degrees = value.minimum_degrees;
+                    let vm_result_maximum_degrees = value.maximum_degrees;
+                    let vm_result_default_degrees = value.default_degrees;
+                    let vm_result_step_degrees = value.step_degrees;
+                    let vm_result = CameraPanAngleRange {
+                        minimum_degrees: vm_result_minimum_degrees,
+                        maximum_degrees: vm_result_maximum_degrees,
+                        default_degrees: vm_result_default_degrees,
+                        step_degrees: vm_result_step_degrees,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_pan_range_result(context, result)?;
     Ok(result)
 }
 
@@ -26024,6 +31281,400 @@ fn destack_device_camera_stream_read_vm_replay(
 }
 
 #[inline]
+fn destack_device_camera_stream_saturation_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SATURATION,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SATURATION)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_saturation(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_saturation(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: f64 = value.clone();
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamSaturationReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSaturationReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_saturation_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_saturation_range_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SATURATION_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SATURATION_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_saturation_range(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_saturation_range(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: CameraFloatControlRangeVm = value.clone();
+                let result_recorded_minimum = result_value.minimum;
+                let result_recorded_maximum = result_value.maximum;
+                let result_recorded_default = result_value.default;
+                let result_recorded_step = result_value.step;
+                let result_recorded = CameraFloatControlRange {
+                    minimum: result_recorded_minimum,
+                    maximum: result_recorded_maximum,
+                    default: result_recorded_default,
+                    step: result_recorded_step,
+                };
+                let payload = DeviceCameraStreamSaturationRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSaturationRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_minimum = value.minimum;
+                    let vm_result_maximum = value.maximum;
+                    let vm_result_default = value.default;
+                    let vm_result_step = value.step;
+                    let vm_result = CameraFloatControlRange {
+                        minimum: vm_result_minimum,
+                        maximum: vm_result_maximum,
+                        default: vm_result_default,
+                        step: vm_result_step,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_saturation_range_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_sensor_iso_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SENSOR_ISO,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SENSOR_ISO)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_sensor_iso(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_sensor_iso(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u32 = value.clone();
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamSensorIsoReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSensorIsoReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_sensor_iso_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_sensor_iso_range_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SENSOR_ISO_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SENSOR_ISO_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_sensor_iso_range(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_sensor_iso_range(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: CameraSensorIsoRangeVm = value.clone();
+                let result_recorded_minimum = result_value.minimum;
+                let result_recorded_maximum = result_value.maximum;
+                let result_recorded_default = result_value.default;
+                let result_recorded_step = result_value.step;
+                let result_recorded_auto_supported = result_value.auto_supported;
+                let result_recorded = CameraSensorIsoRange {
+                    minimum: result_recorded_minimum,
+                    maximum: result_recorded_maximum,
+                    default: result_recorded_default,
+                    step: result_recorded_step,
+                    auto_supported: result_recorded_auto_supported,
+                };
+                let payload = DeviceCameraStreamSensorIsoRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSensorIsoRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_minimum = value.minimum;
+                    let vm_result_maximum = value.maximum;
+                    let vm_result_default = value.default;
+                    let vm_result_step = value.step;
+                    let vm_result_auto_supported = value.auto_supported;
+                    let vm_result = CameraSensorIsoRange {
+                        minimum: vm_result_minimum,
+                        maximum: vm_result_maximum,
+                        default: vm_result_default,
+                        step: vm_result_step,
+                        auto_supported: vm_result_auto_supported,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_sensor_iso_range_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_set_brightness_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SET_BRIGHTNESS,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_BRIGHTNESS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_brightness(
+                binding,
+                context,
+                handle,
+                argument_value,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_set_brightness(
+                    binding,
+                    context,
+                    handle,
+                    argument_value,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetBrightnessReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetBrightnessReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_set_brightness_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_set_contrast_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SET_CONTRAST,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_CONTRAST)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_contrast(
+                binding,
+                context,
+                handle,
+                argument_value,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_set_contrast(
+                    binding,
+                    context,
+                    handle,
+                    argument_value,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetContrastReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetContrastReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_set_contrast_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_device_camera_stream_set_exposure_compensation_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -26137,6 +31788,61 @@ fn destack_device_camera_stream_set_exposure_mode_vm_replay(
 }
 
 #[inline]
+fn destack_device_camera_stream_set_exposure_time_ns_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    valuens: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SET_EXPOSURE_TIME_NS,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_EXPOSURE_TIME_NS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_exposure_time_ns(
+                binding, context, handle, valuens,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_set_exposure_time_ns(
+                    binding, context, handle, valuens,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetExposureTimeNsReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetExposureTimeNsReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_set_exposure_time_ns_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_device_camera_stream_set_focus_distance_diopters_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -26195,6 +31901,293 @@ fn destack_device_camera_stream_set_focus_distance_diopters_vm_replay(
 }
 
 #[inline]
+fn destack_device_camera_stream_set_focus_mode_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    mode: CameraFocusMode,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SET_FOCUS_MODE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_FOCUS_MODE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_focus_mode(
+                binding, context, handle, mode,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_set_focus_mode(
+                    binding, context, handle, mode,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetFocusModeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetFocusModeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_set_focus_mode_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_set_pan_degrees_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    degrees: f64,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SET_PAN_DEGREES,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_PAN_DEGREES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_pan_degrees(
+                binding, context, handle, degrees,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_set_pan_degrees(
+                    binding, context, handle, degrees,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetPanDegreesReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetPanDegreesReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_set_pan_degrees_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_set_saturation_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SET_SATURATION,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_SATURATION)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_saturation(
+                binding,
+                context,
+                handle,
+                argument_value,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_set_saturation(
+                    binding,
+                    context,
+                    handle,
+                    argument_value,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetSaturationReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetSaturationReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_set_saturation_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_set_sensor_iso_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    iso: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SET_SENSOR_ISO,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_SENSOR_ISO)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_sensor_iso(
+                binding, context, handle, iso,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_set_sensor_iso(
+                    binding, context, handle, iso,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetSensorIsoReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetSensorIsoReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_set_sensor_iso_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_set_sharpness_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SET_SHARPNESS,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_SHARPNESS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_sharpness(
+                binding,
+                context,
+                handle,
+                argument_value,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_set_sharpness(
+                    binding,
+                    context,
+                    handle,
+                    argument_value,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetSharpnessReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetSharpnessReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_set_sharpness_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_device_camera_stream_set_stabilization_mode_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -26247,6 +32240,61 @@ fn destack_device_camera_stream_set_stabilization_mode_vm_replay(
     );
     let result =
         encode_destack_device_camera_stream_set_stabilization_mode_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_set_tilt_degrees_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    degrees: f64,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SET_TILT_DEGREES,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_TILT_DEGREES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_tilt_degrees(
+                binding, context, handle, degrees,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_set_tilt_degrees(
+                    binding, context, handle, degrees,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetTiltDegreesReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetTiltDegreesReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_set_tilt_degrees_result(context, result)?;
     Ok(result)
 }
 
@@ -26364,6 +32412,62 @@ fn destack_device_camera_stream_set_white_balance_kelvin_vm_replay(
 }
 
 #[inline]
+fn destack_device_camera_stream_set_white_balance_mode_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+    mode: CameraWhiteBalanceMode,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SET_WHITE_BALANCE_MODE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SET_WHITE_BALANCE_MODE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_device_camera_stream_set_white_balance_mode(
+                binding, context, handle, mode,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_set_white_balance_mode(
+                    binding, context, handle, mode,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DeviceCameraStreamSetWhiteBalanceModeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSetWhiteBalanceModeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result =
+        encode_destack_device_camera_stream_set_white_balance_mode_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_device_camera_stream_set_zoom_ratio_vm_replay(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -26415,6 +32519,140 @@ fn destack_device_camera_stream_set_zoom_ratio_vm_replay(
         },
     );
     let result = encode_destack_device_camera_stream_set_zoom_ratio_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_sharpness_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SHARPNESS,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SHARPNESS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_sharpness(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_sharpness(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: f64 = value.clone();
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamSharpnessReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSharpnessReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_sharpness_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_sharpness_range_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_SHARPNESS_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_SHARPNESS_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_sharpness_range(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_sharpness_range(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: CameraFloatControlRangeVm = value.clone();
+                let result_recorded_minimum = result_value.minimum;
+                let result_recorded_maximum = result_value.maximum;
+                let result_recorded_default = result_value.default;
+                let result_recorded_step = result_value.step;
+                let result_recorded = CameraFloatControlRange {
+                    minimum: result_recorded_minimum,
+                    maximum: result_recorded_maximum,
+                    default: result_recorded_default,
+                    step: result_recorded_step,
+                };
+                let payload = DeviceCameraStreamSharpnessRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamSharpnessRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_minimum = value.minimum;
+                    let vm_result_maximum = value.maximum;
+                    let vm_result_default = value.default;
+                    let vm_result_step = value.step;
+                    let vm_result = CameraFloatControlRange {
+                        minimum: vm_result_minimum,
+                        maximum: vm_result_maximum,
+                        default: vm_result_default,
+                        step: vm_result_step,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_sharpness_range_result(context, result)?;
     Ok(result)
 }
 
@@ -26577,6 +32815,140 @@ fn destack_device_camera_stream_stop_vm_replay(
         },
     );
     let result = encode_destack_device_camera_stream_stop_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_tilt_degrees_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_TILT_DEGREES,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_TILT_DEGREES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_tilt_degrees(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_tilt_degrees(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: f64 = value.clone();
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamTiltDegreesReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamTiltDegreesReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_tilt_degrees_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_tilt_range_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_TILT_RANGE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_TILT_RANGE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_device_camera_stream_tilt_range(binding, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_tilt_range(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: CameraTiltAngleRangeVm = value.clone();
+                let result_recorded_minimum_degrees = result_value.minimum_degrees;
+                let result_recorded_maximum_degrees = result_value.maximum_degrees;
+                let result_recorded_default_degrees = result_value.default_degrees;
+                let result_recorded_step_degrees = result_value.step_degrees;
+                let result_recorded = CameraTiltAngleRange {
+                    minimum_degrees: result_recorded_minimum_degrees,
+                    maximum_degrees: result_recorded_maximum_degrees,
+                    default_degrees: result_recorded_default_degrees,
+                    step_degrees: result_recorded_step_degrees,
+                };
+                let payload = DeviceCameraStreamTiltRangeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamTiltRangeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_minimum_degrees = value.minimum_degrees;
+                    let vm_result_maximum_degrees = value.maximum_degrees;
+                    let vm_result_default_degrees = value.default_degrees;
+                    let vm_result_step_degrees = value.step_degrees;
+                    let vm_result = CameraTiltAngleRange {
+                        minimum_degrees: vm_result_minimum_degrees,
+                        maximum_degrees: vm_result_maximum_degrees,
+                        default_degrees: vm_result_default_degrees,
+                        step_degrees: vm_result_step_degrees,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_tilt_range_result(context, result)?;
     Ok(result)
 }
 
@@ -26967,6 +33339,64 @@ fn destack_device_camera_stream_white_balance_kelvin_vm_replay(
         },
     );
     let result = encode_destack_device_camera_stream_white_balance_kelvin_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_device_camera_stream_white_balance_mode_vm_replay(
+    binding: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = binding.trace().run_binding(
+        DEVICE_CAMERA_STREAM_WHITE_BALANCE_MODE,
+        binding.replay_payload_for(DEVICE_CAMERA_STREAM_WHITE_BALANCE_MODE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_device_camera_stream_white_balance_mode(
+                binding, context, handle,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_device_camera_stream_white_balance_mode(
+                    binding, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: CameraWhiteBalanceMode = value.clone();
+                let result_recorded = result_value;
+                let payload = DeviceCameraStreamWhiteBalanceModeReplayRecord {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(TraceError::from(error.as_ref()));
+                    DeviceCameraStreamWhiteBalanceModeReplayRecord { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(Box::<RuntimeError>::from(error)),
+            }
+        },
+    );
+    let result = encode_destack_device_camera_stream_white_balance_mode_result(context, result)?;
     Ok(result)
 }
 
@@ -28434,26 +34864,6 @@ fn destack_device_serial_read_event_vm_replay(
                         };
                         SerialeventReplayRecord::SerialReadReadyEvent(result_recorded_serial_read_ready_event)
                     }
-                    SerialEventVm::SerialWriteDrainedEvent(value) => {
-                        let result_recorded_serial_write_drained_event_kind = {
-                            let result_recorded_serial_write_drained_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_serial_write_drained_event_kind_ref.as_str().to_string()
-                        };
-                        let result_recorded_serial_write_drained_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_serial_write_drained_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_serial_write_drained_event_metadata = SerialEventMetadata {
-                            timestamp_ns: result_recorded_serial_write_drained_event_metadata_timestamp_ns,
-                            sequence: result_recorded_serial_write_drained_event_metadata_sequence,
-                        };
-                        let result_recorded_serial_write_drained_event_payload = SerialWriteDrainedPayload {
-                        };
-                        let result_recorded_serial_write_drained_event = SerialwritedrainedeventReplayRecord {
-                            kind: result_recorded_serial_write_drained_event_kind,
-                            metadata: result_recorded_serial_write_drained_event_metadata,
-                            payload: result_recorded_serial_write_drained_event_payload,
-                        };
-                        SerialeventReplayRecord::SerialWriteDrainedEvent(result_recorded_serial_write_drained_event)
-                    }
                 };
                 let payload = DeviceSerialReadEventReplayRecord {
                     result: Ok(result_recorded),
@@ -28580,23 +34990,6 @@ fn destack_device_serial_read_event_vm_replay(
                                 payload: vm_result_serial_read_ready_event_payload,
                             };
                             SerialEventVm::SerialReadReadyEvent(vm_result_serial_read_ready_event)
-                        }
-                        SerialeventReplayRecord::SerialWriteDrainedEvent(value) => {
-                            let vm_result_serial_write_drained_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_serial_write_drained_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let vm_result_serial_write_drained_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_serial_write_drained_event_metadata = SerialEventMetadata {
-                                timestamp_ns: vm_result_serial_write_drained_event_metadata_timestamp_ns,
-                                sequence: vm_result_serial_write_drained_event_metadata_sequence,
-                            };
-                            let vm_result_serial_write_drained_event_payload = SerialWriteDrainedPayload {
-                            };
-                            let vm_result_serial_write_drained_event = SerialWriteDrainedEventVm {
-                                kind: vm_result_serial_write_drained_event_kind,
-                                metadata: vm_result_serial_write_drained_event_metadata,
-                                payload: vm_result_serial_write_drained_event_payload,
-                            };
-                            SerialEventVm::SerialWriteDrainedEvent(vm_result_serial_write_drained_event)
                         }
                     };
                     Ok(vm_result)
@@ -28856,26 +35249,6 @@ fn destack_device_serial_try_event_vm_replay(
                         };
                         SerialeventReplayRecord::SerialReadReadyEvent(result_recorded_serial_read_ready_event)
                     }
-                    SerialEventVm::SerialWriteDrainedEvent(value) => {
-                        let result_recorded_serial_write_drained_event_kind = {
-                            let result_recorded_serial_write_drained_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_serial_write_drained_event_kind_ref.as_str().to_string()
-                        };
-                        let result_recorded_serial_write_drained_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                        let result_recorded_serial_write_drained_event_metadata_sequence = value.metadata.sequence;
-                        let result_recorded_serial_write_drained_event_metadata = SerialEventMetadata {
-                            timestamp_ns: result_recorded_serial_write_drained_event_metadata_timestamp_ns,
-                            sequence: result_recorded_serial_write_drained_event_metadata_sequence,
-                        };
-                        let result_recorded_serial_write_drained_event_payload = SerialWriteDrainedPayload {
-                        };
-                        let result_recorded_serial_write_drained_event = SerialwritedrainedeventReplayRecord {
-                            kind: result_recorded_serial_write_drained_event_kind,
-                            metadata: result_recorded_serial_write_drained_event_metadata,
-                            payload: result_recorded_serial_write_drained_event_payload,
-                        };
-                        SerialeventReplayRecord::SerialWriteDrainedEvent(result_recorded_serial_write_drained_event)
-                    }
                 };
                 let payload = DeviceSerialTryEventReplayRecord {
                     result: Ok(result_recorded),
@@ -29002,23 +35375,6 @@ fn destack_device_serial_try_event_vm_replay(
                                 payload: vm_result_serial_read_ready_event_payload,
                             };
                             SerialEventVm::SerialReadReadyEvent(vm_result_serial_read_ready_event)
-                        }
-                        SerialeventReplayRecord::SerialWriteDrainedEvent(value) => {
-                            let vm_result_serial_write_drained_event_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_serial_write_drained_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
-                            let vm_result_serial_write_drained_event_metadata_sequence = value.metadata.sequence;
-                            let vm_result_serial_write_drained_event_metadata = SerialEventMetadata {
-                                timestamp_ns: vm_result_serial_write_drained_event_metadata_timestamp_ns,
-                                sequence: vm_result_serial_write_drained_event_metadata_sequence,
-                            };
-                            let vm_result_serial_write_drained_event_payload = SerialWriteDrainedPayload {
-                            };
-                            let vm_result_serial_write_drained_event = SerialWriteDrainedEventVm {
-                                kind: vm_result_serial_write_drained_event_kind,
-                                metadata: vm_result_serial_write_drained_event_metadata,
-                                payload: vm_result_serial_write_drained_event_payload,
-                            };
-                            SerialEventVm::SerialWriteDrainedEvent(vm_result_serial_write_drained_event)
                         }
                     };
                     Ok(vm_result)
@@ -32180,7 +38536,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle, serviceuuid) =
+                    let (handle, serviceid) =
                         decode_destack_device_bluetooth_gatt_characteristic_list_args(
                             context, args,
                         )?;
@@ -32190,11 +38546,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                         DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST,
                     )?;
                     destack_device_bluetooth_gatt_characteristic_list_vm_replay(
-                        binding,
-                        context,
-                        world,
-                        handle,
-                        serviceuuid,
+                        binding, context, world, handle, serviceid,
                     )
                 })
                 .map_err(Into::into)
@@ -32209,7 +38561,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle, serviceuuid, characteristicuuid) =
+                    let (handle, characteristicid) =
                         decode_destack_device_bluetooth_gatt_descriptor_list_args(context, args)?;
 
                     // execute binding
@@ -32220,8 +38572,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                         context,
                         world,
                         handle,
-                        serviceuuid,
-                        characteristicuuid,
+                        characteristicid,
                     )
                 })
                 .map_err(Into::into)
@@ -32255,7 +38606,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle, serviceuuid, characteristicuuid, timeoutns) =
+                    let (handle, characteristicid, timeoutns) =
                         decode_destack_device_bluetooth_gatt_read_args(context, args)?;
 
                     // execute binding
@@ -32266,8 +38617,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                         context,
                         world,
                         handle,
-                        serviceuuid,
-                        characteristicuuid,
+                        characteristicid,
                         timeoutns,
                     )
                 })
@@ -32283,7 +38633,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle, serviceuuid, characteristicuuid, descriptoruuid, timeoutns) =
+                    let (handle, descriptorid, timeoutns) =
                         decode_destack_device_bluetooth_gatt_read_descriptor_args(context, args)?;
 
                     // execute binding
@@ -32294,9 +38644,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                         context,
                         world,
                         handle,
-                        serviceuuid,
-                        characteristicuuid,
-                        descriptoruuid,
+                        descriptorid,
                         timeoutns,
                     )
                 })
@@ -32320,28 +38668,6 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                         .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ_EVENT)?;
                     destack_device_bluetooth_gatt_read_event_vm_replay(
                         binding, context, world, handle, timeoutns,
-                    )
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
-            DEVICE_BLUETOOTH_GATT_REQUEST_MTU,
-            move |context, args| {
-                with_binding_call_context(|binding| {
-                    // decode args
-                    let (handle, mtu, timeoutns) =
-                        decode_destack_device_bluetooth_gatt_request_mtu_args(context, args)?;
-
-                    // execute binding
-                    let (world, _binding_hook_guard) = binding
-                        .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?;
-                    destack_device_bluetooth_gatt_request_mtu_vm_replay(
-                        binding, context, world, handle, mtu, timeoutns,
                     )
                 })
                 .map_err(Into::into)
@@ -32378,7 +38704,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle, serviceuuid, characteristicuuid) =
+                    let (handle, characteristicid) =
                         decode_destack_device_bluetooth_gatt_subscribe_args(context, args)?;
 
                     // execute binding
@@ -32389,8 +38715,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                         context,
                         world,
                         handle,
-                        serviceuuid,
-                        characteristicuuid,
+                        characteristicid,
                     )
                 })
                 .map_err(Into::into)
@@ -32449,7 +38774,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle, serviceuuid, characteristicuuid, argument_value, mode, timeoutns) =
+                    let (handle, characteristicid, argument_value, mode, timeoutns) =
                         decode_destack_device_bluetooth_gatt_write_args(context, args)?;
 
                     // execute binding
@@ -32460,8 +38785,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                         context,
                         world,
                         handle,
-                        serviceuuid,
-                        characteristicuuid,
+                        characteristicid,
                         argument_value,
                         mode,
                         timeoutns,
@@ -32479,14 +38803,8 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (
-                        handle,
-                        serviceuuid,
-                        characteristicuuid,
-                        descriptoruuid,
-                        argument_value,
-                        timeoutns,
-                    ) = decode_destack_device_bluetooth_gatt_write_descriptor_args(context, args)?;
+                    let (handle, descriptorid, argument_value, timeoutns) =
+                        decode_destack_device_bluetooth_gatt_write_descriptor_args(context, args)?;
 
                     // execute binding
                     let (world, _binding_hook_guard) = binding
@@ -32496,9 +38814,7 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                         context,
                         world,
                         handle,
-                        serviceuuid,
-                        characteristicuuid,
-                        descriptoruuid,
+                        descriptorid,
                         argument_value,
                         timeoutns,
                     )
@@ -32915,6 +39231,50 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
+            DEVICE_CAMERA_STREAM_BRIGHTNESS,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_brightness_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_BRIGHTNESS)?;
+                    destack_device_camera_stream_brightness_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_BRIGHTNESS_RANGE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_brightness_range_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_BRIGHTNESS_RANGE)?;
+                    destack_device_camera_stream_brightness_range_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             DEVICE_CAMERA_STREAM_CLOSE,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -32944,6 +39304,48 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                     let (world, _binding_hook_guard) =
                         binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CONFIG)?;
                     destack_device_camera_stream_config_vm_replay(binding, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_CONTRAST,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_contrast_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CONTRAST)?;
+                    destack_device_camera_stream_contrast_vm_replay(binding, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_CONTRAST_RANGE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_contrast_range_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CONTRAST_RANGE)?;
+                    destack_device_camera_stream_contrast_range_vm_replay(
+                        binding, context, world, handle,
+                    )
                 })
                 .map_err(Into::into)
             }
@@ -33024,6 +39426,52 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
+            DEVICE_CAMERA_STREAM_EXPOSURE_TIME_NS,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_exposure_time_ns_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_EXPOSURE_TIME_NS)?;
+                    destack_device_camera_stream_exposure_time_ns_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_EXPOSURE_TIME_RANGE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) = decode_destack_device_camera_stream_exposure_time_range_args(
+                        context, args,
+                    )?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
+                        DEVICE_CAMERA_STREAM_EXPOSURE_TIME_RANGE,
+                    )?;
+                    destack_device_camera_stream_exposure_time_range_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             DEVICE_CAMERA_STREAM_FOCUS_DISTANCE_DIOPTERS,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -33073,6 +39521,28 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
+            DEVICE_CAMERA_STREAM_FOCUS_MODE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_focus_mode_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_FOCUS_MODE)?;
+                    destack_device_camera_stream_focus_mode_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             DEVICE_CAMERA_STREAM_OPEN,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -33095,6 +39565,50 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
+            DEVICE_CAMERA_STREAM_PAN_DEGREES,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_pan_degrees_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_PAN_DEGREES)?;
+                    destack_device_camera_stream_pan_degrees_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_PAN_RANGE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_pan_range_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_PAN_RANGE)?;
+                    destack_device_camera_stream_pan_range_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             DEVICE_CAMERA_STREAM_READ,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -33107,6 +39621,146 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                         binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_READ)?;
                     destack_device_camera_stream_read_vm_replay(
                         binding, context, world, handle, timeoutns,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SATURATION,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_saturation_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SATURATION)?;
+                    destack_device_camera_stream_saturation_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SATURATION_RANGE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_saturation_range_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SATURATION_RANGE)?;
+                    destack_device_camera_stream_saturation_range_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SENSOR_ISO,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_sensor_iso_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SENSOR_ISO)?;
+                    destack_device_camera_stream_sensor_iso_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SENSOR_ISO_RANGE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_sensor_iso_range_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SENSOR_ISO_RANGE)?;
+                    destack_device_camera_stream_sensor_iso_range_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SET_BRIGHTNESS,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, argument_value) =
+                        decode_destack_device_camera_stream_set_brightness_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_BRIGHTNESS)?;
+                    destack_device_camera_stream_set_brightness_vm_replay(
+                        binding,
+                        context,
+                        world,
+                        handle,
+                        argument_value,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SET_CONTRAST,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, argument_value) =
+                        decode_destack_device_camera_stream_set_contrast_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_CONTRAST)?;
+                    destack_device_camera_stream_set_contrast_vm_replay(
+                        binding,
+                        context,
+                        world,
+                        handle,
+                        argument_value,
                     )
                 })
                 .map_err(Into::into)
@@ -33164,6 +39818,31 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
+            DEVICE_CAMERA_STREAM_SET_EXPOSURE_TIME_NS,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, valuens) =
+                        decode_destack_device_camera_stream_set_exposure_time_ns_args(
+                            context, args,
+                        )?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
+                        DEVICE_CAMERA_STREAM_SET_EXPOSURE_TIME_NS,
+                    )?;
+                    destack_device_camera_stream_set_exposure_time_ns_vm_replay(
+                        binding, context, world, handle, valuens,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             DEVICE_CAMERA_STREAM_SET_FOCUS_DISTANCE_DIOPTERS,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -33189,6 +39868,124 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
+            DEVICE_CAMERA_STREAM_SET_FOCUS_MODE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, mode) =
+                        decode_destack_device_camera_stream_set_focus_mode_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_FOCUS_MODE)?;
+                    destack_device_camera_stream_set_focus_mode_vm_replay(
+                        binding, context, world, handle, mode,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SET_PAN_DEGREES,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, degrees) =
+                        decode_destack_device_camera_stream_set_pan_degrees_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_PAN_DEGREES)?;
+                    destack_device_camera_stream_set_pan_degrees_vm_replay(
+                        binding, context, world, handle, degrees,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SET_SATURATION,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, argument_value) =
+                        decode_destack_device_camera_stream_set_saturation_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_SATURATION)?;
+                    destack_device_camera_stream_set_saturation_vm_replay(
+                        binding,
+                        context,
+                        world,
+                        handle,
+                        argument_value,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SET_SENSOR_ISO,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, iso) =
+                        decode_destack_device_camera_stream_set_sensor_iso_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_SENSOR_ISO)?;
+                    destack_device_camera_stream_set_sensor_iso_vm_replay(
+                        binding, context, world, handle, iso,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SET_SHARPNESS,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, argument_value) =
+                        decode_destack_device_camera_stream_set_sharpness_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_SHARPNESS)?;
+                    destack_device_camera_stream_set_sharpness_vm_replay(
+                        binding,
+                        context,
+                        world,
+                        handle,
+                        argument_value,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -33204,6 +40001,28 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                     )?;
                     destack_device_camera_stream_set_stabilization_mode_vm_replay(
                         binding, context, world, handle, mode,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SET_TILT_DEGREES,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, degrees) =
+                        decode_destack_device_camera_stream_set_tilt_degrees_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_TILT_DEGREES)?;
+                    destack_device_camera_stream_set_tilt_degrees_vm_replay(
+                        binding, context, world, handle, degrees,
                     )
                 })
                 .map_err(Into::into)
@@ -33261,6 +40080,31 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
+            DEVICE_CAMERA_STREAM_SET_WHITE_BALANCE_MODE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle, mode) =
+                        decode_destack_device_camera_stream_set_white_balance_mode_args(
+                            context, args,
+                        )?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding.on_before_binding_resolve_world(
+                        DEVICE_CAMERA_STREAM_SET_WHITE_BALANCE_MODE,
+                    )?;
+                    destack_device_camera_stream_set_white_balance_mode_vm_replay(
+                        binding, context, world, handle, mode,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             DEVICE_CAMERA_STREAM_SET_ZOOM_RATIO,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -33273,6 +40117,50 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                         .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_ZOOM_RATIO)?;
                     destack_device_camera_stream_set_zoom_ratio_vm_replay(
                         binding, context, world, handle, ratio,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SHARPNESS,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_sharpness_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SHARPNESS)?;
+                    destack_device_camera_stream_sharpness_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_SHARPNESS_RANGE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_sharpness_range_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SHARPNESS_RANGE)?;
+                    destack_device_camera_stream_sharpness_range_vm_replay(
+                        binding, context, world, handle,
                     )
                 })
                 .map_err(Into::into)
@@ -33343,6 +40231,50 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
         binding!(
             registry,
             isolate,
+            DEVICE_CAMERA_STREAM_TILT_DEGREES,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_tilt_degrees_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_TILT_DEGREES)?;
+                    destack_device_camera_stream_tilt_degrees_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_TILT_RANGE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_tilt_range_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) =
+                        binding.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_TILT_RANGE)?;
+                    destack_device_camera_stream_tilt_range_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             DEVICE_CAMERA_STREAM_TORCH_MODE,
             move |context, args| {
                 with_binding_call_context(|binding| {
@@ -33398,6 +40330,28 @@ pub(crate) fn register_device_vm_bindings(registry: &mut BindingRegistry, isolat
                         DEVICE_CAMERA_STREAM_WHITE_BALANCE_KELVIN,
                     )?;
                     destack_device_camera_stream_white_balance_kelvin_vm_replay(
+                        binding, context, world, handle,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DEVICE_CAMERA_STREAM_WHITE_BALANCE_MODE,
+            move |context, args| {
+                with_binding_call_context(|binding| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_device_camera_stream_white_balance_mode_args(context, args)?;
+
+                    // execute binding
+                    let (world, _binding_hook_guard) = binding
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_WHITE_BALANCE_MODE)?;
+                    destack_device_camera_stream_white_balance_mode_vm_replay(
                         binding, context, world, handle,
                     )
                 })

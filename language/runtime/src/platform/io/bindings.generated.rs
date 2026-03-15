@@ -214,7 +214,9 @@ fn encode_destack_io_completion_cancel_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.completion.close.
@@ -264,7 +266,9 @@ fn encode_destack_io_completion_enter_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.completion.open.
@@ -284,7 +288,9 @@ fn encode_destack_io_completion_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CompletionHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.completion.submit.
@@ -396,7 +402,9 @@ fn encode_destack_io_completion_submit_batch_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.completion.wait.
@@ -422,7 +430,9 @@ fn encode_destack_io_completion_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<CompletionEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.control.fcntl.
@@ -456,7 +466,9 @@ fn encode_destack_io_control_fcntl_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<i64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::int(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.control.ioctl.
@@ -507,13 +519,15 @@ fn encode_destack_io_control_ioctl_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DescriptorResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.return_value, 64));
-        let field_1: RuntimeResult<vm::Value> = value.output.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.return_value, 64));
+            let field_1: RuntimeResult<vm::Value> = value.output.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.device.close.
@@ -587,13 +601,15 @@ fn encode_destack_io_device_control_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DescriptorResultVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.return_value, 64));
-        let field_1: RuntimeResult<vm::Value> = value.output.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.return_value, 64));
+            let field_1: RuntimeResult<vm::Value> = value.output.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.device.open.
@@ -617,7 +633,9 @@ fn encode_destack_io_device_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::DeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.device.read.
@@ -641,7 +659,9 @@ fn encode_destack_io_device_read_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.device.write.
@@ -665,7 +685,9 @@ fn encode_destack_io_device_write_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.event.attach.
@@ -732,7 +754,9 @@ fn encode_destack_io_event_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<EventToken>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.event.signal.
@@ -835,7 +859,9 @@ fn encode_destack_io_poll_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::PollHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.poll.register.
@@ -931,7 +957,9 @@ fn encode_destack_io_poll_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<PollEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.timerfd.close.
@@ -975,13 +1003,15 @@ fn encode_destack_io_timerfd_get_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TimerFdSpecVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.initial_ns, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.interval_ns, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.initial_ns, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.interval_ns, 64));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.timerfd.open.
@@ -1016,7 +1046,9 @@ fn encode_destack_io_timerfd_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerFdHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.timerfd.read.
@@ -1038,7 +1070,9 @@ fn encode_destack_io_timerfd_read_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.timerfd.set.
@@ -1133,16 +1167,20 @@ fn encode_destack_io_uring_features_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UringFeaturesVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_submission_polling));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_kernel_polling));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_fixed_files));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_fixed_buffers));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.max_entries as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::bool(value.has_submission_polling));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_kernel_polling));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_fixed_files));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_fixed_buffers));
+            let field_4: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.max_entries as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.uring.open.
@@ -1189,7 +1227,9 @@ fn encode_destack_io_uring_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::UringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.io.uring.registerBuffers.

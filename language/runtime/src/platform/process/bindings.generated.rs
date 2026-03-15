@@ -212,7 +212,9 @@ fn encode_destack_process_args_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.cwd.chdir.
@@ -241,34 +243,36 @@ fn encode_destack_process_cwd_get_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<fs::OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        fs::OsPathVm::OsPathBytes(value) => {
-            let tag_value = vm::Value::uint(1243901586u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
+    result
+        .map(|value| match value {
+            fs::OsPathVm::OsPathBytes(value) => {
+                let tag_value = vm::Value::uint(1243901586u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = value.bytes.0.to_value(context);
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        fs::OsPathVm::OsPathUtf16(value) => {
-            let tag_value = vm::Value::uint(2271740357u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
+            }
+            fs::OsPathVm::OsPathUtf16(value) => {
+                let tag_value = vm::Value::uint(2271740357u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = value.utf16.0.to_value(context);
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.env.delete.
@@ -328,7 +332,9 @@ fn encode_destack_process_env_get_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(value.value()))
+    result
+        .map(|value| Ok(value.value()))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.env.getBytes.
@@ -348,7 +354,9 @@ fn encode_destack_process_env_get_bytes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.env.set.
@@ -578,7 +586,9 @@ fn encode_destack_process_fd_process_fd_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessFdHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.fd.processFdSendSignal.
@@ -628,80 +638,87 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
-            let tag_value = vm::Value::uint(2147747583u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+    result
+        .map(|value| match value {
+            ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
+                let tag_value = vm::Value::uint(2147747583u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
-            let tag_value = vm::Value::uint(4060872876u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.exit_code as i64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
+                let tag_value = vm::Value::uint(4060872876u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.exit_code as i64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
-            let tag_value = vm::Value::uint(2787154895u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
+                let tag_value = vm::Value::uint(2787154895u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
-            let tag_value = vm::Value::uint(2483179112u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
+            }
+            ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
+                let tag_value = vm::Value::uint(2483179112u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.signal.0 as u64, 32));
+                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
-            let tag_value = vm::Value::uint(116212971u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
+                let tag_value = vm::Value::uint(116212971u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.signal.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.fd.processFdWait.
@@ -725,80 +742,87 @@ fn encode_destack_process_fd_process_fd_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
-            let tag_value = vm::Value::uint(2147747583u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+    result
+        .map(|value| match value {
+            ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
+                let tag_value = vm::Value::uint(2147747583u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
-            let tag_value = vm::Value::uint(4060872876u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.exit_code as i64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
+                let tag_value = vm::Value::uint(4060872876u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.exit_code as i64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
-            let tag_value = vm::Value::uint(2787154895u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
+                let tag_value = vm::Value::uint(2787154895u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
-            let tag_value = vm::Value::uint(2483179112u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
+            }
+            ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
+                let tag_value = vm::Value::uint(2483179112u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.signal.0 as u64, 32));
+                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
-            let tag_value = vm::Value::uint(116212971u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
+                let tag_value = vm::Value::uint(116212971u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.signal.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.fd.signalFdClose.
@@ -843,7 +867,9 @@ fn encode_destack_process_fd_signal_fd_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SignalFdHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.fd.signalFdRead.
@@ -865,13 +891,15 @@ fn encode_destack_process_fd_signal_fd_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.fd.signalFdSetMask.
@@ -917,13 +945,15 @@ fn encode_destack_process_fd_signal_fd_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.process.fd.stdioStderr.
@@ -932,7 +962,9 @@ fn encode_destack_process_fd_stdio_stderr_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.process.fd.stdioStdin.
@@ -941,7 +973,9 @@ fn encode_destack_process_fd_stdio_stdin_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.process.fd.stdioStdout.
@@ -950,7 +984,9 @@ fn encode_destack_process_fd_stdio_stdout_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.group.cgroupGetLimit.
@@ -973,13 +1009,15 @@ fn encode_destack_process_group_cgroup_get_limit_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessLimitVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.soft, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.hard, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.soft, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.hard, 64));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.group.cgroupJoin.
@@ -1128,7 +1166,9 @@ fn encode_destack_process_ids_egid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GroupId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.process.ids.euid.
@@ -1137,7 +1177,9 @@ fn encode_destack_process_ids_euid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UserId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.process.ids.gid.
@@ -1146,7 +1188,9 @@ fn encode_destack_process_ids_gid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GroupId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.process.ids.groupIds.
@@ -1155,14 +1199,17 @@ fn encode_destack_process_ids_group_ids_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessGroupIdsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.real.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.effective.0 as u64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.saved.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.real.0 as u64, 32));
+            let field_1: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.effective.0 as u64, 32));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.saved.0 as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.process.ids.groups.
@@ -1171,7 +1218,9 @@ fn encode_destack_process_ids_groups_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<GroupId>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.process.ids.pid.
@@ -1180,7 +1229,9 @@ fn encode_destack_process_ids_pid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.process.ids.ppid.
@@ -1189,7 +1240,9 @@ fn encode_destack_process_ids_ppid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.ids.setEgid.
@@ -1400,7 +1453,9 @@ fn encode_destack_process_ids_uid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UserId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Encode the result for destack.process.ids.userIds.
@@ -1409,14 +1464,17 @@ fn encode_destack_process_ids_user_ids_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessUserIdsVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.real.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.effective.0 as u64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.saved.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.real.0 as u64, 32));
+            let field_1: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.effective.0 as u64, 32));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.saved.0 as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.isolation.chroot.
@@ -1581,13 +1639,15 @@ fn encode_destack_process_limits_get_limit_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessLimitVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.soft, 64));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.hard, 64));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.soft, 64));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.hard, 64));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.limits.setLimit.
@@ -1655,12 +1715,14 @@ fn encode_destack_process_sched_get_affinity_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<thread::ThreadCpuSetVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = value.cpus.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = value.cpus.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.sched.getPriority.
@@ -1681,7 +1743,9 @@ fn encode_destack_process_sched_get_priority_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<i32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value as i64, 32)))
+    result
+        .map(|value| Ok(vm::Value::int(value as i64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.sched.getScheduler.
@@ -1702,14 +1766,17 @@ fn encode_destack_process_sched_get_scheduler_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessSchedulerConfigVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.policy as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.priority as i64, 32));
-        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.policy as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.priority as i64, 32));
+            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.flags as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.sched.setAffinity.
@@ -1870,7 +1937,9 @@ fn encode_destack_process_session_getpgid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.session.setpgid.
@@ -1903,7 +1972,9 @@ fn encode_destack_process_session_setsid_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0 as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.signals.kill.
@@ -1936,7 +2007,9 @@ fn encode_destack_process_signals_signal_mask_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<Signal>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.signals.signalMaskUpdate.
@@ -1992,13 +2065,15 @@ fn encode_destack_process_signals_signal_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.signals.signalSubscribe.
@@ -2019,7 +2094,9 @@ fn encode_destack_process_signals_signal_subscribe_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SignalHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.signals.signalTryReceive.
@@ -2041,13 +2118,15 @@ fn encode_destack_process_signals_signal_try_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.signals.signalTryWait.
@@ -2067,13 +2146,15 @@ fn encode_destack_process_signals_signal_try_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.signals.signalUnsubscribe.
@@ -2115,13 +2196,15 @@ fn encode_destack_process_signals_signal_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SignalEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.signal.0 as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.spawn.start.
@@ -2188,7 +2271,9 @@ fn encode_destack_process_spawn_start_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.spawn.withActions.
@@ -2267,7 +2352,9 @@ fn encode_destack_process_spawn_with_actions_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.umask.set.
@@ -2287,7 +2374,9 @@ fn encode_destack_process_umask_set_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value as u64, 32)))
+    result
+        .map(|value| Ok(vm::Value::uint(value as u64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.wait.handle.
@@ -2312,80 +2401,87 @@ fn encode_destack_process_wait_handle_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
-            let tag_value = vm::Value::uint(2147747583u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+    result
+        .map(|value| match value {
+            ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
+                let tag_value = vm::Value::uint(2147747583u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
-            let tag_value = vm::Value::uint(4060872876u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.exit_code as i64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
+                let tag_value = vm::Value::uint(4060872876u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.exit_code as i64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
-            let tag_value = vm::Value::uint(2787154895u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
+                let tag_value = vm::Value::uint(2787154895u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
-            let tag_value = vm::Value::uint(2483179112u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
+            }
+            ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
+                let tag_value = vm::Value::uint(2483179112u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.signal.0 as u64, 32));
+                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
-            let tag_value = vm::Value::uint(116212971u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
+                let tag_value = vm::Value::uint(116212971u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.signal.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.wait.pid.
@@ -2409,80 +2505,87 @@ fn encode_destack_process_wait_pid_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
-            let tag_value = vm::Value::uint(2147747583u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+    result
+        .map(|value| match value {
+            ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
+                let tag_value = vm::Value::uint(2147747583u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
-            let tag_value = vm::Value::uint(4060872876u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.exit_code as i64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
+                let tag_value = vm::Value::uint(4060872876u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.exit_code as i64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
-            let tag_value = vm::Value::uint(2787154895u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
+                let tag_value = vm::Value::uint(2787154895u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
-            let tag_value = vm::Value::uint(2483179112u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
+            }
+            ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
+                let tag_value = vm::Value::uint(2483179112u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.signal.0 as u64, 32));
+                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
-            let tag_value = vm::Value::uint(116212971u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
+                let tag_value = vm::Value::uint(116212971u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.signal.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.process.wait.tryWait.
@@ -2504,80 +2607,87 @@ fn encode_destack_process_wait_try_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessWaitStatusVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
-            let tag_value = vm::Value::uint(2147747583u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+    result
+        .map(|value| match value {
+            ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => {
+                let tag_value = vm::Value::uint(2147747583u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
-            let tag_value = vm::Value::uint(4060872876u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::int(value.exit_code as i64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => {
+                let tag_value = vm::Value::uint(4060872876u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.exit_code as i64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
-            let tag_value = vm::Value::uint(2787154895u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => {
+                let tag_value = vm::Value::uint(2787154895u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
-            let tag_value = vm::Value::uint(2483179112u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
-                let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
+            }
+            ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => {
+                let tag_value = vm::Value::uint(2483179112u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.signal.0 as u64, 32));
+                    let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.core_dumped));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
-            let tag_value = vm::Value::uint(116212971u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.pid.0 as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.signal.0 as u64, 32));
+            }
+            ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => {
+                let tag_value = vm::Value::uint(116212971u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.pid.0 as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.signal.0 as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Replay payload for destack.process.args.list.

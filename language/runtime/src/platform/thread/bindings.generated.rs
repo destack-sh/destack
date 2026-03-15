@@ -132,7 +132,9 @@ fn encode_destack_thread_local_create_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ThreadLocalKey>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.thread.local.delete.
@@ -176,7 +178,9 @@ fn encode_destack_thread_local_get_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.thread.local.set.
@@ -222,12 +226,14 @@ fn encode_destack_thread_sched_get_affinity_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ThreadCpuSetVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = value.cpus.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = value.cpus.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.thread.sched.getPriority.
@@ -249,7 +255,9 @@ fn encode_destack_thread_sched_get_priority_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<i32>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value as i64, 32)))
+    result
+        .map(|value| Ok(vm::Value::int(value as i64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.thread.sched.setAffinity.
@@ -361,7 +369,9 @@ fn encode_destack_thread_spawn_join_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.thread.spawn.start.
@@ -411,7 +421,9 @@ fn encode_destack_thread_spawn_start_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ThreadHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.thread.wait.addressWait.

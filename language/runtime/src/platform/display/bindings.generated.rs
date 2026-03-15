@@ -312,7 +312,9 @@ fn encode_destack_display_backend_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<DisplayBackendDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.close.
@@ -389,17 +391,19 @@ fn encode_destack_display_monitor_closest_mode_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DisplayModeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bit_depth as u64, 16));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bit_depth as u64, 16));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.colorState.
@@ -421,19 +425,21 @@ fn encode_destack_display_monitor_color_state_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DisplayColorStateVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.hdr_mode as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.color_space as i32 as i64, 32));
-        let field_2: RuntimeResult<vm::Value> = match value.bits_per_channel {
-            Some(value) => Ok(vm::Value::uint(value as u64, 16)),
-            None => Ok(vm::Value::VOID),
-        };
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.hdr_mode as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.color_space as i32 as i64, 32));
+            let field_2: RuntimeResult<vm::Value> = match value.bits_per_channel {
+                Some(value) => Ok(vm::Value::uint(value as u64, 16)),
+                None => Ok(vm::Value::VOID),
+            };
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.currentMode.
@@ -455,17 +461,19 @@ fn encode_destack_display_monitor_current_mode_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DisplayModeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bit_depth as u64, 16));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bit_depth as u64, 16));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.descriptor.
@@ -487,43 +495,49 @@ fn encode_destack_display_monitor_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DisplayDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.backend as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.primary));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.x as i64, 32));
-        let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.y as i64, 32));
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width_px as u64, 32));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height_px as u64, 32));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.work_area_x as i64, 32));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.work_area_y as i64, 32));
-        let field_10: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.work_area_width_px as u64, 32));
-        let field_11: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.work_area_height_px as u64, 32));
-        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width_mm as u64, 32));
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height_mm as u64, 32));
-        let field_14: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
-        let field_15: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.orientation as i32 as i64, 32));
-        let field_16: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.builtin_panel as i32 as i64, 32));
-        let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-            value.variable_refresh_support as i32 as i64,
-            32,
-        ));
-        let field_18: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                field_15?, field_16?, field_17?, field_18?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.backend as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
+            let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.primary));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.x as i64, 32));
+            let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.y as i64, 32));
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width_px as u64, 32));
+            let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height_px as u64, 32));
+            let field_8: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.work_area_x as i64, 32));
+            let field_9: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.work_area_y as i64, 32));
+            let field_10: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.work_area_width_px as u64, 32));
+            let field_11: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.work_area_height_px as u64, 32));
+            let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width_mm as u64, 32));
+            let field_13: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.height_mm as u64, 32));
+            let field_14: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
+            let field_15: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.orientation as i32 as i64, 32));
+            let field_16: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.builtin_panel as i32 as i64, 32));
+            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                value.variable_refresh_support as i32 as i64,
+                32,
+            ));
+            let field_18: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+                    field_15?, field_16?, field_17?, field_18?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.desktopMode.
@@ -545,17 +559,19 @@ fn encode_destack_display_monitor_desktop_mode_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DisplayModeVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
-        let field_2: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
-        let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bit_depth as u64, 16));
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.width as u64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.height as u64, 32));
+            let field_2: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
+            let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.format as u64, 32));
+            let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bit_depth as u64, 16));
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.eventClose.
@@ -745,7 +761,9 @@ fn encode_destack_display_monitor_event_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::DisplayEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.eventRead.
@@ -770,446 +788,99 @@ fn encode_destack_display_monitor_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DisplayMonitorEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        DisplayMonitorEventVm::DisplayAddedEvent(value) => {
-            let tag_value = vm::Value::uint(3489413994u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.backend as i32 as i64,
-                            32,
-                        ));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.payload.descriptor.id.value());
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(value.payload.descriptor.name.value());
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.descriptor.primary));
-                        let field_4: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.descriptor.x as i64, 32));
-                        let field_5: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.descriptor.y as i64, 32));
-                        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.width_px as u64,
-                            32,
-                        ));
-                        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.height_px as u64,
-                            32,
-                        ));
-                        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.work_area_x as i64,
-                            32,
-                        ));
-                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.work_area_y as i64,
-                            32,
-                        ));
-                        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.work_area_width_px as u64,
-                            32,
-                        ));
-                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.work_area_height_px as u64,
-                            32,
-                        ));
-                        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.width_mm as u64,
-                            32,
-                        ));
-                        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.height_mm as u64,
-                            32,
-                        ));
-                        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.scale_factor_milli as u64,
-                            32,
-                        ));
-                        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.orientation as i32 as i64,
-                            32,
-                        ));
-                        let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.builtin_panel as i32 as i64,
-                            32,
-                        ));
-                        let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.variable_refresh_support as i32 as i64,
-                            32,
-                        ));
-                        let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.hdr_support as i32 as i64,
-                            32,
-                        ));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                field_12?, field_13?, field_14?, field_15?, field_16?, field_17?,
-                                field_18?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        DisplayMonitorEventVm::DisplayDescriptorChangedEvent(value) => {
-            let tag_value = vm::Value::uint(2383728628u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.backend as i32 as i64, 32));
-                            let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
-                            let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
-                            let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::bool(value.primary));
-                            let field_4: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
-                            let field_5: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
-                            let field_6: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.width_px as u64, 32));
-                            let field_7: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.height_px as u64, 32));
-                            let field_8: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.work_area_x as i64, 32));
-                            let field_9: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.work_area_y as i64, 32));
-                            let field_10: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.work_area_width_px as u64, 32));
-                            let field_11: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.work_area_height_px as u64, 32));
-                            let field_12: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.width_mm as u64, 32));
-                            let field_13: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.height_mm as u64, 32));
-                            let field_14: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
-                            let field_15: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.orientation as i32 as i64, 32));
-                            let field_16: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.builtin_panel as i32 as i64, 32));
-                            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                                value.variable_refresh_support as i32 as i64,
-                                32,
-                            ));
-                            let field_18: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                    field_12?, field_13?, field_14?, field_15?, field_16?,
-                                    field_17?, field_18?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.current.backend as i32 as i64,
-                            32,
-                        ));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.payload.current.id.value());
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(value.payload.current.name.value());
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.current.primary));
-                        let field_4: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.current.x as i64, 32));
-                        let field_5: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.current.y as i64, 32));
-                        let field_6: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.width_px as u64, 32));
-                        let field_7: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.height_px as u64, 32));
-                        let field_8: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.current.work_area_x as i64, 32));
-                        let field_9: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.current.work_area_y as i64, 32));
-                        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.current.work_area_width_px as u64,
-                            32,
-                        ));
-                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.current.work_area_height_px as u64,
-                            32,
-                        ));
-                        let field_12: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.width_mm as u64, 32));
-                        let field_13: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.height_mm as u64, 32));
-                        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.current.scale_factor_milli as u64,
-                            32,
-                        ));
-                        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.current.orientation as i32 as i64,
-                            32,
-                        ));
-                        let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.current.builtin_panel as i32 as i64,
-                            32,
-                        ));
-                        let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.current.variable_refresh_support as i32 as i64,
-                            32,
-                        ));
-                        let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.current.hdr_support as i32 as i64,
-                            32,
-                        ));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                field_12?, field_13?, field_14?, field_15?, field_16?, field_17?,
-                                field_18?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.changed_mask.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        DisplayMonitorEventVm::DisplayModeChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1618220126u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.width as u64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.height as u64, 32));
-                            let field_2: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-                            let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.format as u64, 32));
-                            let field_4: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.bit_depth as u64, 16));
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
+    result
+        .map(|value| match value {
+            DisplayMonitorEventVm::DisplayAddedEvent(value) => {
+                let tag_value = vm::Value::uint(3489413994u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.width as u64, 32));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.height as u64, 32));
-                        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.current.refresh_milli_hz as u64,
-                            32,
-                        ));
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.format as u64, 32));
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.bit_depth as u64, 16));
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
                             .allocate_aggregate(vec![
                                 field_0?, field_1?, field_2?, field_3?, field_4?,
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        DisplayMonitorEventVm::DisplayPrimaryChangedEvent(value) => {
-            let tag_value = vm::Value::uint(155560704u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.current_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        DisplayMonitorEventVm::DisplayRemovedEvent(value) => {
-            let tag_value = vm::Value::uint(821764653u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.payload.id.value());
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.descriptor {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.backend as i32 as i64, 32));
-                            let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
-                            let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
-                            let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::bool(value.primary));
-                            let field_4: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
-                            let field_5: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
-                            let field_6: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.width_px as u64, 32));
-                            let field_7: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.height_px as u64, 32));
-                            let field_8: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.work_area_x as i64, 32));
-                            let field_9: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.work_area_y as i64, 32));
-                            let field_10: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.work_area_width_px as u64, 32));
-                            let field_11: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.work_area_height_px as u64, 32));
-                            let field_12: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.width_mm as u64, 32));
-                            let field_13: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.height_mm as u64, 32));
-                            let field_14: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
-                            let field_15: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.orientation as i32 as i64, 32));
-                            let field_16: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.builtin_panel as i32 as i64, 32));
-                            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                                value.variable_refresh_support as i32 as i64,
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.backend as i32 as i64,
                                 32,
                             ));
-                            let field_18: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(value.payload.descriptor.id.value());
+                            let field_2: RuntimeResult<vm::Value> =
+                                Ok(value.payload.descriptor.name.value());
+                            let field_3: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.descriptor.primary));
+                            let field_4: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.descriptor.x as i64, 32));
+                            let field_5: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.descriptor.y as i64, 32));
+                            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.width_px as u64,
+                                32,
+                            ));
+                            let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.height_px as u64,
+                                32,
+                            ));
+                            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.work_area_x as i64,
+                                32,
+                            ));
+                            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.work_area_y as i64,
+                                32,
+                            ));
+                            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.work_area_width_px as u64,
+                                32,
+                            ));
+                            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.work_area_height_px as u64,
+                                32,
+                            ));
+                            let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.width_mm as u64,
+                                32,
+                            ));
+                            let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.height_mm as u64,
+                                32,
+                            ));
+                            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.scale_factor_milli as u64,
+                                32,
+                            ));
+                            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.orientation as i32 as i64,
+                                32,
+                            ));
+                            let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.builtin_panel as i32 as i64,
+                                32,
+                            ));
+                            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.variable_refresh_support as i32 as i64,
+                                32,
+                            ));
+                            let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.hdr_support as i32 as i64,
+                                32,
+                            ));
                             context
                                 .allocate_aggregate(vec![
                                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
@@ -1218,22 +889,381 @@ fn encode_destack_display_monitor_event_read_result(
                                     field_17?, field_18?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+            DisplayMonitorEventVm::DisplayDescriptorChangedEvent(value) => {
+                let tag_value = vm::Value::uint(2383728628u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.backend as i32 as i64, 32));
+                                let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
+                                let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
+                                let field_3: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::bool(value.primary));
+                                let field_4: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.x as i64, 32));
+                                let field_5: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.y as i64, 32));
+                                let field_6: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.width_px as u64, 32));
+                                let field_7: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.height_px as u64, 32));
+                                let field_8: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.work_area_x as i64, 32));
+                                let field_9: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.work_area_y as i64, 32));
+                                let field_10: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.work_area_width_px as u64, 32));
+                                let field_11: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.work_area_height_px as u64, 32));
+                                let field_12: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.width_mm as u64, 32));
+                                let field_13: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.height_mm as u64, 32));
+                                let field_14: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
+                                let field_15: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.orientation as i32 as i64, 32));
+                                let field_16: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.builtin_panel as i32 as i64, 32));
+                                let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                    value.variable_refresh_support as i32 as i64,
+                                    32,
+                                ));
+                                let field_18: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                        field_6?, field_7?, field_8?, field_9?, field_10?,
+                                        field_11?, field_12?, field_13?, field_14?, field_15?,
+                                        field_16?, field_17?, field_18?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.current.backend as i32 as i64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(value.payload.current.id.value());
+                            let field_2: RuntimeResult<vm::Value> =
+                                Ok(value.payload.current.name.value());
+                            let field_3: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.current.primary));
+                            let field_4: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.current.x as i64, 32));
+                            let field_5: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.current.y as i64, 32));
+                            let field_6: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.width_px as u64, 32));
+                            let field_7: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.height_px as u64, 32));
+                            let field_8: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.current.work_area_x as i64, 32));
+                            let field_9: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.current.work_area_y as i64, 32));
+                            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current.work_area_width_px as u64,
+                                32,
+                            ));
+                            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current.work_area_height_px as u64,
+                                32,
+                            ));
+                            let field_12: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.width_mm as u64, 32));
+                            let field_13: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.height_mm as u64, 32));
+                            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current.scale_factor_milli as u64,
+                                32,
+                            ));
+                            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.current.orientation as i32 as i64,
+                                32,
+                            ));
+                            let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.current.builtin_panel as i32 as i64,
+                                32,
+                            ));
+                            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.current.variable_refresh_support as i32 as i64,
+                                32,
+                            ));
+                            let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.current.hdr_support as i32 as i64,
+                                32,
+                            ));
+                            context
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                    field_12?, field_13?, field_14?, field_15?, field_16?,
+                                    field_17?, field_18?,
+                                ])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.changed_mask.0 as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            DisplayMonitorEventVm::DisplayModeChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1618220126u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.width as u64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.height as u64, 32));
+                                let field_2: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
+                                let field_3: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.format as u64, 32));
+                                let field_4: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.bit_depth as u64, 16));
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.width as u64, 32));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.height as u64, 32));
+                            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current.refresh_milli_hz as u64,
+                                32,
+                            ));
+                            let field_3: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.format as u64, 32));
+                            let field_4: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.bit_depth as u64, 16));
+                            context
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?,
+                                ])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            DisplayMonitorEventVm::DisplayPrimaryChangedEvent(value) => {
+                let tag_value = vm::Value::uint(155560704u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.current_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            DisplayMonitorEventVm::DisplayRemovedEvent(value) => {
+                let tag_value = vm::Value::uint(821764653u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.payload.id.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.descriptor {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.backend as i32 as i64, 32));
+                                let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
+                                let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
+                                let field_3: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::bool(value.primary));
+                                let field_4: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.x as i64, 32));
+                                let field_5: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.y as i64, 32));
+                                let field_6: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.width_px as u64, 32));
+                                let field_7: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.height_px as u64, 32));
+                                let field_8: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.work_area_x as i64, 32));
+                                let field_9: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.work_area_y as i64, 32));
+                                let field_10: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.work_area_width_px as u64, 32));
+                                let field_11: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.work_area_height_px as u64, 32));
+                                let field_12: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.width_mm as u64, 32));
+                                let field_13: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.height_mm as u64, 32));
+                                let field_14: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
+                                let field_15: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.orientation as i32 as i64, 32));
+                                let field_16: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.builtin_panel as i32 as i64, 32));
+                                let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                    value.variable_refresh_support as i32 as i64,
+                                    32,
+                                ));
+                                let field_18: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                        field_6?, field_7?, field_8?, field_9?, field_10?,
+                                        field_11?, field_12?, field_13?, field_14?, field_15?,
+                                        field_16?, field_17?, field_18?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.eventReadBatch.
@@ -1260,7 +1290,9 @@ fn encode_destack_display_monitor_event_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<DisplayMonitorEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.eventTryRead.
@@ -1283,446 +1315,99 @@ fn encode_destack_display_monitor_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DisplayMonitorEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        DisplayMonitorEventVm::DisplayAddedEvent(value) => {
-            let tag_value = vm::Value::uint(3489413994u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.backend as i32 as i64,
-                            32,
-                        ));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.payload.descriptor.id.value());
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(value.payload.descriptor.name.value());
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.descriptor.primary));
-                        let field_4: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.descriptor.x as i64, 32));
-                        let field_5: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.descriptor.y as i64, 32));
-                        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.width_px as u64,
-                            32,
-                        ));
-                        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.height_px as u64,
-                            32,
-                        ));
-                        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.work_area_x as i64,
-                            32,
-                        ));
-                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.work_area_y as i64,
-                            32,
-                        ));
-                        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.work_area_width_px as u64,
-                            32,
-                        ));
-                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.work_area_height_px as u64,
-                            32,
-                        ));
-                        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.width_mm as u64,
-                            32,
-                        ));
-                        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.height_mm as u64,
-                            32,
-                        ));
-                        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.descriptor.scale_factor_milli as u64,
-                            32,
-                        ));
-                        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.orientation as i32 as i64,
-                            32,
-                        ));
-                        let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.builtin_panel as i32 as i64,
-                            32,
-                        ));
-                        let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.variable_refresh_support as i32 as i64,
-                            32,
-                        ));
-                        let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.descriptor.hdr_support as i32 as i64,
-                            32,
-                        ));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                field_12?, field_13?, field_14?, field_15?, field_16?, field_17?,
-                                field_18?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        DisplayMonitorEventVm::DisplayDescriptorChangedEvent(value) => {
-            let tag_value = vm::Value::uint(2383728628u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.backend as i32 as i64, 32));
-                            let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
-                            let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
-                            let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::bool(value.primary));
-                            let field_4: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
-                            let field_5: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
-                            let field_6: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.width_px as u64, 32));
-                            let field_7: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.height_px as u64, 32));
-                            let field_8: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.work_area_x as i64, 32));
-                            let field_9: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.work_area_y as i64, 32));
-                            let field_10: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.work_area_width_px as u64, 32));
-                            let field_11: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.work_area_height_px as u64, 32));
-                            let field_12: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.width_mm as u64, 32));
-                            let field_13: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.height_mm as u64, 32));
-                            let field_14: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
-                            let field_15: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.orientation as i32 as i64, 32));
-                            let field_16: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.builtin_panel as i32 as i64, 32));
-                            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                                value.variable_refresh_support as i32 as i64,
-                                32,
-                            ));
-                            let field_18: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                    field_12?, field_13?, field_14?, field_15?, field_16?,
-                                    field_17?, field_18?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.current.backend as i32 as i64,
-                            32,
-                        ));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(value.payload.current.id.value());
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(value.payload.current.name.value());
-                        let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::bool(value.payload.current.primary));
-                        let field_4: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.current.x as i64, 32));
-                        let field_5: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.current.y as i64, 32));
-                        let field_6: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.width_px as u64, 32));
-                        let field_7: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.height_px as u64, 32));
-                        let field_8: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.current.work_area_x as i64, 32));
-                        let field_9: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.current.work_area_y as i64, 32));
-                        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.current.work_area_width_px as u64,
-                            32,
-                        ));
-                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.current.work_area_height_px as u64,
-                            32,
-                        ));
-                        let field_12: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.width_mm as u64, 32));
-                        let field_13: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.height_mm as u64, 32));
-                        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.current.scale_factor_milli as u64,
-                            32,
-                        ));
-                        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.current.orientation as i32 as i64,
-                            32,
-                        ));
-                        let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.current.builtin_panel as i32 as i64,
-                            32,
-                        ));
-                        let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.current.variable_refresh_support as i32 as i64,
-                            32,
-                        ));
-                        let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                            value.payload.current.hdr_support as i32 as i64,
-                            32,
-                        ));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                field_12?, field_13?, field_14?, field_15?, field_16?, field_17?,
-                                field_18?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.payload.changed_mask.0 as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        DisplayMonitorEventVm::DisplayModeChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1618220126u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.width as u64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.height as u64, 32));
-                            let field_2: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-                            let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.format as u64, 32));
-                            let field_4: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.bit_depth as u64, 16));
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
+    result
+        .map(|value| match value {
+            DisplayMonitorEventVm::DisplayAddedEvent(value) => {
+                let tag_value = vm::Value::uint(3489413994u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.width as u64, 32));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.height as u64, 32));
-                        let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.current.refresh_milli_hz as u64,
-                            32,
-                        ));
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_3: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.format as u64, 32));
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.current.bit_depth as u64, 16));
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
                             .allocate_aggregate(vec![
                                 field_0?, field_1?, field_2?, field_3?, field_4?,
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        DisplayMonitorEventVm::DisplayPrimaryChangedEvent(value) => {
-            let tag_value = vm::Value::uint(155560704u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.current_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        DisplayMonitorEventVm::DisplayRemovedEvent(value) => {
-            let tag_value = vm::Value::uint(821764653u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
-                        Some(value) => Ok(value.value()),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.payload.id.value());
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.descriptor {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.backend as i32 as i64, 32));
-                            let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
-                            let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
-                            let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::bool(value.primary));
-                            let field_4: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
-                            let field_5: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
-                            let field_6: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.width_px as u64, 32));
-                            let field_7: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.height_px as u64, 32));
-                            let field_8: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.work_area_x as i64, 32));
-                            let field_9: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.work_area_y as i64, 32));
-                            let field_10: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.work_area_width_px as u64, 32));
-                            let field_11: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.work_area_height_px as u64, 32));
-                            let field_12: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.width_mm as u64, 32));
-                            let field_13: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.height_mm as u64, 32));
-                            let field_14: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
-                            let field_15: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.orientation as i32 as i64, 32));
-                            let field_16: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.builtin_panel as i32 as i64, 32));
-                            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                                value.variable_refresh_support as i32 as i64,
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.backend as i32 as i64,
                                 32,
                             ));
-                            let field_18: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(value.payload.descriptor.id.value());
+                            let field_2: RuntimeResult<vm::Value> =
+                                Ok(value.payload.descriptor.name.value());
+                            let field_3: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.descriptor.primary));
+                            let field_4: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.descriptor.x as i64, 32));
+                            let field_5: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.descriptor.y as i64, 32));
+                            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.width_px as u64,
+                                32,
+                            ));
+                            let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.height_px as u64,
+                                32,
+                            ));
+                            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.work_area_x as i64,
+                                32,
+                            ));
+                            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.work_area_y as i64,
+                                32,
+                            ));
+                            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.work_area_width_px as u64,
+                                32,
+                            ));
+                            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.work_area_height_px as u64,
+                                32,
+                            ));
+                            let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.width_mm as u64,
+                                32,
+                            ));
+                            let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.height_mm as u64,
+                                32,
+                            ));
+                            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.descriptor.scale_factor_milli as u64,
+                                32,
+                            ));
+                            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.orientation as i32 as i64,
+                                32,
+                            ));
+                            let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.builtin_panel as i32 as i64,
+                                32,
+                            ));
+                            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.variable_refresh_support as i32 as i64,
+                                32,
+                            ));
+                            let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.descriptor.hdr_support as i32 as i64,
+                                32,
+                            ));
                             context
                                 .allocate_aggregate(vec![
                                     field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
@@ -1731,22 +1416,381 @@ fn encode_destack_display_monitor_event_try_read_result(
                                     field_17?, field_18?,
                                 ])
                                 .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?])
+                            .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+            DisplayMonitorEventVm::DisplayDescriptorChangedEvent(value) => {
+                let tag_value = vm::Value::uint(2383728628u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.backend as i32 as i64, 32));
+                                let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
+                                let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
+                                let field_3: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::bool(value.primary));
+                                let field_4: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.x as i64, 32));
+                                let field_5: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.y as i64, 32));
+                                let field_6: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.width_px as u64, 32));
+                                let field_7: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.height_px as u64, 32));
+                                let field_8: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.work_area_x as i64, 32));
+                                let field_9: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.work_area_y as i64, 32));
+                                let field_10: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.work_area_width_px as u64, 32));
+                                let field_11: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.work_area_height_px as u64, 32));
+                                let field_12: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.width_mm as u64, 32));
+                                let field_13: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.height_mm as u64, 32));
+                                let field_14: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
+                                let field_15: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.orientation as i32 as i64, 32));
+                                let field_16: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.builtin_panel as i32 as i64, 32));
+                                let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                    value.variable_refresh_support as i32 as i64,
+                                    32,
+                                ));
+                                let field_18: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                        field_6?, field_7?, field_8?, field_9?, field_10?,
+                                        field_11?, field_12?, field_13?, field_14?, field_15?,
+                                        field_16?, field_17?, field_18?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.current.backend as i32 as i64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(value.payload.current.id.value());
+                            let field_2: RuntimeResult<vm::Value> =
+                                Ok(value.payload.current.name.value());
+                            let field_3: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::bool(value.payload.current.primary));
+                            let field_4: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.current.x as i64, 32));
+                            let field_5: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.current.y as i64, 32));
+                            let field_6: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.width_px as u64, 32));
+                            let field_7: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.height_px as u64, 32));
+                            let field_8: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.current.work_area_x as i64, 32));
+                            let field_9: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.current.work_area_y as i64, 32));
+                            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current.work_area_width_px as u64,
+                                32,
+                            ));
+                            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current.work_area_height_px as u64,
+                                32,
+                            ));
+                            let field_12: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.width_mm as u64, 32));
+                            let field_13: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.height_mm as u64, 32));
+                            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current.scale_factor_milli as u64,
+                                32,
+                            ));
+                            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.current.orientation as i32 as i64,
+                                32,
+                            ));
+                            let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.current.builtin_panel as i32 as i64,
+                                32,
+                            ));
+                            let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.current.variable_refresh_support as i32 as i64,
+                                32,
+                            ));
+                            let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                value.payload.current.hdr_support as i32 as i64,
+                                32,
+                            ));
+                            context
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                    field_12?, field_13?, field_14?, field_15?, field_16?,
+                                    field_17?, field_18?,
+                                ])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.payload.changed_mask.0 as u64, 32));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            DisplayMonitorEventVm::DisplayModeChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1618220126u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.width as u64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.height as u64, 32));
+                                let field_2: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
+                                let field_3: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.format as u64, 32));
+                                let field_4: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.bit_depth as u64, 16));
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.width as u64, 32));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.height as u64, 32));
+                            let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current.refresh_milli_hz as u64,
+                                32,
+                            ));
+                            let field_3: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.format as u64, 32));
+                            let field_4: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::uint(value.payload.current.bit_depth as u64, 16));
+                            context
+                                .allocate_aggregate(vec![
+                                    field_0?, field_1?, field_2?, field_3?, field_4?,
+                                ])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            DisplayMonitorEventVm::DisplayPrimaryChangedEvent(value) => {
+                let tag_value = vm::Value::uint(155560704u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.current_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            DisplayMonitorEventVm::DisplayRemovedEvent(value) => {
+                let tag_value = vm::Value::uint(821764653u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = match value.metadata.display_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.payload.id.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.descriptor {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.backend as i32 as i64, 32));
+                                let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
+                                let field_2: RuntimeResult<vm::Value> = Ok(value.name.value());
+                                let field_3: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::bool(value.primary));
+                                let field_4: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.x as i64, 32));
+                                let field_5: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.y as i64, 32));
+                                let field_6: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.width_px as u64, 32));
+                                let field_7: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.height_px as u64, 32));
+                                let field_8: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.work_area_x as i64, 32));
+                                let field_9: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.work_area_y as i64, 32));
+                                let field_10: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.work_area_width_px as u64, 32));
+                                let field_11: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.work_area_height_px as u64, 32));
+                                let field_12: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.width_mm as u64, 32));
+                                let field_13: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.height_mm as u64, 32));
+                                let field_14: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
+                                let field_15: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.orientation as i32 as i64, 32));
+                                let field_16: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.builtin_panel as i32 as i64, 32));
+                                let field_17: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                                    value.variable_refresh_support as i32 as i64,
+                                    32,
+                                ));
+                                let field_18: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.hdr_support as i32 as i64, 32));
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                        field_6?, field_7?, field_8?, field_9?, field_10?,
+                                        field_11?, field_12?, field_13?, field_14?, field_15?,
+                                        field_16?, field_17?, field_18?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.eventTryReadBatch.
@@ -1771,7 +1815,9 @@ fn encode_destack_display_monitor_event_try_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<DisplayMonitorEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.gammaRamp.
@@ -1793,14 +1839,16 @@ fn encode_destack_display_monitor_gamma_ramp_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DisplayGammaRampVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = value.red.to_value(context);
-        let field_1: RuntimeResult<vm::Value> = value.green.to_value(context);
-        let field_2: RuntimeResult<vm::Value> = value.blue.to_value(context);
-        context
-            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-            .map_err(Box::<RuntimeError>::from)
-    })
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> = value.red.to_value(context);
+            let field_1: RuntimeResult<vm::Value> = value.green.to_value(context);
+            let field_2: RuntimeResult<vm::Value> = value.blue.to_value(context);
+            context
+                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.hdrMode.
@@ -1822,7 +1870,9 @@ fn encode_destack_display_monitor_hdr_mode_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DisplayHdrMode>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+    result
+        .map(|value| Ok(vm::Value::int(value as i32 as i64, 32)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.list.
@@ -1895,7 +1945,9 @@ fn encode_destack_display_monitor_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<DisplayDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.modes.
@@ -1917,7 +1969,9 @@ fn encode_destack_display_monitor_modes_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<DisplayModeVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.open.
@@ -1992,7 +2046,9 @@ fn encode_destack_display_monitor_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::DisplayHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.primary.
@@ -2065,10 +2121,12 @@ fn encode_destack_display_monitor_primary_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<Option<resource::DisplayHandle>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-        None => Ok(vm::Value::VOID),
-    })
+    result
+        .map(|value| match value {
+            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+            None => Ok(vm::Value::VOID),
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.monitor.setGammaRamp.
@@ -2295,7 +2353,9 @@ fn encode_destack_display_window_capabilities_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DisplayBackendCapabilityFlags>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.window.close.
@@ -2339,116 +2399,121 @@ fn encode_destack_display_window_descriptor_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WindowDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.backend as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
-        let field_2: RuntimeResult<vm::Value> = Ok(value.title.value());
-        let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.role as i32 as i64, 32));
-        let field_4: RuntimeResult<vm::Value> = match value.mode {
-            WindowModeOptionsVm::WindowBorderlessModeOptions(value) => {
-                let tag_value = vm::Value::uint(3607132193u64, 32);
-                let payload_value = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                    let field_1: RuntimeResult<vm::Value> = match value.display {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
-                    };
+    result
+        .map(|value| {
+            let field_0: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.backend as i32 as i64, 32));
+            let field_1: RuntimeResult<vm::Value> = Ok(value.id.value());
+            let field_2: RuntimeResult<vm::Value> = Ok(value.title.value());
+            let field_3: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.role as i32 as i64, 32));
+            let field_4: RuntimeResult<vm::Value> = match value.mode {
+                WindowModeOptionsVm::WindowBorderlessModeOptions(value) => {
+                    let tag_value = vm::Value::uint(3607132193u64, 32);
+                    let payload_value = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.display {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
+                }
+                WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(value) => {
+                    let tag_value = vm::Value::uint(689450274u64, 32);
+                    let payload_value = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.display.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> = match value.display_mode {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.width as u64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.height as u64, 32));
+                                let field_2: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
+                                let field_3: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.format as u64, 32));
+                                let field_4: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::uint(value.bit_depth as u64, 16));
+                                context
+                                    .allocate_aggregate(vec![
+                                        field_0?, field_1?, field_2?, field_3?, field_4?,
+                                    ])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
+                }
+                WindowModeOptionsVm::WindowWindowedModeOptions(value) => {
+                    let tag_value = vm::Value::uint(624471152u64, 32);
+                    let payload_value = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                        context
+                            .allocate_aggregate(vec![field_0?])
+                            .map_err(Box::<RuntimeError>::from)
+                    }?;
+                    context
+                        .allocate_aggregate(vec![tag_value, payload_value])
+                        .map_err(Box::<RuntimeError>::from)
+                }
+            };
+            let field_5: RuntimeResult<vm::Value> = match value.display {
+                Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.resizable));
+            let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.decorated));
+            let field_8: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.chrome as i32 as i64, 32));
+            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.taskbar_visible));
+            let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.transparent));
+            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.opacity));
+            let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.always_on_top));
+            let field_13: RuntimeResult<vm::Value> = match value.parent {
+                Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_14: RuntimeResult<vm::Value> = match value.transient_for {
+                Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.modal));
+            let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.mouse_passthrough));
+            let field_17: RuntimeResult<vm::Value> = match value.aspect_ratio {
+                Some(value) => {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.numerator as u64, 32));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.denominator as u64, 32));
                     context
                         .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(value) => {
-                let tag_value = vm::Value::uint(689450274u64, 32);
-                let payload_value = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.display.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> = match value.display_mode {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.width as u64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.height as u64, 32));
-                            let field_2: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-                            let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.format as u64, 32));
-                            let field_4: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.bit_depth as u64, 16));
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
-                }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            WindowModeOptionsVm::WindowWindowedModeOptions(value) => {
-                let tag_value = vm::Value::uint(624471152u64, 32);
-                let payload_value = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                    context
-                        .allocate_aggregate(vec![field_0?])
-                        .map_err(Box::<RuntimeError>::from)
-                }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-        };
-        let field_5: RuntimeResult<vm::Value> = match value.display {
-            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.resizable));
-        let field_7: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.decorated));
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.chrome as i32 as i64, 32));
-        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.taskbar_visible));
-        let field_10: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.transparent));
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.opacity));
-        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.always_on_top));
-        let field_13: RuntimeResult<vm::Value> = match value.parent {
-            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_14: RuntimeResult<vm::Value> = match value.transient_for {
-            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.modal));
-        let field_16: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.mouse_passthrough));
-        let field_17: RuntimeResult<vm::Value> = match value.aspect_ratio {
-            Some(value) => {
-                let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.numerator as u64, 32));
-                let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.denominator as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            None => Ok(vm::Value::VOID),
-        };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                field_15?, field_16?, field_17?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+                }
+                None => Ok(vm::Value::VOID),
+            };
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+                    field_15?, field_16?, field_17?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.window.eventClose.
@@ -2642,7 +2707,9 @@ fn encode_destack_display_window_event_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::WindowEventHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.window.eventRead.
@@ -2667,1392 +2734,1467 @@ fn encode_destack_display_window_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WindowEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        WindowEventVm::WindowAspectRatioChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1369059526u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        match value.payload.previous_aspect_ratio {
-                            Some(value) => {
-                                let field_0: RuntimeResult<vm::Value> =
-                                    Ok(vm::Value::uint(value.numerator as u64, 32));
-                                let field_1: RuntimeResult<vm::Value> =
-                                    Ok(vm::Value::uint(value.denominator as u64, 32));
-                                context
-                                    .allocate_aggregate(vec![field_0?, field_1?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                            None => Ok(vm::Value::VOID),
-                        };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.current_aspect_ratio
-                    {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.numerator as u64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.denominator as u64, 32));
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowChromeChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3772276311u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.previous_chrome as i32 as i64,
-                        32,
-                    ));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.current_chrome as i32 as i64,
-                        32,
-                    ));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowCloseRequestedEvent(value) => {
-            let tag_value = vm::Value::uint(994806682u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowCreatedEvent(value) => {
-            let tag_value = vm::Value::uint(878591535u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowDestroyedEvent(value) => {
-            let tag_value = vm::Value::uint(184891498u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowDisplayChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1189065445u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous_display {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.current_display {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowDropCancelledEvent(value) => {
-            let tag_value = vm::Value::uint(259374440u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowDropCompletedEvent(value) => {
-            let tag_value = vm::Value::uint(2237714444u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowDropStartedEvent(value) => {
-            let tag_value = vm::Value::uint(284045271u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowFileDroppedEvent(value) => {
-            let tag_value = vm::Value::uint(2557744057u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.path {
-                        Some(value) => match value {
-                            fs::OsPathVm::OsPathBytes(value) => {
-                                let tag_value = vm::Value::uint(1243901586u64, 32);
-                                let payload_value = {
-                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                    let field_1: RuntimeResult<vm::Value> =
-                                        value.bytes.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
-                                }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                            fs::OsPathVm::OsPathUtf16(value) => {
-                                let tag_value = vm::Value::uint(2271740357u64, 32);
-                                let payload_value = {
-                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                    let field_1: RuntimeResult<vm::Value> =
-                                        value.utf16.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
-                                }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                        },
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.position {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowFileHoverLeftEvent(value) => {
-            let tag_value = vm::Value::uint(1126636932u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous_path {
-                        Some(value) => match value {
-                            fs::OsPathVm::OsPathBytes(value) => {
-                                let tag_value = vm::Value::uint(1243901586u64, 32);
-                                let payload_value = {
-                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                    let field_1: RuntimeResult<vm::Value> =
-                                        value.bytes.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
-                                }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                            fs::OsPathVm::OsPathUtf16(value) => {
-                                let tag_value = vm::Value::uint(2271740357u64, 32);
-                                let payload_value = {
-                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                    let field_1: RuntimeResult<vm::Value> =
-                                        value.utf16.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
-                                }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                        },
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.position {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowFileHoveredEvent(value) => {
-            let tag_value = vm::Value::uint(3640653861u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.path {
-                        Some(value) => match value {
-                            fs::OsPathVm::OsPathBytes(value) => {
-                                let tag_value = vm::Value::uint(1243901586u64, 32);
-                                let payload_value = {
-                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                    let field_1: RuntimeResult<vm::Value> =
-                                        value.bytes.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
-                                }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                            fs::OsPathVm::OsPathUtf16(value) => {
-                                let tag_value = vm::Value::uint(2271740357u64, 32);
-                                let payload_value = {
-                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                    let field_1: RuntimeResult<vm::Value> =
-                                        value.utf16.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
-                                }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                        },
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.position {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowFocusChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3088503659u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.previous_focused));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.current_focused));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowModalChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3070869257u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.previous_modal));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.current_modal));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowModeChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3707716724u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous_mode {
-                        WindowModeOptionsVm::WindowBorderlessModeOptions(value) => {
-                            let tag_value = vm::Value::uint(3607132193u64, 32);
-                            let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                let field_1: RuntimeResult<vm::Value> = match value.display {
-                                    Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                                context
-                                    .allocate_aggregate(vec![field_0?, field_1?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(value) => {
-                            let tag_value = vm::Value::uint(689450274u64, 32);
-                            let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                let field_1: RuntimeResult<vm::Value> =
-                                    Ok(vm::Value::uint(value.display.0.0, 64));
-                                let field_2: RuntimeResult<vm::Value> = match value.display_mode {
-                                    Some(value) => {
-                                        let field_0: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.width as u64, 32));
-                                        let field_1: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.height as u64, 32));
-                                        let field_2: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-                                        let field_3: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.format as u64, 32));
-                                        let field_4: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.bit_depth as u64, 16));
-                                        context
-                                            .allocate_aggregate(vec![
-                                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                                            ])
-                                            .map_err(Box::<RuntimeError>::from)
-                                    }
-                                    None => Ok(vm::Value::VOID),
-                                };
-                                context
-                                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        WindowModeOptionsVm::WindowWindowedModeOptions(value) => {
-                            let tag_value = vm::Value::uint(624471152u64, 32);
-                            let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                context
-                                    .allocate_aggregate(vec![field_0?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.current_mode {
-                        WindowModeOptionsVm::WindowBorderlessModeOptions(value) => {
-                            let tag_value = vm::Value::uint(3607132193u64, 32);
-                            let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                let field_1: RuntimeResult<vm::Value> = match value.display {
-                                    Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                                context
-                                    .allocate_aggregate(vec![field_0?, field_1?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(value) => {
-                            let tag_value = vm::Value::uint(689450274u64, 32);
-                            let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                let field_1: RuntimeResult<vm::Value> =
-                                    Ok(vm::Value::uint(value.display.0.0, 64));
-                                let field_2: RuntimeResult<vm::Value> = match value.display_mode {
-                                    Some(value) => {
-                                        let field_0: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.width as u64, 32));
-                                        let field_1: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.height as u64, 32));
-                                        let field_2: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-                                        let field_3: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.format as u64, 32));
-                                        let field_4: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.bit_depth as u64, 16));
-                                        context
-                                            .allocate_aggregate(vec![
-                                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                                            ])
-                                            .map_err(Box::<RuntimeError>::from)
-                                    }
-                                    None => Ok(vm::Value::VOID),
-                                };
-                                context
-                                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        WindowModeOptionsVm::WindowWindowedModeOptions(value) => {
-                            let tag_value = vm::Value::uint(624471152u64, 32);
-                            let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                context
-                                    .allocate_aggregate(vec![field_0?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowMousePassthroughChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3655843800u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.previous_mouse_passthrough));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.current_mouse_passthrough));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowOcclusionChangedEvent(value) => {
-            let tag_value = vm::Value::uint(158403053u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.previous_occlusion as i32 as i64,
-                        32,
-                    ));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.current_occlusion as i32 as i64,
-                        32,
-                    ));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowOpacityChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3398903605u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::float64(value.payload.previous_opacity));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::float64(value.payload.current_opacity));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowParentChangedEvent(value) => {
-            let tag_value = vm::Value::uint(401270370u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous_parent {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.current_parent {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowPositionChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1091699329u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.previous_position.x as i64, 32));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.previous_position.y as i64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
+    result
+        .map(|value| match value {
+            WindowEventVm::WindowAspectRatioChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1369059526u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.current_position.x as i64, 32));
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.current_position.y as i64, 32));
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowRefreshRequestedEvent(value) => {
-            let tag_value = vm::Value::uint(1316312880u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowSafeAreaChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3188496132u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value
-                        .payload
-                        .previous_safe_area_insets
-                    {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.left_px as u64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.top_px as u64, 32));
-                            let field_2: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.right_px as u64, 32));
-                            let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.bottom_px as u64, 32));
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value
-                        .payload
-                        .current_safe_area_insets
-                    {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.left_px as u64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.top_px as u64, 32));
-                            let field_2: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.right_px as u64, 32));
-                            let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.bottom_px as u64, 32));
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowScaleFactorChangedEvent(value) => {
-            let tag_value = vm::Value::uint(230889647u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                        value.payload.previous_scale_factor_milli as u64,
-                        32,
-                    ));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                        value.payload.current_scale_factor_milli as u64,
-                        32,
-                    ));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowSizeChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1375014571u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
-                            value.payload.previous_size_logical.width,
-                        ));
-                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
-                            value.payload.previous_size_logical.height,
-                        ));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.previous_size_physical.width as u64,
-                            32,
-                        ));
-                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.previous_size_physical.height as u64,
-                            32,
-                        ));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::float64(value.payload.current_size_logical.width));
-                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
-                            value.payload.current_size_logical.height,
-                        ));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    let field_3: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.current_size_physical.width as u64,
-                            32,
-                        ));
-                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.current_size_physical.height as u64,
-                            32,
-                        ));
+                            match value.payload.previous_aspect_ratio {
+                                Some(value) => {
+                                    let field_0: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.numerator as u64, 32));
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.denominator as u64, 32));
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.payload.current_aspect_ratio {
+                                Some(value) => {
+                                    let field_0: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.numerator as u64, 32));
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.denominator as u64, 32));
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                None => Ok(vm::Value::VOID),
+                            };
                         context
                             .allocate_aggregate(vec![field_0?, field_1?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowTaskbarVisibilityChangedEvent(value) => {
-            let tag_value = vm::Value::uint(405937330u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+            }
+            WindowEventVm::WindowChromeChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3772276311u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.previous_chrome as i32 as i64,
+                            32,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.current_chrome as i32 as i64,
+                            32,
+                        ));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.previous_taskbar_visible));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.current_taskbar_visible));
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowCloseRequestedEvent(value) => {
+                let tag_value = vm::Value::uint(994806682u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowTextDroppedEvent(value) => {
-            let tag_value = vm::Value::uint(3238943166u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+            }
+            WindowEventVm::WindowCreatedEvent(value) => {
+                let tag_value = vm::Value::uint(878591535u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.position {
-                        Some(value) => {
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowDestroyedEvent(value) => {
+                let tag_value = vm::Value::uint(184891498u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowDisplayChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1189065445u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous_display
+                        {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.current_display
+                        {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowDropCancelledEvent(value) => {
+                let tag_value = vm::Value::uint(259374440u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowDropCompletedEvent(value) => {
+                let tag_value = vm::Value::uint(2237714444u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowDropStartedEvent(value) => {
+                let tag_value = vm::Value::uint(284045271u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowFileDroppedEvent(value) => {
+                let tag_value = vm::Value::uint(2557744057u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.path {
+                            Some(value) => match value {
+                                fs::OsPathVm::OsPathBytes(value) => {
+                                    let tag_value = vm::Value::uint(1243901586u64, 32);
+                                    let payload_value = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.bytes.0.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                fs::OsPathVm::OsPathUtf16(value) => {
+                                    let tag_value = vm::Value::uint(2271740357u64, 32);
+                                    let payload_value = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.utf16.0.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                            },
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.position {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.x as i64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.y as i64, 32));
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowFileHoverLeftEvent(value) => {
+                let tag_value = vm::Value::uint(1126636932u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous_path {
+                            Some(value) => match value {
+                                fs::OsPathVm::OsPathBytes(value) => {
+                                    let tag_value = vm::Value::uint(1243901586u64, 32);
+                                    let payload_value = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.bytes.0.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                fs::OsPathVm::OsPathUtf16(value) => {
+                                    let tag_value = vm::Value::uint(2271740357u64, 32);
+                                    let payload_value = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.utf16.0.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                            },
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.position {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.x as i64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.y as i64, 32));
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowFileHoveredEvent(value) => {
+                let tag_value = vm::Value::uint(3640653861u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.path {
+                            Some(value) => match value {
+                                fs::OsPathVm::OsPathBytes(value) => {
+                                    let tag_value = vm::Value::uint(1243901586u64, 32);
+                                    let payload_value = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.bytes.0.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                fs::OsPathVm::OsPathUtf16(value) => {
+                                    let tag_value = vm::Value::uint(2271740357u64, 32);
+                                    let payload_value = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.utf16.0.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                            },
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.position {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.x as i64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.y as i64, 32));
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowFocusChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3088503659u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.previous_focused));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.current_focused));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowModalChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3070869257u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.previous_modal));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.current_modal));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowModeChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3707716724u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous_mode {
+                            WindowModeOptionsVm::WindowBorderlessModeOptions(value) => {
+                                let tag_value = vm::Value::uint(3607132193u64, 32);
+                                let payload_value = {
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> = match value.display {
+                                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(value) => {
+                                let tag_value = vm::Value::uint(689450274u64, 32);
+                                let payload_value = {
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.display.0.0, 64));
+                                    let field_2: RuntimeResult<vm::Value> = match value.display_mode
+                                    {
+                                        Some(value) => {
+                                            let field_0: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.width as u64, 32));
+                                            let field_1: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.height as u64, 32));
+                                            let field_2: RuntimeResult<vm::Value> = Ok(
+                                                vm::Value::uint(value.refresh_milli_hz as u64, 32),
+                                            );
+                                            let field_3: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.format as u64, 32));
+                                            let field_4: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.bit_depth as u64, 16));
+                                            context
+                                                .allocate_aggregate(vec![
+                                                    field_0?, field_1?, field_2?, field_3?,
+                                                    field_4?,
+                                                ])
+                                                .map_err(Box::<RuntimeError>::from)
+                                        }
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            WindowModeOptionsVm::WindowWindowedModeOptions(value) => {
+                                let tag_value = vm::Value::uint(624471152u64, 32);
+                                let payload_value = {
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    context
+                                        .allocate_aggregate(vec![field_0?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.current_mode {
+                            WindowModeOptionsVm::WindowBorderlessModeOptions(value) => {
+                                let tag_value = vm::Value::uint(3607132193u64, 32);
+                                let payload_value = {
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> = match value.display {
+                                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(value) => {
+                                let tag_value = vm::Value::uint(689450274u64, 32);
+                                let payload_value = {
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.display.0.0, 64));
+                                    let field_2: RuntimeResult<vm::Value> = match value.display_mode
+                                    {
+                                        Some(value) => {
+                                            let field_0: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.width as u64, 32));
+                                            let field_1: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.height as u64, 32));
+                                            let field_2: RuntimeResult<vm::Value> = Ok(
+                                                vm::Value::uint(value.refresh_milli_hz as u64, 32),
+                                            );
+                                            let field_3: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.format as u64, 32));
+                                            let field_4: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.bit_depth as u64, 16));
+                                            context
+                                                .allocate_aggregate(vec![
+                                                    field_0?, field_1?, field_2?, field_3?,
+                                                    field_4?,
+                                                ])
+                                                .map_err(Box::<RuntimeError>::from)
+                                        }
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            WindowModeOptionsVm::WindowWindowedModeOptions(value) => {
+                                let tag_value = vm::Value::uint(624471152u64, 32);
+                                let payload_value = {
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    context
+                                        .allocate_aggregate(vec![field_0?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowMousePassthroughChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3655843800u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.previous_mouse_passthrough));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.current_mouse_passthrough));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowOcclusionChangedEvent(value) => {
+                let tag_value = vm::Value::uint(158403053u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.previous_occlusion as i32 as i64,
+                            32,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.current_occlusion as i32 as i64,
+                            32,
+                        ));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowOpacityChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3398903605u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.previous_opacity));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.current_opacity));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowParentChangedEvent(value) => {
+                let tag_value = vm::Value::uint(401270370u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous_parent
+                        {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.current_parent {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowPositionChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1091699329u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = {
                             let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
+                                Ok(vm::Value::int(value.payload.previous_position.x as i64, 32));
                             let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
+                                Ok(vm::Value::int(value.payload.previous_position.y as i64, 32));
                             context
                                 .allocate_aggregate(vec![field_0?, field_1?])
                                 .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.current_position.x as i64, 32));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.current_position.y as i64, 32));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowRefreshRequestedEvent(value) => {
+                let tag_value = vm::Value::uint(1316312880u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowThemeChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1613918779u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+            }
+            WindowEventVm::WindowSafeAreaChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3188496132u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            match value.payload.previous_safe_area_insets {
+                                Some(value) => {
+                                    let field_0: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.left_px as u64, 32));
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.top_px as u64, 32));
+                                    let field_2: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.right_px as u64, 32));
+                                    let field_3: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.bottom_px as u64, 32));
+                                    context
+                                        .allocate_aggregate(vec![
+                                            field_0?, field_1?, field_2?, field_3?,
+                                        ])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.payload.current_safe_area_insets {
+                                Some(value) => {
+                                    let field_0: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.left_px as u64, 32));
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.top_px as u64, 32));
+                                    let field_2: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.right_px as u64, 32));
+                                    let field_3: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.bottom_px as u64, 32));
+                                    context
+                                        .allocate_aggregate(vec![
+                                            field_0?, field_1?, field_2?, field_3?,
+                                        ])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.previous_theme as i32 as i64,
-                        32,
-                    ));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.current_theme as i32 as i64,
-                        32,
-                    ));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowTransientChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1611726874u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+            }
+            WindowEventVm::WindowScaleFactorChangedEvent(value) => {
+                let tag_value = vm::Value::uint(230889647u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.payload.previous_scale_factor_milli as u64,
+                            32,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.payload.current_scale_factor_milli as u64,
+                            32,
+                        ));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        match value.payload.previous_transient_for {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowSizeChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1375014571u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.previous_size_logical.width,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.previous_size_logical.height,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.previous_size_physical.width as u64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.previous_size_physical.height as u64,
+                                32,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_2: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::float64(value.payload.current_size_logical.width));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.current_size_logical.height,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_3: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current_size_physical.width as u64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current_size_physical.height as u64,
+                                32,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowTaskbarVisibilityChangedEvent(value) => {
+                let tag_value = vm::Value::uint(405937330u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.previous_taskbar_visible));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.current_taskbar_visible));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowTextDroppedEvent(value) => {
+                let tag_value = vm::Value::uint(3238943166u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.position {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.x as i64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.y as i64, 32));
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
                             None => Ok(vm::Value::VOID),
                         };
-                    let field_1: RuntimeResult<vm::Value> =
-                        match value.payload.current_transient_for {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowVisibilityChangedEvent(value) => {
-            let tag_value = vm::Value::uint(170308681u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+            }
+            WindowEventVm::WindowThemeChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1613918779u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.previous_theme as i32 as i64,
+                            32,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.current_theme as i32 as i64,
+                            32,
+                        ));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.previous_visibility as i32 as i64,
-                        32,
-                    ));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.current_visibility as i32 as i64,
-                        32,
-                    ));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+            WindowEventVm::WindowTransientChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1611726874u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            match value.payload.previous_transient_for {
+                                Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.payload.current_transient_for {
+                                Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowVisibilityChangedEvent(value) => {
+                let tag_value = vm::Value::uint(170308681u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.previous_visibility as i32 as i64,
+                            32,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.current_visibility as i32 as i64,
+                            32,
+                        ));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.window.eventReadBatch.
@@ -4079,7 +4221,9 @@ fn encode_destack_display_window_event_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<WindowEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.window.eventTryRead.
@@ -4102,1392 +4246,1467 @@ fn encode_destack_display_window_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WindowEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| match value {
-        WindowEventVm::WindowAspectRatioChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1369059526u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        match value.payload.previous_aspect_ratio {
-                            Some(value) => {
-                                let field_0: RuntimeResult<vm::Value> =
-                                    Ok(vm::Value::uint(value.numerator as u64, 32));
-                                let field_1: RuntimeResult<vm::Value> =
-                                    Ok(vm::Value::uint(value.denominator as u64, 32));
-                                context
-                                    .allocate_aggregate(vec![field_0?, field_1?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                            None => Ok(vm::Value::VOID),
-                        };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.current_aspect_ratio
-                    {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.numerator as u64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.denominator as u64, 32));
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowChromeChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3772276311u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.previous_chrome as i32 as i64,
-                        32,
-                    ));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.current_chrome as i32 as i64,
-                        32,
-                    ));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowCloseRequestedEvent(value) => {
-            let tag_value = vm::Value::uint(994806682u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowCreatedEvent(value) => {
-            let tag_value = vm::Value::uint(878591535u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowDestroyedEvent(value) => {
-            let tag_value = vm::Value::uint(184891498u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowDisplayChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1189065445u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous_display {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.current_display {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowDropCancelledEvent(value) => {
-            let tag_value = vm::Value::uint(259374440u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowDropCompletedEvent(value) => {
-            let tag_value = vm::Value::uint(2237714444u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowDropStartedEvent(value) => {
-            let tag_value = vm::Value::uint(284045271u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowFileDroppedEvent(value) => {
-            let tag_value = vm::Value::uint(2557744057u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.path {
-                        Some(value) => match value {
-                            fs::OsPathVm::OsPathBytes(value) => {
-                                let tag_value = vm::Value::uint(1243901586u64, 32);
-                                let payload_value = {
-                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                    let field_1: RuntimeResult<vm::Value> =
-                                        value.bytes.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
-                                }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                            fs::OsPathVm::OsPathUtf16(value) => {
-                                let tag_value = vm::Value::uint(2271740357u64, 32);
-                                let payload_value = {
-                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                    let field_1: RuntimeResult<vm::Value> =
-                                        value.utf16.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
-                                }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                        },
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.position {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowFileHoverLeftEvent(value) => {
-            let tag_value = vm::Value::uint(1126636932u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous_path {
-                        Some(value) => match value {
-                            fs::OsPathVm::OsPathBytes(value) => {
-                                let tag_value = vm::Value::uint(1243901586u64, 32);
-                                let payload_value = {
-                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                    let field_1: RuntimeResult<vm::Value> =
-                                        value.bytes.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
-                                }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                            fs::OsPathVm::OsPathUtf16(value) => {
-                                let tag_value = vm::Value::uint(2271740357u64, 32);
-                                let payload_value = {
-                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                    let field_1: RuntimeResult<vm::Value> =
-                                        value.utf16.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
-                                }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                        },
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.position {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowFileHoveredEvent(value) => {
-            let tag_value = vm::Value::uint(3640653861u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.path {
-                        Some(value) => match value {
-                            fs::OsPathVm::OsPathBytes(value) => {
-                                let tag_value = vm::Value::uint(1243901586u64, 32);
-                                let payload_value = {
-                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                    let field_1: RuntimeResult<vm::Value> =
-                                        value.bytes.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
-                                }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                            fs::OsPathVm::OsPathUtf16(value) => {
-                                let tag_value = vm::Value::uint(2271740357u64, 32);
-                                let payload_value = {
-                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                    let field_1: RuntimeResult<vm::Value> =
-                                        value.utf16.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
-                                }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }
-                        },
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.position {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowFocusChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3088503659u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.previous_focused));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.current_focused));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowModalChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3070869257u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.previous_modal));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.current_modal));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowModeChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3707716724u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous_mode {
-                        WindowModeOptionsVm::WindowBorderlessModeOptions(value) => {
-                            let tag_value = vm::Value::uint(3607132193u64, 32);
-                            let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                let field_1: RuntimeResult<vm::Value> = match value.display {
-                                    Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                                context
-                                    .allocate_aggregate(vec![field_0?, field_1?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(value) => {
-                            let tag_value = vm::Value::uint(689450274u64, 32);
-                            let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                let field_1: RuntimeResult<vm::Value> =
-                                    Ok(vm::Value::uint(value.display.0.0, 64));
-                                let field_2: RuntimeResult<vm::Value> = match value.display_mode {
-                                    Some(value) => {
-                                        let field_0: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.width as u64, 32));
-                                        let field_1: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.height as u64, 32));
-                                        let field_2: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-                                        let field_3: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.format as u64, 32));
-                                        let field_4: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.bit_depth as u64, 16));
-                                        context
-                                            .allocate_aggregate(vec![
-                                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                                            ])
-                                            .map_err(Box::<RuntimeError>::from)
-                                    }
-                                    None => Ok(vm::Value::VOID),
-                                };
-                                context
-                                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        WindowModeOptionsVm::WindowWindowedModeOptions(value) => {
-                            let tag_value = vm::Value::uint(624471152u64, 32);
-                            let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                context
-                                    .allocate_aggregate(vec![field_0?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.current_mode {
-                        WindowModeOptionsVm::WindowBorderlessModeOptions(value) => {
-                            let tag_value = vm::Value::uint(3607132193u64, 32);
-                            let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                let field_1: RuntimeResult<vm::Value> = match value.display {
-                                    Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                                context
-                                    .allocate_aggregate(vec![field_0?, field_1?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(value) => {
-                            let tag_value = vm::Value::uint(689450274u64, 32);
-                            let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                let field_1: RuntimeResult<vm::Value> =
-                                    Ok(vm::Value::uint(value.display.0.0, 64));
-                                let field_2: RuntimeResult<vm::Value> = match value.display_mode {
-                                    Some(value) => {
-                                        let field_0: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.width as u64, 32));
-                                        let field_1: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.height as u64, 32));
-                                        let field_2: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.refresh_milli_hz as u64, 32));
-                                        let field_3: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.format as u64, 32));
-                                        let field_4: RuntimeResult<vm::Value> =
-                                            Ok(vm::Value::uint(value.bit_depth as u64, 16));
-                                        context
-                                            .allocate_aggregate(vec![
-                                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                                            ])
-                                            .map_err(Box::<RuntimeError>::from)
-                                    }
-                                    None => Ok(vm::Value::VOID),
-                                };
-                                context
-                                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        WindowModeOptionsVm::WindowWindowedModeOptions(value) => {
-                            let tag_value = vm::Value::uint(624471152u64, 32);
-                            let payload_value = {
-                                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                                context
-                                    .allocate_aggregate(vec![field_0?])
-                                    .map_err(Box::<RuntimeError>::from)
-                            }?;
-                            context
-                                .allocate_aggregate(vec![tag_value, payload_value])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowMousePassthroughChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3655843800u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.previous_mouse_passthrough));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.current_mouse_passthrough));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowOcclusionChangedEvent(value) => {
-            let tag_value = vm::Value::uint(158403053u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.previous_occlusion as i32 as i64,
-                        32,
-                    ));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.current_occlusion as i32 as i64,
-                        32,
-                    ));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowOpacityChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3398903605u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::float64(value.payload.previous_opacity));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::float64(value.payload.current_opacity));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowParentChangedEvent(value) => {
-            let tag_value = vm::Value::uint(401270370u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value.payload.previous_parent {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.current_parent {
-                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowPositionChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1091699329u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.previous_position.x as i64, 32));
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.previous_position.y as i64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
+    result
+        .map(|value| match value {
+            WindowEventVm::WindowAspectRatioChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1369059526u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                     let field_1: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.current_position.x as i64, 32));
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
                         let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.current_position.y as i64, 32));
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowRefreshRequestedEvent(value) => {
-            let tag_value = vm::Value::uint(1316312880u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowSafeAreaChangedEvent(value) => {
-            let tag_value = vm::Value::uint(3188496132u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = match value
-                        .payload
-                        .previous_safe_area_insets
-                    {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.left_px as u64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.top_px as u64, 32));
-                            let field_2: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.right_px as u64, 32));
-                            let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.bottom_px as u64, 32));
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    let field_1: RuntimeResult<vm::Value> = match value
-                        .payload
-                        .current_safe_area_insets
-                    {
-                        Some(value) => {
-                            let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.left_px as u64, 32));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.top_px as u64, 32));
-                            let field_2: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.right_px as u64, 32));
-                            let field_3: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::uint(value.bottom_px as u64, 32));
-                            context
-                                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                                .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
-                    };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowScaleFactorChangedEvent(value) => {
-            let tag_value = vm::Value::uint(230889647u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                        value.payload.previous_scale_factor_milli as u64,
-                        32,
-                    ));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                        value.payload.current_scale_factor_milli as u64,
-                        32,
-                    ));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowSizeChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1375014571u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
-                            value.payload.previous_size_logical.width,
-                        ));
-                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
-                            value.payload.previous_size_logical.height,
-                        ));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    let field_1: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.previous_size_physical.width as u64,
-                            32,
-                        ));
-                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.previous_size_physical.height as u64,
-                            32,
-                        ));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::float64(value.payload.current_size_logical.width));
-                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
-                            value.payload.current_size_logical.height,
-                        ));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
-                    let field_3: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.current_size_physical.width as u64,
-                            32,
-                        ));
-                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                            value.payload.current_size_physical.height as u64,
-                            32,
-                        ));
+                            match value.payload.previous_aspect_ratio {
+                                Some(value) => {
+                                    let field_0: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.numerator as u64, 32));
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.denominator as u64, 32));
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.payload.current_aspect_ratio {
+                                Some(value) => {
+                                    let field_0: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.numerator as u64, 32));
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.denominator as u64, 32));
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                None => Ok(vm::Value::VOID),
+                            };
                         context
                             .allocate_aggregate(vec![field_0?, field_1?])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowTaskbarVisibilityChangedEvent(value) => {
-            let tag_value = vm::Value::uint(405937330u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+            }
+            WindowEventVm::WindowChromeChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3772276311u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.previous_chrome as i32 as i64,
+                            32,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.current_chrome as i32 as i64,
+                            32,
+                        ));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.previous_taskbar_visible));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::bool(value.payload.current_taskbar_visible));
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowCloseRequestedEvent(value) => {
+                let tag_value = vm::Value::uint(994806682u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowTextDroppedEvent(value) => {
-            let tag_value = vm::Value::uint(3238943166u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+            }
+            WindowEventVm::WindowCreatedEvent(value) => {
+                let tag_value = vm::Value::uint(878591535u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
-                    let field_1: RuntimeResult<vm::Value> = match value.payload.position {
-                        Some(value) => {
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowDestroyedEvent(value) => {
+                let tag_value = vm::Value::uint(184891498u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowDisplayChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1189065445u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous_display
+                        {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.current_display
+                        {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowDropCancelledEvent(value) => {
+                let tag_value = vm::Value::uint(259374440u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowDropCompletedEvent(value) => {
+                let tag_value = vm::Value::uint(2237714444u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowDropStartedEvent(value) => {
+                let tag_value = vm::Value::uint(284045271u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowFileDroppedEvent(value) => {
+                let tag_value = vm::Value::uint(2557744057u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.path {
+                            Some(value) => match value {
+                                fs::OsPathVm::OsPathBytes(value) => {
+                                    let tag_value = vm::Value::uint(1243901586u64, 32);
+                                    let payload_value = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.bytes.0.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                fs::OsPathVm::OsPathUtf16(value) => {
+                                    let tag_value = vm::Value::uint(2271740357u64, 32);
+                                    let payload_value = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.utf16.0.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                            },
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.position {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.x as i64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.y as i64, 32));
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowFileHoverLeftEvent(value) => {
+                let tag_value = vm::Value::uint(1126636932u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous_path {
+                            Some(value) => match value {
+                                fs::OsPathVm::OsPathBytes(value) => {
+                                    let tag_value = vm::Value::uint(1243901586u64, 32);
+                                    let payload_value = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.bytes.0.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                fs::OsPathVm::OsPathUtf16(value) => {
+                                    let tag_value = vm::Value::uint(2271740357u64, 32);
+                                    let payload_value = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.utf16.0.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                            },
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.position {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.x as i64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.y as i64, 32));
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowFileHoveredEvent(value) => {
+                let tag_value = vm::Value::uint(3640653861u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.path {
+                            Some(value) => match value {
+                                fs::OsPathVm::OsPathBytes(value) => {
+                                    let tag_value = vm::Value::uint(1243901586u64, 32);
+                                    let payload_value = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.bytes.0.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                fs::OsPathVm::OsPathUtf16(value) => {
+                                    let tag_value = vm::Value::uint(2271740357u64, 32);
+                                    let payload_value = {
+                                        let field_0: RuntimeResult<vm::Value> =
+                                            Ok(value.kind.value());
+                                        let field_1: RuntimeResult<vm::Value> =
+                                            value.utf16.0.to_value(context);
+                                        context
+                                            .allocate_aggregate(vec![field_0?, field_1?])
+                                            .map_err(Box::<RuntimeError>::from)
+                                    }?;
+                                    context
+                                        .allocate_aggregate(vec![tag_value, payload_value])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                            },
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.position {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.x as i64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.y as i64, 32));
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowFocusChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3088503659u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.previous_focused));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.current_focused));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowModalChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3070869257u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.previous_modal));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.current_modal));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowModeChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3707716724u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous_mode {
+                            WindowModeOptionsVm::WindowBorderlessModeOptions(value) => {
+                                let tag_value = vm::Value::uint(3607132193u64, 32);
+                                let payload_value = {
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> = match value.display {
+                                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(value) => {
+                                let tag_value = vm::Value::uint(689450274u64, 32);
+                                let payload_value = {
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.display.0.0, 64));
+                                    let field_2: RuntimeResult<vm::Value> = match value.display_mode
+                                    {
+                                        Some(value) => {
+                                            let field_0: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.width as u64, 32));
+                                            let field_1: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.height as u64, 32));
+                                            let field_2: RuntimeResult<vm::Value> = Ok(
+                                                vm::Value::uint(value.refresh_milli_hz as u64, 32),
+                                            );
+                                            let field_3: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.format as u64, 32));
+                                            let field_4: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.bit_depth as u64, 16));
+                                            context
+                                                .allocate_aggregate(vec![
+                                                    field_0?, field_1?, field_2?, field_3?,
+                                                    field_4?,
+                                                ])
+                                                .map_err(Box::<RuntimeError>::from)
+                                        }
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            WindowModeOptionsVm::WindowWindowedModeOptions(value) => {
+                                let tag_value = vm::Value::uint(624471152u64, 32);
+                                let payload_value = {
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    context
+                                        .allocate_aggregate(vec![field_0?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.current_mode {
+                            WindowModeOptionsVm::WindowBorderlessModeOptions(value) => {
+                                let tag_value = vm::Value::uint(3607132193u64, 32);
+                                let payload_value = {
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> = match value.display {
+                                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            WindowModeOptionsVm::WindowExclusiveFullscreenModeOptions(value) => {
+                                let tag_value = vm::Value::uint(689450274u64, 32);
+                                let payload_value = {
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.display.0.0, 64));
+                                    let field_2: RuntimeResult<vm::Value> = match value.display_mode
+                                    {
+                                        Some(value) => {
+                                            let field_0: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.width as u64, 32));
+                                            let field_1: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.height as u64, 32));
+                                            let field_2: RuntimeResult<vm::Value> = Ok(
+                                                vm::Value::uint(value.refresh_milli_hz as u64, 32),
+                                            );
+                                            let field_3: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.format as u64, 32));
+                                            let field_4: RuntimeResult<vm::Value> =
+                                                Ok(vm::Value::uint(value.bit_depth as u64, 16));
+                                            context
+                                                .allocate_aggregate(vec![
+                                                    field_0?, field_1?, field_2?, field_3?,
+                                                    field_4?,
+                                                ])
+                                                .map_err(Box::<RuntimeError>::from)
+                                        }
+                                        None => Ok(vm::Value::VOID),
+                                    };
+                                    context
+                                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                            WindowModeOptionsVm::WindowWindowedModeOptions(value) => {
+                                let tag_value = vm::Value::uint(624471152u64, 32);
+                                let payload_value = {
+                                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                                    context
+                                        .allocate_aggregate(vec![field_0?])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }?;
+                                context
+                                    .allocate_aggregate(vec![tag_value, payload_value])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowMousePassthroughChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3655843800u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.previous_mouse_passthrough));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.current_mouse_passthrough));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowOcclusionChangedEvent(value) => {
+                let tag_value = vm::Value::uint(158403053u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.previous_occlusion as i32 as i64,
+                            32,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.current_occlusion as i32 as i64,
+                            32,
+                        ));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowOpacityChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3398903605u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.previous_opacity));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::float64(value.payload.current_opacity));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowParentChangedEvent(value) => {
+                let tag_value = vm::Value::uint(401270370u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = match value.payload.previous_parent
+                        {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.current_parent {
+                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowPositionChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1091699329u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = {
                             let field_0: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.x as i64, 32));
+                                Ok(vm::Value::int(value.payload.previous_position.x as i64, 32));
                             let field_1: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::int(value.y as i64, 32));
+                                Ok(vm::Value::int(value.payload.previous_position.y as i64, 32));
                             context
                                 .allocate_aggregate(vec![field_0?, field_1?])
                                 .map_err(Box::<RuntimeError>::from)
-                        }
-                        None => Ok(vm::Value::VOID),
+                        };
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.current_position.x as i64, 32));
+                            let field_1: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::int(value.payload.current_position.y as i64, 32));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowRefreshRequestedEvent(value) => {
+                let tag_value = vm::Value::uint(1316312880u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowThemeChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1613918779u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+            }
+            WindowEventVm::WindowSafeAreaChangedEvent(value) => {
+                let tag_value = vm::Value::uint(3188496132u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            match value.payload.previous_safe_area_insets {
+                                Some(value) => {
+                                    let field_0: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.left_px as u64, 32));
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.top_px as u64, 32));
+                                    let field_2: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.right_px as u64, 32));
+                                    let field_3: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.bottom_px as u64, 32));
+                                    context
+                                        .allocate_aggregate(vec![
+                                            field_0?, field_1?, field_2?, field_3?,
+                                        ])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.payload.current_safe_area_insets {
+                                Some(value) => {
+                                    let field_0: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.left_px as u64, 32));
+                                    let field_1: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.top_px as u64, 32));
+                                    let field_2: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.right_px as u64, 32));
+                                    let field_3: RuntimeResult<vm::Value> =
+                                        Ok(vm::Value::uint(value.bottom_px as u64, 32));
+                                    context
+                                        .allocate_aggregate(vec![
+                                            field_0?, field_1?, field_2?, field_3?,
+                                        ])
+                                        .map_err(Box::<RuntimeError>::from)
+                                }
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.previous_theme as i32 as i64,
-                        32,
-                    ));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.current_theme as i32 as i64,
-                        32,
-                    ));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowTransientChangedEvent(value) => {
-            let tag_value = vm::Value::uint(1611726874u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+            }
+            WindowEventVm::WindowScaleFactorChangedEvent(value) => {
+                let tag_value = vm::Value::uint(230889647u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.payload.previous_scale_factor_milli as u64,
+                            32,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.payload.current_scale_factor_milli as u64,
+                            32,
+                        ));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        match value.payload.previous_transient_for {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowSizeChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1375014571u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.previous_size_logical.width,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.previous_size_logical.height,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_1: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.previous_size_physical.width as u64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.previous_size_physical.height as u64,
+                                32,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_2: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> =
+                                Ok(vm::Value::float64(value.payload.current_size_logical.width));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(
+                                value.payload.current_size_logical.height,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        let field_3: RuntimeResult<vm::Value> = {
+                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current_size_physical.width as u64,
+                                32,
+                            ));
+                            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                                value.payload.current_size_physical.height as u64,
+                                32,
+                            ));
+                            context
+                                .allocate_aggregate(vec![field_0?, field_1?])
+                                .map_err(Box::<RuntimeError>::from)
+                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowTaskbarVisibilityChangedEvent(value) => {
+                let tag_value = vm::Value::uint(405937330u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.previous_taskbar_visible));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.payload.current_taskbar_visible));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowTextDroppedEvent(value) => {
+                let tag_value = vm::Value::uint(3238943166u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
+                        let field_1: RuntimeResult<vm::Value> = match value.payload.position {
+                            Some(value) => {
+                                let field_0: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.x as i64, 32));
+                                let field_1: RuntimeResult<vm::Value> =
+                                    Ok(vm::Value::int(value.y as i64, 32));
+                                context
+                                    .allocate_aggregate(vec![field_0?, field_1?])
+                                    .map_err(Box::<RuntimeError>::from)
+                            }
                             None => Ok(vm::Value::VOID),
                         };
-                    let field_1: RuntimeResult<vm::Value> =
-                        match value.payload.current_transient_for {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-        WindowEventVm::WindowVisibilityChangedEvent(value) => {
-            let tag_value = vm::Value::uint(170308681u64, 32);
-            let payload_value = {
-                let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
-                let field_1: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
-                    let field_1: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.window.0.0, 64));
-                    let field_2: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
-                    let field_3: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.sequence, 64));
-                    let field_4: RuntimeResult<vm::Value> =
-                        Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+            }
+            WindowEventVm::WindowThemeChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1613918779u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.previous_theme as i32 as i64,
+                            32,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.current_theme as i32 as i64,
+                            32,
+                        ));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
-                };
-                let field_2: RuntimeResult<vm::Value> = {
-                    let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.previous_visibility as i32 as i64,
-                        32,
-                    ));
-                    let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                        value.payload.current_visibility as i32 as i64,
-                        32,
-                    ));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
-                };
+                }?;
                 context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                    .allocate_aggregate(vec![tag_value, payload_value])
                     .map_err(Box::<RuntimeError>::from)
-            }?;
-            context
-                .allocate_aggregate(vec![tag_value, payload_value])
-                .map_err(Box::<RuntimeError>::from)
-        }
-    })
+            }
+            WindowEventVm::WindowTransientChangedEvent(value) => {
+                let tag_value = vm::Value::uint(1611726874u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            match value.payload.previous_transient_for {
+                                Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_1: RuntimeResult<vm::Value> =
+                            match value.payload.current_transient_for {
+                                Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+            WindowEventVm::WindowVisibilityChangedEvent(value) => {
+                let tag_value = vm::Value::uint(170308681u64, 32);
+                let payload_value = {
+                    let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
+                    let field_1: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::int(value.metadata.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.window.0.0, 64));
+                        let field_2: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
+                        let field_3: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.sequence, 64));
+                        let field_4: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::uint(value.metadata.dropped_count, 64));
+                        context
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?,
+                            ])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    let field_2: RuntimeResult<vm::Value> = {
+                        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.previous_visibility as i32 as i64,
+                            32,
+                        ));
+                        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(
+                            value.payload.current_visibility as i32 as i64,
+                            32,
+                        ));
+                        context
+                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .map_err(Box::<RuntimeError>::from)
+                    };
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .map_err(Box::<RuntimeError>::from)
+                }?;
+                context
+                    .allocate_aggregate(vec![tag_value, payload_value])
+                    .map_err(Box::<RuntimeError>::from)
+            }
+        })
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.window.eventTryReadBatch.
@@ -5512,7 +5731,9 @@ fn encode_destack_display_window_event_try_read_batch_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<WindowEventVm>>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| value.to_value(context))
+    result
+        .map(|value| value.to_value(context))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.window.focus.
@@ -5600,7 +5821,9 @@ fn encode_destack_display_window_opacity_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<f64>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::float64(value)))
+    result
+        .map(|value| Ok(vm::Value::float64(value)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.window.open.
@@ -6002,7 +6225,9 @@ fn encode_destack_display_window_open_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::WindowHandle>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| Ok(vm::Value::uint(value.0.0, 64)))
+    result
+        .map(|value| Ok(vm::Value::uint(value.0.0, 64)))
+        .and_then(|value| value)
 }
 
 /// Decode arguments for destack.display.window.raise.
@@ -7024,96 +7249,104 @@ fn encode_destack_display_window_state_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WindowStateVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.and_then(|value| {
-        let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.backend as i32 as i64, 32));
-        let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.role as i32 as i64, 32));
-        let field_2: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.position.x as i64, 32));
-            let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.position.y as i64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
-        };
-        let field_3: RuntimeResult<vm::Value> = {
+    result
+        .map(|value| {
             let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::float64(value.size_logical.width));
+                Ok(vm::Value::int(value.backend as i32 as i64, 32));
             let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::float64(value.size_logical.height));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
-        };
-        let field_4: RuntimeResult<vm::Value> = {
-            let field_0: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.size_physical.width as u64, 32));
-            let field_1: RuntimeResult<vm::Value> =
-                Ok(vm::Value::uint(value.size_physical.height as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
-        };
-        let field_5: RuntimeResult<vm::Value> =
-            Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
-        let field_6: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.visibility as i32 as i64, 32));
-        let field_7: RuntimeResult<vm::Value> = match value.display {
-            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.focused));
-        let field_9: RuntimeResult<vm::Value> =
-            Ok(vm::Value::int(value.occlusion as i32 as i64, 32));
-        let field_10: RuntimeResult<vm::Value> = match value.safe_area_insets {
-            Some(value) => {
+                Ok(vm::Value::int(value.role as i32 as i64, 32));
+            let field_2: RuntimeResult<vm::Value> = {
                 let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.left_px as u64, 32));
+                    Ok(vm::Value::int(value.position.x as i64, 32));
                 let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.top_px as u64, 32));
-                let field_2: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.right_px as u64, 32));
-                let field_3: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.bottom_px as u64, 32));
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            None => Ok(vm::Value::VOID),
-        };
-        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.theme as i32 as i64, 32));
-        let field_12: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.chrome as i32 as i64, 32));
-        let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.taskbar_visible));
-        let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.opacity));
-        let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.always_on_top));
-        let field_16: RuntimeResult<vm::Value> = match value.parent {
-            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_17: RuntimeResult<vm::Value> = match value.transient_for {
-            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-            None => Ok(vm::Value::VOID),
-        };
-        let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.modal));
-        let field_19: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.mouse_passthrough));
-        let field_20: RuntimeResult<vm::Value> = match value.aspect_ratio {
-            Some(value) => {
-                let field_0: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.numerator as u64, 32));
-                let field_1: RuntimeResult<vm::Value> =
-                    Ok(vm::Value::uint(value.denominator as u64, 32));
+                    Ok(vm::Value::int(value.position.y as i64, 32));
                 context
                     .allocate_aggregate(vec![field_0?, field_1?])
                     .map_err(Box::<RuntimeError>::from)
-            }
-            None => Ok(vm::Value::VOID),
-        };
-        context
-            .allocate_aggregate(vec![
-                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                field_15?, field_16?, field_17?, field_18?, field_19?, field_20?,
-            ])
-            .map_err(Box::<RuntimeError>::from)
-    })
+            };
+            let field_3: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.size_logical.width));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::float64(value.size_logical.height));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_4: RuntimeResult<vm::Value> = {
+                let field_0: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.size_physical.width as u64, 32));
+                let field_1: RuntimeResult<vm::Value> =
+                    Ok(vm::Value::uint(value.size_physical.height as u64, 32));
+                context
+                    .allocate_aggregate(vec![field_0?, field_1?])
+                    .map_err(Box::<RuntimeError>::from)
+            };
+            let field_5: RuntimeResult<vm::Value> =
+                Ok(vm::Value::uint(value.scale_factor_milli as u64, 32));
+            let field_6: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.visibility as i32 as i64, 32));
+            let field_7: RuntimeResult<vm::Value> = match value.display {
+                Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_8: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.focused));
+            let field_9: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.occlusion as i32 as i64, 32));
+            let field_10: RuntimeResult<vm::Value> = match value.safe_area_insets {
+                Some(value) => {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.left_px as u64, 32));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.top_px as u64, 32));
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.right_px as u64, 32));
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.bottom_px as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
+                        .map_err(Box::<RuntimeError>::from)
+                }
+                None => Ok(vm::Value::VOID),
+            };
+            let field_11: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.theme as i32 as i64, 32));
+            let field_12: RuntimeResult<vm::Value> =
+                Ok(vm::Value::int(value.chrome as i32 as i64, 32));
+            let field_13: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.taskbar_visible));
+            let field_14: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.opacity));
+            let field_15: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.always_on_top));
+            let field_16: RuntimeResult<vm::Value> = match value.parent {
+                Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_17: RuntimeResult<vm::Value> = match value.transient_for {
+                Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                None => Ok(vm::Value::VOID),
+            };
+            let field_18: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.modal));
+            let field_19: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.mouse_passthrough));
+            let field_20: RuntimeResult<vm::Value> = match value.aspect_ratio {
+                Some(value) => {
+                    let field_0: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.numerator as u64, 32));
+                    let field_1: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.denominator as u64, 32));
+                    context
+                        .allocate_aggregate(vec![field_0?, field_1?])
+                        .map_err(Box::<RuntimeError>::from)
+                }
+                None => Ok(vm::Value::VOID),
+            };
+            context
+                .allocate_aggregate(vec![
+                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
+                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
+                    field_15?, field_16?, field_17?, field_18?, field_19?, field_20?,
+                ])
+                .map_err(Box::<RuntimeError>::from)
+        })
+        .and_then(|value| value)
 }
 
 /// Replay payload for destack.display.backend.list.
