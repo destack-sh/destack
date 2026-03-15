@@ -1,7 +1,7 @@
 use destack_workspace::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostQueueRegistry, HostSessionIngress};
+use crate::host::core::{HostIngressHandle, HostRuntimeRegistry};
 use crate::host::{
     HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
     HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode,
@@ -25,10 +25,8 @@ pub enum UnixApplicationLifecycle {
 }
 
 /// Return the active Unix host queue for this process and platform.
-fn unix_host_bridge(runtime_id: u64, platform: Platform) -> RuntimeResult<HostSessionIngress> {
-    HostQueueRegistry::shared()
-        .write()
-        .session_ingress_for_runtime(RuntimeId(runtime_id), platform)
+fn unix_host_bridge(runtime_id: u64, platform: Platform) -> RuntimeResult<HostIngressHandle> {
+    HostRuntimeRegistry::ingress_handle_for_runtime(RuntimeId(runtime_id), platform)
 }
 
 /// Submit one Unix application lifecycle callback.

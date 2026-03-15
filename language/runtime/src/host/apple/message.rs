@@ -1,7 +1,7 @@
 #[cfg(feature = "execution")]
 use crate::diagnostic::RuntimeResult;
 #[cfg(feature = "execution")]
-use crate::host::core::observer::RuntimeIngressObserverRegistry;
+use crate::host::core::HostRuntimeRegistry;
 
 /// CoreFoundation string reference type.
 type CFStringRef = *const libc::c_void;
@@ -87,9 +87,7 @@ pub(crate) fn service_registered_runtimes_until(
 
         // notify runtime observers after one handled source
         if status == KCF_RUN_LOOP_RUN_HANDLED_SOURCE {
-            RuntimeIngressObserverRegistry::shared()
-                .write()
-                .process_all()?;
+            HostRuntimeRegistry::process_all_runtime_ingress()?;
             continue;
         }
 

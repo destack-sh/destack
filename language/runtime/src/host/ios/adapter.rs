@@ -44,7 +44,7 @@ impl HostAdapter for IosHost {
         Ok(apple_message::process_ingress_ready(true))
     }
 
-    fn runtime_session_capabilities(&self, runtime_id: RuntimeId) -> PlatformCapabilitySet {
+    fn session_capabilities(&self, runtime_id: RuntimeId) -> PlatformCapabilitySet {
         let Ok(bindings) = resolve_ios_bindings(runtime_id.0) else {
             return PlatformCapabilitySet::new();
         };

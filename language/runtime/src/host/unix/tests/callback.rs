@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::host::core::{HostQueue, HostQueueRegistry};
+use crate::host::core::{HostQueue, HostRuntimeRegistry};
 use crate::host::unix::ingress::callback::{
     UnixApplicationLifecycle, host_lifecycle_state_for_unix_application,
     unix_notify_permission_result,
@@ -45,7 +45,7 @@ fn test_map_unix_lifecycle_states() {
 fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
     let runtime_id = next_test_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostQueueRegistry::shared().write().register(
+    let registration = HostRuntimeRegistry::register_queue(
         Platform::Linux,
         runtime_id,
         Arc::downgrade(&queue),

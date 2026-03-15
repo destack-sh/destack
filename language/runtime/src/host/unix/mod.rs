@@ -56,5 +56,5 @@ pub use ingress::{
     target_os = "solaris",
 ))]
 pub(crate) use request::{
-    session_capabilities as unix_request_capabilities, submit_request as submit_unix_request,
+    request_capabilities as unix_request_capabilities, submit_request as submit_unix_request,
 };

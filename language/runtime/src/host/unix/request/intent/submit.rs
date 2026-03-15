@@ -14,8 +14,8 @@ const HOST_INTENT_OPEN_PATH_OPERATION: &str = "destack.os.intent.openPath";
 /// Canonical operation name for `intentOpenUrl`.
 const HOST_INTENT_OPEN_URL_OPERATION: &str = "destack.os.intent.openUrl";
 
-/// Return session capabilities for one Unix desktop request adapter.
-pub(crate) fn session_capabilities() -> PlatformCapabilitySet {
+/// Return request capabilities for one Unix desktop request adapter.
+pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
     let mut capabilities = PlatformCapabilitySet::new();
 
     // desktop launchers expose outbound intent routing when present

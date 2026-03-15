@@ -3,6 +3,8 @@ use crate::platform::display::tests::{
     backend as display_backend_tests, basic as display_basic_tests, event as display_event_tests,
     monitor as display_monitor_tests, window as display_window_tests,
 };
+#[cfg(feature = "execution")]
+use crate::platform::os::clipboard::tests as os_clipboard_tests;
 /// Match one registered display execution case.
 #[cfg(feature = "execution")]
 macro_rules! display_execution_case {
@@ -12,6 +14,20 @@ macro_rules! display_execution_case {
                 "destack_runtime::platform::display::tests::",
                 stringify!($module),
                 "::",
+                stringify!($case)
+            )
+    };
+}
+
+/// Match one registered os execution case.
+#[cfg(feature = "execution")]
+macro_rules! os_execution_case {
+    ($case_name:expr, $module:ident, $case:ident) => {
+        $case_name
+            == concat!(
+                "destack_runtime::platform::os::",
+                stringify!($module),
+                "::tests::",
                 stringify!($case)
             )
     };
@@ -38,6 +54,21 @@ pub(crate) fn run_execution_case(case_name: &str) -> bool {
         ) =>
         {
             display_basic_tests::test_display_window_surface_open_mutate_and_observe_roundtrip();
+            true
+        }
+        #[cfg(all(feature = "execution", target_os = "macos"))]
+        name if os_execution_case!(name, clipboard, test_clipboard_text_roundtrip) => {
+            os_clipboard_tests::test_clipboard_text_roundtrip();
+            true
+        }
+        #[cfg(all(feature = "execution", target_os = "macos"))]
+        name if os_execution_case!(name, clipboard, test_clipboard_html_roundtrip) => {
+            os_clipboard_tests::test_clipboard_html_roundtrip();
+            true
+        }
+        #[cfg(all(feature = "execution", target_os = "macos"))]
+        name if os_execution_case!(name, clipboard, test_clipboard_clear_resets_text_payload) => {
+            os_clipboard_tests::test_clipboard_clear_resets_text_payload();
             true
         }
         #[cfg(all(feature = "execution", windows))]

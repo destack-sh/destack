@@ -59,11 +59,10 @@ mod windows;
 pub use core::{
     HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,
     HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
-    HOST_STATUS_PERMISSION_DENIED, Host, HostEvent, HostEventKind, HostIntentEvent,
-    HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
-    HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPollOutcome,
-    HostPowerMode, HostPowerModeEvent, HostSession, HostThermalEvent, HostThermalState,
-    HostWallClockEvent,
+    HOST_STATUS_PERMISSION_DENIED, HostEvent, HostEventKind, HostIntentEvent, HostIntentPayload,
+    HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState, HostMemoryPressureEvent,
+    HostMemoryPressureLevel, HostPermissionEvent, HostPollOutcome, HostPowerMode,
+    HostPowerModeEvent, HostSession, HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 pub(crate) use core::{HostAdapter, HostRequest};
 pub use destack_workspace::Platform;

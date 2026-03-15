@@ -4,6 +4,7 @@ use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome};
 use crate::host::macos::{macos_request_capabilities, submit_macos_request};
 use crate::host::{HostAdapter, Platform};
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::world::RuntimeId;
 
 /// macOS host implementation.
 #[derive(Debug, Default)]
@@ -33,7 +34,7 @@ impl HostAdapter for MacosHost {
         host_capabilities
     }
 
-    fn session_capabilities(&self) -> PlatformCapabilitySet {
+    fn session_capabilities(&self, _runtime_id: RuntimeId) -> PlatformCapabilitySet {
         macos_request_capabilities()
     }
 

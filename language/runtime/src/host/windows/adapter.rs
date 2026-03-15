@@ -4,6 +4,7 @@ use crate::host::windows::ingress::message as windows_message;
 use crate::host::windows::{submit_windows_request, windows_request_capabilities};
 use crate::host::{HostAdapter, Platform};
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::world::RuntimeId;
 
 /// Windows host implementation.
 #[derive(Debug, Default)]
@@ -33,7 +34,7 @@ impl HostAdapter for WindowsHost {
         host_capabilities
     }
 
-    fn session_capabilities(&self) -> PlatformCapabilitySet {
+    fn session_capabilities(&self, _runtime_id: RuntimeId) -> PlatformCapabilitySet {
         windows_request_capabilities()
     }
 

@@ -9,8 +9,7 @@ use destack_workspace::{
 };
 
 use super::tests::{AllocatingEngine, TestEngine, TestRuntime, TestWorld};
-use crate::diagnostic::RuntimeError;
-use crate::host::Host;
+use crate::host::HostSession;
 use crate::platform::{ResourceEntry, ResourceId, ResourceKind};
 use crate::runtime::bindings::BindingDescriptor;
 use crate::runtime::policy::{
@@ -25,9 +24,8 @@ use crate::runtime::time::WorldInstant;
 use crate::runtime::trace::{Trace, TraceRecord, TraceSequence};
 use crate::runtime::{
     Agent, AgentId, BindingCallContext, BranchId, Input, Observation, ObservationCategory,
-    ObservationData, ObservationOptions, ObservationSchedulerOutcome, Scope, Snapshot, TickOutcome,
-    World, WorldEdge, WorldEdgeKindDefinition, WorldEntity, WorldEntityKindDefinition,
-    WorldResourceId,
+    ObservationData, ObservationOptions, ObservationSchedulerOutcome, Scope, World, WorldEdge,
+    WorldEdgeKindDefinition, WorldEntity, WorldEntityKindDefinition, WorldResourceId,
 };
 
 /// Build runtime options with record mode enabled.
@@ -55,10 +53,8 @@ fn test_runtime_heap_limits_fail_after_allocating_entrypoint() {
     let max_total_bytes = baseline_usage.retained_bytes() + 1024 * 1024;
     runtime.set_heap_limits(heap::HeapLimits {
         max_bytes: Some(max_total_bytes),
-        managed: heap::ManagedLimits {
-            max_bytes: Some(max_managed_bytes),
-        },
-        raw: heap::RawLimits { max_bytes: None },
+        max_managed_bytes: Some(max_managed_bytes),
+        max_raw_bytes: None,
     });
 
     // one allocating step should trip the configured hard limit
@@ -69,7 +65,7 @@ fn test_runtime_heap_limits_fail_after_allocating_entrypoint() {
 
     assert!(matches!(
         error,
-        RuntimeError::HeapLimitExceeded { scope, .. } if scope == "managed"
+        crate::diagnostic::RuntimeError::HeapLimitExceeded { scope, .. } if scope == "managed"
     ));
 }
 
@@ -435,7 +431,7 @@ fn test_world_observe_subscriptions_report_scheduler_progress() {
         .schedule_event(WorldInstant::new(5_000));
 
     let outcome = world.tick().expect("world tick should succeed");
-    assert_eq!(outcome, TickOutcome::AdvancedTime);
+    assert_eq!(outcome, crate::runtime::TickOutcome::AdvancedTime);
 
     let records = world
         .observations()
@@ -503,8 +499,7 @@ fn test_world_fork_shares_heap_leaves_before_mutation() {
     let runtime_id = test.spawn_vm_runtime(&options);
 
     test.allocate_vm_heap_allocation(runtime_id);
-    let raw_bytes = vec![0xAB; 24];
-    let _ = test.allocate_vm_raw_bytes(runtime_id, &raw_bytes);
+    let _ = test.allocate_vm_raw_bytes(runtime_id, &[1, 2, 3]);
     let checkpoint_id = world
         .checkpoint("shared-heap")
         .expect("checkpoint should succeed");
@@ -518,12 +513,11 @@ fn test_world_fork_shares_heap_leaves_before_mutation() {
 
     assert!(
         parent_heap
-            .managed_run(0)
+            .managed_page(0)
             .unwrap()
-            .shares_storage_with(child_heap.managed_run(0).unwrap())
+            .shares_storage_with(child_heap.managed_page(0).unwrap())
     );
-    assert!(parent_heap.managed_run_shares_with(&child_heap, 0));
-    assert!(parent_heap.raw_run_shares_with(&child_heap, 0));
+    assert!(parent_heap.raw_span_shares_with(&child_heap, 0));
 }
 
 /// Ensures child heap mutation detaches only the touched leaf after fork.
@@ -534,17 +528,8 @@ fn test_world_fork_detaches_only_touched_heap_leaf() {
     let world = test.world();
     let runtime_id = test.spawn_vm_runtime(&options);
 
-    let first_bytes = vec![1; 4 * 1024];
-    let filler_bytes = vec![2; 4 * 1024];
-    let second_bytes = vec![4; 4 * 1024];
-    let first = test.allocate_vm_raw_bytes(runtime_id, &first_bytes);
-
-    // fill the first 4 KiB raw run so the last allocation lands in the next run
-    for _ in 0..3 {
-        let _ = test.allocate_vm_raw_bytes(runtime_id, &filler_bytes);
-    }
-
-    let _second = test.allocate_vm_raw_bytes(runtime_id, &second_bytes);
+    let first = test.allocate_vm_raw_bytes(runtime_id, &[1, 2, 3]);
+    let _second = test.allocate_vm_raw_bytes(runtime_id, &[4, 5, 6]);
     let checkpoint_id = world
         .checkpoint("shared-raw")
         .expect("checkpoint should succeed");
@@ -558,10 +543,9 @@ fn test_world_fork_detaches_only_touched_heap_leaf() {
     let mutated = child_test.runtime_heap_image(runtime_id);
     let parent = test.runtime_heap_image(runtime_id);
 
-    assert!(!baseline.raw_run_shares_with(&mutated, 0));
-    assert!(baseline.raw_run_shares_with(&mutated, 1));
-    assert!(baseline.managed_run_shares_with(&mutated, 0));
-    assert!(baseline.raw_run_shares_with(&parent, 0));
+    assert!(!baseline.raw_span_shares_with(&mutated, 0));
+    assert!(baseline.raw_span_shares_with(&mutated, 1));
+    assert!(baseline.raw_span_shares_with(&parent, 0));
 }
 
 /// Ensures rewind restores live heaps from the checkpoint image leaves.
@@ -573,8 +557,7 @@ fn test_world_rewind_restores_checkpoint_heap_leaves() {
     let runtime_id = test.spawn_vm_runtime(&options);
 
     test.allocate_vm_heap_allocation(runtime_id);
-    let raw_bytes = vec![0xCA; 24];
-    let _ = test.allocate_vm_raw_bytes(runtime_id, &raw_bytes);
+    let _ = test.allocate_vm_raw_bytes(runtime_id, &[0xCA, 0xFE, 0xBA, 0xBE]);
     let checkpoint_id = world
         .checkpoint("rewind-shared")
         .expect("checkpoint should succeed");
@@ -604,12 +587,11 @@ fn test_world_rewind_restores_checkpoint_heap_leaves() {
 
     assert!(
         restored_heap
-            .managed_run(0)
+            .managed_page(0)
             .unwrap()
-            .shares_storage_with(stored_heap.managed_run(0).unwrap())
+            .shares_storage_with(stored_heap.managed_page(0).unwrap())
     );
-    assert!(restored_heap.managed_run_shares_with(stored_heap, 0));
-    assert!(restored_heap.raw_run_shares_with(stored_heap, 0));
+    assert!(restored_heap.raw_span_shares_with(stored_heap, 0));
 }
 
 /// Ensures one committed branch moment can restore intermediate state from trace.
@@ -1147,7 +1129,7 @@ fn test_world_snapshot_roundtrip_restores_lineage_and_state() {
     // encode one serialized snapshot from that checkpoint image
     let snapshot = world.snapshot(image_id).expect("snapshot should build");
     let bytes = snapshot.encode().expect("snapshot should encode");
-    let snapshot = Snapshot::decode(&bytes).expect("snapshot should decode");
+    let snapshot = crate::runtime::Snapshot::decode(&bytes).expect("snapshot should decode");
 
     // mutate the world after the snapshot
     test.allocate_vm_heap_allocation(runtime_id);
@@ -1311,7 +1293,7 @@ fn test_agent_world_control_update_refreshes_policy() {
         Box::new(TestEngine::default()),
     )
     .expect("agent should construct in world");
-    let host = Host::from_runtime_options(&options, agent.runtime_id);
+    let host = HostSession::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.live.policy", "()");
 
     // baseline policy should allow the call
@@ -1358,7 +1340,7 @@ fn test_agent_world_control_update_refreshes_hooks() {
         Box::new(TestEngine::default()),
     )
     .expect("agent should construct in world");
-    let host = Host::from_runtime_options(&options, agent.runtime_id);
+    let host = HostSession::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.live.hooks", "()");
 
     // install one hook-bearing fault rule in the shared world
@@ -1422,8 +1404,8 @@ fn test_agent_world_control_agent_selector() {
         Box::new(TestEngine::default()),
     )
     .expect("agent should construct in world");
-    let host_a = Host::from_runtime_options(&options_a, agent_a.runtime_id);
-    let host_b = Host::from_runtime_options(&options_b, agent_b.runtime_id);
+    let host_a = HostSession::from_runtime_options(&options_a, agent_a.runtime_id);
+    let host_b = HostSession::from_runtime_options(&options_b, agent_b.runtime_id);
 
     // install one scheduler hook rule scoped to agent_a
     world
@@ -1492,7 +1474,7 @@ fn test_world_apply_policy_command_updates_rules() {
         Box::new(TestEngine::default()),
     )
     .expect("agent should construct in world");
-    let host = Host::from_runtime_options(&options, agent.runtime_id);
+    let host = HostSession::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.program.policy", "()");
 
     // install one deny rule through one world mutation
@@ -1622,7 +1604,7 @@ fn test_world_resource_lifecycle_updates_topology() {
 
     // verify world resource payload and topology metadata exist
     let resources = world.resources();
-    let world_resource_id = WorldResourceId::new(agent.id, resource_id);
+    let world_resource_id = crate::runtime::WorldResourceId::new(agent.id, resource_id);
     let world_resource = resources
         .get(&world_resource_id)
         .expect("resource should exist in world resource state");
@@ -1660,7 +1642,7 @@ fn test_world_remove_agent_cleans_topology() {
     )
     .expect("agent should construct in world");
     let agent_id = agent.id;
-    let host = Host::from_runtime_options(&options, agent.runtime_id);
+    let host = HostSession::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.removed.agent", "()");
 
     // binding checks should work before removal

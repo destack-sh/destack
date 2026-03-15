@@ -17,5 +17,5 @@ pub use ingress::*;
 pub(crate) use request::set_test_pick_hook;
 #[cfg(windows)]
 pub(crate) use request::{
-    session_capabilities as windows_request_capabilities, submit_request as submit_windows_request,
+    request_capabilities as windows_request_capabilities, submit_request as submit_windows_request,
 };

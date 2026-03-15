@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::host::android::unregister_android_bindings;
 use crate::host::core::registry::HostRegistrationGuard;
-use crate::host::core::{HostQueue, HostQueueRegistry};
+use crate::host::core::{HostQueue, HostRuntimeRegistry};
 use crate::host::{
     AndroidHostBindings, AndroidHostCredentialsCallbacks, AndroidHostCryptoCallbacks,
     AndroidHostMidiCallbacks, Platform, destack_host_android_register_bindings,
@@ -29,7 +29,7 @@ fn next_test_runtime_id() -> RuntimeId {
 pub(crate) fn register_android_runtime() -> (Arc<HostQueue>, HostRegistrationGuard, u64) {
     let runtime_id = next_test_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostQueueRegistry::shared().write().register(
+    let registration = HostRuntimeRegistry::register_queue(
         Platform::Android,
         runtime_id,
         Arc::downgrade(&queue),

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::host::core::{HostQueue, HostQueueRegistry};
+use crate::host::core::{HostQueue, HostRuntimeRegistry};
 use crate::host::macos::ingress::callback::host_lifecycle_state_for_application_lifecycle;
 use crate::host::macos::{
     MacosApplicationLifecycle, macos_notify_intent_open_url, macos_notify_permission_result,
@@ -53,7 +53,7 @@ fn test_map_application_lifecycle_to_destroyed() {
 fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
     let runtime_id = next_test_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostQueueRegistry::shared().write().register(
+    let registration = HostRuntimeRegistry::register_queue(
         Platform::MacOS,
         runtime_id,
         Arc::downgrade(&queue),
@@ -77,7 +77,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
 fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
     let runtime_id = next_test_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostQueueRegistry::shared().write().register(
+    let registration = HostRuntimeRegistry::register_queue(
         Platform::MacOS,
         runtime_id,
         Arc::downgrade(&queue),

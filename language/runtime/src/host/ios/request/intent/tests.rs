@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::host::core::registry::HostRegistrationGuard;
-use crate::host::core::{HostQueue, HostQueueRegistry};
+use crate::host::core::{HostQueue, HostRuntimeRegistry};
 use crate::host::ios::unregister_ios_bindings;
 use crate::host::{
     HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
@@ -26,7 +26,7 @@ fn next_test_runtime_id() -> RuntimeId {
 pub(crate) fn register_ios_runtime() -> (Arc<HostQueue>, HostRegistrationGuard, u64) {
     let runtime_id = next_test_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
-    let registration = HostQueueRegistry::shared().write().register(
+    let registration = HostRuntimeRegistry::register_queue(
         Platform::IOS,
         runtime_id,
         Arc::downgrade(&queue),

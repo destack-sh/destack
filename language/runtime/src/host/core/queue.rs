@@ -7,7 +7,7 @@ use tracing::error;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::event::{HostEvent, HostEventKind};
-use crate::host::core::observer::{HostEventObserver, HostEventObserverRegistry};
+use crate::host::core::registry::{HostEventObserver, HostRuntimeRegistry};
 use crate::runtime::poller::PollerWakeHandle;
 use crate::runtime::world::RuntimeId;
 
@@ -108,9 +108,8 @@ impl HostQueue {
         drop(payload);
 
         // host event observers receive the original event stream independently
-        if let Err(error) = HostEventObserverRegistry::shared()
-            .write()
-            .dispatch(self.runtime_id.0, &event_observer_event)
+        if let Err(error) =
+            HostRuntimeRegistry::dispatch_host_event(self.runtime_id, &event_observer_event)
         {
             error!(?error, "host event observer dispatch failed");
         }
@@ -159,9 +158,7 @@ impl HostQueue {
         let payload = self.state.queue.lock();
 
         // register while the queue lock is held so future enqueues cannot race the snapshot
-        HostEventObserverRegistry::shared()
-            .write()
-            .register(self.runtime_id.0, observer);
+        HostRuntimeRegistry::register_host_event_observer(self.runtime_id, observer);
 
         payload.events.iter().cloned().collect()
     }
@@ -295,8 +292,8 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use crate::diagnostic::RuntimeResult;
-    use crate::host::core::observer::{HostEventObserver, HostEventObserverRegistry};
     use crate::host::core::queue::HostQueue;
+    use crate::host::core::registry::{HostEventObserver, HostRuntimeRegistry};
     use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState, HostPermissionEvent};
     use crate::runtime::world::RuntimeId;
 
@@ -431,9 +428,7 @@ mod tests {
         queue.enqueue(lifecycle_event(HostLifecycleState::Running));
         assert_eq!(callback_count.load(Ordering::Relaxed), 1);
 
-        HostEventObserverRegistry::shared()
-            .write()
-            .unregister_runtime(1);
+        HostRuntimeRegistry::unregister_runtime(queue.runtime_id);
     }
 
     #[test]
