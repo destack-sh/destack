@@ -3,16 +3,16 @@ use serde::{Deserialize, Serialize};
 /// The number of bits in one bitmap word.
 const BITMAP_WORD_BITS: usize = u64::BITS as usize;
 
-/// One dynamic bitmap for run-sized metadata.
+/// One bitmap for run-sized metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DynamicBitmap {
+pub struct Bitmap {
     /// The logical bit capacity.
     capacity: usize,
     /// The packed bitmap words.
     words: Vec<u64>,
 }
 
-impl DynamicBitmap {
+impl Bitmap {
     /// Create one empty bitmap with the given capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         let word_count = capacity.div_ceil(BITMAP_WORD_BITS);
@@ -81,13 +81,7 @@ impl DynamicBitmap {
             return None;
         }
 
-        for index in start..self.capacity {
-            if !self.contains(index) {
-                return Some(index);
-            }
-        }
-
-        None
+        (start..self.capacity).find(|&index| !self.contains(index))
     }
 
     /// Return the retained bytes for this bitmap.

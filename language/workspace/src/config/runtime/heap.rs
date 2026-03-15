@@ -1,20 +1,15 @@
 use serde::{Deserialize, Serialize};
 
 /// Runtime heap size-class configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum HeapSizeClasses {
     /// The built-in default size-class table.
+    #[default]
     Default,
     /// One named built-in size-class table.
     Named(String),
     /// One explicit size-class table in bytes.
     Explicit(Vec<usize>),
-}
-
-impl Default for HeapSizeClasses {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 /// Runtime heap configuration.

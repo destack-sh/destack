@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use super::super::DynamicBitmap;
+use super::super::Bitmap;
 
 /// One immutable raw run image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -14,7 +14,7 @@ pub struct RawRunImage {
     /// The packed slot payload bytes.
     pub bytes: Arc<[u8]>,
     /// The occupied slots in this run.
-    pub occupied: DynamicBitmap,
+    pub occupied: Bitmap,
     /// The logical byte length for each slot.
     pub lengths: Arc<[u16]>,
 }
@@ -41,7 +41,7 @@ struct RawRunOwned {
     /// The packed slot payload bytes.
     bytes: Box<[u8]>,
     /// The occupied slots in this run.
-    occupied: DynamicBitmap,
+    occupied: Bitmap,
     /// The logical byte length for each slot.
     lengths: Box<[u16]>,
 }
@@ -80,7 +80,7 @@ impl RawRun {
             next_free_slot: 0,
             storage: RawRunStorage::Owned(RawRunOwned {
                 bytes: Vec::new().into_boxed_slice(),
-                occupied: DynamicBitmap::with_capacity(0),
+                occupied: Bitmap::with_capacity(0),
                 lengths: Vec::new().into_boxed_slice(),
             }),
         }
@@ -99,7 +99,7 @@ impl RawRun {
             next_free_slot: 0,
             storage: RawRunStorage::Owned(RawRunOwned {
                 bytes,
-                occupied: DynamicBitmap::with_capacity(slot_count),
+                occupied: Bitmap::with_capacity(slot_count),
                 lengths,
             }),
         }
@@ -276,7 +276,7 @@ impl RawRun {
                 size_class: 0,
                 slot_count: 0,
                 bytes: Arc::from(Vec::<u8>::new().into_boxed_slice()),
-                occupied: DynamicBitmap::with_capacity(0),
+                occupied: Bitmap::with_capacity(0),
                 lengths: Arc::from(Vec::<u16>::new().into_boxed_slice()),
             };
         }
@@ -314,7 +314,7 @@ impl RawRun {
     }
 
     /// Return the occupied bitmap for this run.
-    fn occupied(&self) -> &DynamicBitmap {
+    fn occupied(&self) -> &Bitmap {
         match &self.storage {
             RawRunStorage::Owned(storage) => &storage.occupied,
             RawRunStorage::Shared(image) => &image.occupied,
