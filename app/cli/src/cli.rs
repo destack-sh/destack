@@ -8,9 +8,9 @@ use crate::{
 };
 
 #[cfg(feature = "dev")]
-use crate::command::dev::{release, resolve, stats, version as dev_version, VersionCommands};
-#[cfg(feature = "dev")]
 use crate::command::DevCommand;
+#[cfg(feature = "dev")]
+use crate::command::dev::{VersionCommands, release, resolve, stats, version as dev_version};
 use crate::command::{
     BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, ConfigArgs, DaemonArgs,
     DocArgs, DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs,
