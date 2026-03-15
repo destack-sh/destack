@@ -461,7 +461,7 @@ impl ManagedSpace {
             return false;
         };
 
-        let updated = match location {
+        match location {
             ManagedLocation::Vacant => false,
             ManagedLocation::Run(slot) => self
                 .runs
@@ -472,9 +472,7 @@ impl ManagedSpace {
                 .extent_mut(extent_id)
                 .map(|extent| extent.set(offset, byte))
                 .unwrap_or(false),
-        };
-
-        updated
+        }
     }
 
     /// Return the reference map for one managed allocation.

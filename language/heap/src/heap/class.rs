@@ -127,20 +127,15 @@ impl Default for SizeClassTable {
 }
 
 /// One configured size-class table selection.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum SizeClassTableSelection {
     /// The built-in default table.
+    #[default]
     Default,
     /// One named built-in table.
     Named(String),
     /// One explicit table from configuration.
     Explicit(Vec<usize>),
-}
-
-impl Default for SizeClassTableSelection {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 /// Validation error for one configured size-class table.

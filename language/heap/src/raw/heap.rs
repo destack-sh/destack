@@ -282,7 +282,7 @@ impl RawSpace {
             return false;
         };
 
-        let updated = match location {
+        match location {
             RawLocation::Vacant => false,
             RawLocation::Run(slot) => self
                 .runs
@@ -293,9 +293,7 @@ impl RawSpace {
                 .extent_mut(extent_id)
                 .map(|extent| extent.set(offset, byte))
                 .unwrap_or(false),
-        };
-
-        updated
+        }
     }
 
     /// Free one raw allocation.
@@ -659,7 +657,7 @@ fn encode_values(values: &[Value]) -> Vec<u8> {
 
 // decode one byte slice into packed values
 fn decode_values(bytes: &[u8]) -> Option<Vec<Value>> {
-    if bytes.len() % Value::BYTE_LEN != 0 {
+    if !bytes.len().is_multiple_of(Value::BYTE_LEN) {
         return None;
     }
 

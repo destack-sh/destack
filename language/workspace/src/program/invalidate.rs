@@ -482,9 +482,7 @@ impl Program {
         }
 
         // collect modules with published profile scoped data
-        let modules = self.artifacts.module_ids_for_profiles(profiles);
-
-        modules
+        self.artifacts.module_ids_for_profiles(profiles)
     }
 
     /// Find packages that own the given dsconfig file id.

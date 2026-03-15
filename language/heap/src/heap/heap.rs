@@ -461,6 +461,11 @@ impl Heap {
     }
 
     /// Set one raw packed value without bounds checks.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `pointer` refers to a live packed-value raw allocation
+    /// and that `index` is within that allocation's packed-value bounds.
     pub unsafe fn set_raw_value_unchecked(
         &mut self,
         pointer: RawPointer,

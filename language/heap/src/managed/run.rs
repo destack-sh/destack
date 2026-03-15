@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_mir::LayoutId;
 use serde::{Deserialize, Serialize};
 
-use super::super::DynamicBitmap;
+use super::super::Bitmap;
 use super::ReferenceMapId;
 
 /// One immutable managed run trace layout.
@@ -34,7 +34,7 @@ pub struct ManagedRunImage {
     /// The packed slot payload bytes.
     pub bytes: Arc<[u8]>,
     /// The occupied slots in this run.
-    pub occupied: DynamicBitmap,
+    pub occupied: Bitmap,
     /// The logical byte length for each slot.
     pub lengths: Arc<[u16]>,
     /// The trace metadata for this run.
@@ -113,7 +113,7 @@ struct ManagedRunOwned {
     /// The packed slot payload bytes.
     bytes: Box<[u8]>,
     /// The occupied slots in this run.
-    occupied: DynamicBitmap,
+    occupied: Bitmap,
     /// The logical byte length for each slot.
     lengths: Box<[u16]>,
     /// The trace metadata for this run.
@@ -145,9 +145,9 @@ pub(crate) struct ManagedRun {
     /// The live run storage.
     storage: ManagedRunStorage,
     /// The live mark bitmap keyed by slot.
-    marked: DynamicBitmap,
+    marked: Bitmap,
     /// The live pinned slots keyed by slot.
-    pinned: DynamicBitmap,
+    pinned: Bitmap,
     /// Overflow pin counts for slots pinned more than once.
     overflow_pin_counts: Vec<(u16, u16)>,
     /// The number of active pins in this run.
@@ -164,13 +164,13 @@ impl ManagedRun {
             next_free_slot: 0,
             storage: ManagedRunStorage::Owned(ManagedRunOwned {
                 bytes: Vec::new().into_boxed_slice(),
-                occupied: DynamicBitmap::with_capacity(0),
+                occupied: Bitmap::with_capacity(0),
                 lengths: Vec::new().into_boxed_slice(),
                 trace_metadata: ManagedRunTraceOwned::Monomorphic(0),
                 layout_metadata: ManagedRunLayoutOwned::Monomorphic(0),
             }),
-            marked: DynamicBitmap::with_capacity(0),
-            pinned: DynamicBitmap::with_capacity(0),
+            marked: Bitmap::with_capacity(0),
+            pinned: Bitmap::with_capacity(0),
             overflow_pin_counts: Vec::new(),
             active_pins: 0,
         }
@@ -189,13 +189,13 @@ impl ManagedRun {
             next_free_slot: 0,
             storage: ManagedRunStorage::Owned(ManagedRunOwned {
                 bytes,
-                occupied: DynamicBitmap::with_capacity(slot_count),
+                occupied: Bitmap::with_capacity(slot_count),
                 lengths,
                 trace_metadata: ManagedRunTraceOwned::Monomorphic(0),
                 layout_metadata: ManagedRunLayoutOwned::Monomorphic(0),
             }),
-            marked: DynamicBitmap::with_capacity(slot_count),
-            pinned: DynamicBitmap::with_capacity(slot_count),
+            marked: Bitmap::with_capacity(slot_count),
+            pinned: Bitmap::with_capacity(slot_count),
             overflow_pin_counts: Vec::new(),
             active_pins: 0,
         }
@@ -217,8 +217,8 @@ impl ManagedRun {
             occupied_count,
             next_free_slot,
             storage: ManagedRunStorage::Shared(image),
-            marked: DynamicBitmap::with_capacity(slot_count),
-            pinned: DynamicBitmap::with_capacity(slot_count),
+            marked: Bitmap::with_capacity(slot_count),
+            pinned: Bitmap::with_capacity(slot_count),
             overflow_pin_counts: Vec::new(),
             active_pins: 0,
         }
@@ -571,7 +571,7 @@ impl ManagedRun {
                 size_class: 0,
                 slot_count: 0,
                 bytes: Arc::from(Vec::<u8>::new().into_boxed_slice()),
-                occupied: DynamicBitmap::with_capacity(0),
+                occupied: Bitmap::with_capacity(0),
                 lengths: Arc::from(Vec::<u16>::new().into_boxed_slice()),
                 trace_metadata: ManagedRunTraceImage::Monomorphic(0),
                 layout_metadata: ManagedRunLayoutImage::Monomorphic(0),
@@ -629,7 +629,7 @@ impl ManagedRun {
     }
 
     /// Return the occupied bitmap for this run.
-    fn occupied(&self) -> &DynamicBitmap {
+    fn occupied(&self) -> &Bitmap {
         match &self.storage {
             ManagedRunStorage::Owned(storage) => &storage.occupied,
             ManagedRunStorage::Shared(image) => &image.occupied,
@@ -755,7 +755,7 @@ impl ManagedRun {
 
     /// Write one trace id into the run metadata.
     fn set_trace_metadata(
-        occupied: &DynamicBitmap,
+        occupied: &Bitmap,
         trace_metadata: &mut ManagedRunTraceOwned,
         occupied_count: usize,
         slot_count: usize,
@@ -788,7 +788,7 @@ impl ManagedRun {
 
     /// Write one layout id into the run metadata.
     fn set_layout_metadata(
-        occupied: &DynamicBitmap,
+        occupied: &Bitmap,
         layout_metadata: &mut ManagedRunLayoutOwned,
         occupied_count: usize,
         slot_count: usize,
