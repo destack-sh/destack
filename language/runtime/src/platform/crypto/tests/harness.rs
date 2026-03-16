@@ -24,7 +24,8 @@ use crate::platform::crypto::{
     CryptoStoreProvider,
 };
 use crate::platform::{
-    NativeArray, PlatformError, VmArray, VmSlice, VmValueCodec, crypto as platform_crypto, resource,
+    NativeArray, PlatformError, VmArray, VmCollectionElement, VmSlice, VmValueCodec,
+    crypto as platform_crypto, resource,
 };
 use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::tests::platform::vm_test_string;
@@ -238,7 +239,7 @@ fn vm_bytes_from_native(
     let value = unsafe { value.as_slice()? };
 
     // copy bytes into vm slice storage
-    let value = VmSlice::from_values(context, value)?;
+    let value = VmSlice::from_bytes(context, value)?;
 
     Ok(value)
 }
@@ -260,7 +261,7 @@ fn vm_optional_bytes_from_native(
 }
 
 /// Convert one native typed slice into one VM typed slice.
-fn vm_slice_from_native<T: Copy + VmValueCodec>(
+fn vm_slice_from_native<T: Copy + VmValueCodec + VmCollectionElement>(
     context: &mut destack_vm::ExternalCallContext<'_>,
     value: NativeSlice<T>,
 ) -> RuntimeResult<VmSlice<T>> {
@@ -340,7 +341,7 @@ impl<'call> CryptoHarnessContext<'call> {
         // route slice allocation to the active engine
         match self.vm_context_mut() {
             Some(context) => {
-                let bytes = VmSlice::from_values(context, bytes)?;
+                let bytes = VmSlice::from_bytes(context, bytes)?;
                 Ok(self.harness_value_vm(bytes))
             }
             None => Ok(self.harness_value(self.call_context.store_slice(bytes.to_vec()))),
@@ -408,7 +409,7 @@ impl<'call> CryptoHarnessContext<'call> {
     }
 
     /// Decode one backend-specific typed slice into values.
-    pub(crate) fn values_from_slice<T: Copy + VmValueCodec>(
+    pub(crate) fn values_from_slice<T: Copy + VmValueCodec + VmCollectionElement>(
         &self,
         value: HarnessValue<NativeSlice<T>, VmSlice<T>>,
     ) -> RuntimeResult<Vec<T>> {
@@ -433,7 +434,7 @@ impl<'call> CryptoHarnessContext<'call> {
     }
 
     /// Decode one backend-specific typed array into values.
-    pub(crate) fn values_from_array<T: Copy + VmValueCodec>(
+    pub(crate) fn values_from_array<T: Copy + VmValueCodec + VmCollectionElement>(
         &self,
         value: HarnessValue<NativeArray<T>, VmArray<T>>,
     ) -> RuntimeResult<Vec<T>> {

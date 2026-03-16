@@ -3,7 +3,9 @@ use std::marker::PhantomData;
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError, VmAggregateCodec, VmValueCodec};
+use crate::platform::{
+    PlatformError, VmAggregateCodec, VmCollectionElement, VmCollectionStorage, VmValueCodec,
+};
 
 /// VM slice representation for platform bindings.
 #[repr(C)]
@@ -94,12 +96,51 @@ impl<T> VmSlice<T> {
     }
 }
 
-impl<T: VmAggregateCodec> VmSlice<T> {
+/// Report whether one VM slice element type uses raw byte storage.
+fn is_byte_element_type<T: VmCollectionElement>() -> bool {
+    T::STORAGE == VmCollectionStorage::Bytes
+}
+
+/// View one typed slice as raw bytes when the element type is `u8`.
+fn byte_slice_from_values<T: VmCollectionElement>(values: &[T]) -> Option<&[u8]> {
+    // non-byte element types stay on the packed-value path
+    if !is_byte_element_type::<T>() {
+        return None;
+    }
+
+    // safety: the type check above guarantees `T` is exactly `u8`
+    Some(unsafe { std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len()) })
+}
+
+/// Reinterpret one owned byte vector as one owned typed vector when the element type is `u8`.
+fn values_from_byte_vec<T: VmCollectionElement>(bytes: Vec<u8>) -> Option<Vec<T>> {
+    // non-byte element types stay on the packed-value path
+    if !is_byte_element_type::<T>() {
+        return None;
+    }
+
+    // safety: the type check above guarantees `T` is exactly `u8`
+    Some(unsafe { std::mem::transmute::<Vec<u8>, Vec<T>>(bytes) })
+}
+
+impl<T: VmCollectionElement> VmSlice<T> {
     /// Allocate a VM slice from decoded values.
     pub fn from_values(
         context: &mut vm::ExternalCallContext<'_>,
         values: &[T],
     ) -> RuntimeResult<Self> {
+        // route byte payloads through raw byte storage
+        if let Some(bytes) = byte_slice_from_values(values) {
+            let slice = VmSlice::<u8>::from_bytes(context, bytes)?;
+
+            return Ok(Self {
+                data: slice.data,
+                len: slice.len,
+                _marker: PhantomData,
+            });
+        }
+
+        // encode packed element values for non-byte slices
         let mut encoded = Vec::with_capacity(values.len());
         for value in values {
             encoded.push(T::encode_with_context(*value, context)?);
@@ -117,6 +158,26 @@ impl<T: VmAggregateCodec> VmSlice<T> {
 
     /// Read the VM slice into a Vec of decoded values.
     pub fn read_values(&self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<Vec<T>> {
+        // route byte payloads through raw byte storage
+        if is_byte_element_type::<T>() {
+            let bytes = VmSlice::<u8> {
+                data: self.data,
+                len: self.len,
+                _marker: PhantomData,
+            }
+            .read_bytes(context)?;
+
+            let values = values_from_byte_vec(bytes).ok_or_else(|| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    "slice",
+                    "byte slice type mismatch",
+                ))
+                .boxed()
+            })?;
+
+            return Ok(values);
+        }
+
         // read raw values from the heap
         let values = context
             .raw_values(self.data)
@@ -146,6 +207,17 @@ impl<T: VmAggregateCodec> VmSlice<T> {
         context: &mut vm::ExternalCallContext<'_>,
         values: &[T],
     ) -> RuntimeResult<()> {
+        // route byte payloads through raw byte storage
+        if let Some(bytes) = byte_slice_from_values(values) {
+            return VmSlice::<u8> {
+                data: self.data,
+                len: self.len,
+                _marker: PhantomData,
+            }
+            .write_bytes(context, bytes);
+        }
+
+        // validate the logical element count first
         if values.len() != self.len as usize {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "slice",
@@ -154,6 +226,7 @@ impl<T: VmAggregateCodec> VmSlice<T> {
             .boxed());
         }
 
+        // encode packed element values for non-byte slices
         let mut encoded = Vec::with_capacity(values.len());
         for value in values {
             encoded.push(T::encode_with_context(*value, context)?);
@@ -181,6 +254,8 @@ impl<T: Copy> VmAggregateCodec for VmSlice<T> {
     }
 }
 
+impl<T: Copy> VmCollectionElement for VmSlice<T> {}
+
 impl VmSlice<u8> {
     /// Allocate a VM slice from raw bytes.
     pub fn from_bytes(
@@ -200,24 +275,19 @@ impl VmSlice<u8> {
 
     /// Read a byte slice from the VM.
     pub fn read_bytes(&self, context: &vm::ExternalCallContext<'_>) -> RuntimeResult<Vec<u8>> {
-        // read raw bytes from the heap
-        let bytes = match context.raw_bytes(self.data) {
-            Ok(bytes) => bytes,
-            Err(_) => {
-                let values = self.read_values(context)?;
-                return Ok(values);
-            }
-        };
+        let expected_len = self.len as usize;
 
-        if bytes.len() != self.len as usize {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "slice",
-                "slice length mismatch",
-            ))
-            .boxed());
+        // prefer true byte storage when the raw allocation size matches
+        if let Ok(byte_len) = context.raw_byte_len(self.data)
+            && byte_len == expected_len
+        {
+            return context
+                .raw_bytes(self.data)
+                .map_err(|error| RuntimeError::from(error).boxed());
         }
 
-        Ok(bytes)
+        // compatibility: some older callers encoded byte slices as packed values
+        self.read_values(context)
     }
 
     /// Write a byte slice into the VM.
@@ -226,7 +296,10 @@ impl VmSlice<u8> {
         context: &mut vm::ExternalCallContext<'_>,
         bytes: &[u8],
     ) -> RuntimeResult<()> {
-        if bytes.len() != self.len as usize {
+        let expected_len = self.len as usize;
+
+        // validate the logical byte length first
+        if bytes.len() != expected_len {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "slice",
                 "slice length mismatch",
@@ -234,10 +307,17 @@ impl VmSlice<u8> {
             .boxed());
         }
 
-        if context.write_raw_bytes(self.data, bytes).is_ok() {
+        // prefer true byte storage when the raw allocation size matches
+        if let Ok(byte_len) = context.raw_byte_len(self.data)
+            && byte_len == expected_len
+        {
+            context
+                .write_raw_bytes(self.data, bytes)
+                .map_err(|error| RuntimeError::from(error).boxed())?;
             return Ok(());
         }
 
+        // compatibility: rewrite legacy packed-value byte slices as packed u8 values
         let encoded = bytes
             .iter()
             .copied()

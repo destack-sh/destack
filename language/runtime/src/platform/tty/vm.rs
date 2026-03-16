@@ -25,7 +25,7 @@ fn termios_attributes_to_vm(
 ) -> RuntimeResult<TtyTermiosAttributesVm> {
     // decode native control characters and move them into VM memory
     let control_characters = unsafe { attributes.control_characters.as_slice()? };
-    let control_characters = VmSlice::from_values(context, control_characters)?;
+    let control_characters = VmSlice::from_bytes(context, control_characters)?;
 
     // return one projected VM termios payload
     Ok(TtyTermiosAttributesVm {

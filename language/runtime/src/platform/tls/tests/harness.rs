@@ -124,7 +124,7 @@ impl<'call> TlsHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let bytes = VmSlice::from_values(context, bytes)?;
+                let bytes = VmSlice::from_bytes(context, bytes)?;
                 Ok(self.harness_value_vm(bytes))
             }
             None => {
@@ -152,7 +152,7 @@ impl<'call> TlsHarnessContext<'call> {
             Some(context) => {
                 let mut protocols = Vec::with_capacity(values.len());
                 for value in values {
-                    protocols.push(VmSlice::from_values(context, value)?);
+                    protocols.push(VmSlice::from_bytes(context, value)?);
                 }
                 let values = vm_slice_of_slices(context, &protocols);
                 Ok(self.harness_value_vm(values))

@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeArray, VmAggregateCodec, VmArray, VmSlice};
+use crate::platform::{NativeArray, VmAggregateCodec, VmArray, VmCollectionElement, VmSlice};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
 use destack_vm as vm;
 
@@ -216,7 +216,7 @@ where
 
 impl<T> VmAbiCodec for VmSlice<T>
 where
-    T: Copy + VmAggregateCodec + VmAbiCodec,
+    T: Copy + VmAggregateCodec + VmAbiCodec + VmCollectionElement,
 {
     type Value = Vec<T::Value>;
 
@@ -249,7 +249,7 @@ where
 
 impl<T> VmAbiCodec for VmArray<T>
 where
-    T: Copy + VmAggregateCodec + VmAbiCodec,
+    T: Copy + VmAggregateCodec + VmAbiCodec + VmCollectionElement,
 {
     type Value = Vec<T::Value>;
 

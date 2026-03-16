@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::platform::{NativeAbiCodec, VmAbiCodec, VmValueCodec};
+use crate::platform::{NativeAbiCodec, VmAbiCodec, VmCollectionElement, VmValueCodec};
 use crate::runtime::BindingCallContext;
 use destack_vm;
 use serde::{Deserialize, Serialize};
@@ -54,6 +54,8 @@ impl VmAbiCodec for ResourceId {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for ResourceId {}
 
 /// The ownership mode for one transferred resource.
 #[repr(u8)]
@@ -154,6 +156,8 @@ macro_rules! define_resource_handle_types {
                     Ok(value)
                 }
             }
+
+            impl VmCollectionElement for $handle {}
         )+
     };
 }
