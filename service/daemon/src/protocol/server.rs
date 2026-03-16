@@ -4,11 +4,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use destack_source::{ModuleId, ProfileId};
+use destack_source::ProfileId;
 use parking_lot::Mutex;
 use {destack_query as query, destack_service as service, destack_workspace as workspace};
 
-use workspace::{ModuleGraphKey, ModuleSignatureKey, Program};
+use workspace::{ModuleGraphKey, Program};
 
 use crate::{Daemon, DaemonError, DaemonUpdate, WatchBatch as DaemonWatchBatch};
 
@@ -702,16 +702,6 @@ impl ProtocolServer {
                 let payload = self.prepare_payload(self.module_graph_payload(&root, profile)?)?;
                 DaemonQueryResponse::ModuleGraph(payload)
             }
-            DaemonQuery::ModuleSignature {
-                handle,
-                module_id,
-                profile,
-            } => {
-                let root = self.root_for_handle(handle)?;
-                let payload = self
-                    .prepare_payload(self.module_signature_payload(&root, module_id, profile)?)?;
-                DaemonQueryResponse::ModuleSignature(payload)
-            }
             DaemonQuery::Diagnostics { handle } => {
                 let root = self.root_for_handle(handle)?;
                 let diagnostics = self.diagnostics_for_root(&root)?;
@@ -1176,27 +1166,6 @@ impl ProtocolServer {
             self.protocol_error(ProtocolErrorCode::NotFound, "module graph missing")
         })?;
         let bytes = postcard::to_allocvec(graph.value()).map_err(|error| {
-            self.protocol_error(ProtocolErrorCode::Internal, &error.to_string())
-        })?;
-        Ok(BinaryPayload {
-            format: PayloadFormat::Postcard,
-            body: PayloadBody::Inline { bytes },
-        })
-    }
-
-    /// Produce a module signature payload for a module and profile.
-    fn module_signature_payload(
-        &self,
-        root: &Path,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Result<BinaryPayload, ProtocolError> {
-        let program = self.program_for_root(root)?;
-        let key = ModuleSignatureKey::new(module_id, profile_id);
-        let signature = program.index.module_signatures.get(&key).ok_or_else(|| {
-            self.protocol_error(ProtocolErrorCode::NotFound, "module signature missing")
-        })?;
-        let bytes = postcard::to_allocvec(signature.value()).map_err(|error| {
             self.protocol_error(ProtocolErrorCode::Internal, &error.to_string())
         })?;
         Ok(BinaryPayload {

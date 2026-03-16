@@ -315,8 +315,7 @@ impl PayloadInbox {
         // resolve binary payloads in query responses
         match response {
             DaemonQueryResponse::WorkspaceIndex(payload)
-            | DaemonQueryResponse::ModuleGraph(payload)
-            | DaemonQueryResponse::ModuleSignature(payload) => self.resolve_payload(payload),
+            | DaemonQueryResponse::ModuleGraph(payload) => self.resolve_payload(payload),
             DaemonQueryResponse::WorkspaceQuery(payload) => {
                 self.resolve_payload(&mut payload.payload)
             }

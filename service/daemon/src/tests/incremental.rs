@@ -41,7 +41,7 @@ fn assert_virtual_navigation_ready(session: &Session, path: &Path, source: &str)
         .modules
         .get_by_file_id(file_id)
         .expect("expected module for virtual source");
-    let module = module.read();
+    let module = module.as_ref();
     assert!(
         query::query_context(session, &module).is_some(),
         "expected strict semantic query state for virtual source"
