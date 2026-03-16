@@ -32,7 +32,7 @@ tracing = { workspace = true }
 criterion = { workspace = true }
 pprof = { workspace = true }
 rayon = { workspace = true }
-num_cpus = "1"
+num_cpus = { workspace = true }
 
 [[bench]]
 name = "destack_parse"

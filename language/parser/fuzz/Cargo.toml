@@ -16,8 +16,8 @@ cargo-fuzz = true
 destack_parser = { path = ".." }
 destack_source = { path = "../../source" }
 
-arbitrary = { version = "1.4.2", features = ["derive"] }
-libfuzzer-sys = "0.4.10"
+arbitrary = { workspace = true, features = ["derive"] }
+libfuzzer-sys = { workspace = true }
 
 [[bin]]
 name = "lexer"
