@@ -118,13 +118,17 @@ pub struct RuntimeArgs {
     #[arg(long = "runtime-heap-initial-bytes")]
     pub heap_initial_bytes: Option<u64>,
 
-    /// Managed span threshold in values before using dedicated large spans.
-    #[arg(long = "runtime-heap-managed-large-span-values")]
-    pub managed_large_span_values: Option<usize>,
+    /// Managed heap run width in bytes.
+    #[arg(long = "runtime-heap-managed-run-bytes")]
+    pub managed_run_bytes: Option<usize>,
 
-    /// Raw span threshold in bytes before using dedicated large spans.
-    #[arg(long = "runtime-heap-raw-large-span-bytes")]
-    pub raw_large_span_bytes: Option<usize>,
+    /// Raw heap run width in bytes.
+    #[arg(long = "runtime-heap-raw-run-bytes")]
+    pub raw_run_bytes: Option<usize>,
+
+    /// Shared chunk width in bytes.
+    #[arg(long = "runtime-heap-chunk-bytes")]
+    pub chunk_bytes: Option<usize>,
 
     /// Hard total retained heap byte limit.
     #[arg(long = "runtime-heap-max-bytes")]
@@ -137,6 +141,10 @@ pub struct RuntimeArgs {
     /// Hard retained raw heap byte limit.
     #[arg(long = "runtime-heap-max-raw-bytes")]
     pub heap_max_raw_bytes: Option<u64>,
+
+    /// Hard retained shared heap byte limit.
+    #[arg(long = "runtime-heap-max-shared-bytes")]
+    pub heap_max_shared_bytes: Option<u64>,
 }
 
 impl RuntimeArgs {
@@ -169,11 +177,13 @@ impl RuntimeArgs {
             && self.heap_growth_percent.is_none()
             && self.heap_soft_limit_bytes.is_none()
             && self.heap_initial_bytes.is_none()
-            && self.managed_large_span_values.is_none()
-            && self.raw_large_span_bytes.is_none()
+            && self.managed_run_bytes.is_none()
+            && self.raw_run_bytes.is_none()
+            && self.chunk_bytes.is_none()
             && self.heap_max_bytes.is_none()
             && self.heap_max_managed_bytes.is_none()
             && self.heap_max_raw_bytes.is_none()
+            && self.heap_max_shared_bytes.is_none()
     }
 
     /// Convert runtime arguments into runtime option overrides.
@@ -262,21 +272,26 @@ impl RuntimeArgs {
         let heap = if self.heap_growth_percent.is_some()
             || self.heap_soft_limit_bytes.is_some()
             || self.heap_initial_bytes.is_some()
-            || self.managed_large_span_values.is_some()
-            || self.raw_large_span_bytes.is_some()
+            || self.managed_run_bytes.is_some()
+            || self.raw_run_bytes.is_some()
+            || self.chunk_bytes.is_some()
             || self.heap_max_bytes.is_some()
             || self.heap_max_managed_bytes.is_some()
             || self.heap_max_raw_bytes.is_some()
+            || self.heap_max_shared_bytes.is_some()
         {
             Some(HeapOptionsJson {
                 growth_percent: self.heap_growth_percent,
                 soft_limit_bytes: self.heap_soft_limit_bytes,
                 initial_bytes: self.heap_initial_bytes,
-                managed_large_span_values: self.managed_large_span_values,
-                raw_large_span_bytes: self.raw_large_span_bytes,
+                managed_run_bytes: self.managed_run_bytes,
+                raw_run_bytes: self.raw_run_bytes,
+                chunk_bytes: self.chunk_bytes,
                 max_bytes: self.heap_max_bytes,
                 max_managed_bytes: self.heap_max_managed_bytes,
                 max_raw_bytes: self.heap_max_raw_bytes,
+                max_shared_bytes: self.heap_max_shared_bytes,
+                size_classes: None,
             })
         } else {
             None
