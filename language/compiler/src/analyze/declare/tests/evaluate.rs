@@ -1,11 +1,12 @@
-use super::TestProgram;
+use super::{ModuleId, TestProgram};
 use crate::analyze::common::{SymbolTypeView, TypeContext};
 use crate::analyze::declare::{StaticConstantResolutionMode, TypeMemberResolution};
 use destack_dir::{
-    Declarator, Expression, FloatType, LocalScopeMark, LocalTypeId, Pattern, PrimitiveType,
-    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, Type, TypeLiteral, TypeTable,
-    TypeUnaryOperator,
+    Declarator, Expression, FloatType, LocalScopeMark, LocalSymbolId, LocalTypeId, Pattern,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, Type, TypeLiteral,
+    TypeTable, TypeUnaryOperator,
 };
+use std::sync::Arc;
 
 /// Assert a fixed-array count resolves to either an integer literal or a named symbol.
 fn assert_count_matches_integer_or_symbol_name(
@@ -72,6 +73,56 @@ fn assert_count_resolves_to_integer(count: LocalTypeId, expected_integer: i64, t
     }
 
     panic!("expected integer literal count within unwrap steps")
+}
+
+/// Resolve one declared namespace annotation type from exact declared artifact inputs.
+fn resolve_declared_namespace_annotation_type(
+    test: &TestProgram,
+    module_id: ModuleId,
+    name: &str,
+) -> (TypeTable, LocalTypeId) {
+    let module = test.program.modules.get(module_id);
+    let module = module.as_ref();
+    let profile = test.default_profile_id(module_id);
+    let dir = test.artifact_dir_declared_data(module_id, profile);
+    let tree = Arc::unwrap_or_clone(dir.tree);
+    let symbols = Arc::unwrap_or_clone(dir.symbols);
+    let mut types = Arc::unwrap_or_clone(dir.types);
+    let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
+
+    let value_symbol = symbols
+        .find_active_symbol_up_to(
+            namespace_scope,
+            StaticKey::Name(test.program.strings.intern(name)),
+            LocalScopeMark::end(),
+        )
+        .map(|symbol: LocalSymbolId| symbol.into_global(module_id))
+        .expect("expected namespace symbol");
+    let value_pattern_id = symbols
+        .get_symbol(value_symbol.local_id)
+        .primary_declaration
+        .expect("expected primary declaration for namespace symbol")
+        .local_id
+        .try_into_typed::<Pattern>()
+        .expect("expected pattern declaration for namespace symbol");
+    let value_declarator_id = tree
+        .get_parent(value_pattern_id.id)
+        .expect("expected parent declarator for namespace pattern")
+        .into_typed::<Declarator>();
+    let value_declarator = tree.get(value_declarator_id);
+    let value_annotation_id = value_declarator
+        .ty
+        .expect("expected type annotation for namespace symbol");
+
+    let options = test.compiler.analyze_context_options_for_module(module.id);
+    let mut type_context =
+        TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+    let value_type_id = test
+        .compiler
+        .resolve_declared_type_expression(&mut type_context, value_annotation_id, true, true)
+        .expect("expected declared namespace annotation type");
+
+    (types, value_type_id)
 }
 
 #[test]
@@ -141,8 +192,7 @@ declare let value: Loop<number>;
 "#,
     );
 
-    test.analyze_module(module_id);
-    test.compile();
+    test.declare_module(module_id);
     test.check_has_diagnostic("EA121");
 }
 
@@ -191,8 +241,7 @@ declare let value: A<number>;
 "#,
     );
 
-    test.analyze_module(module_id);
-    test.compile();
+    test.declare_module(module_id);
     test.check_has_diagnostic("EA121");
 }
 
@@ -204,10 +253,9 @@ fn test_type_index_integer_literal_reports_missing_property_and_keeps_index_acce
     test.analyze_module(module_id);
     test.compile();
     test.check_has_diagnostic("EA202");
-    let view = test.declare_view(module_id);
+    let (types, value_type_id) =
+        resolve_declared_namespace_annotation_type(&test, module_id, "value");
 
-    let types = view.types();
-    let value_type_id = view.expect_namespace_value_type_id("value");
     let Type::Index { left, index } = types.get_type(value_type_id) else {
         panic!(
             "expected indexed-access type for non-admissible numeric index, got {:?}",
@@ -217,7 +265,7 @@ fn test_type_index_integer_literal_reports_missing_property_and_keeps_index_acce
 
     let index_value = test
         .compiler
-        .integer_literal_value_for_type_id(*index, types)
+        .integer_literal_value_for_type_id(*index, &types)
         .expect("expected integer literal index");
     assert_eq!(index_value, 5, "expected indexed-access key of 5");
 
@@ -228,7 +276,9 @@ fn test_type_index_integer_literal_reports_missing_property_and_keeps_index_acce
         );
     };
     assert!(
-        fields.iter().any(|field| field.key == view.key("x")),
+        fields
+            .iter()
+            .any(|field| field.key == StaticKey::Name(test.program.strings.intern("x"))),
         "expected receiver object field `x` to be preserved"
     );
 }
@@ -238,10 +288,8 @@ fn test_type_index_integer_literal_uses_index_access_when_index_is_admissible() 
     let test = TestProgram::memory_sequential();
     let module_id = test
         .analyze_declare_module_with_source("test.ds", "declare const value: [string, number][0];");
-    let view = test.declare_view(module_id);
-
-    let types = view.types();
-    let value_type_id = view.expect_namespace_value_type_id("value");
+    let (types, value_type_id) =
+        resolve_declared_namespace_annotation_type(&test, module_id, "value");
     let value_type = types.get_type(value_type_id);
 
     assert!(
@@ -261,10 +309,9 @@ fn test_type_index_as_comptime_forces_fixed_array_construction() {
         "test.ds",
         "declare const value: [string, number][0 as comptime];",
     );
-    let view = test.declare_view(module_id);
+    let (types, value_type_id) =
+        resolve_declared_namespace_annotation_type(&test, module_id, "value");
 
-    let types = view.types();
-    let value_type_id = view.expect_namespace_value_type_id("value");
     let Type::ArraySized { element, count, .. } = types.get_type(value_type_id) else {
         panic!(
             "expected explicit `as comptime` to force fixed-size array construction, got {:?}",
@@ -272,7 +319,7 @@ fn test_type_index_as_comptime_forces_fixed_array_construction() {
         );
     };
 
-    assert_count_resolves_to_integer(*count, 0, types);
+    assert_count_resolves_to_integer(*count, 0, &types);
 
     assert!(
         matches!(types.get_type(*element), Type::Tuple { .. }),
@@ -352,7 +399,7 @@ declare const segment: AuditStore.Segment;
     );
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
     let dir = test.artifact_dir_data(module_id, profile);
     let symbols = &dir.symbols;
@@ -369,12 +416,15 @@ declare const segment: AuditStore.Segment;
         .get_value_type_id(segment_symbol)
         .expect("expected segment value type");
 
+    // shape
     let count = match types.get_type(segment_type_id) {
         Type::ArraySized { count, .. } => *count,
         other => panic!("expected fixed-size segment projection, got {other:?}"),
     };
+
+    // count
     assert_count_matches_integer_or_symbol_name(
-        SymbolTypeView::new(&module, profile, symbols, types),
+        SymbolTypeView::new(&module, profile, &dir.symbols, types),
         count,
         1024,
         StaticKey::Name(test.program.strings.intern("SegmentBytes")),
@@ -434,7 +484,7 @@ comptime const Dependent: number = ProjectionPlan<Row>.Scalar;
     );
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
     let dir = test.artifact_dir_data(module_id, profile);
     let tree = &dir.tree;
@@ -676,12 +726,12 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     );
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
     let dir = test.artifact_dir_data(module_id, profile);
-    let tree = dir.tree;
-    let symbols = dir.symbols;
-    let mut types = dir.types;
+    let tree = Arc::unwrap_or_clone(dir.tree);
+    let symbols = Arc::unwrap_or_clone(dir.symbols);
+    let mut types = Arc::unwrap_or_clone(dir.types);
     let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
 
     let log_symbol = symbols
@@ -690,7 +740,7 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
             StaticKey::Name(test.program.strings.intern("logSegment")),
             LocalScopeMark::end(),
         )
-        .map(|symbol| symbol.into_global(module.id))
+        .map(|symbol: LocalSymbolId| symbol.into_global(module.id))
         .expect("expected logSegment symbol");
     let metric_symbol = symbols
         .find_active_symbol_up_to(
@@ -698,7 +748,7 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
             StaticKey::Name(test.program.strings.intern("metricSegment")),
             LocalScopeMark::end(),
         )
-        .map(|symbol| symbol.into_global(module.id))
+        .map(|symbol: LocalSymbolId| symbol.into_global(module.id))
         .expect("expected metricSegment symbol");
     let log_ty_id = types
         .get_value_type_id(log_symbol)
@@ -713,7 +763,7 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
             StaticKey::Name(test.program.strings.intern("SegmentPlan")),
             LocalScopeMark::end(),
         )
-        .map(|symbol| symbol.into_global(module.id))
+        .map(|symbol: LocalSymbolId| symbol.into_global(module.id))
         .expect("expected SegmentPlan symbol");
     let log_pattern_id = symbols
         .get_symbol(log_symbol.local_id)
@@ -734,10 +784,12 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
         panic!("expected member type annotation for logSegment");
     };
     let options = test.compiler.analyze_context_options_for_module(module.id);
+    let mut type_context =
+        TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
     let member_selection = test
         .compiler
         .resolve_type_member_symbol(
-            &mut TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types),
+            &mut type_context,
             log_member_expression_id,
             *left,
             StaticKey::Name(*name),

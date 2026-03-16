@@ -1,9 +1,7 @@
 use super::constant::StaticCycleDiagnosticMode;
 use super::{StaticEvaluationDiagnosticMode, StaticEvaluationMode};
 use crate::analyze::StaticMemberSymbolKind;
-use crate::analyze::common::{
-    CanonicalSymbolMode, DirReadBoundary, RelationMode, TypeContext, TypeRewriteCache,
-};
+use crate::analyze::common::{CanonicalSymbolMode, RelationMode, TypeContext, TypeRewriteCache};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
@@ -12,6 +10,8 @@ use destack_dir::{
     ScalarLiteral, StaticExpression, StaticKey, StaticParameterKind, StaticProperty, Type,
     TypeBinaryOperator, UnaryOperator,
 };
+use destack_source::ModuleId;
+use destack_workspace::{ArtifactKey, ProfileId};
 use std::collections::{HashMap, HashSet};
 
 #[allow(clippy::too_many_arguments)]
@@ -33,7 +33,7 @@ impl Compiler {
             StaticEvaluationMode::Parametric,
             StaticEvaluationDiagnosticMode::Report,
             None,
-            DirReadBoundary::Analyzed,
+            destack_workspace::ArtifactKey::dir_analyzed,
             &mut visited,
         )
     }
@@ -57,7 +57,7 @@ impl Compiler {
             StaticEvaluationMode::Instantiated,
             StaticEvaluationDiagnosticMode::Report,
             Some(substitutions),
-            DirReadBoundary::Analyzed,
+            destack_workspace::ArtifactKey::dir_interface,
             &mut visited,
         )
     }
@@ -80,7 +80,7 @@ impl Compiler {
             StaticEvaluationMode::Parametric,
             StaticEvaluationDiagnosticMode::Suppress,
             None,
-            DirReadBoundary::Analyzed,
+            destack_workspace::ArtifactKey::dir_analyzed,
             &mut visited,
         )
     }
@@ -95,7 +95,7 @@ impl Compiler {
         mode: StaticEvaluationMode,
         diagnostic_mode: StaticEvaluationDiagnosticMode,
         substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        remote_dependency_boundary: DirReadBoundary,
+        remote_dependency_artifact: fn(ModuleId, ProfileId) -> ArtifactKey,
         visited: &mut HashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<StaticExpression>> {
         let expression = ctx.tree.get(expression_id);
@@ -116,7 +116,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_boundary,
+                    remote_dependency_artifact,
                     visited,
                 );
             }
@@ -128,7 +128,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_boundary,
+                    remote_dependency_artifact,
                     visited,
                 );
             }
@@ -140,7 +140,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_boundary,
+                    remote_dependency_artifact,
                     visited,
                 );
             }
@@ -152,7 +152,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_boundary,
+                    remote_dependency_artifact,
                     visited,
                 )?;
                 let Some(StaticExpression::ScalarLiteral { value }) = right_value else {
@@ -183,7 +183,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_boundary,
+                    remote_dependency_artifact,
                     visited,
                 )?;
                 let right_value = self.evaluate_static_expression_value_inner(
@@ -193,7 +193,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_boundary,
+                    remote_dependency_artifact,
                     visited,
                 )?;
                 let (left_value, right_value) = match (left_value, right_value) {
@@ -325,7 +325,7 @@ impl Compiler {
                     lookup_symbol,
                     mode,
                     substitutions,
-                    remote_dependency_boundary,
+                    remote_dependency_artifact,
                     if mode == StaticEvaluationMode::Instantiated {
                         StaticCycleDiagnosticMode::Report
                     } else {
@@ -478,7 +478,7 @@ impl Compiler {
                         selection.target_symbol,
                         projected_mode,
                         merged_substitutions.as_ref(),
-                        remote_dependency_boundary,
+                        remote_dependency_artifact,
                         if projected_mode == StaticEvaluationMode::Instantiated {
                             StaticCycleDiagnosticMode::Report
                         } else {
@@ -515,7 +515,7 @@ impl Compiler {
                             candidate_symbol,
                             mode,
                             substitutions,
-                            remote_dependency_boundary,
+                            remote_dependency_artifact,
                             if mode == StaticEvaluationMode::Instantiated {
                                 StaticCycleDiagnosticMode::Report
                             } else {
@@ -679,7 +679,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_boundary,
+                    remote_dependency_artifact,
                     visited,
                 );
             }
@@ -782,7 +782,7 @@ impl Compiler {
                     mode,
                     diagnostic_mode,
                     substitutions,
-                    remote_dependency_boundary,
+                    remote_dependency_artifact,
                     visited,
                 );
             }
@@ -807,7 +807,7 @@ impl Compiler {
                         mode,
                         diagnostic_mode,
                         substitutions,
-                        remote_dependency_boundary,
+                        remote_dependency_artifact,
                         visited,
                     )?;
                     let Some(value) = value else {
@@ -830,7 +830,7 @@ impl Compiler {
                         mode,
                         diagnostic_mode,
                         substitutions,
-                        remote_dependency_boundary,
+                        remote_dependency_artifact,
                         visited,
                     )?;
                     let Some(value) = value else {
@@ -863,7 +863,7 @@ impl Compiler {
                                 mode,
                                 diagnostic_mode,
                                 substitutions,
-                                remote_dependency_boundary,
+                                remote_dependency_artifact,
                                 visited,
                             )?;
                             let Some(value) = value else {
@@ -877,7 +877,7 @@ impl Compiler {
                                     mode,
                                     diagnostic_mode,
                                     substitutions,
-                                    remote_dependency_boundary,
+                                    remote_dependency_artifact,
                                     visited,
                                 )?;
                                 let Some(default_value) = default_value else {

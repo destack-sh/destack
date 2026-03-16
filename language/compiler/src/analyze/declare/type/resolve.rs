@@ -1,6 +1,5 @@
 use crate::analyze::common::{
-    CanonicalSymbolMode, DirReadBoundary, ModuleSymbolView, TreeSymbolView, TypeContext,
-    TypeRewriteCache, TypeView,
+    CanonicalSymbolMode, ModuleSymbolView, TreeSymbolView, TypeContext, TypeRewriteCache, TypeView,
 };
 use crate::analyze::declare::StaticConstantResolutionMode;
 use crate::analyze::infer::RemoteValueTypeReadDomain;
@@ -11,7 +10,7 @@ use destack_dir::{
     DependencyItem, DependencyMode, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, NodeTree, NodeType, NormalizationMode, ScalarLiteral, StaticArgument,
     StaticExpression, StaticKey, StaticParameterKind, SymbolKind, SymbolSpace, SymbolSpaceOrder,
-    SymbolType, Type, TypeLiteral, TypeTable, TypeUnaryOperator, are_types_equal,
+    Type, TypeLiteral, TypeTable, TypeUnaryOperator, are_types_equal,
 };
 use destack_source::ModuleId;
 use destack_workspace::Module;
@@ -51,6 +50,38 @@ enum TypeIndexReceiverState {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Publish one symbolic array-size reference result.
+    fn publish_symbolic_array_size_type(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        candidate_expression_id: LocalNodeId<Expression>,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<Vec<StaticArgument>>,
+    ) -> LocalTypeId {
+        let reference_type = Type::Reference {
+            symbol,
+            static_arguments,
+        };
+        let reference_type_id = ctx
+            .types
+            .insert_type_from_any(reference_type, expression_id.into_any());
+        ctx.types.set_inferred_type(
+            expression_id.into_global_any(ctx.module.id),
+            reference_type_id,
+        );
+
+        // keep the candidate node typed when we synthesize one symbolic array-size reference
+        if expression_id != candidate_expression_id {
+            ctx.types.set_inferred_type(
+                candidate_expression_id.into_global_any(ctx.module.id),
+                reference_type_id,
+            );
+        }
+
+        reference_type_id
+    }
+
     pub(crate) fn set_integer_literal_type(
         &self,
         module_id: ModuleId,
@@ -169,19 +200,14 @@ impl Compiler {
                             ctx.tree.get(candidate_expression_id).static_arguments();
                         let static_arguments = self
                             .evaluate_static_arguments(&mut ctx.reborrow(), expression_arguments)?;
-                        let reference_type = Type::Reference {
+                        inferred_id = self.publish_symbolic_array_size_type(
+                            &mut ctx.reborrow(),
+                            expression_id,
+                            candidate_expression_id,
                             symbol,
                             static_arguments,
-                        };
-                        inferred_id = ctx.types.insert_type_from_any(
-                            reference_type,
-                            candidate_expression_id.into_any(),
                         );
                     }
-                    ctx.types.set_inferred_type(
-                        expression_id.into_global_any(ctx.module.id),
-                        inferred_id,
-                    );
                     return Ok(Some(inferred_id));
                 }
 
@@ -207,15 +233,13 @@ impl Compiler {
                     return Ok(Some(materialized_type_id));
                 }
 
-                // explicit comptime fixed-array lengths require fully resolved receiver substitutions
-                if let Some(selection) = selection.as_ref()
-                    && self.receiver_projection_arguments_require_deferral(
-                        ctx.type_view(),
-                        &selection.receiver_arguments,
-                    )
-                    && selection.receiver_symbol.module_id == ctx.module.id
-                    && is_explicit_comptime
-                {
+                // keep associated comptime projections symbolic, while preserving receiver args for substitution
+                let receiver_arguments = selection
+                    .as_ref()
+                    .map(|selection| selection.receiver_arguments.clone())
+                    .filter(|arguments| !arguments.is_empty());
+
+                if is_explicit_comptime && symbol.module_id == ctx.module.id {
                     self.error(AnalyzeError::InvalidComptimeExpression {
                         node: expression_id
                             .into_global_any(ctx.module.id)
@@ -224,21 +248,12 @@ impl Compiler {
                     return Ok(None);
                 }
 
-                // keep associated comptime projections symbolic, while preserving receiver args for substitution
-                let receiver_arguments = selection
-                    .as_ref()
-                    .map(|selection| selection.receiver_arguments.clone())
-                    .filter(|arguments| !arguments.is_empty());
-                let reference_type = Type::Reference {
+                let reference_type_id = self.publish_symbolic_array_size_type(
+                    &mut ctx.reborrow(),
+                    expression_id,
+                    candidate_expression_id,
                     symbol,
-                    static_arguments: receiver_arguments,
-                };
-                let reference_type_id = ctx
-                    .types
-                    .insert_type_from_any(reference_type, expression_id.into_any());
-                ctx.types.set_inferred_type(
-                    expression_id.into_global_any(ctx.module.id),
-                    reference_type_id,
+                    receiver_arguments,
                 );
                 return Ok(Some(reference_type_id));
             }
@@ -524,12 +539,12 @@ impl Compiler {
             if target_symbol.module_id == ctx.module.id && ctx.types.module_id == ctx.module.id {
                 Some(self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), target_symbol))
             } else {
-                self.with_module_types_or_local_at_boundary(
+                self.with_module_types_or_local_for_artifact(
                     ctx.module,
                     ctx.profile,
                     target_symbol.module_id,
                     ctx.types,
-                    DirReadBoundary::Declared,
+                    destack_workspace::ArtifactKey::dir_declared,
                     |_owner_module, owner_types| {
                         owner_types.query_artifact_static_parameter_kind(target_symbol)
                     },
@@ -1075,13 +1090,13 @@ impl Compiler {
             }
             if let Some(projected_symbol) = ctx.tree.get(expression_id).target_symbol() {
                 let is_enum_field = self
-                    .with_module_tree_symbol_view_or_local_at_boundary(
+                    .with_module_tree_symbol_view_or_local_for_artifact(
                         ctx.module,
                         ctx.profile,
                         projected_symbol.module_id,
                         ctx.tree,
                         ctx.symbols,
-                        DirReadBoundary::Declared,
+                        destack_workspace::ArtifactKey::dir_declared,
                         |view| {
                             let symbol_entry = view.symbols.get_symbol(projected_symbol.local_id);
                             let Some(primary_declaration) = symbol_entry.primary_declaration else {
@@ -1296,13 +1311,29 @@ impl Compiler {
         let symbol_space = self
             .query_symbol_space_for_reference_if_declared(ctx.module_symbol_view(), target_symbol);
         if symbol_space == Some(SymbolSpace::Value) {
+            let member_kind = self.query_static_member_symbol_kind_for_symbol(
+                ctx.tree_symbol_view(),
+                target_symbol,
+            )?;
+            if matches!(
+                member_kind,
+                Some(StaticMemberSymbolKind::AssociatedComptimeConst)
+            ) {
+                let ty = Type::Reference {
+                    symbol: target_symbol,
+                    static_arguments,
+                };
+                self.cache_type_reference_maybe(reference_cache_key, &ty, ctx.types);
+                return Ok(ty);
+            }
+
             let mut visited = HashSet::new();
             if let Some(static_value) = self.resolve_static_constant_reference_for_mode(
                 &mut ctx.reborrow(),
                 target_symbol,
                 None,
                 &mut visited,
-                StaticConstantResolutionMode::Parametric,
+                StaticConstantResolutionMode::InstantiatedDeclare,
             )? {
                 let constant_type = match static_value {
                     StaticExpression::ScalarLiteral { value } => Some(Type::TypeLiteral {
@@ -1340,24 +1371,6 @@ impl Compiler {
             return Ok(normalized);
         }
 
-        // validate alias and newtype targets before keeping the nominal reference
-        if resolve_static_arguments
-            && matches!(
-                target_symbol.ty(),
-                SymbolType::TypeAlias | SymbolType::Newtype
-            )
-        {
-            if let Some(alias_target_id) = self.require_alias_target_type_id_for_symbol(
-                &mut ctx.reborrow(),
-                target_symbol,
-                expression_id.into_any(),
-            )? {
-                if ctx.types.get_type(alias_target_id).is_error() {
-                    return Ok(Type::Error);
-                }
-            }
-        }
-
         // fall back to a nominal reference
         let ty = Type::Reference {
             symbol: target_symbol,
@@ -1373,12 +1386,12 @@ impl Compiler {
         view: ModuleSymbolView<'_>,
         target_symbol: GlobalSymbolId,
     ) -> Option<SymbolSpace> {
-        self.with_module_symbols_or_local_at_boundary(
+        self.with_module_symbols_or_local_for_artifact(
             view.module,
             view.profile,
             target_symbol.module_id,
             view.symbols,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |_owner_module, owner_symbols| {
                 let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
                 Some(symbol_entry.space)

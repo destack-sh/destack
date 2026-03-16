@@ -43,9 +43,9 @@ let z = c;
     );
 
     test.analyze_module_and_check_clean(main_id);
-    let a_view = test.view(test.module("a.ds").read().id);
-    let b_view = test.view(test.module("b.ds").read().id);
-    let c_view = test.view(test.module("c.ds").read().id);
+    let a_view = test.view(test.module("a.ds").id);
+    let b_view = test.view(test.module("b.ds").id);
+    let c_view = test.view(test.module("c.ds").id);
     let a_symbol = test
         .resolve_to_symbol("a.ds", "a")
         .expect("missing a symbol");
@@ -166,7 +166,7 @@ let value = d;
     );
 
     test.analyze_module_and_check_clean(main_id);
-    let d_view = test.view(test.module("d.ds").read().id);
+    let d_view = test.view(test.module("d.ds").id);
     let d_symbol = test
         .resolve_to_symbol("d.ds", "d")
         .expect("missing d symbol");
@@ -261,7 +261,7 @@ let value = x;
 
     test.analyze_module_and_check_clean(main_id);
 
-    let b_view = test.view(test.module("b.ds").read().id);
+    let b_view = test.view(test.module("b.ds").id);
     let y_symbol = test
         .resolve_to_symbol("b.ds", "y")
         .expect("missing y symbol");
@@ -322,7 +322,7 @@ let value = x;
 
     test.analyze_module_and_check_clean(main_id);
 
-    let b_view = test.view(test.module("b.ds").read().id);
+    let b_view = test.view(test.module("b.ds").id);
     let y_symbol = test
         .resolve_to_symbol("b.ds", "y")
         .expect("missing y symbol");

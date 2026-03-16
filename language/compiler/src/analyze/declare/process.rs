@@ -1,9 +1,7 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::Arc;
 
-use indexmap::IndexMap;
-
-use crate::analyze::DirReadBoundary;
-use crate::analyze::common::{ModuleTreeView, TypeContext};
+use crate::analyze::common::TypeContext;
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementCollector, BuildRequirementError,
@@ -11,8 +9,8 @@ use crate::{
 };
 use destack_builtin::BuiltinLibKind;
 use destack_dir::{
-    Declaration, DeclarationAbstraction, Export, GlobalSymbolId, LocalTypeId, StaticKey,
-    SymbolSpace, SymbolType, Type,
+    Declaration, DeclarationAbstraction, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member,
+    NodeType, SymbolType, Type,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{ArtifactKey, Module, ModuleDir, ModuleSource, ProfileId};
@@ -24,28 +22,9 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
-        // current local build frame already satisfies declared reads
-        if self
-            .current_active_dir_frame(module, profile, DirReadBoundary::Declared)
-            .is_some()
-        {
-            return Ok(());
-        }
-
-        let current_build_key = self.current_build_key();
-        // avoid self dependency when already declaring this module
-        if current_build_key
-            == Some(BuildKey::Artifact(ArtifactKey::DirDeclared {
-                module,
-                profile,
-            }))
-        {
-            return Ok(());
-        }
-
         // skip ambient builtin declarations when libs are disabled
         let module_ref = self.program.modules.get(module);
-        let module_ref = module_ref.read();
+        let module_ref = module_ref.as_ref();
         if !self.options.load_libs {
             if matches!(
                 module_ref.source,
@@ -53,6 +32,16 @@ impl Compiler {
             ) {
                 return Ok(());
             }
+        }
+
+        // avoid self dependency while declaring one module
+        if self.current_build_key()
+            == Some(BuildKey::Artifact(ArtifactKey::DirDeclared {
+                module,
+                profile,
+            }))
+        {
+            return Ok(());
         }
 
         self.require_build_key(BuildKey::Artifact(ArtifactKey::DirDeclared {
@@ -64,7 +53,7 @@ impl Compiler {
     /// Phase 1: Evaluate declarations.
     pub(crate) fn analyze_module_declare(
         &self,
-        dir: &ModuleDir,
+        dir: &mut ModuleDir,
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
@@ -85,7 +74,7 @@ impl Compiler {
 
         // load module state and dir ctx
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
 
         // skip analysis when module language is disabled
         if !self.module_language_allowed(module_id) {
@@ -99,21 +88,32 @@ impl Compiler {
         // ensure ambient libs are declared before user modules
         self.ensure_ambient_libs_declared(&module, profile)?;
 
-        // snapshot the module dir ctx for analysis
-        let tree = dir.tree.read();
-        let mut types = dir.types.write();
-        let symbols = dir.symbols.read();
+        // borrow the declaration inputs and phase-local type table
+        let ModuleDir {
+            tree,
+            symbols,
+            roots,
+            types,
+            ..
+        } = dir;
+        let types = Arc::make_mut(types);
         let mut collector = BuildRequirementCollector::new();
         let module_checks = self.module_check_options_for_module(module.id);
         let options = self.analyze_context_options_for_module(module.id);
-        let mut ctx =
-            TypeContext::with_dir(&module, profile, &options, dir, &tree, &symbols, &mut types);
+        let mut ctx = TypeContext::new(
+            &module,
+            profile,
+            &options,
+            tree.as_ref(),
+            symbols.as_ref(),
+            types,
+        );
 
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECLARATIONS);
             self.collect(
                 &mut collector,
-                self.collect_module_declarations(&mut ctx.reborrow()),
+                self.collect_module_declarations(&mut ctx.reborrow(), roots.as_ref()),
             );
 
             // validate declaration implemented-contract conformance in declaration phase
@@ -127,6 +127,22 @@ impl Compiler {
         self.index_static_parameter_metadata(&mut ctx.reborrow());
 
         // yield after declaration metadata writes
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(AnalyzeError::Yield { requirement });
+        }
+
+        let mut collector = BuildRequirementCollector::new();
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_DECLARE_TYPES);
+
+            // publish declare-owned static constant values before resolving types that depend on them
+            self.collect(
+                &mut collector,
+                self.publish_declared_static_constant_values_for_module(&mut ctx.reborrow()),
+            );
+        }
+
+        // yield after static constant publication
         if let Some(requirement) = collector.try_into_requirement() {
             return Err(AnalyzeError::Yield { requirement });
         }
@@ -158,35 +174,14 @@ impl Compiler {
             );
         }
 
-        // publish declare-owned static constant values for cross-module static evaluation
-        self.collect(
-            &mut publish_collector,
-            self.publish_declared_static_constant_values_for_module(&mut ctx.reborrow()),
-        );
-
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_ALIASES);
 
-            // publish exported alias targets from declared type metadata
-            let exported_symbols = dir.exported_symbols.read();
-            let binding_exports = dir.module_binding_exports.read();
+            // publish all local alias targets from declared type metadata
             self.collect(
                 &mut publish_collector,
-                self.publish_declared_alias_targets(&mut ctx.reborrow(), &exported_symbols),
+                self.publish_declared_module_alias_targets(&mut ctx.reborrow()),
             );
-            for binding in binding_exports.values() {
-                self.collect(
-                    &mut publish_collector,
-                    self.publish_declared_alias_targets(&mut ctx.reborrow(), &binding.exports),
-                );
-            }
-
-            // publish ambient declared aliases that are visible through local scopes
-            self.publish_declared_scope_alias_targets(&mut ctx.reborrow(), dir.namespace_scope)?;
-            self.publish_declared_scope_alias_targets(
-                &mut ctx.reborrow(),
-                dir.global_augmentation_scope,
-            )?;
         }
 
         // yield after static-constraint publication
@@ -194,25 +189,24 @@ impl Compiler {
             return Err(AnalyzeError::Yield { requirement });
         }
 
-        // drop the read guard before taking a mutable lock for decorators
-        drop(symbols);
+        drop(ctx);
 
+        // drop the read guard before taking a mutable lock for decorators
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECORATORS);
 
             // attach well known decorator metadata to symbols
-            let mut symbols = dir.symbols.write();
-            let mut captures = dir.captures.write();
+            let ModuleDir {
+                symbols: symbol_table,
+                captures: capture_table,
+                ..
+            } = dir;
+            let symbols = Arc::make_mut(symbol_table);
+            let captures = Arc::make_mut(capture_table);
             self.collect(
                 &mut collector,
-                self.register_symbol_decorators(
-                    ModuleTreeView::new(&module, profile, &tree),
-                    &mut symbols,
-                    &mut captures,
-                ),
+                self.register_symbol_decorators(&module, profile, tree.as_ref(), symbols, captures),
             );
-            drop(symbols);
-            drop(captures);
         }
 
         // cache well-known intrinsics after decorator registration
@@ -341,10 +335,34 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         collector: &mut BuildRequirementCollector,
     ) -> bool {
+        let mut skipped_alias_targets = HashSet::new();
+        for symbol_id in 0..ctx.symbols.symbol_count() {
+            let raw_symbol = LocalSymbolId::new(symbol_id).into_global(ctx.module.id);
+            let symbol_entry = ctx.symbols.get_symbol(raw_symbol.local_id);
+            if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+                continue;
+            }
+
+            let typed_symbol = GlobalSymbolId::new(
+                ctx.module.id,
+                raw_symbol.local_id.with_type(symbol_entry.ty),
+            );
+            if let Some(type_id) = ctx
+                .types
+                .get_alias_target_type_id(typed_symbol)
+                .or_else(|| ctx.types.get_alias_target_type_id(raw_symbol))
+            {
+                skipped_alias_targets.insert(type_id);
+            }
+        }
+
         // seed the worklist
         let mut pending: VecDeque<LocalTypeId> = (0..ctx.types.type_count())
             .map(LocalTypeId::new)
-            .filter(|ty_id| matches!(ctx.types.get_type(*ty_id), Type::Unevaluated(_)))
+            .filter(|ty_id| {
+                matches!(ctx.types.get_type(*ty_id), Type::Unevaluated(_))
+                    && !skipped_alias_targets.contains(ty_id)
+            })
             .collect();
         let mut did_change = true;
 
@@ -359,10 +377,21 @@ impl Compiler {
                     continue;
                 }
 
-                self.collect(
-                    collector,
-                    self.resolve_declared_type(&mut ctx.reborrow(), ty_id),
-                );
+                match self.resolve_declared_type(&mut ctx.reborrow(), ty_id) {
+                    Ok(()) => {}
+                    Err(AnalyzeError::Yield { requirement }) => {
+                        collector.try_collect::<(), _>(Err(AnalyzeError::Yield { requirement }));
+                        next_pending.push_back(ty_id);
+                        continue;
+                    }
+                    Err(AnalyzeError::UnsatisfiedRequirement { .. }) => {
+                        next_pending.push_back(ty_id);
+                        continue;
+                    }
+                    Err(error) => {
+                        self.error(error);
+                    }
+                }
 
                 if collector.has_requirements() {
                     return true;
@@ -380,7 +409,9 @@ impl Compiler {
             if new_type_count > type_count {
                 for i in type_count..new_type_count {
                     let ty_id = LocalTypeId::new(i);
-                    if matches!(ctx.types.get_type(ty_id), Type::Unevaluated(_)) {
+                    if matches!(ctx.types.get_type(ty_id), Type::Unevaluated(_))
+                        && !skipped_alias_targets.contains(&ty_id)
+                    {
                         next_pending.push_back(ty_id);
                     }
                 }
@@ -392,76 +423,83 @@ impl Compiler {
         false
     }
 
-    /// Publish exported alias targets from declared local type metadata.
-    fn publish_declared_alias_targets(
+    /// Publish alias targets for all local alias declarations in one pass.
+    fn publish_declared_module_alias_targets(
         &self,
         ctx: &mut TypeContext<'_>,
-        exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
     ) -> AnalyzeResult<()> {
-        for export in exports.values() {
-            // skip non-type exports
-            if export.space != SymbolSpace::Type {
-                continue;
-            }
-
-            // skip unresolved or remote exports
-            let Some(export_symbol) = export.target.resolved() else {
-                continue;
-            };
-            if export_symbol.module_id != ctx.module.id {
-                continue;
-            }
-
-            // skip non-alias symbols
-            let symbol_entry = ctx.symbols.get_symbol(export_symbol.local_id);
+        for symbol_id in 0..ctx.symbols.symbol_count() {
+            let raw_symbol = LocalSymbolId::new(symbol_id).into_global(ctx.module.id);
+            let symbol_entry = ctx.symbols.get_symbol(raw_symbol.local_id);
             if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
                 continue;
             }
 
-            // keep declared alias targets symbolic until a consumer needs evaluation
             let typed_symbol = GlobalSymbolId::new(
                 ctx.module.id,
-                export_symbol.local_id.with_type(symbol_entry.ty),
+                raw_symbol.local_id.with_type(symbol_entry.ty),
             );
-            let Some(alias_target_id) = ctx.types.get_alias_target_type_id(typed_symbol) else {
+            let expression_id = symbol_entry
+                .primary_declaration
+                .and_then(
+                    |primary_declaration| match primary_declaration.local_id.ty {
+                        NodeType::Declaration => {
+                            let declaration_id =
+                                primary_declaration.local_id.into_typed::<Declaration>();
+                            let Declaration::Type { value, .. } = ctx.tree.get(declaration_id)
+                            else {
+                                return None;
+                            };
+
+                            Some(*value)
+                        }
+                        NodeType::Member => {
+                            let member_id = primary_declaration.local_id.into_typed::<Member>();
+                            let Member::Type { value, .. } = ctx.tree.get(member_id) else {
+                                return None;
+                            };
+
+                            *value
+                        }
+                        _ => None,
+                    },
+                );
+            let has_declared_target = expression_id.is_some();
+            if !has_declared_target
+                && ctx.types.get_alias_target_type_id(typed_symbol).is_none()
+                && ctx.types.get_alias_target_type_id(raw_symbol).is_none()
+            {
+                continue;
+            }
+
+            let alias_target_id = if let Some(alias_target_id) = ctx
+                .types
+                .get_alias_target_type_id(typed_symbol)
+                .or_else(|| ctx.types.get_alias_target_type_id(raw_symbol))
+            {
+                alias_target_id
+            } else if let Some(expression_id) = expression_id {
+                let global_id = expression_id.into_global_any(ctx.module.id);
+                let Some(alias_target_id) = ctx.types.get_declared_type_id(global_id) else {
+                    continue;
+                };
+                alias_target_id
+            } else {
                 continue;
             };
-            if matches!(ctx.types.get_type(alias_target_id), Type::Unevaluated(_)) {
-                continue;
+
+            ctx.types
+                .set_alias_target_type_id(typed_symbol, alias_target_id);
+
+            if let Some(expression_id) = expression_id {
+                self.report_declared_alias_cycle_if_any(
+                    &mut ctx.reborrow(),
+                    typed_symbol,
+                    expression_id,
+                    alias_target_id,
+                )?;
             }
 
-            // materialize static arguments before publishing
-            let mut cache = HashMap::new();
-            let materialized =
-                self.materialize_static_arguments_in_type(ctx, alias_target_id, &mut cache);
-            if materialized != alias_target_id {
-                ctx.types
-                    .set_alias_target_type_id(typed_symbol, materialized);
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Publish alias targets from one declared scope.
-    fn publish_declared_scope_alias_targets(
-        &self,
-        ctx: &mut TypeContext<'_>,
-        scope_id: destack_dir::LocalScopeId,
-    ) -> AnalyzeResult<()> {
-        let scope = ctx.symbols.get_scope_by_id(scope_id);
-
-        for (_, symbol_id) in ctx.symbols.active_named_symbols(scope) {
-            let symbol_entry = ctx.symbols.get_symbol(symbol_id);
-            if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
-                continue;
-            }
-
-            let typed_symbol =
-                GlobalSymbolId::new(ctx.module.id, symbol_id.with_type(symbol_entry.ty));
-            let Some(alias_target_id) = ctx.types.get_alias_target_type_id(typed_symbol) else {
-                continue;
-            };
             if matches!(ctx.types.get_type(alias_target_id), Type::Unevaluated(_)) {
                 continue;
             }

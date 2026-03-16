@@ -5,32 +5,50 @@ use destack_dir::{DependencyKind, DependencySource, Expression, ScalarLiteral};
 use destack_source::ModuleId;
 use destack_workspace::{ModuleGraphKey, ModuleSource, ProfileId};
 
-use crate::analyze::common::ModuleTreeView;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, ResolveError};
 
 impl Compiler {
     /// Require interface analysis for the type-import dependency closure used during infer.
     pub(super) fn require_type_import_interface_dependencies(
         &self,
-        view: ModuleTreeView<'_>,
+        module: &destack_workspace::Module,
+        profile: ProfileId,
+        tree: &destack_dir::NodeTree,
     ) -> AnalyzeResult<()> {
         // collect and require interface dependencies in deterministic module order
-        let required_modules = self.collect_type_import_interface_dependencies(view)?;
-        self.require_interface_modules_for_infer(view.profile, required_modules)
+        let required_modules =
+            self.collect_type_import_interface_dependencies(module, profile, tree)?;
+        let module_ids = self.sorted_unique_module_ids(required_modules);
+        let mut first_error = None;
+        for module_id in module_ids {
+            if let Err(error) = self.require_dir_interface(module_id, profile)
+                && first_error.is_none()
+            {
+                first_error = Some(error);
+            }
+        }
+
+        if let Some(error) = first_error {
+            return Err(AnalyzeError::from(error));
+        }
+
+        Ok(())
     }
 
     /// Collect interface dependency modules for type-import expressions used during infer.
     fn collect_type_import_interface_dependencies(
         &self,
-        view: ModuleTreeView<'_>,
+        module: &destack_workspace::Module,
+        profile: ProfileId,
+        tree: &destack_dir::NodeTree,
     ) -> AnalyzeResult<HashSet<ModuleId>> {
         let dir = self
-            .require_artifact_dir_resolved(view.module.id, view.profile)
+            .require_artifact_dir_resolved(module.id, profile)
             .map_err(AnalyzeError::from)?;
         let mut required = HashSet::new();
 
         // collect direct and projection-owner interface dependencies
-        for (expression_id, expression) in view.tree.iter_nodes_of_type::<Expression>() {
+        for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
             let Expression::TypeImport {
                 target, qualifier, ..
             } = expression
@@ -39,17 +57,17 @@ impl Compiler {
             };
             let Expression::ScalarLiteral {
                 value: ScalarLiteral::String(target_string),
-            } = view.tree.get(*target)
+            } = tree.get(*target)
             else {
                 continue;
             };
 
             // collect direct target-module interface dependency
-            let source_node_id = expression_id.into_global_any(view.module.id);
+            let source_node_id = expression_id.into_global_any(module.id);
             let target_module = match self.resolve_import_from_artifact(
-                view.module,
+                module,
                 dir.as_ref(),
-                view.profile,
+                profile,
                 source_node_id,
                 DependencySource::ImportStatement,
                 *target_string,
@@ -70,14 +88,15 @@ impl Compiler {
                 },
             };
             if let Some(target_module_id) = target_module.module_id()
-                && target_module_id != view.module.id
+                && target_module_id != module.id
             {
                 required.insert(target_module_id);
             }
 
             // collect transitive owner dependency for qualified projections
             let resolved_symbol = self.resolve_import_type_symbol(
-                view,
+                module,
+                profile,
                 expression_id.into_any(),
                 *target_string,
                 qualifier.as_ref(),
@@ -85,7 +104,7 @@ impl Compiler {
             let Some(resolved_symbol) = resolved_symbol else {
                 continue;
             };
-            if resolved_symbol.module_id != view.module.id {
+            if resolved_symbol.module_id != module.id {
                 required.insert(resolved_symbol.module_id);
             }
         }
@@ -128,7 +147,21 @@ impl Compiler {
             }
         }
 
-        self.require_declared_modules_for_infer(profile, visited)
+        let module_ids = self.sorted_unique_module_ids(visited);
+        let mut first_error = None;
+        for module_id in module_ids {
+            if let Err(error) = self.require_dir_declared(module_id, profile)
+                && first_error.is_none()
+            {
+                first_error = Some(error);
+            }
+        }
+
+        if let Some(error) = first_error {
+            return Err(AnalyzeError::from(error));
+        }
+
+        Ok(())
     }
 
     /// Ensure interface analysis is complete for infer dependency modules.
@@ -153,73 +186,7 @@ impl Compiler {
             .dependencies_for(module_id)
             .into_iter()
             .filter(|dependency| !self.skip_builtin_lib_dependency_for_infer(*dependency));
-        self.require_interface_modules_for_infer(profile, dependencies)?;
-
-        Ok(())
-    }
-
-    /// Ensure interface analysis is complete for ambient lib modules.
-    pub(super) fn require_interface_inference_for_ambient_libs(
-        &self,
-        profile: ProfileId,
-    ) -> AnalyzeResult<()> {
-        if !self.options.load_libs {
-            return Ok(());
-        }
-
-        // require interface analysis for ambient lib modules
-        let lib_modules = self.lib_environment_modules(profile);
-        if lib_modules.is_empty() {
-            return Ok(());
-        }
-        self.require_interface_modules_for_infer(profile, lib_modules)?;
-
-        Ok(())
-    }
-
-    /// Return true when one dependency should be skipped for infer preconditions.
-    fn skip_builtin_lib_dependency_for_infer(&self, module_id: ModuleId) -> bool {
-        if self.options.load_libs {
-            return false;
-        }
-
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        matches!(module.source, ModuleSource::Builtin(BuiltinLibKind::Lib))
-    }
-
-    /// Require declare analysis for one module set and return the first dependency error.
-    fn require_declared_modules_for_infer(
-        &self,
-        profile: ProfileId,
-        modules: impl IntoIterator<Item = ModuleId>,
-    ) -> AnalyzeResult<()> {
-        // require declare tasks in deterministic order and return the first dependency
-        let module_ids = self.sorted_unique_module_ids(modules);
-        let mut first_error = None;
-        for module_id in module_ids {
-            if let Err(error) = self.require_dir_declared(module_id, profile)
-                && first_error.is_none()
-            {
-                first_error = Some(error);
-            }
-        }
-
-        if let Some(error) = first_error {
-            return Err(AnalyzeError::from(error));
-        }
-
-        Ok(())
-    }
-
-    /// Require interface analysis for one module set and return the first dependency error.
-    fn require_interface_modules_for_infer(
-        &self,
-        profile: ProfileId,
-        modules: impl IntoIterator<Item = ModuleId>,
-    ) -> AnalyzeResult<()> {
-        // require interface tasks in deterministic order and return the first dependency
-        let module_ids = self.sorted_unique_module_ids(modules);
+        let module_ids = self.sorted_unique_module_ids(dependencies);
         let mut first_error = None;
         for module_id in module_ids {
             if let Err(error) = self.require_dir_interface(module_id, profile)
@@ -234,6 +201,17 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Return true when one dependency should be skipped for infer preconditions.
+    fn skip_builtin_lib_dependency_for_infer(&self, module_id: ModuleId) -> bool {
+        if self.options.load_libs {
+            return false;
+        }
+
+        let module = self.program.modules.get(module_id);
+        let module = module.as_ref();
+        matches!(module.source, ModuleSource::Builtin(BuiltinLibKind::Lib))
     }
 
     /// Return one deterministic, deduplicated module id vector.

@@ -2,33 +2,11 @@ use crate::analyze::common::{InferContext, TypeContext};
 use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferState};
 use destack_dir::{
     Constraint, Declaration, Declarator, Export, Expression, GlobalNodeIdAny, GlobalSymbolId,
-    InferOrigin, InferScope, InferTable, LocalNodeId, LocalTypeId, Mutability, NodeTree, NodeType,
-    StaticKey, SymbolSpace, SymbolTable, Type, TypeLiteral, TypeTable,
+    InferOrigin, InferScope, InferTable, LocalNodeId, LocalTypeId, NodeTree, NodeType, StaticKey,
+    SymbolSpace, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 use indexmap::IndexMap;
-
-/// Track an exported declarator that needs surface inference.
-#[derive(Debug)]
-struct InterfaceValueInference {
-    /// The exported symbol to assign a value type.
-    export_symbol: GlobalSymbolId,
-    /// The local binding symbol for the export.
-    value_symbol: GlobalSymbolId,
-    /// The declarator that owns the binding.
-    declarator_id: LocalNodeId<Declarator>,
-    /// The initializer expression when present.
-    value_id: Option<LocalNodeId<Expression>>,
-    /// The binding mutability when available.
-    binding_mutability: Option<Mutability>,
-}
-
-/// Track a function declaration that needs return inference.
-#[derive(Debug)]
-struct InterfaceDeclarationInference {
-    /// The declaration id to infer.
-    declaration_id: LocalNodeId<Declaration>,
-}
 
 impl Compiler {
     /// Infer interface value types using local information only.
@@ -47,31 +25,41 @@ impl Compiler {
                     continue;
                 };
 
-                if let Some(value_ty_id) =
-                    self.known_interface_value_type_id(&mut ctx.reborrow(), value_symbol)?
-                {
+                let Some(declarator_id) =
+                    self.direct_binding_declarator_for_symbol(ctx.tree_symbol_view(), value_symbol)
+                else {
+                    if let Some(value_type_id) =
+                        self.concrete_interface_value_type_id(&mut ctx.reborrow(), value_symbol)?
+                    {
+                        self.publish_interface_value_type(
+                            export_symbol,
+                            value_symbol,
+                            value_type_id,
+                            ctx.types,
+                        );
+                    }
+                    continue;
+                };
+
+                let declared_type_id =
+                    self.declared_interface_value_type_id(&mut ctx.reborrow(), declarator_id)?;
+                if let Some(declared_type_id) = declared_type_id {
                     self.publish_interface_value_type(
                         export_symbol,
                         value_symbol,
-                        value_ty_id,
+                        declared_type_id,
                         ctx.types,
                     );
                     continue;
                 }
 
-                let Some(declarator_id) =
-                    self.direct_binding_declarator_for_symbol(ctx.tree_symbol_view(), value_symbol)
-                else {
-                    continue;
-                };
-
-                if let Some(declared_type_id) =
-                    self.declared_interface_value_type_id(&mut ctx.reborrow(), declarator_id)?
+                if let Some(value_type_id) =
+                    self.concrete_interface_value_type_id(&mut ctx.reborrow(), value_symbol)?
                 {
                     self.publish_interface_value_type(
                         export_symbol,
                         value_symbol,
-                        declared_type_id,
+                        value_type_id,
                         ctx.types,
                     );
                 }
@@ -87,7 +75,7 @@ impl Compiler {
         let base_ctx = InferState::new(ctx.profile, *ctx.options).for_surface_inference();
         let mut infer = InferTable::default();
         let mut inferred_exports = Vec::new();
-        let mut export_inference = Vec::new();
+        let mut pending_initializers = Vec::new();
         let mut export_declarations = Vec::new();
 
         // collect exported symbols that need value types
@@ -109,20 +97,7 @@ impl Compiler {
             if let Some(declaration_id) =
                 self.interface_function_declaration(ctx.tree, primary_declaration)
             {
-                export_declarations.push(InterfaceDeclarationInference { declaration_id });
-                continue;
-            }
-
-            // reuse known value types when already available
-            if let Some(value_ty_id) =
-                self.known_interface_value_type_id(&mut ctx.reborrow(), value_symbol)?
-            {
-                self.publish_interface_value_type(
-                    export_symbol,
-                    value_symbol,
-                    value_ty_id,
-                    ctx.types,
-                );
+                export_declarations.push(declaration_id);
                 continue;
             }
 
@@ -130,13 +105,25 @@ impl Compiler {
             let Some(declarator_id) =
                 self.direct_binding_declarator_for_symbol(ctx.tree_symbol_view(), value_symbol)
             else {
+                let value_type_id =
+                    self.concrete_interface_value_type_id(&mut ctx.reborrow(), value_symbol)?;
+                if let Some(value_type_id) = value_type_id {
+                    self.publish_interface_value_type(
+                        export_symbol,
+                        value_symbol,
+                        value_type_id,
+                        ctx.types,
+                    );
+                    continue;
+                }
+
                 continue;
             };
 
             // evaluate declared types when present
-            if let Some(declared_type_id) =
-                self.declared_interface_value_type_id(&mut ctx.reborrow(), declarator_id)?
-            {
+            let declared_type_id =
+                self.declared_interface_value_type_id(&mut ctx.reborrow(), declarator_id)?;
+            if let Some(declared_type_id) = declared_type_id {
                 self.publish_interface_value_type(
                     export_symbol,
                     value_symbol,
@@ -146,102 +133,83 @@ impl Compiler {
                 continue;
             }
 
-            // defer to surface inference for initializer-only exports
+            // use one already concrete value type when available
+            let value_type_id =
+                self.concrete_interface_value_type_id(&mut ctx.reborrow(), value_symbol)?;
+            if let Some(value_type_id) = value_type_id {
+                self.publish_interface_value_type(
+                    export_symbol,
+                    value_symbol,
+                    value_type_id,
+                    ctx.types,
+                );
+                continue;
+            }
+
+            // seed one surface infer var for initializer-only exports
             let declarator = ctx.tree.get(declarator_id);
             let binding_mutability = ctx
                 .symbols
                 .get_symbol(value_symbol.local_id)
                 .binding_mutability;
-            export_inference.push(InterfaceValueInference {
-                export_symbol,
-                value_symbol,
-                declarator_id,
-                value_id: declarator.value,
-                binding_mutability,
-            });
-        }
-
-        // seed inference variables for export symbols
-        for export in &export_inference {
-            // create an infer var for the exported value
             let scope = InferScope {
-                owner: export.export_symbol,
+                owner: export_symbol,
                 function_id: None,
             };
-            let origin =
-                InferOrigin::Expression(export.declarator_id.into_global_any(ctx.module.id));
+            let origin = InferOrigin::Expression(declarator_id.into_global_any(ctx.module.id));
             let symbol_ty_id = self.infer_var_type_for_symbol(
                 &mut infer,
                 ctx.types,
-                export.export_symbol,
-                export.declarator_id.into_any(),
+                export_symbol,
+                declarator_id.into_any(),
                 origin,
                 scope,
             );
 
-            // register the type id for this export
-            self.publish_interface_value_type(
-                export.export_symbol,
-                export.value_symbol,
+            // publish the infer var as the current export surface
+            self.publish_interface_value_type(export_symbol, value_symbol, symbol_ty_id, ctx.types);
+            inferred_exports.push((symbol_ty_id, declarator_id.into_global_any(ctx.module.id)));
+            pending_initializers.push((
                 symbol_ty_id,
-                ctx.types,
-            );
-            inferred_exports.push((
-                symbol_ty_id,
-                export.declarator_id.into_global_any(ctx.module.id),
+                declarator_id,
+                declarator.value,
+                binding_mutability,
             ));
         }
 
         // infer interface declarations and initializers with one shared ctx context
-        let dir = ctx.dir;
-        let mut ctx = if let Some(dir) = dir {
-            InferContext::with_dir(
-                ctx.module,
-                ctx.profile,
-                &base_ctx.options,
-                dir,
-                ctx.tree,
-                ctx.symbols,
-                ctx.types,
-                &mut infer,
-            )
-        } else {
-            InferContext::new(
-                ctx.module,
-                ctx.profile,
-                &base_ctx.options,
-                ctx.tree,
-                ctx.symbols,
-                ctx.types,
-                &mut infer,
-            )
+        let mut ctx = InferContext {
+            module: ctx.module,
+            profile: ctx.profile,
+            options: &base_ctx.options,
+            tree: ctx.tree,
+            symbols: ctx.symbols,
+            types: ctx.types,
+            infer: &mut infer,
         };
 
         // infer unannotated exported function declarations
-        for export in &export_declarations {
+        for declaration_id in &export_declarations {
             // infer the declaration with an unconstrained expectation
             let mut state = base_ctx.fork().with_expected_type(None);
-            self.infer_declaration(&mut ctx.reborrow(), export.declaration_id, &mut state)?;
+            self.infer_declaration(&mut ctx.reborrow(), *declaration_id, &mut state)?;
         }
 
         // infer initializer types and constrain export symbols
-        for export in &export_inference {
+        for (symbol_ty_id, declarator_id, value_id, binding_mutability) in pending_initializers {
             // skip exports without initializers or symbols
-            let Some(value_id) = export.value_id else {
-                continue;
-            };
-            let Some(symbol_ty_id) = ctx.types.get_value_type_id(export.export_symbol) else {
+            let Some(value_id) = value_id else {
                 continue;
             };
 
             // infer the initializer with binding defaults and export expectations
             let mut state = base_ctx.fork().with_expected_type(Some(symbol_ty_id));
-            state = self.binding_initializer_context(&state, export.binding_mutability);
+            state = self.binding_initializer_context(&state, binding_mutability);
             let inferred_ty_id =
                 self.infer_expression(&mut ctx.reborrow(), value_id, &mut state)?;
             let committed_ty_id = self.materialize_declarator_initializer_type(
                 &mut ctx.type_context_reborrow(),
-                export.declarator_id,
+                declarator_id,
                 inferred_ty_id,
                 &state,
             );
@@ -357,7 +325,7 @@ impl Compiler {
             .filter(|declaration| declaration.module_id == ctx.module.id)
             .map(|declaration| declaration.local_id)
             .or_else(|| export.item.map(|item| item.into_any()))
-            .unwrap_or(ctx.local_anchor_node());
+            .unwrap_or(ctx.anchor_node());
 
         ctx.types.insert_type_from_any(
             Type::TypeLiteral {
@@ -429,13 +397,13 @@ impl Compiler {
         Some(declaration_id)
     }
 
-    /// Return a known value type id for an exported symbol.
-    fn known_interface_value_type_id(
+    /// Return one already concrete value type id for an exported symbol.
+    fn concrete_interface_value_type_id(
         &self,
         ctx: &mut TypeContext<'_>,
         value_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        // reuse known value types when already available
+        // read one already-computed value type
         let value_ty_id = ctx.types.get_value_type_id(value_symbol);
         let Some(value_ty_id) = value_ty_id else {
             return Ok(None);
@@ -486,16 +454,18 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         declarator_id: LocalNodeId<Declarator>,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        // read the declared type when present
-        let declared_type_id = ctx
-            .types
-            .get_declared_type_id(declarator_id.into_global_any(ctx.module.id));
-        let Some(declared_type_id) = declared_type_id else {
+        let declarator = ctx.tree.get(declarator_id);
+        let Some(annotation_id) = declarator.ty else {
             return Ok(None);
         };
 
-        // evaluate and return the declared type
-        self.resolve_declared_type(ctx, declared_type_id)?;
+        let declared_type_id =
+            self.resolve_declared_type_expression(&mut ctx.reborrow(), annotation_id, true, true)?;
+        ctx.types.set_declared_type(
+            declarator_id.into_global_any(ctx.module.id),
+            declared_type_id,
+        );
+
         Ok(Some(declared_type_id))
     }
 

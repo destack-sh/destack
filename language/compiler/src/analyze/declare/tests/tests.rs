@@ -37,10 +37,10 @@ impl TestProgram {
         let profile = self.default_profile_id(module_id);
         let dir = self.artifact_dir_data(module_id, profile);
 
-        let roots = dir.roots.clone();
-        let tree = dir.tree.clone();
-        let symbols = dir.symbols.clone();
-        let types = dir.types.clone();
+        let roots = dir.roots.as_ref().clone();
+        let tree = dir.tree.as_ref().clone();
+        let symbols = dir.symbols.as_ref().clone();
+        let types = dir.types.as_ref().clone();
         let namespace_scope = dir.namespace_scope;
 
         DeclareTestView {

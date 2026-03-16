@@ -1,9 +1,11 @@
+use super::{StaticEvaluationDiagnosticMode, StaticEvaluationMode};
 use crate::analyze::common::TypeContext;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
     Argument, BinaryOperator, Expression, LocalNodeId, LocalTypeId, PrimitiveType, ScalarLiteral,
     StaticArgument, StaticExpression, Type, TypeLiteral, TypeTable,
 };
+use std::collections::HashSet;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -24,8 +26,17 @@ impl Compiler {
         }
 
         let (expression_id, _) = self.unwrap_as_comptime_expression(expression_id, ctx.tree);
-        let value =
-            self.evaluate_static_expression_value(&mut ctx.reborrow(), expression_id, None)?;
+        let mut visited = HashSet::new();
+        let value = self.evaluate_static_expression_value_inner(
+            &mut ctx.reborrow(),
+            expression_id,
+            None,
+            StaticEvaluationMode::Parametric,
+            StaticEvaluationDiagnosticMode::Suppress,
+            None,
+            destack_workspace::ArtifactKey::dir_interface,
+            &mut visited,
+        )?;
         let literal = match value {
             Some(StaticExpression::ScalarLiteral {
                 value: ScalarLiteral::Integer(value),

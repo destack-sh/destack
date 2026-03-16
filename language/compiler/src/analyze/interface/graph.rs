@@ -1,19 +1,10 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use crate::{AnalyzeError, AnalyzeResult, BuildRequirementError, Compiler};
+use crate::{BuildRequirementError, Compiler};
 use destack_source::ModuleId;
 use destack_workspace::{ModuleGraph, ModuleGraphKey, ProfileId};
 use rustc_hash::{FxHashMap, FxHashSet};
-
-/// One resolved interface component execution plan.
-#[derive(Debug)]
-pub(crate) struct InterfaceComponentPlan {
-    /// All modules that belong to the strongly connected component.
-    pub(crate) component_modules: Vec<ModuleId>,
-    /// Dependency component anchors outside the component boundary.
-    pub(crate) dependency_modules: Vec<ModuleId>,
-}
 
 /// Canonical interface component index for one graph snapshot.
 #[derive(Debug, Default, Clone)]
@@ -30,12 +21,12 @@ pub(crate) struct InterfaceComponentGraphIndex {
 
 impl InterfaceComponentGraphIndex {
     /// Return the component id for one module when present.
-    fn component_id_for_module(&self, module_id: ModuleId) -> Option<usize> {
+    pub(super) fn component_id_for_module(&self, module_id: ModuleId) -> Option<usize> {
         self.module_to_component.get(&module_id).copied()
     }
 
     /// Return all modules in the module's component.
-    fn component_modules_for_module(&self, module_id: ModuleId) -> Option<&[ModuleId]> {
+    pub(crate) fn component_modules_for_module(&self, module_id: ModuleId) -> Option<&[ModuleId]> {
         let component_id = self.component_id_for_module(module_id)?;
         self.component_modules.get(component_id).map(Vec::as_slice)
     }
@@ -47,7 +38,10 @@ impl InterfaceComponentGraphIndex {
     }
 
     /// Return dependency anchors for the module's component.
-    fn component_dependency_anchors_for_module(&self, module_id: ModuleId) -> Option<&[ModuleId]> {
+    pub(crate) fn component_dependency_anchors_for_module(
+        &self,
+        module_id: ModuleId,
+    ) -> Option<&[ModuleId]> {
         let component_id = self.component_id_for_module(module_id)?;
         self.component_dependency_anchors
             .get(component_id)
@@ -56,14 +50,14 @@ impl InterfaceComponentGraphIndex {
 }
 
 impl Compiler {
-    /// Ensure direct resolve edges exist for one module's forward dependency closure.
-    pub(super) fn require_interface_forward_closure(
+    /// Ensure resolved dependency edges exist for one module set's transitive closure.
+    pub(crate) fn require_resolved_dependency_closure(
         &self,
-        module_id: ModuleId,
+        modules: impl IntoIterator<Item = ModuleId>,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
         let key = ModuleGraphKey::new(profile);
-        let mut pending = VecDeque::from([module_id]);
+        let mut pending = modules.into_iter().collect::<VecDeque<_>>();
         let mut visited = FxHashSet::default();
 
         while let Some(pending_module_id) = pending.pop_front() {
@@ -102,65 +96,8 @@ impl Compiler {
             .unwrap_or(module_id)
     }
 
-    /// Resolve one strict execution plan for one interface component.
-    pub(crate) fn interface_component_plan(
-        &self,
-        module_id: ModuleId,
-        profile: ProfileId,
-    ) -> AnalyzeResult<InterfaceComponentPlan> {
-        // require a graph snapshot for strict component ownership
-        let key = ModuleGraphKey::new(profile);
-        let graph = self
-            .program
-            .index
-            .module_graphs
-            .get(&key)
-            .ok_or(AnalyzeError::Internal {
-                message: format!("missing interface graph snapshot for profile {profile:?}"),
-            })?;
-
-        // collect strongly connected modules and component dependencies
-        let index = self.interface_component_graph_index(profile, &graph);
-        let component_modules = index
-            .component_modules_for_module(module_id)
-            .map(ToOwned::to_owned)
-            .unwrap_or_else(|| vec![module_id]);
-        let dependency_modules = index
-            .component_dependency_anchors_for_module(module_id)
-            .map(ToOwned::to_owned)
-            .unwrap_or_default();
-
-        Ok(InterfaceComponentPlan {
-            component_modules,
-            dependency_modules,
-        })
-    }
-
-    /// Return true when two modules belong to the same interface component.
-    pub(crate) fn interface_modules_share_component(
-        &self,
-        profile: ProfileId,
-        left_module_id: ModuleId,
-        right_module_id: ModuleId,
-    ) -> bool {
-        let key = ModuleGraphKey::new(profile);
-        let Some(graph) = self.program.index.module_graphs.get(&key) else {
-            return left_module_id == right_module_id;
-        };
-
-        let index = self.interface_component_graph_index(profile, &graph);
-        let left_component_id = index.component_id_for_module(left_module_id);
-        let right_component_id = index.component_id_for_module(right_module_id);
-        match (left_component_id, right_component_id) {
-            (Some(left_component_id), Some(right_component_id)) => {
-                left_component_id == right_component_id
-            }
-            _ => left_module_id == right_module_id,
-        }
-    }
-
     /// Build a canonical interface component index for one graph snapshot.
-    fn interface_component_graph_index(
+    pub(super) fn interface_component_graph_index(
         &self,
         profile: ProfileId,
         graph: &ModuleGraph,

@@ -1,4 +1,3 @@
-use crate::analyze::DirReadBoundary;
 use crate::analyze::common::TypeContext;
 use crate::timing::tags;
 use crate::{
@@ -6,7 +5,8 @@ use crate::{
     Compiler,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ArtifactKey, ModuleDir, ProfileId};
+use destack_workspace::{ModuleDir, ProfileId};
+use std::sync::Arc;
 
 impl Compiler {
     /// Ensure interface DIR exists for a module.
@@ -15,47 +15,54 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
-        // current local build frame already satisfies interface reads
-        if self
-            .current_active_dir_frame(module, profile, DirReadBoundary::Interface)
-            .is_some()
-        {
-            return Ok(());
-        }
-
         // ensure the component graph exists before selecting an anchor
-        self.require_interface_forward_closure(module, profile)?;
+        self.require_resolved_dependency_closure([module], profile)?;
 
         // avoid self dependency when already analyzing this module interface
         if self.current_build_key()
-            == Some(BuildKey::Artifact(ArtifactKey::DirInterface {
-                module,
-                profile,
-            }))
+            == Some(BuildKey::Artifact(
+                destack_workspace::ArtifactKey::DirInterface { module, profile },
+            ))
         {
             return Ok(());
         }
 
         // avoid same-component self cycles only from the canonical anchor task
-        if let Some(BuildKey::Artifact(ArtifactKey::DirInterface {
+        if let Some(BuildKey::Artifact(destack_workspace::ArtifactKey::DirInterface {
             module: current_module,
             profile: current_profile,
         })) = self.current_build_key()
             && current_profile == profile
         {
             let current_anchor = self.interface_component_anchor_module_id(current_module, profile);
-            if current_anchor == current_module
-                && self.interface_modules_share_component(profile, current_module, module)
-            {
-                return Ok(());
+            if current_anchor == current_module {
+                let graph_key = destack_workspace::ModuleGraphKey::new(profile);
+                let shares_component = self
+                    .program
+                    .index
+                    .module_graphs
+                    .get(&graph_key)
+                    .map(|graph| {
+                        let index = self.interface_component_graph_index(profile, &graph);
+                        let current_component_id = index.component_id_for_module(current_module);
+                        let target_component_id = index.component_id_for_module(module);
+                        current_component_id.is_some()
+                            && current_component_id == target_component_id
+                    })
+                    .unwrap_or(current_module == module);
+                if shares_component {
+                    return Ok(());
+                }
             }
         }
 
         let anchor_module_id = self.interface_component_anchor_module_id(module, profile);
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::DirInterface {
-            module: anchor_module_id,
-            profile,
-        }))
+        self.require_build_key(BuildKey::Artifact(
+            destack_workspace::ArtifactKey::DirInterface {
+                module: anchor_module_id,
+                profile,
+            },
+        ))
     }
 
     /// Phase 2: Build interface summaries.
@@ -65,7 +72,7 @@ impl Compiler {
         profile: ProfileId,
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
-    ) -> AnalyzeResult<ModuleDir> {
+    ) -> AnalyzeResult<Arc<ModuleDir>> {
         // skip stale tasks
         self.ensure_module_profile_matches::<AnalyzeError>(
             module_id,
@@ -80,53 +87,51 @@ impl Compiler {
 
         // load module state and dir ctx
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
 
         // skip analysis when module language is disabled
         if !self.module_language_allowed(module_id) {
             let dir_data = self
-                .require_artifact_dir_for_boundary(module_id, profile, DirReadBoundary::Declared)
+                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                    module_id, profile,
+                ))
                 .map_err(AnalyzeError::from)?;
-            let (_, dir) = self.with_shared_transient_artifact_dir(
-                module_id,
-                profile,
-                DirReadBoundary::Interface,
-                dir_data,
-                |_dir| Ok::<(), AnalyzeError>(()),
-            )?;
-            return Ok(dir);
+            return Ok(dir_data);
         }
 
         // read the module dir ctx for analysis
-        let dir_data = self
-            .require_artifact_dir_for_boundary(module_id, profile, DirReadBoundary::Declared)
+        let mut dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                module_id, profile,
+            ))
             .map_err(AnalyzeError::from)?;
-        let (_, dir) = self.with_shared_transient_artifact_dir(
-            module_id,
-            profile,
-            DirReadBoundary::Interface,
-            dir_data,
-            |dir| -> AnalyzeResult<()> {
-                let tree = dir.tree.read();
-                let mut types = dir.types.write();
-                let symbols = dir.symbols.read();
-                let mut collector = BuildRequirementCollector::new();
+        {
+            let dir = Arc::make_mut(&mut dir);
+            let ModuleDir {
+                tree,
+                symbols,
+                types,
+                roots,
+                anchor_node,
+                namespace_symbol,
+                namespace_exports,
+                module_bindings,
+                module_binding_exports,
+                exported_symbols,
+                ..
+            } = dir;
+            let types = Arc::make_mut(types);
+            let mut collector = BuildRequirementCollector::new();
 
-                if !self.is_code_module(module_id) {
-                    return Ok(());
-                }
-
-                let exported_symbols = dir.exported_symbols.read();
-                let binding_exports = dir.module_binding_exports.read();
+            if self.is_code_module(module_id) {
                 let options = self.analyze_context_options_for_module(module_id);
-                let mut ctx = TypeContext::with_dir(
+                let mut ctx = TypeContext::new(
                     &module,
                     profile,
                     &options,
-                    dir.as_ref(),
-                    &tree,
-                    &symbols,
-                    &mut types,
+                    tree.as_ref(),
+                    symbols.as_ref(),
+                    types,
                 );
 
                 {
@@ -137,46 +142,52 @@ impl Compiler {
                         &mut collector,
                         self.infer_interface_value_types(
                             &mut ctx.reborrow(),
-                            &exported_symbols,
+                            exported_symbols.as_ref(),
                             false,
                         ),
                     );
 
                     // declare exported value types for module bindings
-                    for binding in binding_exports.values() {
+                    for exports in module_binding_exports
+                        .values()
+                        .map(|binding| &binding.exports)
+                    {
                         self.collect(
                             &mut collector,
-                            self.infer_interface_value_types(
-                                &mut ctx.reborrow(),
-                                &binding.exports,
-                                false,
-                            ),
+                            self.infer_interface_value_types(&mut ctx.reborrow(), exports, false),
                         );
                     }
                 }
 
                 {
                     let _timing = self.timing_scope(tags::ANALYZE_INTERFACE_NAMESPACE);
+                    let module_source_id = roots
+                        .first()
+                        .copied()
+                        .map(destack_dir::LocalNodeId::into_any)
+                        .unwrap_or(*anchor_node);
 
                     // declare the module namespace value type from exports
                     self.collect(
                         &mut collector,
                         self.collect_module_namespace_value_type(
                             &mut ctx.reborrow(),
-                            &exported_symbols,
+                            exported_symbols.as_ref(),
+                            module_source_id,
+                            *namespace_symbol,
+                            namespace_exports.as_ref(),
+                            module_bindings.as_ref(),
+                            module_binding_exports.as_ref(),
                         ),
                     );
                 }
+            }
 
-                // yield on any yields
-                if let Some(requirement) = collector.try_into_requirement() {
-                    return Err(AnalyzeError::Yield { requirement });
-                }
-
-                Ok(())
-            },
-        )?;
-        drop(module);
+            // yield on any yields
+            if let Some(requirement) = collector.try_into_requirement() {
+                return Err(AnalyzeError::Yield { requirement });
+            }
+        }
         Ok(dir)
     }
 }

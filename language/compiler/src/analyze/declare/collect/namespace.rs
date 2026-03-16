@@ -3,12 +3,11 @@ use std::collections::HashSet;
 use indexmap::IndexMap;
 
 use destack_dir::{
-    Declaration, DependencyItem, DependencyKind, DependencyMode, Export, Expression, LocalNodeId,
+    Declaration, DependencyItem, DependencyKind, DependencyMode, Export, Expression,
     LocalNodeIdAny, LocalScopeId, LocalTypeId, ModuleTarget, NamespaceExport, NodeTree, StaticKey,
     SymbolSpace, Type, TypeField, TypeLiteral,
 };
 
-use crate::analyze::DirReadBoundary;
 use crate::{AnalyzeResult, Compiler};
 
 use crate::analyze::common::{ObjectShape, TypeContext};
@@ -21,52 +20,50 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         exported_symbols: &IndexMap<(SymbolSpace, StaticKey), Export>,
+        module_source_id: LocalNodeIdAny,
+        namespace_symbol: destack_dir::LocalSymbolId,
+        namespace_exports: &[NamespaceExport],
+        module_bindings: &[destack_dir::ModuleBinding],
+        module_binding_exports: &IndexMap<LocalNodeIdAny, destack_dir::ModuleBindingExports>,
     ) -> AnalyzeResult<()> {
-        // pick a stable source node for module imports
-        let module_dir = ctx.local_dir();
-        let module_source_id = module_dir
-            .roots
-            .first()
-            .copied()
-            .map(LocalNodeId::into_any)
-            .unwrap_or(module_dir.anchor_node);
-
         // register the module namespace value type
-        let namespace_symbol = ctx.local_dir().namespace_symbol.into_global(ctx.module.id);
-        let namespace_exports = ctx.local_dir().namespace_exports.read().clone();
+        let namespace_symbol = namespace_symbol.into_global(ctx.module.id);
         let namespace_ty_id = self.build_namespace_type_from_exports(
             &mut ctx.reborrow(),
             exported_symbols,
-            &namespace_exports,
+            namespace_exports,
             module_source_id,
+            module_bindings,
+            module_binding_exports,
         )?;
         ctx.types.set_value_type(namespace_symbol, namespace_ty_id);
 
         // register module binding namespace value types
-        let binding_exports = ctx.local_dir().module_binding_exports.read().clone();
-        let bindings = ctx.local_dir().module_bindings.read().clone();
-        for (binding_any_id, exports) in &binding_exports {
-            let binding_id = binding_any_id.into_typed::<Declaration>();
+        let binding_entries = module_binding_exports
+            .iter()
+            .filter_map(|(binding_any_id, exports)| {
+                let binding_id = binding_any_id.into_typed::<Declaration>();
+                let binding = module_bindings
+                    .iter()
+                    .find(|binding| binding.declaration == binding_id)?;
+                Some((binding_id, binding.scope, exports.exports.clone()))
+            })
+            .collect::<Vec<_>>();
+        for (binding_id, binding_scope, exports) in binding_entries {
             let Declaration::Namespace { descriptor, .. } = ctx.tree.get(binding_id) else {
                 continue;
             };
-
-            let Some(binding) = bindings
-                .iter()
-                .find(|binding| binding.declaration == binding_id)
-            else {
-                continue;
-            };
-
             let binding_namespace_exports =
-                self.collect_namespace_exports_in_scope(ctx.tree, binding.scope);
+                self.collect_namespace_exports_in_scope(ctx.tree, binding_scope);
             let binding_symbol = descriptor.symbol.into_global(ctx.module.id);
             let binding_source_id = binding_id.into_any();
             let binding_ty_id = self.build_namespace_type_from_exports(
                 &mut ctx.reborrow(),
-                &exports.exports,
+                &exports,
                 &binding_namespace_exports,
                 binding_source_id,
+                module_bindings,
+                module_binding_exports,
             )?;
             ctx.types.set_value_type(binding_symbol, binding_ty_id);
         }
@@ -81,6 +78,8 @@ impl Compiler {
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         namespace_exports: &[NamespaceExport],
         source_id: LocalNodeIdAny,
+        module_bindings: &[destack_dir::ModuleBinding],
+        module_binding_exports: &IndexMap<LocalNodeIdAny, destack_dir::ModuleBindingExports>,
     ) -> AnalyzeResult<LocalTypeId> {
         // merge direct exports
         let mut shape = ObjectShape::default();
@@ -98,6 +97,8 @@ impl Compiler {
                 export.module_id,
                 source_id,
                 &mut shape,
+                module_bindings,
+                module_binding_exports,
                 &mut visited,
             )?;
         }
@@ -173,6 +174,8 @@ impl Compiler {
         target: ModuleTarget,
         source_id: LocalNodeIdAny,
         shape: &mut ObjectShape,
+        module_bindings: &[destack_dir::ModuleBinding],
+        module_binding_exports: &IndexMap<LocalNodeIdAny, destack_dir::ModuleBindingExports>,
         visited: &mut HashSet<ModuleTarget>,
     ) -> AnalyzeResult<()> {
         // skip already visited targets
@@ -183,10 +186,8 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module has interface surface inference
-                let target_dir = self.require_artifact_dir_for_boundary(
-                    module_id,
-                    ctx.profile,
-                    DirReadBoundary::Interface,
+                let target_dir = self.require_artifact_dir(
+                    destack_workspace::ArtifactKey::dir_interface(module_id, ctx.profile),
                 )?;
 
                 // merge direct exports
@@ -208,39 +209,36 @@ impl Compiler {
                         export.module_id,
                         source_id,
                         shape,
+                        module_bindings,
+                        module_binding_exports,
                         visited,
                     )?;
                 }
             }
             ModuleTarget::Binding(specifier) => {
                 // load binding exports for the target specifier
-                let binding_entries = {
-                    let dir = ctx.local_dir();
-                    let bindings = dir.module_bindings.read().clone();
-                    let binding_exports = dir.module_binding_exports.read().clone();
-                    bindings
-                        .into_iter()
-                        .filter(|binding| binding.specifier == specifier)
-                        .filter_map(|binding| {
-                            let exports = binding_exports
-                                .get(&binding.declaration.into_any())
-                                .map(|exports| exports.exports.clone())?;
-                            Some((binding, exports))
-                        })
-                        .collect::<Vec<_>>()
-                };
-                for (binding, exports) in binding_entries.iter() {
+                let binding_entries = module_bindings
+                    .iter()
+                    .filter(|binding| binding.specifier == specifier)
+                    .filter_map(|binding| {
+                        let exports = module_binding_exports
+                            .get(&binding.declaration.into_any())
+                            .map(|exports| exports.exports.clone())?;
+                        Some((binding.scope, exports))
+                    })
+                    .collect::<Vec<_>>();
+                for (binding_scope, exports) in binding_entries {
                     // merge direct exports
                     self.merge_exports_map_into_shape(
                         &mut ctx.reborrow(),
-                        exports,
+                        &exports,
                         source_id,
                         shape,
                     )?;
 
                     // merge namespace exports
                     let namespace_exports =
-                        self.collect_namespace_exports_in_scope(ctx.tree, binding.scope);
+                        self.collect_namespace_exports_in_scope(ctx.tree, binding_scope);
                     for export in namespace_exports {
                         if export.kind != DependencyKind::Value {
                             continue;
@@ -251,6 +249,8 @@ impl Compiler {
                             export.module_id,
                             source_id,
                             shape,
+                            module_bindings,
+                            module_binding_exports,
                             visited,
                         )?;
                     }
