@@ -1,12 +1,13 @@
 use super::{StaticEvaluationDiagnosticMode, StaticEvaluationMode};
-use crate::analyze::common::{
-    DirReadBoundary, RelationMode, TreeSymbolTypeView, TypeContext, TypeRewriteCache,
-};
+use crate::analyze::common::{RelationMode, TypeContext, TypeRewriteCache};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     DependencyItem, Expression, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, Mutability,
-    NodeType, NormalizationMode, StaticExpression, Type, TypeLiteral, TypeTable,
+    NodeTree, NodeType, NormalizationMode, StaticExpression, SymbolTable, Type, TypeLiteral,
+    TypeTable,
 };
+use destack_source::ModuleId;
+use destack_workspace::{ArtifactKey, ProfileId};
 use std::collections::{HashMap, HashSet};
 
 /// One declared static-constant lookup result for one module-local symbol graph walk.
@@ -52,10 +53,12 @@ impl StaticConstantResolutionMode {
     }
 
     /// Return the remote dependency stage for this resolution policy.
-    fn remote_dependency_boundary(self) -> DirReadBoundary {
+    fn remote_dependency_artifact(self) -> fn(ModuleId, ProfileId) -> ArtifactKey {
         match self {
-            Self::Parametric | Self::InstantiatedInfer => DirReadBoundary::Analyzed,
-            Self::InstantiatedDeclare => DirReadBoundary::Interface,
+            Self::Parametric | Self::InstantiatedInfer => {
+                destack_workspace::ArtifactKey::dir_analyzed
+            }
+            Self::InstantiatedDeclare => destack_workspace::ArtifactKey::dir_interface,
         }
     }
 
@@ -85,22 +88,22 @@ impl Compiler {
             }
 
             let mut visited = HashSet::new();
-            let value = self.resolve_static_constant_reference(
+            let value = match self.resolve_static_constant_reference(
                 &mut ctx.reborrow(),
                 symbol_id,
                 StaticEvaluationMode::Parametric,
                 None,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 StaticCycleDiagnosticMode::Suppress,
                 &mut visited,
-            );
-            let Some(value) = (match value {
+            ) {
                 Ok(value) => value,
 
                 // keep declare publication local only: skip remote unresolved values here
                 Err(AnalyzeError::Yield { .. }) => None,
                 Err(error) => return Err(error),
-            }) else {
+            };
+            let Some(value) = value else {
                 continue;
             };
 
@@ -157,7 +160,9 @@ impl Compiler {
     /// Query one declared static constant lookup in one module-local symbol graph.
     fn query_artifact_static_constant_lookup_for_symbol(
         &self,
-        ctx: TreeSymbolTypeView<'_>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         symbol: GlobalSymbolId,
     ) -> Option<ArtifactStaticConstantLookup> {
         let mut pending_symbols = vec![symbol];
@@ -169,30 +174,24 @@ impl Compiler {
                 continue;
             }
 
-            if let Some(value) = ctx
-                .types
-                .query_artifact_static_constant_value(candidate_symbol)
-            {
+            if let Some(value) = types.query_artifact_static_constant_value(candidate_symbol) {
                 return Some(ArtifactStaticConstantLookup::Found {
                     symbol: candidate_symbol,
                     value,
                 });
             }
 
-            if candidate_symbol.module_id != ctx.symbols.module_id {
+            if candidate_symbol.module_id != symbols.module_id {
                 forwarded_symbols.push(candidate_symbol);
                 continue;
             }
 
-            let symbol_entry = ctx.symbols.get_symbol(candidate_symbol.local_id);
+            let symbol_entry = symbols.get_symbol(candidate_symbol.local_id);
             let normalized_symbol = GlobalSymbolId::new(
-                ctx.symbols.module_id,
+                symbols.module_id,
                 candidate_symbol.local_id.with_type(symbol_entry.ty),
             );
-            if let Some(value) = ctx
-                .types
-                .query_artifact_static_constant_value(normalized_symbol)
-            {
+            if let Some(value) = types.query_artifact_static_constant_value(normalized_symbol) {
                 return Some(ArtifactStaticConstantLookup::Found {
                     symbol: normalized_symbol,
                     value,
@@ -214,7 +213,7 @@ impl Compiler {
             if primary_declaration.local_id.ty == NodeType::DependencyItem {
                 let dependency_id = primary_declaration.local_id.into_typed::<DependencyItem>();
                 if let DependencyItem::Local { target_symbol, .. }
-                | DependencyItem::Remote { target_symbol, .. } = ctx.tree.get(dependency_id)
+                | DependencyItem::Remote { target_symbol, .. } = tree.get(dependency_id)
                 {
                     pending_symbols.push(*target_symbol);
                 }
@@ -222,7 +221,7 @@ impl Compiler {
 
             if primary_declaration.local_id.ty == NodeType::Expression {
                 let expression_id = primary_declaration.local_id.into_typed::<Expression>();
-                if let Expression::Export { items, .. } = ctx.tree.get(expression_id) {
+                if let Expression::Export { items, .. } = tree.get(expression_id) {
                     for item_id in items {
                         if let DependencyItem::Local {
                             symbol: Some(local_symbol),
@@ -233,7 +232,7 @@ impl Compiler {
                             symbol: Some(local_symbol),
                             target_symbol,
                             ..
-                        } = ctx.tree.get(*item_id)
+                        } = tree.get(*item_id)
                             && *local_symbol == candidate_symbol.local_id
                         {
                             pending_symbols.push(*target_symbol);
@@ -266,7 +265,7 @@ impl Compiler {
             symbol,
             resolution_mode.evaluation_mode(),
             substitutions,
-            resolution_mode.remote_dependency_boundary(),
+            resolution_mode.remote_dependency_artifact(),
             resolution_mode.cycle_diagnostic_mode(),
             visited,
         )
@@ -284,7 +283,7 @@ impl Compiler {
         let node = symbol_entry
             .primary_declaration
             .map(|primary_declaration| primary_declaration.local_id)
-            .unwrap_or(ctx.local_anchor_node());
+            .unwrap_or(ctx.anchor_node());
         if cycle_diagnostic_mode == StaticCycleDiagnosticMode::Report {
             self.error(AnalyzeError::CircularStaticArgument {
                 node: node
@@ -318,7 +317,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
         mode: StaticEvaluationMode,
         substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        remote_dependency_boundary: DirReadBoundary,
+        remote_dependency_artifact: fn(ModuleId, ProfileId) -> ArtifactKey,
         cycle_diagnostic_mode: StaticCycleDiagnosticMode,
         visited: &mut HashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<StaticExpression>> {
@@ -327,7 +326,7 @@ impl Compiler {
             symbol,
             mode,
             substitutions,
-            remote_dependency_boundary,
+            remote_dependency_artifact,
             visited,
             None,
             cycle_diagnostic_mode,
@@ -341,7 +340,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
         mode: StaticEvaluationMode,
         substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        remote_dependency_boundary: DirReadBoundary,
+        remote_dependency_artifact: fn(ModuleId, ProfileId) -> ArtifactKey,
         visited: &mut HashSet<GlobalSymbolId>,
         previsited_symbol: Option<GlobalSymbolId>,
         cycle_diagnostic_mode: StaticCycleDiagnosticMode,
@@ -381,7 +380,7 @@ impl Compiler {
             if !is_constant_cycle_candidate {
                 return Ok(None);
             }
-            let source_node = ctx.local_anchor_node();
+            let source_node = ctx.anchor_node();
             let error = self.static_cycle_error_expression(
                 &mut ctx.reborrow(),
                 symbol,
@@ -424,7 +423,7 @@ impl Compiler {
                 return Ok(None);
             }
 
-            let source_node = ctx.local_anchor_node();
+            let source_node = ctx.anchor_node();
             let error = self.static_cycle_error_expression(
                 &mut ctx.reborrow(),
                 symbol,
@@ -439,7 +438,7 @@ impl Compiler {
 
         // evaluate cross-module constants from declare-published static constant values
         if symbol.module_id != ctx.module.id {
-            let source_node = ctx.local_anchor_node();
+            let source_node = ctx.anchor_node();
             let mut pending_symbols = vec![symbol];
             let mut visited_symbols = HashSet::new();
             let mut local_value = None;
@@ -454,38 +453,27 @@ impl Compiler {
                         continue;
                     }
 
-                    let (found_value, forwarded_symbols) = self
-                        .with_module_tree_symbols_types_by_id_at_boundary(
-                            ctx.profile,
-                            candidate_symbol.module_id,
-                            ctx.tree,
-                            ctx.symbols,
-                            ctx.types,
-                            remote_dependency_boundary,
-                            |owner_tree, owner_symbols, owner_types| match self
-                                .query_artifact_static_constant_lookup_for_symbol(
-                                    TreeSymbolTypeView::new(
-                                        ctx.profile,
-                                        owner_tree,
-                                        owner_symbols,
-                                        owner_types,
-                                    ),
-                                    candidate_symbol,
-                                ) {
-                                Some(ArtifactStaticConstantLookup::Found {
-                                    symbol: resolved_symbol,
-                                    value,
-                                }) => {
-                                    let snapshot = owner_types.clone();
-                                    (Some((resolved_symbol, value, snapshot)), Vec::new())
-                                }
-                                Some(ArtifactStaticConstantLookup::Forward {
-                                    symbols: forwarded_symbols,
-                                }) => (None, forwarded_symbols),
-                                None => (None, Vec::new()),
-                            },
-                        )
-                        .map_err(AnalyzeError::from)?;
+                    let key = remote_dependency_artifact(candidate_symbol.module_id, ctx.profile);
+                    let owner_dir = self.require_artifact_dir(key).map_err(AnalyzeError::from)?;
+                    let (found_value, forwarded_symbols) = match self
+                        .query_artifact_static_constant_lookup_for_symbol(
+                            &owner_dir.tree,
+                            &owner_dir.symbols,
+                            &owner_dir.types,
+                            candidate_symbol,
+                        ) {
+                        Some(ArtifactStaticConstantLookup::Found {
+                            symbol: resolved_symbol,
+                            value,
+                        }) => {
+                            let snapshot = owner_dir.types.as_ref().clone();
+                            (Some((resolved_symbol, value, snapshot)), Vec::new())
+                        }
+                        Some(ArtifactStaticConstantLookup::Forward {
+                            symbols: forwarded_symbols,
+                        }) => (None, forwarded_symbols),
+                        None => (None, Vec::new()),
+                    };
 
                     if let Some((_resolved_symbol, value, remote_snapshot)) = found_value {
                         local_value = Some(self.import_remote_static_expression_for_node(
@@ -507,56 +495,47 @@ impl Compiler {
 
             // evaluate unresolved remote constants on a cloned remote snapshot when publication is absent
             if local_value.is_none() {
+                let key = remote_dependency_artifact(symbol.module_id, ctx.profile);
+                let remote_dir = self.require_artifact_dir(key).map_err(AnalyzeError::from)?;
+                let mut remote_snapshot = remote_dir.types.as_ref().clone();
+                let mut remote_visited = visited.clone();
+                let remote_substitutions = substitution_entries.as_ref().map(|entries| {
+                    let mut mapped = HashMap::with_capacity(entries.len());
+                    for (parameter_symbol, local_type) in entries {
+                        let remote_type_id = self.import_remote_type_for_node(
+                            source_node,
+                            local_type,
+                            ctx.types,
+                            &mut remote_snapshot,
+                        );
+                        mapped.insert(*parameter_symbol, remote_type_id);
+                    }
+                    mapped
+                });
+
+                let remote_module = self.program.modules.get(symbol.module_id);
+                let remote_module = remote_module.as_ref();
+                let remote_options = self.analyze_context_options_for_module(remote_module.id);
+                let mut view = TypeContext::new(
+                    &remote_module,
+                    ctx.profile,
+                    &remote_options,
+                    &remote_dir.tree,
+                    &remote_dir.symbols,
+                    &mut remote_snapshot,
+                );
                 let evaluated_remote_value = self
-                    .with_module_tree_symbol_type_view_at_boundary(
-                        ctx.module,
-                        ctx.profile,
-                        symbol.module_id,
-                        remote_dependency_boundary,
-                        |view| -> AnalyzeResult<Option<(StaticExpression, TypeTable)>> {
-                            let mut remote_snapshot = view.types.clone();
-                            let mut remote_visited = visited.clone();
-                            let remote_substitutions =
-                                substitution_entries.as_ref().map(|entries| {
-                                    let mut mapped = HashMap::with_capacity(entries.len());
-                                    for (parameter_symbol, local_type) in entries {
-                                        let remote_type_id = self.import_remote_type_for_node(
-                                            source_node,
-                                            local_type,
-                                            ctx.types,
-                                            &mut remote_snapshot,
-                                        );
-                                        mapped.insert(*parameter_symbol, remote_type_id);
-                                    }
-                                    mapped
-                                });
-
-                            let remote_module = self.program.modules.get(symbol.module_id);
-                            let remote_module = remote_module.read();
-                            let remote_options =
-                                self.analyze_context_options_for_module(remote_module.id);
-                            let mut view = ctx.reborrow_for_module_with_options_and_types(
-                                &remote_module,
-                                &remote_options,
-                                view.tree,
-                                view.symbols,
-                                &mut remote_snapshot,
-                            );
-                            let value = self.resolve_static_constant_reference_with_previsited(
-                                &mut view,
-                                symbol,
-                                mode,
-                                remote_substitutions.as_ref(),
-                                remote_dependency_boundary,
-                                &mut remote_visited,
-                                Some(symbol),
-                                cycle_diagnostic_mode,
-                            )?;
-
-                            Ok(value.map(|value| (value, remote_snapshot)))
-                        },
-                    )
-                    .map_err(AnalyzeError::from)??;
+                    .resolve_static_constant_reference_with_previsited(
+                        &mut view,
+                        symbol,
+                        mode,
+                        remote_substitutions.as_ref(),
+                        remote_dependency_artifact,
+                        &mut remote_visited,
+                        Some(symbol),
+                        cycle_diagnostic_mode,
+                    )?
+                    .map(|value| (value, remote_snapshot));
 
                 local_value = evaluated_remote_value.map(|(value, remote_snapshot)| {
                     self.import_remote_static_expression_for_node(
@@ -628,7 +607,7 @@ impl Compiler {
                 mode,
                 StaticEvaluationDiagnosticMode::Report,
                 substitutions,
-                remote_dependency_boundary,
+                remote_dependency_artifact,
                 visited,
             )?
         } else {
@@ -653,18 +632,11 @@ impl Compiler {
                             mode,
                             StaticEvaluationDiagnosticMode::Report,
                             substitutions,
-                            remote_dependency_boundary,
+                            remote_dependency_artifact,
                             visited,
                         )?
                     };
                     let Some(value) = value else {
-                        if mode == StaticEvaluationMode::Instantiated {
-                            if owns_visit_marker {
-                                visited.remove(&symbol);
-                            }
-                            return Ok(None);
-                        }
-
                         // evaluate type-level forms through substitution and normalization
                         let mut value_type_id = self.resolve_declared_type_expression(
                             &mut ctx.reborrow(),
@@ -734,7 +706,7 @@ impl Compiler {
                     *target_symbol,
                     mode,
                     substitutions,
-                    remote_dependency_boundary,
+                    remote_dependency_artifact,
                     cycle_diagnostic_mode,
                     visited,
                 )?
@@ -768,7 +740,7 @@ impl Compiler {
                                     *target_symbol,
                                     mode,
                                     substitutions,
-                                    remote_dependency_boundary,
+                                    remote_dependency_artifact,
                                     cycle_diagnostic_mode,
                                     visited,
                                 )? {
@@ -790,7 +762,7 @@ impl Compiler {
                     target_symbol,
                     mode,
                     substitutions,
-                    remote_dependency_boundary,
+                    remote_dependency_artifact,
                     cycle_diagnostic_mode,
                     visited,
                 )?
@@ -800,7 +772,7 @@ impl Compiler {
                     canonical_symbol,
                     mode,
                     substitutions,
-                    remote_dependency_boundary,
+                    remote_dependency_artifact,
                     cycle_diagnostic_mode,
                     visited,
                 )?

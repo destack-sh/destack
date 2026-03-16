@@ -1,6 +1,7 @@
 use crate::{AnalyzeResult, Compiler};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleDirData, ProfileId};
+use destack_workspace::{ModuleDir, ProfileId};
+use std::sync::Arc;
 
 impl Compiler {
     /// Build interface state for a module by converging its canonical interface component.
@@ -10,9 +11,9 @@ impl Compiler {
         profile: ProfileId,
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
-    ) -> AnalyzeResult<Vec<(ModuleId, ProfileId, ModuleDirData)>> {
+    ) -> AnalyzeResult<Vec<(ModuleId, ProfileId, Arc<ModuleDir>)>> {
         // ensure forward dependency edges are available for component discovery
-        self.require_interface_forward_closure(module_id, profile)?;
+        self.require_resolved_dependency_closure([module_id], profile)?;
 
         // only the canonical anchor builds the shared component
         let anchor_module_id = self.interface_component_anchor_module_id(module_id, profile);

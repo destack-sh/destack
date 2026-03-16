@@ -1,16 +1,19 @@
 use crate::Compiler;
-use crate::analyze::common::ModuleTreeView;
 use destack_core::StringId;
 use destack_dir::{
-    Annotation, Argument, Binding, Expression, LifetimeAnnotation, LocalNodeId, ScalarLiteral,
+    Annotation, Argument, Binding, Expression, LifetimeAnnotation, LocalNodeId, NodeTree,
+    ScalarLiteral,
 };
+use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Collect positional argument values for a decorator.
     pub(crate) fn decorator_argument_values(
         &self,
-        view: ModuleTreeView<'_>,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
         annotation_id: LocalNodeId<Annotation>,
         decorator_name: &str,
         arguments: Option<&[LocalNodeId<Argument>]>,
@@ -22,15 +25,15 @@ impl Compiler {
         };
 
         for argument_id in arguments {
-            let argument = view.tree.get(*argument_id);
+            let argument = tree.get(*argument_id);
             let value_id = match argument {
                 Argument::Positional { value, .. }
                 | Argument::Named { value, .. }
                 | Argument::Labeled { value, .. } => *value,
                 Argument::Spread { .. } => {
                     self.report_invalid_well_known_decorator(
-                        view.module,
-                        view.profile,
+                        module,
+                        profile,
                         annotation_id,
                         &format!("{decorator_name} decorator does not support spread arguments"),
                     );
@@ -46,7 +49,9 @@ impl Compiler {
     /// Parse a single string argument for a decorator.
     pub(crate) fn decorator_string_argument(
         &self,
-        view: ModuleTreeView<'_>,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
         annotation_id: LocalNodeId<Annotation>,
         decorator_name: &str,
         values: &[LocalNodeId<Expression>],
@@ -57,8 +62,8 @@ impl Compiler {
         }
         if values.len() != 1 {
             self.report_invalid_well_known_decorator(
-                view.module,
-                view.profile,
+                module,
+                profile,
                 annotation_id,
                 &format!("{decorator_name} decorator expects zero or one argument"),
             );
@@ -66,14 +71,14 @@ impl Compiler {
         }
 
         // extract string literal
-        let expr = view.tree.get(values[0]);
+        let expr = tree.get(values[0]);
         let Expression::ScalarLiteral {
             value: ScalarLiteral::String(string_id),
         } = expr
         else {
             self.report_invalid_well_known_decorator(
-                view.module,
-                view.profile,
+                module,
+                profile,
                 annotation_id,
                 &format!("{decorator_name} decorator argument must be a string literal"),
             );
@@ -86,7 +91,9 @@ impl Compiler {
     /// Parse binding decorator arguments.
     pub(crate) fn decorator_binding_argument(
         &self,
-        view: ModuleTreeView<'_>,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
         annotation_id: LocalNodeId<Annotation>,
         values: &[LocalNodeId<Expression>],
     ) -> Option<Binding> {
@@ -98,8 +105,8 @@ impl Compiler {
         // validate arity
         if values.len() > 2 {
             self.report_invalid_well_known_decorator(
-                view.module,
-                view.profile,
+                module,
+                profile,
                 annotation_id,
                 "binding decorator expects zero, one, or two arguments",
             );
@@ -108,14 +115,14 @@ impl Compiler {
 
         // parse the optional external binding name
         let name = {
-            let expression = view.tree.get(values[0]);
+            let expression = tree.get(values[0]);
             let Expression::ScalarLiteral {
                 value: ScalarLiteral::String(string_id),
             } = expression
             else {
                 self.report_invalid_well_known_decorator(
-                    view.module,
-                    view.profile,
+                    module,
+                    profile,
                     annotation_id,
                     "binding decorator first argument must be a string literal",
                 );
@@ -127,11 +134,11 @@ impl Compiler {
 
         // validate the optional binding options payload
         if values.len() == 2 {
-            let expression = view.tree.get(values[1]);
+            let expression = tree.get(values[1]);
             if !matches!(expression, Expression::ObjectExpression { .. }) {
                 self.report_invalid_well_known_decorator(
-                    view.module,
-                    view.profile,
+                    module,
+                    profile,
                     annotation_id,
                     "binding decorator second argument must be an object literal",
                 );
@@ -145,7 +152,9 @@ impl Compiler {
     /// Parse zero or more string arguments for a decorator.
     pub(crate) fn decorator_string_arguments(
         &self,
-        view: ModuleTreeView<'_>,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
         annotation_id: LocalNodeId<Annotation>,
         decorator_name: &str,
         values: &[LocalNodeId<Expression>],
@@ -158,14 +167,14 @@ impl Compiler {
         // collect unique string literal arguments
         let mut labels = Vec::new();
         for value_id in values {
-            let expression = view.tree.get(*value_id);
+            let expression = tree.get(*value_id);
             let Expression::ScalarLiteral {
                 value: ScalarLiteral::String(string_id),
             } = expression
             else {
                 self.report_invalid_well_known_decorator(
-                    view.module,
-                    view.profile,
+                    module,
+                    profile,
                     annotation_id,
                     &format!("{decorator_name} decorator arguments must be string literals"),
                 );
@@ -183,7 +192,9 @@ impl Compiler {
     /// Parse a single integer argument for a decorator.
     pub(crate) fn decorator_u32_argument(
         &self,
-        view: ModuleTreeView<'_>,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
         annotation_id: LocalNodeId<Annotation>,
         decorator_name: &str,
         values: &[LocalNodeId<Expression>],
@@ -194,8 +205,8 @@ impl Compiler {
         }
         if values.len() != 1 {
             self.report_invalid_well_known_decorator(
-                view.module,
-                view.profile,
+                module,
+                profile,
                 annotation_id,
                 &format!("{decorator_name} decorator expects zero or one argument"),
             );
@@ -203,7 +214,7 @@ impl Compiler {
         }
 
         // extract integer literal
-        let expr = view.tree.get(values[0]);
+        let expr = tree.get(values[0]);
         let value = match expr {
             Expression::ScalarLiteral {
                 value: ScalarLiteral::Integer(value),
@@ -215,8 +226,8 @@ impl Compiler {
         };
         let Some(value) = value else {
             self.report_invalid_well_known_decorator(
-                view.module,
-                view.profile,
+                module,
+                profile,
                 annotation_id,
                 &format!("{decorator_name} decorator argument must be an integer literal"),
             );
@@ -226,8 +237,8 @@ impl Compiler {
         // validate non-negative value
         if value < 0 {
             self.report_invalid_well_known_decorator(
-                view.module,
-                view.profile,
+                module,
+                profile,
                 annotation_id,
                 &format!("{decorator_name} decorator argument must be non-negative"),
             );
@@ -240,7 +251,9 @@ impl Compiler {
     /// Parse lifetime annotation arguments for a decorator.
     pub(crate) fn decorator_lifetime_annotation(
         &self,
-        view: ModuleTreeView<'_>,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
         annotation_id: LocalNodeId<Annotation>,
         decorator_name: &str,
         values: &[LocalNodeId<Expression>],
@@ -256,7 +269,7 @@ impl Compiler {
 
         // scan argument values
         for value_id in values {
-            let expr = view.tree.get(*value_id);
+            let expr = tree.get(*value_id);
 
             // extract identifier or string literal name
             let name_id = match expr {
@@ -277,8 +290,8 @@ impl Compiler {
             };
             let Some(name_id) = name_id else {
                 self.report_invalid_well_known_decorator(
-                    view.module,
-                    view.profile,
+                    module,
+                    profile,
                     annotation_id,
                     &format!(
                         "{decorator_name} decorator arguments must be string literals or identifiers"
@@ -302,8 +315,8 @@ impl Compiler {
         // disallow mixing static with other names
         if is_static && !names.is_empty() {
             self.report_invalid_well_known_decorator(
-                view.module,
-                view.profile,
+                module,
+                profile,
                 annotation_id,
                 &format!("{decorator_name} decorator cannot mix static and parameters"),
             );

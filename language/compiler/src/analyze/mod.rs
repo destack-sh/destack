@@ -4,10 +4,10 @@ mod capture;
 mod commit;
 pub(crate) mod common;
 mod declare;
-mod environment;
 mod error;
 mod infer;
 mod interface;
+mod intrinsic;
 mod module;
 mod options;
 mod process;
@@ -23,13 +23,12 @@ pub(crate) use associated::{
     StaticMemberSymbolKind,
 };
 pub(crate) use common::{
-    TreeSymbolTypeView, TreeSymbolView, TypeView, evaluate_binary_scalar, evaluate_numeric_literal,
+    TreeSymbolView, TypeView, evaluate_binary_scalar, evaluate_numeric_literal,
     evaluate_unary_scalar,
 };
 pub use error::*;
 pub use infer::*;
 pub(crate) use interface::*;
-pub(crate) use module::DirReadBoundary;
 pub use options::*;
 pub(crate) use r#static::{StaticArgumentResolver, StaticSubstitutionEnvironment};
 pub use warning::*;

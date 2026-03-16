@@ -10,11 +10,10 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 use std::collections::{HashMap, HashSet};
 
-use crate::{AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementSet, Compiler};
-use destack_workspace::ArtifactKey;
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
 use crate::analyze::common::{
-    CanonicalSymbolMode, DirReadBoundary, ObjectShape, ObjectShapeSet, TypeContext,
+    CanonicalSymbolMode, NormalizationMode, ObjectShape, ObjectShapeSet, TypeContext,
 };
 
 /// Visitor used to declare type-level constructs across a module.
@@ -129,104 +128,156 @@ impl Compiler {
         matches!(expression, Expression::TypeConditional { .. })
     }
 
-    /// Return whether one declaration type resolution can defer on declared requirements.
-    fn should_defer_declared_type_requirement(&self, requirement: &BuildRequirementSet) -> bool {
-        requirement.all(|requirement| {
-            matches!(
-                requirement.key,
-                BuildKey::Artifact(ArtifactKey::DirDeclared { .. })
-            )
-        })
-    }
-
-    /// Return one alias target value symbol for declaration-time cycle checks.
-    fn alias_target_value_symbol_for_cycle_check(
+    /// Report one recursive alias error and poison the declared type slot.
+    fn report_recursive_declared_alias_error(
         &self,
         ctx: &mut TypeContext<'_>,
-        source_id: LocalNodeIdAny,
-        typed_symbol: GlobalSymbolId,
-        target_id: LocalTypeId,
-    ) -> Option<GlobalSymbolId> {
-        if let Some(target_symbol) = self.unwrap_type_value_symbol(ctx.types, target_id) {
-            return Some(target_symbol);
-        }
-
-        if matches!(ctx.types.get_type(target_id), Type::Unevaluated(_))
-            && self
-                .resolve_declared_type(&mut ctx.reborrow(), target_id)
-                .is_err()
-        {
-            return None;
-        }
-
-        if let Some(target_symbol) = self.unwrap_type_value_symbol(ctx.types, target_id) {
-            return Some(target_symbol);
-        }
-
-        self.alias_target_type_id_for_symbol(&mut ctx.reborrow(), typed_symbol, source_id)
-            .and_then(|target_id| self.unwrap_type_value_symbol(ctx.types, target_id))
+        value_expression_id: LocalNodeId<Expression>,
+        declared_ty_id: LocalTypeId,
+    ) {
+        let node = value_expression_id
+            .into_global_any(ctx.module.id)
+            .into_anchored(Some(ctx.profile));
+        self.error(AnalyzeError::RecursiveTypeInstantiation { node });
+        ctx.types.update_type(declared_ty_id, Type::Error);
     }
 
-    /// Return whether one alias symbol chain reaches the expected symbol.
-    fn alias_symbol_contains_symbol(
+    /// Report one declared alias recursion error when the resolved target closes a cycle.
+    pub(crate) fn report_declared_alias_cycle_if_any(
         &self,
         ctx: &mut TypeContext<'_>,
-        source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        expected_symbol: GlobalSymbolId,
-        visited: &mut HashSet<GlobalSymbolId>,
-    ) -> bool {
-        if symbol == expected_symbol {
-            return true;
+        value_expression_id: LocalNodeId<Expression>,
+        declared_ty_id: LocalTypeId,
+    ) -> AnalyzeResult<()> {
+        let value_expression = ctx.tree.get(value_expression_id);
+        if Self::defer_alias_cycle_check(value_expression) {
+            return Ok(());
         }
 
-        if !visited.insert(symbol) {
-            return false;
-        }
-
-        if symbol.module_id == ctx.module.id {
-            let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
-            let typed_symbol =
-                GlobalSymbolId::new(symbol.module_id, symbol.local_id.with_type(symbol_entry.ty));
-
-            if let Some(target_symbol) =
-                symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)
-                && self.alias_symbol_contains_symbol(
-                    &mut ctx.reborrow(),
-                    source_id,
-                    target_symbol,
-                    expected_symbol,
-                    visited,
+        // catch direct alias forwarding cycles from the resolved symbol graph
+        {
+            let view = ctx.module_symbol_view();
+            let root_symbol = self
+                .declaration_symbol_id_for_artifact(
+                    view,
+                    symbol,
+                    destack_workspace::ArtifactKey::dir_resolved,
                 )
-            {
-                return true;
+                .map_err(AnalyzeError::from)?
+                .unwrap_or(self.canonical_symbol_id_for_artifact(
+                    view,
+                    symbol,
+                    CanonicalSymbolMode::PreserveAliases,
+                    destack_workspace::ArtifactKey::dir_resolved,
+                )?);
+            let mut current_symbol = root_symbol;
+            let mut visited = HashSet::new();
+
+            loop {
+                if !visited.insert(current_symbol) {
+                    self.report_recursive_declared_alias_error(
+                        ctx,
+                        value_expression_id,
+                        declared_ty_id,
+                    );
+                    return Ok(());
+                }
+
+                let next_symbol = self
+                    .with_module_symbols_or_local_for_artifact(
+                        ctx.module,
+                        ctx.profile,
+                        current_symbol.module_id,
+                        ctx.symbols,
+                        destack_workspace::ArtifactKey::dir_resolved,
+                        |_owner_module, owner_symbols| {
+                            let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
+                            if !matches!(
+                                symbol_entry.ty,
+                                SymbolType::TypeAlias | SymbolType::Newtype
+                            ) {
+                                return None;
+                            }
+
+                            symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)
+                        },
+                    )
+                    .map_err(AnalyzeError::from)?;
+                let Some(next_symbol) = next_symbol else {
+                    break;
+                };
+
+                let next_symbol = self
+                    .declaration_symbol_id_for_artifact(
+                        view,
+                        next_symbol,
+                        destack_workspace::ArtifactKey::dir_resolved,
+                    )
+                    .map_err(AnalyzeError::from)?
+                    .unwrap_or(self.canonical_symbol_id_for_artifact(
+                        view,
+                        next_symbol,
+                        CanonicalSymbolMode::PreserveAliases,
+                        destack_workspace::ArtifactKey::dir_resolved,
+                    )?);
+                if next_symbol == root_symbol {
+                    self.report_recursive_declared_alias_error(
+                        ctx,
+                        value_expression_id,
+                        declared_ty_id,
+                    );
+                    return Ok(());
+                }
+
+                current_symbol = next_symbol;
             }
+        }
 
-            if matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype)
-                && let Some(target_id) = ctx.types.get_alias_target_type_id(typed_symbol)
-                && let Some(target_symbol) = self.alias_target_value_symbol_for_cycle_check(
-                    &mut ctx.reborrow(),
-                    source_id,
-                    typed_symbol,
-                    target_id,
-                )
-            {
-                return self.alias_symbol_contains_symbol(
-                    &mut ctx.reborrow(),
-                    source_id,
-                    target_symbol,
-                    expected_symbol,
-                    visited,
+        if matches!(ctx.types.get_type(declared_ty_id), Type::Unevaluated(_)) {
+            self.resolve_declared_type(&mut ctx.reborrow(), declared_ty_id)?;
+        }
+
+        if matches!(ctx.types.get_type(declared_ty_id), Type::Error) {
+            return Ok(());
+        }
+
+        if matches!(ctx.types.get_type(declared_ty_id), Type::Mapped { .. }) {
+            let contains_recursive_alias_reference = {
+                let mut visited = HashSet::new();
+                self.type_contains_reference_symbol(declared_ty_id, symbol, ctx.types, &mut visited)
+            };
+            if contains_recursive_alias_reference {
+                self.report_recursive_declared_alias_error(
+                    ctx,
+                    value_expression_id,
+                    declared_ty_id,
                 );
+                return Ok(());
             }
-
-            return false;
         }
 
-        // cross-module alias cycles are diagnosed during alias target materialization
-        // forcing declared publication to chase remote declared aliases here just creates
-        // a declared-surface build cycle between the modules
-        false
+        // force alias expansion once here so cross module cycles are checked
+        let normalized_ty_id = self.normalize_type(
+            &mut ctx.reborrow(),
+            declared_ty_id,
+            NormalizationMode::Assign,
+        );
+        if matches!(ctx.types.get_type(normalized_ty_id), Type::Error) {
+            ctx.types.update_type(declared_ty_id, Type::Error);
+            return Ok(());
+        }
+
+        let contains_recursive_alias_reference = {
+            let mut visited = HashSet::new();
+            self.type_contains_reference_symbol(normalized_ty_id, symbol, ctx.types, &mut visited)
+        };
+        if contains_recursive_alias_reference {
+            self.report_recursive_declared_alias_error(ctx, value_expression_id, declared_ty_id);
+            return Ok(());
+        }
+
+        Ok(())
     }
 
     /// Decide whether declared types should be deferred for a module.
@@ -264,16 +315,16 @@ impl Compiler {
             return Ok(existing);
         }
 
-        // keep the declared reference shape even when alias target evaluation is deferred
-        let ty = self.resolve_declared_type_expression_value(
-            &mut ctx.reborrow(),
-            expression_id,
-            true,
-            true,
-            false,
-            false,
-            false,
-        )?;
+        // keep one stable declared slot even when deferred collection still depends on later work
+        let ty = self
+            .query_declared_type_expression_value(
+                &mut ctx.reborrow(),
+                expression_id,
+                true,
+                true,
+                false,
+            )?
+            .unwrap_or(Type::Unevaluated(expression_id));
         let ty_id = ctx.types.insert_type_from(ty, expression_id);
         ctx.types.set_declared_type(global_id, ty_id);
         Ok(ty_id)
@@ -300,12 +351,8 @@ impl Compiler {
         }
     }
 
-    /// Return one declaration symbol with its bound symbol type.
-    fn typed_declaration_symbol(
-        &self,
-        ctx: &TypeContext<'_>,
-        symbol: LocalSymbolId,
-    ) -> GlobalSymbolId {
+    /// Return one declaration symbol as a typed global symbol id.
+    fn declaration_symbol(&self, ctx: &TypeContext<'_>, symbol: LocalSymbolId) -> GlobalSymbolId {
         let symbol_entry = ctx.symbols.get_symbol(symbol);
         let typed_symbol = symbol.with_type(symbol_entry.ty);
 
@@ -316,14 +363,13 @@ impl Compiler {
     pub(crate) fn collect_module_declarations(
         &self,
         ctx: &mut TypeContext<'_>,
+        roots: &[LocalNodeId<Expression>],
     ) -> AnalyzeResult<()> {
-        let roots = ctx.local_dir().roots.clone();
-
         // prepare the declaration visitor
         let mut visitor = CollectVisitor::new(self, ctx.reborrow());
 
         // walk each root expression to visit all declarations
-        for root_id in roots {
+        for root_id in roots.iter().copied() {
             let root = visitor.ctx.tree.get(root_id);
             // visit the root expression
             visitor.visit_expression(visitor.ctx.tree, root_id, root);
@@ -363,9 +409,6 @@ impl Compiler {
                 value,
                 ..
             } => {
-                // decide whether to defer declared types
-                let defer_type_evaluation = self.should_defer_declaration_types(ctx.module);
-
                 // declare static parameters
                 if let Some(parameters) = static_parameters.as_ref() {
                     for parameter_id in parameters {
@@ -378,22 +421,9 @@ impl Compiler {
                 let has_static_parameters = static_parameters
                     .as_ref()
                     .is_some_and(|parameters| !parameters.is_empty());
-                let has_comptime_parameters =
-                    static_parameters.as_ref().is_some_and(|parameters| {
-                        parameters.iter().any(|param_id| {
-                            let parameter = ctx.tree.get(*param_id);
-                            parameter
-                                .modifiers()
-                                .is_some_and(|modifiers| modifiers.timing == Some(Timing::Comptime))
-                        })
-                    });
-
-                // resolve the declared type eagerly for type-only parameters
-                let should_defer = defer_type_evaluation || has_comptime_parameters;
-
-                // validate comptime usage for array size parameters
+                // validate comptime usage when static parameter dependencies are ready
                 if has_static_parameters {
-                    self.validate_static_value_parameter_usage(
+                    self.query_static_value_parameter_usage(
                         &mut ctx.reborrow(),
                         *value,
                         false,
@@ -401,81 +431,24 @@ impl Compiler {
                     )?;
                 }
 
-                let declared_ty_id = if should_defer {
-                    self.collect_or_defer_type_expression(&mut ctx.reborrow(), *value, true)?
+                let symbol = self.declaration_symbol(ctx, descriptor.symbol);
+                let declared_type_global_id = value.into_global_any(ctx.module.id);
+                let declared_ty_id = if let Some(existing) =
+                    ctx.types.get_declared_type_id(declared_type_global_id)
+                {
+                    existing
                 } else {
-                    match self.resolve_declared_type_expression(
-                        &mut ctx.reborrow(),
-                        *value,
-                        true,
-                        true,
-                    ) {
-                        Ok(type_id) => type_id,
-                        Err(AnalyzeError::Yield { requirement })
-                            if self.should_defer_declared_type_requirement(&requirement) =>
-                        {
-                            self.collect_or_defer_type_expression(
-                                &mut ctx.reborrow(),
-                                *value,
-                                true,
-                            )?
-                        }
-                        Err(AnalyzeError::UnsatisfiedRequirement { requirement })
-                            if self.should_defer_declared_type_requirement(&requirement) =>
-                        {
-                            self.collect_or_defer_type_expression(
-                                &mut ctx.reborrow(),
-                                *value,
-                                true,
-                            )?
-                        }
-                        Err(error) => return Err(error),
-                    }
+                    let declared_ty_id = ctx
+                        .types
+                        .insert_type_from_any(Type::Unevaluated(*value), (*value).into_any());
+                    ctx.types
+                        .set_declared_type(declared_type_global_id, declared_ty_id);
+                    declared_ty_id
                 };
-                let symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
-                let value_expression = ctx.tree.get(*value);
-                let should_defer_cycle_check = Self::defer_alias_cycle_check(value_expression);
-                let contains_recursive_alias_reference = if should_defer_cycle_check {
-                    false
-                } else {
-                    let mut visited = HashSet::new();
-                    self.type_contains_reference_symbol(
-                        declared_ty_id,
-                        symbol,
-                        ctx.types,
-                        &mut visited,
-                    )
-                };
-                let contains_recursive_alias_symbol = if should_defer_cycle_check {
-                    false
-                } else {
-                    self.unwrap_type_value_symbol(ctx.types, declared_ty_id)
-                        .is_some_and(|target_symbol| {
-                            self.alias_symbol_contains_symbol(
-                                &mut ctx.reborrow(),
-                                (*value).into_any(),
-                                target_symbol,
-                                symbol,
-                                &mut HashSet::new(),
-                            )
-                        })
-                };
-                let declared_ty_id =
-                    if contains_recursive_alias_reference || contains_recursive_alias_symbol {
-                        let node = value
-                            .into_global_any(ctx.module.id)
-                            .into_anchored(Some(ctx.profile));
-                        self.error(AnalyzeError::RecursiveTypeInstantiation { node });
-                        ctx.types
-                            .insert_type_from_any(Type::Error, (*value).into_any())
-                    } else {
-                        declared_ty_id
-                    };
-                ctx.types
-                    .set_declared_type(value.into_global_any(ctx.module.id), declared_ty_id);
 
-                // register the instance type for this symbol
+                // alias declarations always publish the declared target slot
                 ctx.types.set_alias_target_type_id(symbol, declared_ty_id);
+
                 let instance_ty_id = match *kind {
                     TypeKind::Structural => declared_ty_id,
                     TypeKind::Nominal => {
@@ -495,12 +468,13 @@ impl Compiler {
                         static_parameters.as_deref(),
                     );
                     let constructor_id = self.newtype_constructor_signature(
+                        &mut ctx.reborrow(),
                         declaration_id,
+                        *value,
                         declared_ty_id,
                         instance_ty_id,
                         static_parameters,
-                        ctx.types,
-                    );
+                    )?;
                     let mut shape = ObjectShape::default();
                     shape.call_signatures.push(constructor_id);
                     self.merge_value_shape_into_symbol(
@@ -538,7 +512,7 @@ impl Compiler {
                 // declare generics and heritage
                 self.collect_generics(&mut ctx.reborrow(), generics)?;
                 self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
-                let declaration_symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
+                let declaration_symbol = self.declaration_symbol(ctx, descriptor.symbol);
                 self.report_missing_associated_requirements(
                     &mut ctx.reborrow(),
                     declaration_symbol,
@@ -548,7 +522,7 @@ impl Compiler {
                 )?;
 
                 // nominal reference for constructors
-                let symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
+                let symbol = self.declaration_symbol(ctx, descriptor.symbol);
                 let static_arguments = self.self_type_static_arguments_for_declaration(
                     &mut ctx.reborrow(),
                     generics.static_parameters.as_deref(),
@@ -636,7 +610,7 @@ impl Compiler {
                 // declare generics and heritage
                 self.collect_generics(&mut ctx.reborrow(), generics)?;
                 self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
-                let declaration_symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
+                let declaration_symbol = self.declaration_symbol(ctx, descriptor.symbol);
                 let allows_deferred_associated =
                     descriptor.abstraction == DeclarationAbstraction::Abstract;
                 self.report_missing_associated_requirements(
@@ -648,7 +622,7 @@ impl Compiler {
                 )?;
 
                 // prepare nominal reference for constructors
-                let symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
+                let symbol = self.declaration_symbol(ctx, descriptor.symbol);
                 let static_arguments = self.self_type_static_arguments_for_declaration(
                     &mut ctx.reborrow(),
                     generics.static_parameters.as_deref(),
@@ -737,7 +711,7 @@ impl Compiler {
                 // declare generics and heritage
                 self.collect_generics(&mut ctx.reborrow(), generics)?;
                 self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
-                let declaration_symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
+                let declaration_symbol = self.declaration_symbol(ctx, descriptor.symbol);
                 self.report_missing_associated_requirements(
                     &mut ctx.reborrow(),
                     declaration_symbol,
@@ -747,7 +721,7 @@ impl Compiler {
                 )?;
 
                 // prepare the nominal reference for enum values
-                let symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
+                let symbol = self.declaration_symbol(ctx, descriptor.symbol);
                 let static_arguments = self.self_type_static_arguments_for_declaration(
                     &mut ctx.reborrow(),
                     generics.static_parameters.as_deref(),
@@ -864,7 +838,7 @@ impl Compiler {
 
                 // register the nominal type as the value type
                 let nominal_ty = Type::Reference {
-                    symbol: self.typed_declaration_symbol(ctx, descriptor.symbol),
+                    symbol: self.declaration_symbol(ctx, descriptor.symbol),
                     static_arguments: None,
                 };
                 let nominal_ty_id = ctx.types.insert_type_from(nominal_ty, declaration_id);
@@ -872,7 +846,7 @@ impl Compiler {
                     value: nominal_ty_id,
                 };
                 let value_ty_id = ctx.types.insert_type_from(value_ty, declaration_id);
-                let symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
+                let symbol = self.declaration_symbol(ctx, descriptor.symbol);
                 ctx.types.set_value_type(symbol, value_ty_id);
 
                 Ok(())
@@ -997,7 +971,7 @@ impl Compiler {
                         true,
                     )?;
                 }
-                let extension_symbol = self.typed_declaration_symbol(ctx, descriptor.symbol);
+                let extension_symbol = self.declaration_symbol(ctx, descriptor.symbol);
                 self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
 
                 // skip already declared extensions for this symbol
@@ -1146,11 +1120,12 @@ impl Compiler {
         let mut extends_symbols = Vec::new();
         if let Some(extend_types) = heritage.extends_types.as_ref() {
             for expression_id in extend_types {
-                if let Some(target_symbol) = self.collect_heritage_symbol(
+                let target_symbol = self.collect_heritage_symbol(
                     &mut ctx.reborrow(),
                     *expression_id,
                     defer_type_evaluation,
-                )? {
+                )?;
+                if let Some(target_symbol) = target_symbol {
                     let canonical_symbol = self.canonical_symbol_id(
                         ctx.module_symbol_view(),
                         target_symbol,
@@ -1229,6 +1204,15 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         defer_type_evaluation: bool,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        // prefer the nominal target already present in syntax
+        let target_symbol = match ctx.tree.get(expression_id) {
+            Expression::Instantiation { left, .. } => ctx.tree.get(*left).target_symbol(),
+            expression => expression.target_symbol(),
+        };
+        if let Some(target_symbol) = target_symbol {
+            return Ok(Some(self.resolve_type_reference_symbol(ctx, target_symbol)));
+        }
+
         // prefer evaluated type references when type evaluation is enabled
         if !defer_type_evaluation {
             let ty_id = self.resolve_declared_type_expression(
@@ -1239,17 +1223,33 @@ impl Compiler {
             )?;
             let type_symbol = self.unwrap_type_value_symbol(ctx.types, ty_id);
             if let Some(type_symbol) = type_symbol {
-                return Ok(Some(
-                    self.merged_type_symbol_id(ctx.module_symbol_view(), type_symbol),
-                ));
+                return Ok(Some(self.resolve_type_reference_symbol(ctx, type_symbol)));
+            }
+
+            if let Expression::Instantiation { left, .. } = ctx.tree.get(expression_id) {
+                let receiver_type_id =
+                    self.resolve_declared_type_expression(&mut ctx.reborrow(), *left, true, true)?;
+                let receiver_symbol = self
+                    .unwrap_type_symbol(ctx.types, receiver_type_id)
+                    .map(|(symbol, _, _)| symbol)
+                    .or_else(|| match ctx.types.get_type(receiver_type_id).clone() {
+                        Type::Intersection { elements } | Type::Union { elements } => {
+                            elements.iter().find_map(|element_id| {
+                                self.unwrap_type_symbol(ctx.types, *element_id)
+                                    .map(|(symbol, _, _)| symbol)
+                            })
+                        }
+                        _ => None,
+                    });
+                if let Some(receiver_symbol) = receiver_symbol {
+                    return Ok(Some(
+                        self.resolve_type_reference_symbol(ctx, receiver_symbol),
+                    ));
+                }
             }
         }
 
-        // fall back to the syntactic target symbol
-        let expression = ctx.tree.get(expression_id);
-        Ok(expression
-            .target_symbol()
-            .map(|symbol| self.merged_type_symbol_id(ctx.module_symbol_view(), symbol)))
+        Ok(None)
     }
 
     /// Replace the return type of a function signature.
@@ -1517,9 +1517,13 @@ impl Compiler {
                 let Some(key) = key.as_ref() else {
                     continue;
                 };
-                let Some(static_key) =
-                    self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), *key)
-                else {
+                let Some(static_key) = self.static_key_from_dynamic_key(
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    ctx.types,
+                    *key,
+                ) else {
                     continue;
                 };
 
@@ -1597,7 +1601,13 @@ impl Compiler {
 
                     // resolve a static key for the field
                     let static_key = key.and_then(|key| {
-                        self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key)
+                        self.static_key_from_dynamic_key(
+                            ctx.profile,
+                            ctx.tree,
+                            ctx.symbols,
+                            ctx.types,
+                            key,
+                        )
                     });
 
                     // resolve the field type
@@ -1743,7 +1753,13 @@ impl Compiler {
 
                     // resolve the method key
                     let Some(key) = key.and_then(|key| {
-                        self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key)
+                        self.static_key_from_dynamic_key(
+                            ctx.profile,
+                            ctx.tree,
+                            ctx.symbols,
+                            ctx.types,
+                            key,
+                        )
                     }) else {
                         continue;
                     };
@@ -1803,20 +1819,38 @@ impl Compiler {
     /// Build a constructor signature for a nominal type alias.
     fn newtype_constructor_signature(
         &self,
+        ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
+        value_expression_id: LocalNodeId<Expression>,
         declared_ty_id: LocalTypeId,
         nominal_reference_id: LocalTypeId,
         static_parameters: Vec<LocalTypeId>,
-        types: &mut TypeTable,
-    ) -> LocalTypeId {
+    ) -> AnalyzeResult<LocalTypeId> {
         // derive positional parameters from tuple aliases
         let mut dynamic_parameters = Vec::new();
-        if let Type::Tuple { elements, .. } = types.get_type(declared_ty_id) {
+        if let Type::Tuple { elements, .. } = ctx.types.get_type(declared_ty_id) {
             for element in elements {
                 dynamic_parameters.push(element.ty);
             }
         } else {
-            dynamic_parameters.push(declared_ty_id);
+            let defer_type_evaluation = self.should_defer_declaration_types(ctx.module);
+            match ctx.tree.get(value_expression_id) {
+                Expression::ArrayExpression { elements }
+                | Expression::TupleExpression { elements } => {
+                    for element_id in elements {
+                        let argument = ctx.tree.get(*element_id);
+                        let parameter_type_id = self.collect_or_defer_type_expression(
+                            &mut ctx.reborrow(),
+                            argument.value(),
+                            defer_type_evaluation,
+                        )?;
+                        dynamic_parameters.push(parameter_type_id);
+                    }
+                }
+                _ => {
+                    dynamic_parameters.push(declared_ty_id);
+                }
+            }
         }
 
         // build the constructor signature
@@ -1828,7 +1862,7 @@ impl Compiler {
             dynamic_parameters,
             return_type: Some(nominal_reference_id),
         };
-        types.insert_type_from(signature, declaration_id)
+        Ok(ctx.types.insert_type_from(signature, declaration_id))
     }
 
     /// Declare the instance shape for a list of members in one ctx context.
@@ -1914,7 +1948,13 @@ impl Compiler {
 
                 // resolve a static key for the field
                 let static_key = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key)
+                    self.static_key_from_dynamic_key(
+                        ctx.profile,
+                        ctx.tree,
+                        ctx.symbols,
+                        ctx.types,
+                        key,
+                    )
                 });
 
                 // resolve the field type
@@ -2021,7 +2061,13 @@ impl Compiler {
 
                 // resolve the method key
                 let Some(key) = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key)
+                    self.static_key_from_dynamic_key(
+                        ctx.profile,
+                        ctx.tree,
+                        ctx.symbols,
+                        ctx.types,
+                        key,
+                    )
                 }) else {
                     return Ok(shape);
                 };
@@ -2082,20 +2128,20 @@ impl Compiler {
             return Ok(ctx.types.get_value_type_id(symbol));
         }
 
-        let remote_value = self
-            .with_module_types_at_boundary(
-                ctx.module,
-                ctx.profile,
+        let remote_dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
                 symbol.module_id,
-                DirReadBoundary::Declared,
-                |_, remote_types| {
-                    let remote_value_id = remote_types.get_value_type_id(symbol)?;
-                    let remote_value_ty = remote_types.get_type(remote_value_id).clone();
-                    let remote_snapshot = remote_types.clone();
-                    Some((remote_value_ty, remote_snapshot))
-                },
-            )
+                ctx.profile,
+            ))
             .map_err(AnalyzeError::from)?;
+        let remote_value = remote_dir
+            .types
+            .get_value_type_id(symbol)
+            .map(|remote_value_id| {
+                let remote_value_ty = remote_dir.types.get_type(remote_value_id).clone();
+                let remote_snapshot = remote_dir.types.as_ref().clone();
+                (remote_value_ty, remote_snapshot)
+            });
 
         Ok(remote_value.map(|(remote_value_ty, remote_snapshot)| {
             self.import_remote_type_for_node(

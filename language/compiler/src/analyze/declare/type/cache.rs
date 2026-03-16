@@ -44,10 +44,64 @@ impl DeclaredTypeResolutionContext {
         self.resolve_static_arguments.hash(&mut hasher);
         hasher.finish()
     }
+
+    /// Return whether one evaluated type is stable enough for the unkeyed declared-type slot.
+    fn allows_declared_type_cache(self, ty: &Type) -> bool {
+        let blocks_bound_sensitive_slot = self.validate_static_argument_bounds
+            && matches!(
+                ty,
+                Type::Reference {
+                    static_arguments: Some(arguments),
+                    ..
+                } if !arguments.is_empty()
+            );
+        if blocks_bound_sensitive_slot {
+            return false;
+        }
+
+        let blocks_alias_argument_slot = self.resolve_static_arguments
+            && matches!(
+                ty,
+                Type::Reference { symbol, .. }
+                    if matches!(symbol.ty(), destack_dir::SymbolType::TypeAlias | destack_dir::SymbolType::Newtype)
+            );
+        if blocks_alias_argument_slot {
+            return false;
+        }
+
+        true
+    }
+
+    /// Return whether one evaluated type is stable enough for the keyed expression cache.
+    pub(crate) fn permits_expression_cache(self, ty: &Type, is_reference_expression: bool) -> bool {
+        if ty.is_unevaluated() {
+            return false;
+        }
+
+        if is_reference_expression && ty.is_unknown() {
+            return false;
+        }
+
+        true
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Cache one declared type result when its value is stable across resolution modes.
+    pub(crate) fn cache_declared_type_maybe(
+        &self,
+        global_node_id: GlobalNodeIdAny,
+        cache_context: DeclaredTypeResolutionContext,
+        type_id: LocalTypeId,
+        ty: &Type,
+        types: &mut TypeTable,
+    ) {
+        if cache_context.allows_declared_type_cache(ty) {
+            types.set_declared_type(global_node_id, type_id);
+        }
+    }
+
     /// Cache an expression type id and optional value for a cache context (if possible).
     pub(crate) fn cache_expression_type_maybe(
         &self,
@@ -59,16 +113,18 @@ impl Compiler {
         is_reference_expression: bool,
         types: &mut TypeTable,
     ) {
+        let Some(ty) = ty else {
+            return;
+        };
+        if !cache_context.permits_expression_cache(ty, is_reference_expression) {
+            return;
+        }
+
         let cache_key = cache_context.cache_key(expression_id.into_global_any(module_id));
         if let Some(cache_type_id) = cache_type_id {
             types.set_expression_type_id_cache(cache_key, cache_type_id);
         }
-        let Some(ty) = ty else {
-            return;
-        };
-        if !(ty.is_unevaluated() || (is_reference_expression && ty.is_unknown())) {
-            types.set_expression_type_value_cache(cache_key, ty.clone());
-        }
+        types.set_expression_type_value_cache(cache_key, ty.clone());
     }
 
     /// Cache a resolved type reference when the key and type are stable.

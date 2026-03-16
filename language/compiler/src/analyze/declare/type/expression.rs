@@ -153,6 +153,46 @@ impl NodeVisitor for StaticValueParameterValidator<'_> {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Query one declared type expression value when its dependencies are ready.
+    pub(crate) fn query_declared_type_expression_value(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+        resolve_static_arguments: bool,
+    ) -> AnalyzeResult<Option<Type>> {
+        match self.resolve_declared_type_expression_value(
+            &mut ctx.reborrow(),
+            expression_id,
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
+            resolve_static_arguments,
+            false,
+            false,
+        ) {
+            Ok(ty) => Ok(Some(ty)),
+            Err(AnalyzeError::Yield { .. } | AnalyzeError::UnsatisfiedRequirement { .. }) => {
+                Ok(None)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Return whether one declared index receiver is concrete enough for missing-member diagnostics.
+    fn declared_index_receiver_is_diagnostic_concrete(
+        &self,
+        ctx: TypeContext<'_>,
+        receiver_type_id: LocalTypeId,
+    ) -> bool {
+        let contains_any = self.type_contains_any(ctx.type_view(), receiver_type_id);
+        let contains_unknown = self.type_contains_unknown(ctx.type_view(), receiver_type_id);
+        let has_unevaluated_state =
+            self.type_has_unevaluated_state(receiver_type_id, ctx.types, &mut HashSet::new());
+
+        !(contains_any || contains_unknown || has_unevaluated_state)
+    }
+
     /// Evaluate a Type (in-place).
     /// Converts Type::Unevaluated to the actual Type value.
     pub(crate) fn resolve_declared_type(
@@ -262,10 +302,10 @@ impl Compiler {
             && let Some(existing) = ctx.types.get_declared_type_id(global_node_id)
             && !ctx.types.get_type(existing).is_unevaluated()
         {
-            // allow cached unknown references to resolve to their referenced symbols
-            let is_unknown = ctx.types.get_type(existing).is_unknown();
-            if !(is_unknown && is_reference_expression) {
-                let ty = ctx.types.get_type(existing).clone();
+            let ty = ctx.types.get_type(existing);
+            let is_unknown_reference = is_reference_expression && ty.is_unknown();
+            if !is_unknown_reference {
+                let ty = ty.clone();
                 self.cache_expression_type_maybe(
                     ctx.module.id,
                     expression_id,
@@ -302,7 +342,7 @@ impl Compiler {
 
         // evaluate to a concrete type when possible
         let ty = result?.unwrap_or(Type::Unevaluated(expression_id));
-        if use_expression_cache && !ty.is_unevaluated() {
+        if use_expression_cache {
             self.cache_expression_type_maybe(
                 ctx.module.id,
                 expression_id,
@@ -342,6 +382,50 @@ impl Compiler {
         validator.finish()
     }
 
+    /// Query static value parameter usage when its dependencies are ready.
+    pub(crate) fn query_static_value_parameter_usage(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<Option<()>> {
+        match self.validate_static_value_parameter_usage(
+            &mut ctx.reborrow(),
+            expression_id,
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
+        ) {
+            Ok(()) => Ok(Some(())),
+            Err(AnalyzeError::Yield { .. } | AnalyzeError::UnsatisfiedRequirement { .. }) => {
+                Ok(None)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Query one declared type expression when its dependencies are ready.
+    pub(crate) fn query_declared_type_expression(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        match self.resolve_declared_type_expression(
+            &mut ctx.reborrow(),
+            expression_id,
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
+        ) {
+            Ok(type_id) => Ok(Some(type_id)),
+            Err(AnalyzeError::Yield { .. } | AnalyzeError::UnsatisfiedRequirement { .. }) => {
+                Ok(None)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
     /// Register a scalar literal type for a static integer expression.
     pub(crate) fn resolve_declared_type_expression(
         &self,
@@ -373,31 +457,20 @@ impl Compiler {
             if ctx.types.get_type(existing).is_unevaluated() {
                 // skip unevaluated declared entries and re-evaluate
             } else {
-                // avoid reusing unvalidated instantiations when bounds are required
-                let has_static_arguments = matches!(
-                    ctx.types.get_type(existing),
-                    Type::Reference {
-                        static_arguments: Some(arguments),
-                        ..
-                    } if !arguments.is_empty()
-                );
-                if validate_static_argument_bounds && has_static_arguments {
-                    // fall through to re-evaluate with bound validation enabled
-                } else {
-                    let is_unknown = ctx.types.get_type(existing).is_unknown();
-                    if !(is_unknown && is_reference_expression) {
-                        let ty = ctx.types.get_type(existing).clone();
-                        self.cache_expression_type_maybe(
-                            ctx.module.id,
-                            expression_id,
-                            cache_context,
-                            Some(existing),
-                            Some(&ty),
-                            is_reference_expression,
-                            ctx.types,
-                        );
-                        cached_type_id = Some(existing);
-                    }
+                let ty = ctx.types.get_type(existing);
+                let is_unknown_reference = is_reference_expression && ty.is_unknown();
+                if !is_unknown_reference {
+                    let ty = ty.clone();
+                    self.cache_expression_type_maybe(
+                        ctx.module.id,
+                        expression_id,
+                        cache_context,
+                        Some(existing),
+                        Some(&ty),
+                        is_reference_expression,
+                        ctx.types,
+                    );
+                    cached_type_id = Some(existing);
                 }
             }
         }
@@ -423,18 +496,7 @@ impl Compiler {
         let ty_id = ctx.types.insert_type_from(ty.clone(), expression_id);
 
         // cache resolved type expressions for reuse
-        let has_static_arguments = matches!(
-            &ty,
-            Type::Reference {
-                static_arguments: Some(arguments),
-                ..
-            } if !arguments.is_empty()
-        );
-        let should_cache =
-            !ty.is_unevaluated() && (validate_static_argument_bounds || !has_static_arguments);
-        if should_cache {
-            ctx.types.set_declared_type(global_node_id, ty_id);
-        }
+        self.cache_declared_type_maybe(global_node_id, cache_context, ty_id, &ty, ctx.types);
         self.cache_expression_type_maybe(
             ctx.module.id,
             expression_id,
@@ -917,8 +979,19 @@ impl Compiler {
             enforce_implicit_managed,
         )?;
 
-        // keep indexed access symbolic when the key still depends on free static or infer state
-        // this allows mapped type normalization to substitute per key later instead of collapsing to unknown
+        // keep indexed access symbolic when the receiver or key still depends on free static or
+        // infer state: this allows later substitution and constraint materialization to preserve
+        // the authored index access shape
+        let left_contains_static = self.type_contains_free_static_parameters(
+            ctx.type_view(),
+            left_id,
+            &HashSet::new(),
+            &mut HashSet::new(),
+        );
+        let left_contains_infer =
+            self.type_contains_infer_vars(left_id, ctx.types, &mut HashSet::new());
+        let left_is_diagnostic_concrete =
+            self.declared_index_receiver_is_diagnostic_concrete(ctx.reborrow(), left_id);
         let index_contains_static = self.type_contains_free_static_parameters(
             ctx.type_view(),
             index_id,
@@ -927,39 +1000,42 @@ impl Compiler {
         );
         let index_contains_infer =
             self.type_contains_infer_vars(index_id, ctx.types, &mut HashSet::new());
-        if index_contains_static || index_contains_infer {
+        if left_contains_static
+            || left_contains_infer
+            || !left_is_diagnostic_concrete
+            || index_contains_static
+            || index_contains_infer
+        {
             return Ok(Type::Index {
                 left: left_id,
                 index: index_id,
             });
         }
 
-        // resolve concrete object indexed-access results eagerly
-        if matches!(ctx.types.get_type(left_id), Type::Object { .. }) {
-            let mut visited = Vec::new();
-            let resolution = self.resolve_index_access_types(
-                &mut ctx.reborrow(),
-                index.into_any(),
+        // diagnose concrete missing keys without collapsing authored index access
+        let mut visited = Vec::new();
+        let resolution = self.resolve_index_access_types(
+            &mut ctx.reborrow(),
+            index.into_any(),
+            left_id,
+            index_id,
+            NormalizationMode::Flow,
+            RelationMode::INDEX_ACCESS,
+            &mut visited,
+        );
+        if let Some(missing_key) = resolution.missing_keys.first().copied() {
+            self.report_missing_member_diagnostic(
+                ctx.type_view(),
+                index,
                 left_id,
-                index_id,
-                NormalizationMode::Flow,
-                RelationMode::INDEX_ACCESS,
-                &mut visited,
-            );
-            if resolution.missing_keys.is_empty() && !resolution.value_types.is_empty() {
-                let value_type_id = if resolution.value_types.len() == 1 {
-                    resolution.value_types[0]
-                } else {
-                    ctx.types.insert_type_from_any(
-                        Type::Union {
-                            elements: resolution.value_types,
-                        },
-                        index.into_any(),
-                    )
-                };
+                missing_key,
+                true,
+            )?;
 
-                return Ok(ctx.types.get_type(value_type_id).clone());
-            }
+            return Ok(Type::Index {
+                left: left_id,
+                index: index_id,
+            });
         }
 
         Ok(Type::Index {
@@ -1864,7 +1940,13 @@ impl Compiler {
                             }
 
                             let Some(key) = key.and_then(|key| {
-                                self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key)
+                                self.static_key_from_dynamic_key(
+                                    ctx.profile,
+                                    ctx.tree,
+                                    ctx.symbols,
+                                    ctx.types,
+                                    key,
+                                )
                             }) else {
                                 if ctx.module.language_type.is_declaration() {
                                     continue;
@@ -1937,7 +2019,13 @@ impl Compiler {
                             }
 
                             let Some(key) = key.and_then(|key| {
-                                self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key)
+                                self.static_key_from_dynamic_key(
+                                    ctx.profile,
+                                    ctx.tree,
+                                    ctx.symbols,
+                                    ctx.types,
+                                    key,
+                                )
                             }) else {
                                 if ctx.module.language_type.is_declaration() {
                                     continue;
