@@ -1049,8 +1049,8 @@ impl Program {
         // relax runtime limits for benchmarks
         let mut options = IsolateOptions::unbounded();
         options.limits.max_stack_depth = 4096;
-        options.limits.max_heap_cells = 5_000_000;
-        options.limits.max_raw_cells = 5_000_000;
+        options.limits.max_managed_allocations = 5_000_000;
+        options.limits.max_raw_allocations = 5_000_000;
 
         Isolate::build_with_options(tree, strings, options)
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"))
@@ -1064,8 +1064,8 @@ impl Program {
         // relax runtime limits for benchmarks
         let mut options = IsolateOptions::unbounded();
         options.limits.max_stack_depth = 4096;
-        options.limits.max_heap_cells = 5_000_000;
-        options.limits.max_raw_cells = 5_000_000;
+        options.limits.max_managed_allocations = 5_000_000;
+        options.limits.max_raw_allocations = 5_000_000;
 
         // disable runtime checks for fast benchmarking
         if bench_options.fast {

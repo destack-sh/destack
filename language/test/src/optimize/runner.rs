@@ -10,7 +10,7 @@ use destack_compiler::{
     RepeatedPipeline, default_pipeline,
 };
 use destack_core::{ImmutableStringPool, StringPool};
-use destack_heap::{Heap, ManagedHeap, RawHeap, Value};
+use destack_heap::{Heap, MemoryContext, SharedSpace, Value};
 use destack_mir as mir;
 use destack_source::{FileId, ModuleId, PackageId};
 use destack_vm::diagnostic::RuntimeResult;
@@ -2623,26 +2623,29 @@ fn diagnose_pipeline(
 
 /// Run a coroutine program with a resume handler.
 fn run_coroutine(
-    heap: &mut Heap,
     isolate: &mut Isolate,
+    heap: &mut Heap,
+    shared: &mut SharedSpace,
     entry_id: mir::LocalNodeId<mir::Function>,
     args: &[Value],
     resume_value: fn(args: &[Value], yield_index: usize, yielded: Value) -> Value,
 ) -> RuntimeResult<ExecutionOutput> {
     // start execution
-    let mut outcome = isolate.run_function_yielding(heap, entry_id, args)?;
+    let mut memory = MemoryContext::new(heap, shared);
+    let mut outcome = isolate.run_function_yielding(&mut memory, entry_id, args)?;
     let mut yield_index = 0usize;
 
     // continue until completion
     loop {
+        // return on completion or resume after one yield
         match outcome {
-            // return on completion
             ExecutionOutcome::Completed { output } => return Ok(output),
-            // resume after suspension
             ExecutionOutcome::Yielded { yielded } => {
                 let resume = resume_value(args, yield_index, yielded.value);
                 yield_index += 1;
-                outcome = isolate.resume(heap, yielded.continuation, resume)?;
+
+                let mut memory = MemoryContext::new(heap, shared);
+                outcome = isolate.resume(&mut memory, yielded.continuation, resume)?;
             }
         }
     }
@@ -2659,8 +2662,8 @@ fn run_program_with_tree_result(
     // configure an isolate like the bench harness
     let mut options = IsolateOptions::unbounded();
     options.limits.max_stack_depth = 4096;
-    options.limits.max_heap_cells = 5_000_000;
-    options.limits.max_raw_cells = 5_000_000;
+    options.limits.max_managed_allocations = 5_000_000;
+    options.limits.max_raw_allocations = 5_000_000;
 
     // apply instruction limits when requested
     if let Some(limit) = max_instruction_limit {
@@ -2670,11 +2673,13 @@ fn run_program_with_tree_result(
     // build isolate and arguments
     let mut isolate = Isolate::build_with_options(tree, strings, options)?;
     let mut heap = Heap::new();
-    isolate.initialize(&mut heap)?;
+    let mut shared = SharedSpace::new();
+    let mut memory = MemoryContext::new(&mut heap, &mut shared);
+    isolate.initialize(&mut memory)?;
     let args = program.args_for_profile(&isolate, profile);
 
     // execute using the requested runner
-    run_program_with_isolate(program, &mut isolate, &mut heap, &args)
+    run_program_with_isolate(program, &mut isolate, &mut heap, &mut shared, &args)
 }
 
 /// Execute a program by cloning the provided tree and strings.
@@ -2704,8 +2709,8 @@ fn run_program_with_tree_result_default_args(
     // configure an isolate like the bench harness
     let mut options = IsolateOptions::unbounded();
     options.limits.max_stack_depth = 4096;
-    options.limits.max_heap_cells = 5_000_000;
-    options.limits.max_raw_cells = 5_000_000;
+    options.limits.max_managed_allocations = 5_000_000;
+    options.limits.max_raw_allocations = 5_000_000;
 
     // apply instruction limits when requested
     if let Some(limit) = max_instruction_limit {
@@ -2715,11 +2720,13 @@ fn run_program_with_tree_result_default_args(
     // build isolate and arguments
     let mut isolate = Isolate::build_with_options(tree, strings, options)?;
     let mut heap = Heap::new();
-    isolate.initialize(&mut heap)?;
+    let mut shared = SharedSpace::new();
+    let mut memory = MemoryContext::new(&mut heap, &mut shared);
+    isolate.initialize(&mut memory)?;
     let args = (program.default_args)(&isolate);
 
     // execute using the requested runner
-    run_program_with_isolate(program, &mut isolate, &mut heap, &args)
+    run_program_with_isolate(program, &mut isolate, &mut heap, &mut shared, &args)
 }
 
 /// Execute a program using an isolate and explicit arguments.
@@ -2727,6 +2734,7 @@ fn run_program_with_isolate(
     program: &program::Program,
     isolate: &mut Isolate,
     heap: &mut Heap,
+    shared: &mut SharedSpace,
     args: &[Value],
 ) -> RuntimeResult<ExecutionOutput> {
     // resolve entry id
@@ -2736,9 +2744,12 @@ fn run_program_with_isolate(
 
     // execute based on runner configuration
     match program.runner {
-        program::ProgramRunner::Function => isolate.run_function(heap, entry_id, args),
+        program::ProgramRunner::Function => {
+            let mut memory = MemoryContext::new(heap, shared);
+            isolate.run_function(&mut memory, entry_id, args)
+        }
         program::ProgramRunner::Coroutine { resume_value } => {
-            run_coroutine(heap, isolate, entry_id, args, resume_value)
+            run_coroutine(isolate, heap, shared, entry_id, args, resume_value)
         }
     }
 }
