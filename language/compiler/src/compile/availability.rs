@@ -1,6 +1,6 @@
 use crate::{
     BuildDependency, BuildKey, BuildRequirement, BuildRequirementError, BuildRequirementSet,
-    Compiler, Task, TaskStatus,
+    Compiler, Task, TaskId, TaskStatus,
 };
 use destack_workspace::{ArtifactKey, OutputKey};
 
@@ -11,29 +11,35 @@ impl Compiler {
         build_key: BuildKey,
     ) -> Result<(), BuildRequirementError> {
         let anchor = Task::new(build_key.clone()).anchor();
+        let requirement = BuildRequirement {
+            anchor: anchor.clone(),
+            key: build_key.clone(),
+            dependency: self.build_dependency_for_key(&build_key),
+            error: None,
+        };
 
-        if self.build_key_is_available(&build_key) {
+        if self.current_requirement_is_recorded(&requirement) {
+            return Ok(());
+        }
+
+        if self.build_key_satisfies_dependency(&build_key, requirement.dependency)
+            && self.build_key_requirements_are_satisfied(&build_key)
+        {
+            self.record_current_requirement(requirement);
             return Ok(());
         }
 
         if let Some(TaskStatus::Failed { error }) = self.queue.find_task_status(&build_key) {
             return Err(BuildRequirementError::Failed {
                 requirement: BuildRequirementSet::one(BuildRequirement {
-                    anchor: anchor.clone(),
-                    key: build_key.clone(),
-                    dependency: self.build_dependency_for_key(&build_key),
                     error: Some(Box::new(error)),
+                    ..requirement.clone()
                 }),
             });
         }
 
         Err(BuildRequirementError::NotReady {
-            requirement: BuildRequirementSet::one(BuildRequirement {
-                anchor,
-                key: build_key.clone(),
-                dependency: self.build_dependency_for_key(&build_key),
-                error: None,
-            }),
+            requirement: BuildRequirementSet::one(requirement),
         })
     }
 
@@ -42,6 +48,62 @@ impl Compiler {
         let dependency = self.build_dependency_for_key(build_key);
 
         self.build_key_satisfies_dependency(build_key, dependency)
+            && self.build_key_requirements_are_satisfied(build_key)
+    }
+
+    /// Return whether one build key still satisfies its last completed exact requirements.
+    pub(crate) fn build_key_requirements_are_satisfied(&self, build_key: &BuildKey) -> bool {
+        let Some(task_id) = self.queue.find_task_id(build_key) else {
+            return true;
+        };
+
+        let task_count = self.queue.task_count();
+        let mut visiting = vec![false; task_count];
+        let mut satisfied = vec![None; task_count];
+
+        self.task_requirements_are_satisfied(task_id, &mut visiting, &mut satisfied)
+    }
+
+    /// Return whether one completed task still satisfies its last exact requirements.
+    fn task_requirements_are_satisfied(
+        &self,
+        task_id: TaskId,
+        visiting: &mut [bool],
+        satisfied: &mut [Option<bool>],
+    ) -> bool {
+        let task_index = task_id.0 as usize;
+
+        if let Some(is_satisfied) = satisfied[task_index] {
+            return is_satisfied;
+        }
+
+        // converged requirement cycles should not invalidate availability on their own
+        if std::mem::replace(&mut visiting[task_index], true) {
+            return true;
+        }
+
+        let handle = self.queue.get_task(task_id);
+
+        if !handle.status.is_final() {
+            visiting[task_index] = false;
+            return true;
+        }
+
+        let is_satisfied = handle.final_requirements.iter().all(|requirement| {
+            self.build_key_satisfies_dependency(&requirement.key, requirement.dependency)
+                && self
+                    .queue
+                    .find_task_id(&requirement.key)
+                    .map(|required_task_id| {
+                        self.task_requirements_are_satisfied(required_task_id, visiting, satisfied)
+                    })
+                    .unwrap_or(true)
+        });
+
+        visiting[task_index] = false;
+        satisfied[task_index] = Some(is_satisfied);
+
+        is_satisfied
     }
 
     /// Return whether one build key satisfies one specific dependency.
@@ -123,14 +185,14 @@ impl Compiler {
                 .artifacts
                 .dir_patched(*module, *profile)
                 .is_some(),
-            ArtifactKey::Mir {
+            ArtifactKey::MirBase {
                 module,
                 profile,
                 target,
             } => self
                 .program
                 .artifacts
-                .mir(*module, *profile, target)
+                .mir_base(*module, *profile, target)
                 .is_some(),
             ArtifactKey::MirOptimized {
                 module,
@@ -139,7 +201,7 @@ impl Compiler {
             } => self
                 .program
                 .artifacts
-                .optimized_mir(*module, *profile, target)
+                .mir_optimized(*module, *profile, target)
                 .is_some(),
         }
     }

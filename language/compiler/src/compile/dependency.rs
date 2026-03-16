@@ -35,7 +35,7 @@ impl Compiler {
                 self.profile_version(*profile),
             )))),
             BuildKey::Artifact(
-                ArtifactKey::Mir {
+                ArtifactKey::MirBase {
                     module,
                     profile,
                     target,

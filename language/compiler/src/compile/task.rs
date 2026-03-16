@@ -1,7 +1,7 @@
 use destack_workspace::{ArtifactKey, OutputKey, OutputScope, Program};
 
 use crate::{
-    BuildKey, BuildProduct, BuildRequirementSet, DiagnosticAnchor, DiagnosticFormat, TaskError,
+    BuildKey, BuildRequirement, BuildRequirementSet, DiagnosticAnchor, DiagnosticFormat, TaskError,
 };
 
 /// Region of the compiler.
@@ -173,7 +173,7 @@ impl Task {
             ) => TaskPhase::Analyze,
             BuildKey::Artifact(ArtifactKey::DirElaborated { .. }) => TaskPhase::Elaborate,
             BuildKey::Artifact(ArtifactKey::DirPatched { .. }) => TaskPhase::Execute,
-            BuildKey::Artifact(ArtifactKey::Mir { .. }) => TaskPhase::Lower,
+            BuildKey::Artifact(ArtifactKey::MirBase { .. }) => TaskPhase::Lower,
             BuildKey::Artifact(ArtifactKey::MirOptimized { .. }) => TaskPhase::Optimize,
             BuildKey::Output(OutputKey {
                 scope: OutputScope::Module(..),
@@ -198,7 +198,7 @@ impl Task {
             | BuildKey::Artifact(ArtifactKey::DirAnalyzed { module, .. })
             | BuildKey::Artifact(ArtifactKey::DirElaborated { module, .. })
             | BuildKey::Artifact(ArtifactKey::DirPatched { module, .. })
-            | BuildKey::Artifact(ArtifactKey::Mir { module, .. })
+            | BuildKey::Artifact(ArtifactKey::MirBase { module, .. })
             | BuildKey::Artifact(ArtifactKey::MirOptimized { module, .. }) => {
                 DiagnosticAnchor::from(*module)
             }
@@ -236,7 +236,7 @@ impl Task {
             BuildKey::Artifact(ArtifactKey::DirAnalyzed { .. }) => "dir_analyzed",
             BuildKey::Artifact(ArtifactKey::DirElaborated { .. }) => "dir_elaborated",
             BuildKey::Artifact(ArtifactKey::DirPatched { .. }) => "dir_patched",
-            BuildKey::Artifact(ArtifactKey::Mir { .. }) => "mir",
+            BuildKey::Artifact(ArtifactKey::MirBase { .. }) => "mir_base",
             BuildKey::Artifact(ArtifactKey::MirOptimized { .. }) => "mir_optimized",
             BuildKey::Output(OutputKey {
                 scope: OutputScope::Module(..),
@@ -274,7 +274,7 @@ impl Task {
                 let profile = profile.diagnostic_fmt(program);
                 format!("module={module} profile={profile}")
             }
-            BuildKey::Artifact(ArtifactKey::Mir {
+            BuildKey::Artifact(ArtifactKey::MirBase {
                 module,
                 profile,
                 target,
@@ -400,6 +400,8 @@ pub struct TaskHandle {
     pub task: Task,
     /// The number of times this task has yielded.
     pub yield_count: u32,
+    /// The exact requirements satisfied by the last completed build.
+    pub final_requirements: Vec<BuildRequirement>,
 }
 
 impl TaskHandle {
@@ -411,6 +413,7 @@ impl TaskHandle {
             last_outcome: None,
             task,
             yield_count: 0,
+            final_requirements: Vec::new(),
         }
     }
 
@@ -434,8 +437,8 @@ pub enum TaskOutcome {
     Skipped { reason: TaskSkipReason },
     /// The task failed.
     Error { error: TaskError },
-    /// The task completed successfully with an optional build product.
-    Complete { product: Option<BuildProduct> },
+    /// The task completed successfully.
+    Complete,
 }
 
 impl<E> From<Result<(), E>> for TaskOutcome
@@ -445,33 +448,7 @@ where
 {
     fn from(result: Result<(), E>) -> Self {
         match result {
-            Ok(()) => Self::Complete { product: None },
-            Err(error) => {
-                if let Some(reason) = error.skip_reason() {
-                    return Self::Skipped { reason };
-                }
-
-                match error.try_into() {
-                    Ok(requirement) => Self::Yield { requirement },
-                    Err(error) => Self::Error {
-                        error: error.into(),
-                    },
-                }
-            }
-        }
-    }
-}
-
-impl<E> From<Result<BuildProduct, E>> for TaskOutcome
-where
-    E: Into<TaskError> + TaskSkip,
-    E: TryInto<BuildRequirementSet, Error = E>,
-{
-    fn from(result: Result<BuildProduct, E>) -> Self {
-        match result {
-            Ok(product) => Self::Complete {
-                product: Some(product),
-            },
+            Ok(()) => Self::Complete,
             Err(error) => {
                 if let Some(reason) = error.skip_reason() {
                     return Self::Skipped { reason };

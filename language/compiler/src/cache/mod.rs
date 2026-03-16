@@ -5,7 +5,6 @@ mod hasher;
 mod memory;
 mod options;
 mod registry;
-mod signature;
 
 pub use context::CacheContext;
 pub use destack_workspace::{

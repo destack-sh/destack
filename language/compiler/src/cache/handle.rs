@@ -1,7 +1,7 @@
 use destack_source::{CacheKind, ModuleId};
 use destack_workspace::{
-    CacheError, CacheStore, ModuleAstCacheEntry, ModuleAstData, ModuleDirCacheEntry, ModuleDirData,
-    ModuleMirCacheEntry, ModuleMirData,
+    CacheError, CacheStore, ModuleAst, ModuleAstCacheEntry, ModuleDir, ModuleDirCacheEntry,
+    ModuleMir, ModuleMirCacheEntry,
 };
 
 use crate::compile::CompilerStats;
@@ -139,7 +139,7 @@ impl CacheHandle<'_> {
     }
 
     /// Write an AST cache entry if enabled.
-    pub fn write_ast(&self, payload: ModuleAstData) -> Result<(), CacheError> {
+    pub fn write_ast(&self, payload: ModuleAst) -> Result<(), CacheError> {
         self.registry.write_ast_cache(
             self.cache_store,
             &self.options,
@@ -150,27 +150,27 @@ impl CacheHandle<'_> {
     }
 
     /// Write a base DIR cache entry if enabled.
-    pub fn write_dir_base(&self, payload: ModuleDirData) -> Result<(), CacheError> {
+    pub fn write_dir_base(&self, payload: ModuleDir) -> Result<(), CacheError> {
         self.write_dir_with_kind(CacheKind::DirBase, payload)
     }
 
     /// Write a resolved DIR cache entry if enabled.
-    pub fn write_dir_resolved(&self, payload: ModuleDirData) -> Result<(), CacheError> {
+    pub fn write_dir_resolved(&self, payload: ModuleDir) -> Result<(), CacheError> {
         self.write_dir_with_kind(CacheKind::DirResolved, payload)
     }
 
     /// Write an analyzed DIR cache entry if enabled.
-    pub fn write_dir_analyzed(&self, payload: ModuleDirData) -> Result<(), CacheError> {
+    pub fn write_dir_analyzed(&self, payload: ModuleDir) -> Result<(), CacheError> {
         self.write_dir_with_kind(CacheKind::DirAnalyzed, payload)
     }
 
     /// Write a patched DIR cache entry if enabled.
-    pub fn write_dir_patched(&self, payload: ModuleDirData) -> Result<(), CacheError> {
+    pub fn write_dir_patched(&self, payload: ModuleDir) -> Result<(), CacheError> {
         self.write_dir_with_kind(CacheKind::DirPatched, payload)
     }
 
     /// Write a MIR cache entry if enabled.
-    pub fn write_mir(&self, payload: ModuleMirData) -> Result<(), CacheError> {
+    pub fn write_mir(&self, payload: ModuleMir) -> Result<(), CacheError> {
         self.registry.write_mir_cache(
             self.cache_store,
             &self.options,
@@ -224,7 +224,7 @@ impl CacheHandle<'_> {
     fn write_dir_with_kind(
         &self,
         cache_kind: CacheKind,
-        payload: ModuleDirData,
+        payload: ModuleDir,
     ) -> Result<(), CacheError> {
         self.registry.write_dir_cache_with_kind(
             self.cache_store,

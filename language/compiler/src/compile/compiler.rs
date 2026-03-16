@@ -1,19 +1,16 @@
 use std::sync::Arc;
 
-use dashmap::DashMap;
-
-use destack_core::ImmutableStringPool;
 use destack_resolver::Resolver;
 use destack_source::{DiagnosticCollector, DiagnosticSeverity, ModuleId, Uri};
 use destack_workspace::{ProfileId, Program, Session, Target};
 use parking_lot::Mutex;
 
-use super::frame::RetainedDirFrame;
 use crate::analyze::InterfaceComponentGraphIndex;
 use crate::{
     BuildRequirementCollector, BuildRequirementSet, CacheRegistry, CompileDiagnostic,
     CompilerEvent, CompilerOptions, CompilerStats, TaskError, TaskQueue, TaskWarning,
 };
+use dashmap::DashMap;
 
 /// Compile files and sources into something (via DIR).
 /// #Architecture: should Compiler be per-target? what about comptime though?
@@ -44,24 +41,12 @@ pub struct Compiler {
     pub stats: Arc<CompilerStats>,
     /// Cache registry for compiler artifacts.
     pub cache: CacheRegistry,
-    /// Snapshot of strings for signature hashing.
-    signature_strings: Mutex<Option<CompilerStringSnapshot>>,
 
     /// Locks for serializing module creation per (URI, loader) pair.
     /// The loader salt distinguishes imports with non-default loaders.
     import_locks: DashMap<(Uri, Option<String>), Arc<Mutex<Option<ModuleId>>>>,
-    /// Retained transient DIR builders for yielded and running builds.
-    pub(super) retained_dir_frames: DashMap<(ModuleId, ProfileId), Vec<RetainedDirFrame>>,
     /// Cached interface component indexes by profile.
     pub(crate) interface_component_indexes: DashMap<ProfileId, Arc<InterfaceComponentGraphIndex>>,
-}
-
-#[derive(Debug)]
-struct CompilerStringSnapshot {
-    /// The string pool size used for this snapshot.
-    string_count: usize,
-    /// The immutable string snapshot.
-    strings: Arc<ImmutableStringPool>,
 }
 
 impl std::fmt::Debug for Compiler {
@@ -94,11 +79,9 @@ impl Compiler {
             comptime_target,
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
-            retained_dir_frames: DashMap::new(),
             interface_component_indexes: DashMap::new(),
             stats: Arc::new(CompilerStats::new_with_timings(timings)),
             cache: CacheRegistry::new(),
-            signature_strings: Mutex::new(None),
         };
 
         // load workspace index snapshot when available
@@ -117,25 +100,6 @@ impl Compiler {
         }
     }
 
-    /// Get an immutable string snapshot for signature hashing.
-    pub(crate) fn signature_strings(&self) -> Arc<ImmutableStringPool> {
-        // snapshot when the pool grows
-        let string_count = self.program.strings.len();
-        let mut snapshot = self.signature_strings.lock();
-        if let Some(snapshot) = snapshot.as_ref()
-            && snapshot.string_count == string_count
-        {
-            return snapshot.strings.clone();
-        }
-
-        let strings = Arc::new(self.program.strings.as_ref().clone().into_immutable());
-        *snapshot = Some(CompilerStringSnapshot {
-            string_count,
-            strings: strings.clone(),
-        });
-        strings
-    }
-
     /// Clone the base resolver with one request specific option set.
     pub(crate) fn resolver_with_options(
         &self,
@@ -148,7 +112,7 @@ impl Compiler {
     /// Non-code modules skip most compiler phases.
     #[inline]
     pub fn is_code_module(&self, module_id: ModuleId) -> bool {
-        self.program.modules.get(module_id).read().is_code()
+        self.program.modules.get(module_id).is_code()
     }
 
     /// Get the import lock for a (URI, loader) pair.

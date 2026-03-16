@@ -3,10 +3,10 @@ use destack_source::{
     TargetId,
 };
 use destack_workspace::{
-    CacheError, CacheMode, DSCONFIG_CACHE_IGNORED_KEYS, ModuleGraphKey, ModuleSignatureDigest,
-    ModuleSignatureKey, WorkspaceIndexError, WorkspaceIndexHeader, WorkspaceIndexSnapshot,
-    WorkspaceIndexStore, hash_bytes, hash_workspace_config, resolve_cache_dir,
-    resolve_cache_root_for_scope, trim_json_object,
+    ArtifactKey, CacheError, CacheMode, DSCONFIG_CACHE_IGNORED_KEYS, ModuleGraphKey,
+    WorkspaceIndexError, WorkspaceIndexHeader, WorkspaceIndexSnapshot, WorkspaceIndexStore,
+    hash_bytes, hash_workspace_config, resolve_cache_dir, resolve_cache_root_for_scope,
+    trim_json_object,
 };
 
 use crate::compile::Compiler;
@@ -34,7 +34,7 @@ pub struct CacheContext {
     pub config_hash: u64,
     /// Hash of the target configuration and triple.
     pub target_hash: u64,
-    /// Hash of dependency signatures for cache invalidation.
+    /// Hash of exact dependency artifact stamps for cache invalidation.
     pub dependency_hash: u64,
 }
 
@@ -62,7 +62,7 @@ impl Compiler {
     pub(crate) fn cache_options_for_module(&self, module_id: ModuleId) -> CacheOptions {
         // load module and package
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let package = self.program.packages.get(module.package_id);
         let package = package.read();
 
@@ -136,7 +136,7 @@ impl Compiler {
     ) -> Result<CacheContext, CacheError> {
         // load module file id
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let file_id = module.file_id;
 
         // derive profile info
@@ -235,7 +235,7 @@ impl Compiler {
 
         // hash the config content if available
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let package = self.program.packages.get(module.package_id);
         let package = package.read();
         if let Some(config) = package.config.as_ref() {
@@ -257,7 +257,7 @@ impl Compiler {
         }
 
         // hash tsconfig content when present
-        if let Some(tsconfig_id) = module.tsconfig_id {
+        if let Some(tsconfig_id) = module.tsconfig_id() {
             let tsconfig = self.program.tsconfigs.get(tsconfig_id);
             let tsconfig = tsconfig.read();
             let file = self.program.files.get(tsconfig.file_id);
@@ -298,7 +298,7 @@ impl Compiler {
 
             // hash the resolved target config when available
             let module = self.program.modules.get(module_id);
-            let module = module.read();
+            let module = module.as_ref();
             let package = self.program.packages.get(module.package_id);
             let package = package.read();
             if let Some(target) = package.targets.get(target_id) {
@@ -309,14 +309,14 @@ impl Compiler {
         hasher.finish()
     }
 
-    /// Compute dependency signature hash for a cache context.
+    /// Compute dependency artifact hash for a cache context.
     fn cache_dependency_hash(
         &self,
         module_id: ModuleId,
         profile_id: Option<ProfileId>,
         cache_kind: CacheKind,
     ) -> Result<u64, CacheError> {
-        // only include dependency signatures for profile scoped caches
+        // only include dependency artifacts for profile scoped caches
         if !cache_kind.requires_profile() {
             return Ok(0);
         }
@@ -343,17 +343,7 @@ impl Compiler {
         let graph_versions = graph.module_versions.clone();
         drop(graph);
 
-        // resolve profile version for dependency signatures
-        let Some(profile) = self.program.profiles.get(profile_id) else {
-            return Err(CacheError::MissingDependencyData {
-                module_id,
-                profile_id: Some(profile_id),
-                reason: "missing profile data for dependency tracking".to_string(),
-            });
-        };
-        let profile_version = profile.version;
-
-        // hash dependency ids and signature hashes
+        // hash dependency ids and exact artifact stamps
         let mut hasher = CacheHasher::new();
         for dependency in dependencies {
             // verify graph metadata is consistent with module versions
@@ -366,8 +356,8 @@ impl Compiler {
             )?;
 
             let module = self.program.modules.get(dependency);
-            let module = module.read();
-            let module_version = module.version;
+            let module = module.as_ref();
+            let module_version = module.version();
             if graph_version != module_version {
                 return Err(CacheError::MissingDependencyData {
                     module_id,
@@ -375,49 +365,32 @@ impl Compiler {
                     reason: format!("stale graph version for dependency {dependency:?}"),
                 });
             }
-            drop(module);
-
-            let signature_key = ModuleSignatureKey::new(dependency, profile_id);
-            let digest = if let Some(digest) = self
-                .program
-                .index
-                .module_signature_digests
-                .get(&signature_key)
-            {
-                *digest.value()
-            } else if let Some(signature) = self.program.index.module_signatures.get(&signature_key)
-            {
-                ModuleSignatureDigest::new(
-                    signature.module_id,
-                    signature.profile_id,
-                    signature.module_version,
-                    signature.profile_version,
-                    signature.hash,
-                )
-            } else {
-                return Err(CacheError::MissingDependencyData {
-                    module_id,
-                    profile_id: Some(profile_id),
-                    reason: format!("missing signature for dependency {dependency:?}"),
-                });
+            let artifact_key = match cache_kind {
+                CacheKind::DirResolved => ArtifactKey::DirResolved {
+                    module: dependency,
+                    profile: profile_id,
+                },
+                CacheKind::DirAnalyzed => ArtifactKey::DirAnalyzed {
+                    module: dependency,
+                    profile: profile_id,
+                },
+                CacheKind::DirPatched | CacheKind::Mir => ArtifactKey::DirPatched {
+                    module: dependency,
+                    profile: profile_id,
+                },
+                _ => {
+                    return Err(CacheError::MissingDependencyData {
+                        module_id,
+                        profile_id: Some(profile_id),
+                        reason: format!("unsupported dependency cache kind {cache_kind:?}"),
+                    });
+                }
             };
+            let build_key = crate::BuildKey::Artifact(artifact_key);
+            let dependency_stamp = self.build_dependency_for_key(&build_key);
 
-            if digest.module_version != module_version {
-                return Err(CacheError::MissingDependencyData {
-                    module_id,
-                    profile_id: Some(profile_id),
-                    reason: format!("stale signature for dependency {dependency:?}"),
-                });
-            }
-            if digest.profile_version != profile_version {
-                return Err(CacheError::MissingDependencyData {
-                    module_id,
-                    profile_id: Some(profile_id),
-                    reason: format!("stale signature profile for dependency {dependency:?}"),
-                });
-            }
             hasher.hash_value(&dependency);
-            hasher.hash_value(&digest.hash);
+            hasher.hash_value(&dependency_stamp);
         }
 
         Ok(hasher.finish())

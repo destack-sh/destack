@@ -9,7 +9,6 @@ mod directive;
 mod error;
 mod event;
 mod format;
-mod frame;
 mod options;
 mod parallel;
 mod process;
