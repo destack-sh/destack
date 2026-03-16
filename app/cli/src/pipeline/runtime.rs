@@ -53,7 +53,8 @@ pub fn create_isolate(
     let profile_id = program.default_profile_id_for_module(module_id);
     let mir = program
         .artifacts
-        .mir_snapshot(module_id, profile_id, target_id)
+        .mir_optimized(module_id, profile_id, target_id)
+        .or_else(|| program.artifacts.mir_base(module_id, profile_id, target_id))
         .ok_or_else(|| {
             CliError::message(format!(
                 "missing MIR for target {target_id:?} (run requires lowering)"

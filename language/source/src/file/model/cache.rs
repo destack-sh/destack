@@ -59,7 +59,7 @@ pub struct CacheHeader {
     pub config_hash: u64,
     /// Hash of the target configuration and triple.
     pub target_hash: u64,
-    /// Hash of dependency signatures for invalidation.
+    /// Hash of dependency artifact stamps for invalidation.
     pub dependency_hash: u64,
     /// Hash of the serialized payload bytes.
     pub payload_hash: u64,

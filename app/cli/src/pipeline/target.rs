@@ -30,7 +30,7 @@ pub fn resolve_target_for_module(
 ) -> CliResult<ResolvedTarget> {
     // locate the entry module package
     let module = program.modules.get(module_id);
-    let package_id = module.read().package_id;
+    let package_id = module.package_id;
     let target_id = TargetId::new(package_id, target_name);
 
     // look for an existing target entry

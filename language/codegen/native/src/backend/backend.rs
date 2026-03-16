@@ -6,8 +6,8 @@ use cranelift_codegen::settings::{self, Configurable};
 use destack_codegen_lib::CodegenBackend;
 use destack_source::{FileType, ModuleId};
 use destack_workspace::{
-    ModuleMirData, Output, OutputContent, OutputFormat, OutputId, OutputScope, OutputVersion,
-    Program, Target, TargetId,
+    ModuleMir, Output, OutputContent, OutputFormat, OutputId, OutputScope, OutputVersion, Program,
+    Target, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -152,7 +152,7 @@ impl CodegenCraneliftBackend {
     /// For native targets, returns an object file.
     pub(crate) fn compile_module(
         &self,
-        module: &ModuleMirData,
+        module: &ModuleMir,
         name: &str,
     ) -> Result<ModuleLowerOutput, CodegenCraneliftError> {
         let mut lowerer = ModuleLowerer::new(self.isa.clone(), &module.strings, name);
@@ -163,7 +163,7 @@ impl CodegenCraneliftBackend {
     /// Compile a MIR module and return Cranelift IR text format.
     pub fn compile_to_clif(
         &self,
-        module: &ModuleMirData,
+        module: &ModuleMir,
         name: &str,
     ) -> CodegenCraneliftResult<String> {
         let mut lowerer = ModuleLowerer::new(self.isa.clone(), &module.strings, name);
@@ -208,7 +208,7 @@ pub fn generate_module(
 
     // get module and its MIR
     let module_ref = program.modules.get(module_id);
-    let module = module_ref.read();
+    let module = module_ref.as_ref();
 
     // compile
     let name = module.uri.last_segment().unwrap_or("module");
@@ -216,7 +216,12 @@ pub fn generate_module(
     let target_id = TargetId::new(module.package_id, target.name.clone());
     let mir = program
         .artifacts
-        .mir_snapshot(module_id, profile_id, &target_id)
+        .mir_optimized(module_id, profile_id, &target_id)
+        .or_else(|| {
+            program
+                .artifacts
+                .mir_base(module_id, profile_id, &target_id)
+        })
         .expect("codegen requires committed MIR artifact");
     let compile_output = backend.compile_module(&mir, name)?;
 

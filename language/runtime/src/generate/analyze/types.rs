@@ -11,7 +11,7 @@ use destack_dir::{
 use destack_query::format::{format_local_type, format_type_literal};
 use destack_source::ModuleId;
 use destack_workspace::{
-    ArtifactKey, ArtifactRegistry, Module, ModuleDirData, ModuleRegistry, ProfileId, Program,
+    ArtifactKey, ArtifactRegistry, Module, ModuleDir, ModuleRegistry, ProfileId, Program,
 };
 
 use super::{
@@ -161,7 +161,7 @@ fn patched_dir_artifact(
     program: &Program,
     module_id: ModuleId,
     profile_id: ProfileId,
-) -> Arc<ModuleDirData> {
+) -> Arc<ModuleDir> {
     if let Some(dir) = program.artifacts.dir_patched(module_id, profile_id) {
         return dir;
     }
@@ -171,7 +171,7 @@ fn patched_dir_artifact(
         profile: profile_id,
     })));
     match outcome {
-        TaskOutcome::Complete { product: _ } => {}
+        TaskOutcome::Complete => {}
         TaskOutcome::Skipped { reason } => {
             panic!("binding generation task DirPatched({module_id:?}) was skipped: {reason:?}");
         }
@@ -829,7 +829,7 @@ fn binding_type_from_float(float_type: dir::FloatType, type_text: &str) -> Bindi
 /// Resolve the platform domain for a module path.
 fn platform_domain_for_module(modules: &ModuleRegistry, module_id: ModuleId) -> Option<String> {
     let module = modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     if let Some(path) = module.path.as_ref() {
         if let Some(domain) = platform_domain_from_path(path) {
             return Some(domain);
@@ -877,7 +877,7 @@ pub(crate) fn binding_type_from_symbol(
     symbols: &BindingTypeSymbols,
 ) -> BindingType {
     let module = modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let dir = patched_dir_artifact(compiler, program, module.id, profile_id);
     let tree = &dir.tree;
     let types = &dir.types;

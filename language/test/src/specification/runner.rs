@@ -330,7 +330,7 @@ fn has_explicit_libs(program: &destack_workspace::Program, module_id: ModuleId) 
     // resolve the module package
     let package_id = {
         let module = program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         module.package_id
     };
     let package = program.packages.get(package_id);
@@ -396,7 +396,7 @@ fn apply_destack_config_for_spec(
         // attach the default config to the package
         let package_id = {
             let module = program.modules.get(module_id);
-            let module = module.read();
+            let module = module.as_ref();
             module.package_id
         };
         let package = program.packages.get(package_id);
@@ -449,7 +449,7 @@ fn apply_destack_config_for_spec(
     // attach the config and targets to the module package
     let package_id = {
         let module = program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         module.package_id
     };
     let package = program.packages.get(package_id);
