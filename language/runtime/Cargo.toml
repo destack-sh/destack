@@ -99,9 +99,18 @@ rustls-pemfile = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true, features = [
+    "Devices_Bluetooth",
+    "Devices_Bluetooth_Advertisement",
+    "Devices_Bluetooth_GenericAttributeProfile",
     "Devices_Enumeration",
+    "Devices_Radios",
     "Devices_Midi",
+    "Graphics_Imaging",
     "Foundation",
+    "Media_Capture",
+    "Media_Capture_Frames",
+    "Media_Devices",
+    "Media_MediaProperties",
     "Storage_Streams",
     "Win32_Foundation",
     "Win32_System_Com",
@@ -109,9 +118,11 @@ windows = { workspace = true, features = [
     "Win32_UI_Shell",
     "Win32_UI_Shell_Common",
 ] }
-windows-core = { version = "0.60.1" }
-windows-collections = { version = "0.1.1" }
+windows-core = { workspace = true }
+windows-collections = { workspace = true }
+windows-future = { workspace = true }
 windows-sys = { workspace = true, features = [
+    "Win32_Devices_Communication",
     "Win32_Foundation",
     "Win32_NetworkManagement_IpHelper",
     "Win32_NetworkManagement_Ndis",
@@ -173,16 +184,22 @@ security-framework-sys = { workspace = true }
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = { workspace = true }
 keyring = { workspace = true, features = ["linux-native-sync-persistent", "crypto-rust", "vendored"] }
+v4l2-sys-mit = { workspace = true }
 wayland-client = { workspace = true }
 wayland-protocols = { workspace = true }
 wayland-protocols-wlr = { workspace = true }
 x11rb = { workspace = true, features = ["randr", "shape", "xfixes"] }
+zbus = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 dispatch2 = { workspace = true }
 objc2-app-kit = { workspace = true }
+objc2-av-foundation = { workspace = true, features = ["objc2-core-media"] }
+objc2-core-bluetooth = { workspace = true }
 objc2-core-foundation = { workspace = true }
 objc2-core-graphics = { workspace = true }
+objc2-core-media = { workspace = true }
+objc2-core-video = { workspace = true }
 objc2-foundation = { workspace = true }
 
 [dev-dependencies]

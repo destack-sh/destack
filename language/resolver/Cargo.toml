@@ -33,7 +33,7 @@ pnp = { workspace = true }
 url = { workspace = true }
 
 [dev-dependencies]
-fancy-regex = "0.17.0"
+fancy-regex = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.dev-dependencies]
 windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
