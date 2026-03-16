@@ -60,7 +60,6 @@ impl<'a> BuiltinTypeLayouts<'a> {
         }
     }
 
-<<<<<<< HEAD
     /// Read one committed declared DIR snapshot for a module when available.
     fn artifact_dir_data_if_present(&self, module_id: ModuleId) -> Option<Arc<ModuleDir>> {
         self.compiler
