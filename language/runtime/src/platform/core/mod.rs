@@ -56,8 +56,6 @@ pub(crate) use unix::io_error_with_errno;
 pub(crate) use unix::load_dynamic_symbol_named;
 #[cfg(all(unix, not(target_vendor = "apple")))]
 pub(crate) use unix::unix_process_monotonic_nanos;
-#[cfg(target_os = "macos")]
-pub(crate) use unix::{Dispatched, apple_dispatch_queue};
 #[cfg(target_vendor = "apple")]
 pub(crate) use unix::{apple_host_time_resolution_nanos, apple_process_monotonic_nanos};
 #[cfg(target_vendor = "apple")]

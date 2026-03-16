@@ -2,12 +2,14 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::host::Platform;
-use crate::host::android::bindings::{AndroidHostBindings, destack_host_android_register_bindings};
-use crate::host::android::bluetooth::AndroidHostBluetoothCallbacks;
-use crate::host::android::camera::AndroidHostCameraCallbacks;
+use crate::host::android::bluetooth::types::AndroidHostBluetoothCallbacks;
+use crate::host::android::bridge::bindings::{
+    AndroidHostBindings, destack_host_android_register_bindings,
+};
 use crate::host::android::bridge::credentials::AndroidHostCredentialsCallbacks;
 use crate::host::android::bridge::crypto::AndroidHostCryptoCallbacks;
-use crate::host::android::bridge::midi::AndroidHostMidiCallbacks;
+use crate::host::android::bridge::midi::types::AndroidHostMidiCallbacks;
+use crate::host::android::camera::types::AndroidHostCameraCallbacks;
 use crate::host::android::unregister_android_bindings;
 use crate::host::core::registry::HostRegistrationGuard;
 use crate::host::core::{HostQueue, HostRuntimeRegistry};

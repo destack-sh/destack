@@ -6,9 +6,11 @@ use crate::platform::device::{
     BluetoothGattCharacteristicDescriptorVm, BluetoothGattDescriptorDescriptorVm,
     BluetoothGattServiceDescriptorVm, BluetoothGattValueEventVm, BluetoothGattWriteMode,
     BluetoothScanEventVm, BluetoothScanFilterVm, BluetoothSessionEventVm, CameraDeviceDescriptorVm,
-    CameraExposureCompensationRangeVm, CameraExposureMode, CameraFocusDistanceRangeVm,
-    CameraFrameVm, CameraStabilizationMode, CameraStreamCapabilityVm, CameraStreamConfigVm,
-    CameraTorchMode, CameraWhiteBalanceRangeVm, CameraZoomRatioRangeVm, SerialEventVm,
+    CameraExposureCompensationRangeVm, CameraExposureMode, CameraExposureTimeRangeVm,
+    CameraFloatControlRangeVm, CameraFocusDistanceRangeVm, CameraFocusMode, CameraFrameVm,
+    CameraPanAngleRangeVm, CameraSensorIsoRangeVm, CameraStabilizationMode,
+    CameraStreamCapabilityVm, CameraStreamConfigVm, CameraTiltAngleRangeVm, CameraTorchMode,
+    CameraWhiteBalanceMode, CameraWhiteBalanceRangeVm, CameraZoomRatioRangeVm, SerialEventVm,
     SerialInputSignalsVm, SerialOutputSignalsVm, SerialPortConfigVm, SerialPortDescriptorVm,
     SerialPortOpenOptionsVm, UsbBosCapabilityDescriptorVm, UsbConfigurationDescriptorVm,
     UsbControlSetupVm, UsbDeviceDescriptorVm, UsbEndpointSelectorVm, UsbHotplugEventVm,
@@ -65,9 +67,9 @@ pub(crate) fn destack_device_bluetooth_gatt_characteristic_list(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
+    serviceid: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<BluetoothGattCharacteristicDescriptorVm>> {
-    let _ = (handle, serviceuuid);
+    let _ = (handle, serviceid);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.characteristicList is not available in the VM yet",
     ))
@@ -94,10 +96,9 @@ pub(crate) fn destack_device_bluetooth_gatt_descriptor_list(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
-    characteristicuuid: vm::StringHandle,
+    characteristicid: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<BluetoothGattDescriptorDescriptorVm>> {
-    let _ = (handle, serviceuuid, characteristicuuid);
+    let _ = (handle, characteristicid);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.descriptorList is not available in the VM yet",
     ))
@@ -152,11 +153,10 @@ pub(crate) fn destack_device_bluetooth_gatt_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
-    characteristicuuid: vm::StringHandle,
+    characteristicid: vm::StringHandle,
     timeoutns: u64,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let _ = (handle, serviceuuid, characteristicuuid, timeoutns);
+    let _ = (handle, characteristicid, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.read is not available in the VM yet",
     ))
@@ -183,18 +183,10 @@ pub(crate) fn destack_device_bluetooth_gatt_read_descriptor(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
-    characteristicuuid: vm::StringHandle,
-    descriptoruuid: vm::StringHandle,
+    descriptorid: vm::StringHandle,
     timeoutns: u64,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let _ = (
-        handle,
-        serviceuuid,
-        characteristicuuid,
-        descriptoruuid,
-        timeoutns,
-    );
+    let _ = (handle, descriptorid, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.readDescriptor is not available in the VM yet",
     ))
@@ -226,36 +218,6 @@ pub(crate) fn destack_device_bluetooth_gatt_read_event(
     let _ = (handle, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.readEvent is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Request one target ATT MTU.
-///
-/// Request ATT MTU negotiation and return negotiated MTU for one connected device session.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host GATT MTU negotiation APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_device_bluetooth_gatt_request_mtu(
-    _binding: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::BluetoothDeviceHandle,
-    mtu: u16,
-    timeoutns: u64,
-) -> RuntimeResult<u16> {
-    let _ = (handle, mtu, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.device.bluetooth.gatt.requestMtu is not available in the VM yet",
     ))
     .boxed())
 }
@@ -308,10 +270,9 @@ pub(crate) fn destack_device_bluetooth_gatt_subscribe(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
-    characteristicuuid: vm::StringHandle,
+    characteristicid: vm::StringHandle,
 ) -> RuntimeResult<resource::BluetoothSubscriptionHandle> {
-    let _ = (handle, serviceuuid, characteristicuuid);
+    let _ = (handle, characteristicid);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.subscribe is not available in the VM yet",
     ))
@@ -394,20 +355,12 @@ pub(crate) fn destack_device_bluetooth_gatt_write(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
-    characteristicuuid: vm::StringHandle,
+    characteristicid: vm::StringHandle,
     argument_value: VmSlice<u8>,
     mode: BluetoothGattWriteMode,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (
-        handle,
-        serviceuuid,
-        characteristicuuid,
-        argument_value,
-        mode,
-        timeoutns,
-    );
+    let _ = (handle, characteristicid, argument_value, mode, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.write is not available in the VM yet",
     ))
@@ -434,20 +387,11 @@ pub(crate) fn destack_device_bluetooth_gatt_write_descriptor(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::BluetoothDeviceHandle,
-    serviceuuid: vm::StringHandle,
-    characteristicuuid: vm::StringHandle,
-    descriptoruuid: vm::StringHandle,
+    descriptorid: vm::StringHandle,
     argument_value: VmSlice<u8>,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (
-        handle,
-        serviceuuid,
-        characteristicuuid,
-        descriptoruuid,
-        argument_value,
-        timeoutns,
-    );
+    let _ = (handle, descriptorid, argument_value, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.bluetooth.gatt.writeDescriptor is not available in the VM yet",
     ))
@@ -964,6 +908,62 @@ pub(crate) fn destack_device_camera_device_stream_config_list(
     .boxed())
 }
 
+/// Read camera brightness.
+///
+/// Read one brightness adjustment from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend brightness query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_brightness(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<f64> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.brightness is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read brightness range.
+///
+/// Read one brightness range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend brightness capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_brightness_range(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraFloatControlRangeVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.brightnessRange is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Close camera stream.
 ///
 /// Close one opened camera stream and release host resources.
@@ -1016,6 +1016,62 @@ pub(crate) fn destack_device_camera_stream_config(
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.config is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read camera contrast.
+///
+/// Read one contrast adjustment from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend contrast query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_contrast(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<f64> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.contrast is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read contrast range.
+///
+/// Read one contrast range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend contrast capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_contrast_range(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraFloatControlRangeVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.contrastRange is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1104,6 +1160,62 @@ pub(crate) fn destack_device_camera_stream_exposure_mode(
     .boxed())
 }
 
+/// Read camera exposure time.
+///
+/// Read one exposure time in nanoseconds from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend exposure-duration query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_exposure_time_ns(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<u64> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.exposureTimeNs is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read exposure-time range.
+///
+/// Read one exposure-time range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend exposure-duration capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_exposure_time_range(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraExposureTimeRangeVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.exposureTimeRange is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Read camera focus distance.
 ///
 /// Read one focus-distance value in diopters from one opened camera stream.
@@ -1160,6 +1272,34 @@ pub(crate) fn destack_device_camera_stream_focus_distance_range(
     .boxed())
 }
 
+/// Read camera focus mode.
+///
+/// Read one focus mode from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend focus mode query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_focus_mode(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraFocusMode> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.focusMode is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Open camera stream.
 ///
 /// Open one camera stream with explicit stream configuration.
@@ -1189,6 +1329,62 @@ pub(crate) fn destack_device_camera_stream_open(
     .boxed())
 }
 
+/// Read camera pan angle.
+///
+/// Read one pan angle in degrees from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend pan query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_pan_degrees(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<f64> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.panDegrees is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read pan-angle range.
+///
+/// Read one pan-angle range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend pan capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_pan_range(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraPanAngleRangeVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.panRange is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Read camera frame.
 ///
 /// Wait for one camera frame from one running stream.
@@ -1214,6 +1410,176 @@ pub(crate) fn destack_device_camera_stream_read(
     let _ = (handle, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.read is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read camera saturation.
+///
+/// Read one saturation adjustment from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend saturation query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_saturation(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<f64> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.saturation is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read saturation range.
+///
+/// Read one saturation range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend saturation capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_saturation_range(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraFloatControlRangeVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.saturationRange is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read camera sensor ISO.
+///
+/// Read one sensor ISO value from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend ISO query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_sensor_iso(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<u32> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.sensorIso is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read sensor-ISO range.
+///
+/// Read one sensor-ISO range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend ISO capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_sensor_iso_range(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraSensorIsoRangeVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.sensorIsoRange is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Set camera brightness.
+///
+/// Apply one brightness adjustment on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend brightness control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_brightness(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeResult<()> {
+    let _ = (handle, argument_value);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setBrightness is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Set camera contrast.
+///
+/// Apply one contrast adjustment on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend contrast control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_contrast(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeResult<()> {
+    let _ = (handle, argument_value);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setContrast is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1276,6 +1642,35 @@ pub(crate) fn destack_device_camera_stream_set_exposure_mode(
     .boxed())
 }
 
+/// Set camera exposure time.
+///
+/// Apply one exposure time in nanoseconds on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend exposure-duration control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_exposure_time_ns(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    valuens: u64,
+) -> RuntimeResult<()> {
+    let _ = (handle, valuens);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setExposureTimeNs is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Set camera focus distance.
 ///
 /// Apply one focus-distance value in diopters on one opened camera stream.
@@ -1305,6 +1700,151 @@ pub(crate) fn destack_device_camera_stream_set_focus_distance_diopters(
     .boxed())
 }
 
+/// Set camera focus mode.
+///
+/// Apply one focus mode on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend focus mode APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_focus_mode(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    mode: CameraFocusMode,
+) -> RuntimeResult<()> {
+    let _ = (handle, mode);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setFocusMode is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Set camera pan angle.
+///
+/// Apply one pan angle in degrees on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend pan control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_pan_degrees(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    degrees: f64,
+) -> RuntimeResult<()> {
+    let _ = (handle, degrees);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setPanDegrees is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Set camera saturation.
+///
+/// Apply one saturation adjustment on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend saturation control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_saturation(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeResult<()> {
+    let _ = (handle, argument_value);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setSaturation is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Set camera sensor ISO.
+///
+/// Apply one sensor ISO value on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend ISO control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_sensor_iso(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    iso: u32,
+) -> RuntimeResult<()> {
+    let _ = (handle, iso);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setSensorIso is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Set camera sharpness.
+///
+/// Apply one sharpness adjustment on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend sharpness control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_sharpness(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    argument_value: f64,
+) -> RuntimeResult<()> {
+    let _ = (handle, argument_value);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setSharpness is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Set camera stabilization mode.
 ///
 /// Apply one stabilization mode on one opened camera stream.
@@ -1330,6 +1870,35 @@ pub(crate) fn destack_device_camera_stream_set_stabilization_mode(
     let _ = (handle, mode);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.setStabilizationMode is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Set camera tilt angle.
+///
+/// Apply one tilt angle in degrees on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend tilt control APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_tilt_degrees(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    degrees: f64,
+) -> RuntimeResult<()> {
+    let _ = (handle, degrees);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setTiltDegrees is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1392,6 +1961,35 @@ pub(crate) fn destack_device_camera_stream_set_white_balance_kelvin(
     .boxed())
 }
 
+/// Set camera white-balance mode.
+///
+/// Apply one white-balance mode on one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend white-balance mode APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_set_white_balance_mode(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+    mode: CameraWhiteBalanceMode,
+) -> RuntimeResult<()> {
+    let _ = (handle, mode);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.setWhiteBalanceMode is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Set camera zoom ratio.
 ///
 /// Apply one digital zoom ratio on one opened camera stream.
@@ -1417,6 +2015,62 @@ pub(crate) fn destack_device_camera_stream_set_zoom_ratio(
     let _ = (handle, ratio);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.setZoomRatio is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read camera sharpness.
+///
+/// Read one sharpness adjustment from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend sharpness query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_sharpness(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<f64> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.sharpness is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read sharpness range.
+///
+/// Read one sharpness range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend sharpness capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_sharpness_range(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraFloatControlRangeVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.sharpnessRange is not available in the VM yet",
     ))
     .boxed())
 }
@@ -1505,6 +2159,62 @@ pub(crate) fn destack_device_camera_stream_stop(
     .boxed())
 }
 
+/// Read camera tilt angle.
+///
+/// Read one tilt angle in degrees from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend tilt query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_tilt_degrees(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<f64> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.tiltDegrees is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read tilt-angle range.
+///
+/// Read one tilt-angle range descriptor for one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend tilt capability query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_tilt_range(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraTiltAngleRangeVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.tiltRange is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Read camera torch mode.
 ///
 /// Read one torch mode from one opened camera stream.
@@ -1585,6 +2295,34 @@ pub(crate) fn destack_device_camera_stream_white_balance_kelvin(
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.device.camera.stream.whiteBalanceKelvin is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read camera white-balance mode.
+///
+/// Read one white-balance mode from one opened camera stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend white-balance mode query APIs where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `device.camera.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_device_camera_stream_white_balance_mode(
+    _binding: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::CameraStreamHandle,
+) -> RuntimeResult<CameraWhiteBalanceMode> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.camera.stream.whiteBalanceMode is not available in the VM yet",
     ))
     .boxed())
 }

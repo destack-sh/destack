@@ -1,11 +1,10 @@
 use crate::host::android::abi::HOST_STATUS_OK;
+use crate::host::android::bridge::midi::ffi::destack_host_android_midi_describe_backend;
 use crate::host::android::bridge::midi::tests::core::{
     TEST_CAPABILITY_FLAGS, TEST_DATA_FORMATS, TEST_PROTOCOLS, TEST_STATUS_NOT_FOUND,
     TEST_STATUS_NOT_SUPPORTED, lock_test_callbacks, register_test_callbacks,
 };
-use crate::host::android::bridge::midi::{
-    AndroidHostMidiCallbacks, destack_host_android_midi_describe_backend,
-};
+use crate::host::android::bridge::midi::types::AndroidHostMidiCallbacks;
 use crate::host::android::tests::{register_android_bindings_midi, register_android_runtime};
 
 /// Return not-supported when Android MIDI callbacks are not registered.

@@ -4,7 +4,7 @@ use crate::runtime::{NativeSlice, NativeStringRef};
 
 /// Read one Android host credential payload.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_credentials_read(
+pub(crate) unsafe extern "C" fn destack_host_android_credentials_read(
     runtime_id: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -42,7 +42,7 @@ pub unsafe extern "C" fn destack_host_android_credentials_read(
 
 /// Write one Android host credential payload.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_credentials_write(
+pub(crate) unsafe extern "C" fn destack_host_android_credentials_write(
     runtime_id: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -73,7 +73,7 @@ pub unsafe extern "C" fn destack_host_android_credentials_write(
 
 /// Delete one Android host credential payload.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_credentials_delete(
+pub(crate) unsafe extern "C" fn destack_host_android_credentials_delete(
     runtime_id: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -88,7 +88,7 @@ pub unsafe extern "C" fn destack_host_android_credentials_delete(
 
 /// Query one Android host credential payload.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_credentials_contains(
+pub(crate) unsafe extern "C" fn destack_host_android_credentials_contains(
     runtime_id: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -110,7 +110,7 @@ pub unsafe extern "C" fn destack_host_android_credentials_contains(
 
 /// Run one Android host credentials authentication challenge.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_credentials_authenticate(
+pub(crate) unsafe extern "C" fn destack_host_android_credentials_authenticate(
     runtime_id: u64,
     title: NativeStringRef,
     subtitle: NativeStringRef,

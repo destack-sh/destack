@@ -5,85 +5,13 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{NativeArray, NativeSlice, PlatformError};
 
 use crate::runtime::BindingCallContext;
-use crate::runtime::poller::{HostPollerBackend, PlatformHandle};
 
 use crate::platform::io::{
     CompletionEvent, CompletionOperation, DescriptorControlCommand, DescriptorControlFlags,
     DescriptorRequest, DescriptorResult, EventToken, PollBackend, PollEvent, PollInterest,
     TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpec, UringFeatures, UringParameters,
 };
-use crate::platform::proactor::Proactor;
 use crate::platform::{fs, resource};
-
-/// Build one unsupported-host error for one io host helper.
-fn host_not_supported(operation: &str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
-}
-
-/// Map one io poll backend selector for unsupported hosts.
-pub(crate) const fn host_map_poll_backend(backend: PollBackend) -> HostPollerBackend {
-    match backend {
-        PollBackend::Auto => HostPollerBackend::Auto,
-        PollBackend::Epoll => HostPollerBackend::Epoll,
-        PollBackend::Kqueue => HostPollerBackend::Kqueue,
-        PollBackend::Poll => HostPollerBackend::Poll,
-    }
-}
-
-/// Reject one poll target resolution on unsupported hosts.
-pub(crate) fn host_poll_resolve_target_handle(
-    _binding: &BindingCallContext,
-    _target: resource::ResourceId,
-) -> RuntimeResult<PlatformHandle> {
-    Err(host_not_supported("destack.io.poll.target"))
-}
-
-/// Reject one completion target resolution on unsupported hosts.
-pub(crate) fn host_completion_resolve_target_handle(
-    _binding: &BindingCallContext,
-    _target: resource::ResourceId,
-    operation: &'static str,
-) -> RuntimeResult<PlatformHandle> {
-    Err(host_not_supported(operation))
-}
-
-/// Reject one accepted-handle registration on unsupported hosts.
-pub(crate) fn host_completion_register_accepted_handle(
-    _binding: &BindingCallContext,
-    _handle: PlatformHandle,
-) -> RuntimeResult<i64> {
-    Err(host_not_supported("destack.io.completion.accept"))
-}
-
-/// Reject completion backend creation on unsupported hosts.
-pub(crate) fn host_completion_create_proactor(_entries: u32) -> RuntimeResult<Box<dyn Proactor>> {
-    Err(host_not_supported("destack.io.completion.open"))
-}
-
-/// Reject event token creation on unsupported hosts.
-pub(crate) fn host_event_open(
-    _binding: &BindingCallContext,
-    _initial: u64,
-) -> RuntimeResult<EventToken> {
-    Err(host_not_supported("destack.io.event.open"))
-}
-
-/// Reject event token close on unsupported hosts.
-pub(crate) fn host_event_close(
-    _binding: &BindingCallContext,
-    _token: EventToken,
-) -> RuntimeResult<()> {
-    Err(host_not_supported("destack.io.event.close"))
-}
-
-/// Reject event token signal on unsupported hosts.
-pub(crate) fn host_event_signal(
-    _binding: &BindingCallContext,
-    _token: EventToken,
-    _value: u64,
-) -> RuntimeResult<()> {
-    Err(host_not_supported("destack.io.event.signal"))
-}
 
 /// Cancel queued operations for one target.
 ///

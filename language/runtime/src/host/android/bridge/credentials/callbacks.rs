@@ -1,7 +1,8 @@
+use super::super::bindings::invoke_android_binding_callback;
 use crate::runtime::{NativeSlice, NativeStringRef};
 
 /// Host callback for reading one credential payload.
-pub type AndroidHostCredentialsReadCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCredentialsReadCallback = unsafe extern "C" fn(
     runtime_id: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -14,7 +15,7 @@ pub type AndroidHostCredentialsReadCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for writing one credential payload.
-pub type AndroidHostCredentialsWriteCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCredentialsWriteCallback = unsafe extern "C" fn(
     runtime_id: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -26,7 +27,7 @@ pub type AndroidHostCredentialsWriteCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for deleting one credential payload.
-pub type AndroidHostCredentialsDeleteCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCredentialsDeleteCallback = unsafe extern "C" fn(
     runtime_id: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -34,7 +35,7 @@ pub type AndroidHostCredentialsDeleteCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for checking one credential payload.
-pub type AndroidHostCredentialsContainsCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCredentialsContainsCallback = unsafe extern "C" fn(
     runtime_id: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -43,7 +44,7 @@ pub type AndroidHostCredentialsContainsCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// Host callback for running one credentials authentication challenge.
-pub type AndroidHostCredentialsAuthenticateCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCredentialsAuthenticateCallback = unsafe extern "C" fn(
     runtime_id: u64,
     title: NativeStringRef,
     subtitle: NativeStringRef,
@@ -56,7 +57,7 @@ pub type AndroidHostCredentialsAuthenticateCallback = unsafe extern "C" fn(
 /// Callback table for Android host credentials interop.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct AndroidHostCredentialsCallbacks {
+pub(crate) struct AndroidHostCredentialsCallbacks {
     /// Read callback for one credential payload.
     pub read: Option<AndroidHostCredentialsReadCallback>,
     /// Write callback for one credential payload.
@@ -80,4 +81,17 @@ impl Default for AndroidHostCredentialsCallbacks {
             authenticate: None,
         }
     }
+}
+
+/// Resolve and invoke one Android host credentials callback.
+pub(crate) fn call_android_credentials_callback<T: Copy>(
+    runtime_id: u64,
+    resolve: impl FnOnce(&AndroidHostCredentialsCallbacks) -> Option<T>,
+    invoke: impl FnOnce(T) -> u32,
+) -> u32 {
+    invoke_android_binding_callback(
+        runtime_id,
+        |bindings| resolve(&bindings.credentials),
+        invoke,
+    )
 }

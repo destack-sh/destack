@@ -1,12 +1,13 @@
 use crate::host::android::abi::{HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_OK};
+use crate::host::android::bridge::midi::ffi::{
+    destack_host_android_midi_event_close, destack_host_android_midi_event_open,
+    destack_host_android_midi_event_read,
+};
 use crate::host::android::bridge::midi::tests::core::{
     TEST_DESCRIPTOR_ID, TEST_DESCRIPTOR_NAME, TEST_EVENT_SESSION_ID, lock_test_callbacks,
     recorded_test_state, register_test_callbacks,
 };
-use crate::host::android::bridge::midi::{
-    AndroidHostMidiEventHeader, destack_host_android_midi_event_close,
-    destack_host_android_midi_event_open, destack_host_android_midi_event_read,
-};
+use crate::host::android::bridge::midi::types::AndroidHostMidiEventHeader;
 use crate::runtime::NativeSlice;
 
 /// Route Android MIDI event callbacks through the registered callback table.

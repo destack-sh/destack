@@ -8,7 +8,7 @@ use crate::runtime::{NativeSlice, NativeStringRef};
 
 /// Probe one Android host lane for hardware-backed key support.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_supports_hardware_key(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_supports_hardware_key(
     runtime_id: u64,
     store_kind: u32,
 ) -> u32 {
@@ -21,7 +21,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_supports_hardware_key(
 
 /// Probe one Android host lane for one hardware-backed key-pair algorithm.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_supports_hardware_key_pair(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_supports_hardware_key_pair(
     runtime_id: u64,
     store_kind: u32,
     key_algorithm: u32,
@@ -40,7 +40,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_supports_hardware_key_pair(
 
 /// Probe one Android host lane for one hardware-backed secret-key algorithm.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_supports_hardware_secret_key(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_supports_hardware_secret_key(
     runtime_id: u64,
     store_kind: u32,
     key_algorithm: u32,
@@ -59,7 +59,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_supports_hardware_secret_ke
 
 /// Probe one Android host lane for certificate write support.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_supports_certificate_write(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_supports_certificate_write(
     runtime_id: u64,
     store_kind: u32,
 ) -> u32 {
@@ -77,7 +77,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_supports_certificate_write(
 
 /// Generate one Android host hardware-backed key pair.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_generate_hardware_key_pair(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_generate_hardware_key_pair(
     runtime_id: u64,
     store_kind: u32,
     key_algorithm: u32,
@@ -105,7 +105,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_generate_hardware_key_pair(
 
 /// Generate one Android host hardware-backed secret key.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_generate_hardware_secret_key(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_generate_hardware_secret_key(
     runtime_id: u64,
     store_kind: u32,
     key_algorithm: u32,
@@ -133,7 +133,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_generate_hardware_secret_ke
 
 /// Export one Android host hardware-backed public key.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_export_hardware_public_key(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_export_hardware_public_key(
     runtime_id: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -151,7 +151,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_export_hardware_public_key(
 
 /// Sign one payload with one Android host hardware-backed key.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_sign_hardware_key(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_sign_hardware_key(
     runtime_id: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -183,7 +183,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_sign_hardware_key(
 
 /// Decrypt one payload with one Android host hardware-backed key.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_decrypt_hardware_key(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_decrypt_hardware_key(
     runtime_id: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -215,7 +215,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_decrypt_hardware_key(
 
 /// Encrypt one payload with one Android host hardware-backed secret key.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_encrypt_hardware_secret_key(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_encrypt_hardware_secret_key(
     runtime_id: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -253,7 +253,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_encrypt_hardware_secret_key
 
 /// Decrypt one payload with one Android host hardware-backed secret key.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_decrypt_hardware_secret_key(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_decrypt_hardware_secret_key(
     runtime_id: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -287,7 +287,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_decrypt_hardware_secret_key
 
 /// Compute one MAC with one Android host hardware-backed secret key.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_compute_hardware_mac(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_compute_hardware_mac(
     runtime_id: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -319,7 +319,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_compute_hardware_mac(
 
 /// Derive one shared secret with one Android host hardware-backed key.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_derive_hardware_shared_secret(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_derive_hardware_shared_secret(
     runtime_id: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -347,7 +347,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_derive_hardware_shared_secr
 
 /// Delete one Android host hardware-backed key.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_delete_hardware_key(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_delete_hardware_key(
     runtime_id: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -361,7 +361,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_delete_hardware_key(
 
 /// Import one certificate into one Android host lane.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_import_certificate(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_import_certificate(
     runtime_id: u64,
     store_kind: u32,
     certificate_der: NativeSlice<u8>,
@@ -375,7 +375,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_import_certificate(
 
 /// Delete one certificate from one Android host lane.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_crypto_delete_certificate(
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_delete_certificate(
     runtime_id: u64,
     store_kind: u32,
     certificate_der: NativeSlice<u8>,

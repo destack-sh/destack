@@ -2,12 +2,12 @@ use super::tests::{
     TEST_ACCESS_GROUP, TEST_AUTHENTICATION_MECHANISM_BIOMETRIC, test_callbacks, test_contains,
     test_read,
 };
+use crate::host::abi::HostStatus;
 use crate::host::android::bridge::credentials::{
     AndroidHostCredentialsCallbacks, destack_host_android_credentials_authenticate,
     destack_host_android_credentials_contains, destack_host_android_credentials_delete,
     destack_host_android_credentials_read, destack_host_android_credentials_write,
 };
-use crate::host::abi::HostStatus;
 use crate::host::android::tests::{
     callback_test_lock, register_android_bindings_credentials, register_android_runtime,
 };
