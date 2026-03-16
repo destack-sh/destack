@@ -96,7 +96,7 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
 
     // scan modules for import and re export targets
     for module_ref in session.modules.iter() {
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             continue;
         };
@@ -148,7 +148,7 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
             let updated_specifier = if let Some(target_module_id) = target_module_id {
                 // resolve the target path and rename entry
                 let target_module = session.modules.get(target_module_id);
-                let target_module = target_module.read();
+                let target_module = target_module.as_ref();
                 let (target_path, new_path) = if let Some(target_path) = target_module.path.as_ref()
                 {
                     let target_path = target_path.normalize();

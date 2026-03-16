@@ -158,7 +158,7 @@ fn source_expression_matches_target_type(
     let Some(module_dir) = ctx
         .program
         .artifacts
-        .dir_snapshot(source_value_type_id.module_id, ctx.profile_id)
+        .dir_analyzed(source_value_type_id.module_id, ctx.profile_id)
     else {
         return false;
     };

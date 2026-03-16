@@ -21,7 +21,7 @@ pub fn format_global_type(
     strings: &StringPool,
     profile: ProfileId,
 ) -> String {
-    let Some(dir) = artifacts.dir_snapshot(ty_id.module_id, profile) else {
+    let Some(dir) = artifacts.dir_analyzed(ty_id.module_id, profile) else {
         return "<missing>".to_string();
     };
     let Some(ty) = dir.types.get_type_maybe(ty_id.local_id) else {
@@ -541,7 +541,7 @@ pub fn format_symbol_name(
     artifacts: &ArtifactRegistry,
     strings: &StringPool,
 ) -> String {
-    let Some(dir) = artifacts.dir_any_snapshot(symbol_id.module_id) else {
+    let Some(dir) = artifacts.dir_base(symbol_id.module_id) else {
         return "<unknown>".to_string();
     };
     let symbols = &dir.symbols;
@@ -560,7 +560,7 @@ pub fn format_symbol_path(
     strings: &StringPool,
 ) -> Option<String> {
     // load the module symbols
-    let dir = artifacts.dir_any_snapshot(symbol_id.module_id)?;
+    let dir = artifacts.dir_base(symbol_id.module_id)?;
     let symbols = &dir.symbols;
 
     // seed with the symbol name
@@ -609,7 +609,7 @@ pub fn format_symbol_qualified_name(
 ) -> Option<String> {
     // resolve the owning module and package
     let module = modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let package = packages.get(module.package_id);
     let package = package.read();
 

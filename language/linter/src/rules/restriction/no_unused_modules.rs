@@ -91,7 +91,7 @@ impl LintRule for NoUnusedModules {
 
         for module_id in unused_module_ids {
             let module_ref = ctx.program.modules.get(module_id);
-            let module = module_ref.read();
+            let module = module_ref.as_ref();
             let file = ctx.program.files.get(module.file_id);
 
             ctx.report(
@@ -117,7 +117,7 @@ fn collect_eligible_modules(ctx: &LintProgramDirContext) -> HashSet<ModuleId> {
 
     // inspect all modules and keep user code modules only
     for module_ref in ctx.program.modules.iter() {
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         if module.id == ctx.program.root_module_id {
             continue;
         }
@@ -199,7 +199,7 @@ fn module_has_exports(ctx: &LintProgramDirContext, module_id: ModuleId) -> bool 
     let Some(dir) = ctx
         .program
         .artifacts
-        .dir_snapshot(module_id, ctx.profile_id)
+        .dir_analyzed(module_id, ctx.profile_id)
     else {
         return false;
     };
@@ -213,7 +213,7 @@ fn module_has_exports(ctx: &LintProgramDirContext, module_id: ModuleId) -> bool 
 /// Return the file name for deterministic sorting.
 fn module_file_name(ctx: &LintProgramDirContext, module_id: ModuleId) -> String {
     let module_ref = ctx.program.modules.get(module_id);
-    let module = module_ref.read();
+    let module = module_ref.as_ref();
     let file = ctx.program.files.get(module.file_id);
     file.name.clone()
 }
@@ -257,7 +257,7 @@ mod tests {
         // configure one explicit target entry root when requested
         if !entry_paths.is_empty() && !module_ids.is_empty() {
             let first_module = test.program.modules.get(module_ids[0]);
-            let first_module = first_module.read();
+            let first_module = first_module.as_ref();
             let package_id = first_module.package_id;
             drop(first_module);
 

@@ -96,7 +96,7 @@ pub(crate) fn doc_text_for_symbol(
 ) -> Option<String> {
     // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the symbol declaration
@@ -113,7 +113,7 @@ pub(crate) fn doc_text_for_symbol(
     let source = source_file.text();
 
     // collect docs from the declaration or its enclosing wrapper nodes
-    let doc_strings = doc_strings_for_node_or_enclosing(ctx.ast, source, ast_node_id);
+    let doc_strings = doc_strings_for_node_or_enclosing(&ctx.ast, source, ast_node_id);
     if doc_strings.is_empty() {
         return None;
     }

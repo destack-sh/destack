@@ -65,13 +65,13 @@ impl LanguageService {
 
         // compute semantic query readiness for the analyzed module
         let module = program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let module_file_id = module.file_id;
-        let module_source_version = module.source_version;
+        let module_source_version = module.source_version();
         let ast_ready = program.artifacts.ast(module_id).is_some();
         let dir_ready = program
             .artifacts
-            .dir_snapshot(module_id, profile_id)
+            .dir_analyzed(module_id, profile_id)
             .is_some();
         let semantic_query_ready = ast_ready && dir_ready;
         let detail = if semantic_query_ready {
@@ -148,7 +148,7 @@ impl LanguageService {
 
                 module_ids.insert(module_id);
                 let module = program.modules.get(module_id);
-                let file_id = module.read().file_id;
+                let file_id = module.file_id;
                 if file_ids.insert(file_id) {
                     let extra_update = build_update(
                         program,
@@ -181,7 +181,7 @@ impl LanguageService {
                 };
 
                 let module = program.modules.get(module_id);
-                let module_version = module.read().version;
+                let module_version = module.version();
                 let Some(graph_version) = graph.module_versions.get(&module_id) else {
                     continue;
                 };
@@ -207,7 +207,7 @@ impl LanguageService {
             let mut dependency_updates = Vec::new();
             for module_id in module_ids.iter().copied() {
                 let module = program.modules.get(module_id);
-                let file_id = module.read().file_id;
+                let file_id = module.file_id;
                 if file_ids.insert(file_id) {
                     let file = program
                         .files
@@ -299,9 +299,9 @@ impl LanguageService {
             let graph_key = ModuleGraphKey::new(profile_id);
             if let Some(graph) = program.index.module_graphs.get(&graph_key) {
                 let module = program.modules.get(module_id);
-                let module = module.read();
+                let module = module.as_ref();
                 let graph_version = graph.module_versions.get(&module_id).copied();
-                if graph_version == Some(module.version) {
+                if graph_version == Some(module.version()) {
                     continue;
                 }
 
@@ -316,7 +316,7 @@ impl LanguageService {
             }
 
             for module in program.modules.iter() {
-                let module = module.read();
+                let module = module.as_ref();
                 if !self.is_workspace_module(&module) {
                     continue;
                 }

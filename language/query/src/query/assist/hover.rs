@@ -111,7 +111,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     let symbol_at = find_symbol_for_hover_at_offset(session, file, offset)?;
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
     let module = session.modules.get(canonical_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let program = program_for_module(session, &module);
     let profile = program.default_profile_id_for_module(canonical_id.module_id);
 
@@ -304,7 +304,7 @@ fn hover_range_for_symbol(
 ) -> Span {
     // preserve full declaration ranges for member declarations
     if node_id.ty == NodeType::Member
-        && let Some(span) = get_dir_node_span(ctx.ast, &ctx.dir, node_id)
+        && let Some(span) = get_dir_node_span(&ctx.ast, &ctx.dir, node_id)
     {
         return span;
     }

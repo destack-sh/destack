@@ -109,7 +109,7 @@ pub fn prepare_type_hierarchy(
 
     // check if it's a type
     let module = session.modules.get(canonical_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
     let (kind, name) = {
         let symbols = ctx.symbols();
@@ -146,7 +146,7 @@ pub fn supertypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierar
 
     // get the lineage for this type
     let module = session.modules.get(canonical_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = crate::query_context(session, &module) else {
         return Vec::new();
     };
@@ -192,7 +192,7 @@ pub fn subtypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierarch
 
     // search all modules for types that extend/implement this type
     for module in session.modules.iter() {
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             continue;
         };
@@ -224,7 +224,7 @@ fn type_hierarchy_item_from_symbol(
 ) -> Option<TypeHierarchyItem> {
     let canonical_id = get_canonical_symbol(session, symbol_id);
     let module = session.modules.get(canonical_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
     let (kind, name) = {
         let symbols = ctx.symbols();

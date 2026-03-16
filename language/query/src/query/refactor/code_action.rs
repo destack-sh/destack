@@ -225,7 +225,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
     let Some(module) = module else {
         return;
     };
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module);
     let Some(ctx) = ctx else {
         return;
@@ -365,7 +365,7 @@ fn collect_auto_import_actions(
     actions: &mut Vec<CodeAction>,
 ) {
     // resolve the current module for import exclusions
-    let exclude_module_id = get_module_by_file_id(session, file).map(|module| module.read().id);
+    let exclude_module_id = get_module_by_file_id(session, file).map(|module| module.id);
 
     // scan diagnostics for unresolved symbol codes
     for program in session.programs.iter() {

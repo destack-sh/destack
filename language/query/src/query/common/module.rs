@@ -3,8 +3,6 @@ use std::sync::Arc;
 
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolType};
 use destack_source::{FileId, ModuleId};
-use parking_lot::RwLock;
-
 use destack_workspace::{ExportEntry, Program, Session};
 
 use super::query_context;
@@ -65,7 +63,7 @@ fn module_path_for_import(module: &destack_workspace::Module) -> Option<String> 
 fn resolve_export_symbol_type(session: &Session, symbol_id: GlobalSymbolId) -> Option<SymbolType> {
     // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = query_context(session, &module)?;
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
@@ -84,7 +82,7 @@ pub fn get_module_exports_maybe(
 ) -> Option<Vec<ExportedSymbol>> {
     // get module AST and DIR
     let module = session.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = query_context(session, &module)?;
     let module_path = module_path_for_import(&module);
     let symbols = ctx.symbols();
@@ -158,10 +156,9 @@ pub fn ensure_program_export_index(session: &Session, program: &Program) {
 
     for module_ref in modules {
         // read module metadata needed for staleness checks
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         let module_id = module.id;
-        let module_version = module.version;
-        drop(module);
+        let module_version = module.version();
 
         // skip modules with fresh export index entries
         if !program.index.exports.is_stale(module_id, module_version) {
@@ -231,7 +228,7 @@ fn search_importable_symbols_for_modules<I>(
     exclude_module: Option<ModuleId>,
 ) -> Vec<ExportedSymbol>
 where
-    I: IntoIterator<Item = Arc<RwLock<destack_workspace::Module>>>,
+    I: IntoIterator<Item = Arc<destack_workspace::Module>>,
 {
     // prepare the result buffer and normalized query
     let mut results = Vec::new();
@@ -239,7 +236,7 @@ where
 
     // scan modules for exported symbols
     for module in modules {
-        let module = module.read();
+        let module = module.as_ref();
         let module_id = module.id;
 
         // skip excluded modules

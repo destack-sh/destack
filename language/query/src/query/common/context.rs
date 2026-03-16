@@ -1,8 +1,9 @@
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 use destack_dir::{self as dir};
 use destack_source::{FileId, ModuleId, ProfileId};
-use destack_workspace::{Module, ModuleAst, ModuleDirData, Program, Session};
+use destack_workspace::{Module, ModuleAst, ModuleDir, Program, Session};
 
 use super::{get_module_by_file_id, program_for_module};
 
@@ -15,15 +16,17 @@ pub struct QueryContext<'a> {
     /// The owning program.
     pub program: Arc<Program>,
     /// The module AST (syntax tree and strings).
-    pub ast: &'a ModuleAst,
+    pub ast: Arc<ModuleAst>,
     /// The module DIR (semantic IR).
-    pub dir: Arc<ModuleDirData>,
+    pub dir: Arc<ModuleDir>,
     /// The profile used for this context.
     pub profile_id: ProfileId,
     /// The module id.
     pub module_id: ModuleId,
     /// The source file id.
     pub file_id: FileId,
+    /// Tie the context lifetime to the call site without borrowing module state.
+    marker: PhantomData<&'a ()>,
 }
 
 impl<'a> QueryContext<'a> {
@@ -84,7 +87,7 @@ pub fn query_context_with_profile<'a>(
     module: &'a Module,
     profile: ProfileId,
 ) -> Option<QueryContext<'a>> {
-    // resolve the owning program and profile dir snapshot
+    // resolve the owning program and profile dir artifact
     let program = program_for_module(session, module);
     query_context_with_program_and_profile(module, program, profile)
 }
@@ -95,9 +98,9 @@ fn query_context_with_program_and_profile<'a>(
     program: Arc<Program>,
     profile: ProfileId,
 ) -> Option<QueryContext<'a>> {
-    // resolve module ast and profile dir snapshot
-    let ast = module.ast_maybe()?;
-    let dir = program.artifacts.dir_snapshot(module.id, profile)?;
+    // resolve module ast and profile dir artifact
+    let ast = program.artifacts.ast(module.id)?;
+    let dir = program.artifacts.dir_analyzed(module.id, profile)?;
 
     // build query context
     Some(QueryContext {
@@ -107,6 +110,7 @@ fn query_context_with_program_and_profile<'a>(
         profile_id: profile,
         module_id: module.id,
         file_id: module.file_id,
+        marker: PhantomData,
     })
 }
 
@@ -120,7 +124,7 @@ pub fn with_query_context_for_file<T>(
     let module = get_module_by_file_id(session, file_id)?;
 
     // build a query context while the module guard is held
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = query_context(session, &module)?;
 
     // run the caller logic inside the query context

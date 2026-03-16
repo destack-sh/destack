@@ -269,7 +269,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
     };
 
     // resolve the query context from the module
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = crate::query_context(session, &module) else {
         return unknown_context();
     };
@@ -1495,7 +1495,7 @@ fn resolve_import_target_module(
 
     // resolve the base path for the current module
     let module = session.modules.get(ctx.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let base_path = if let Some(path) = module.path.clone() {
         Some(path)
     } else {

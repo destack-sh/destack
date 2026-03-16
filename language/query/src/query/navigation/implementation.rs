@@ -115,7 +115,7 @@ pub fn goto_implementation(
 
     // resolve the target symbol type information
     let target_module = session.modules.get(canonical_id.module_id);
-    let target_module = target_module.read();
+    let target_module = target_module.as_ref();
     let Some(ctx) = crate::query_context(session, &target_module) else {
         return Some(ImplementationResult::empty());
     };
@@ -141,7 +141,7 @@ pub fn goto_implementation(
     // search all modules for types that implement or extend this symbol
     for module in session.modules.iter() {
         // resolve query context for each module
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             continue;
         };
@@ -227,7 +227,7 @@ pub fn goto_implementation(
 
                 // fall back to goto_type_definition when nominal resolution misses
                 if !matches_target {
-                    let span = get_dir_node_main_span(ctx.ast, &ctx.dir, (*type_expr_id).into());
+                    let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, (*type_expr_id).into());
                     if let Some(span) = span
                         && let Some(result) =
                             super::goto_type_definition(session, span.file, span.start)
@@ -288,7 +288,8 @@ fn resolve_type_symbol_at_offset(
         // scan expression nodes to find a type reference under the cursor
         let dir_tree = ctx.tree();
         for (expression_id, _expression) in dir_tree.iter_nodes_of_type::<Expression>() {
-            let Some(span) = get_dir_node_main_span(ctx.ast, &ctx.dir, expression_id.into()) else {
+            let Some(span) = get_dir_node_main_span(&ctx.ast, &ctx.dir, expression_id.into())
+            else {
                 continue;
             };
 
@@ -360,7 +361,7 @@ fn collect_target_symbols(session: &Session, symbol_id: GlobalSymbolId) -> HashS
 
         // resolve the module and query context for the canonical symbol
         let module = session.modules.get(canonical_id.module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             continue;
         };
@@ -478,7 +479,7 @@ fn fallback_target_symbols_from_type_definition(
 fn symbol_is_implementable(session: &Session, symbol_id: GlobalSymbolId) -> bool {
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = crate::query_context(session, &module) else {
         return false;
     };

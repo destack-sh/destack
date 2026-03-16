@@ -142,7 +142,7 @@ impl Linter {
         profile_id: ProfileId,
     ) -> Result<(), LinterError> {
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
 
         // only code modules carry AST and DIR products
         if !module.is_code() {
@@ -181,7 +181,7 @@ impl Linter {
 
         // skip non code modules after validation
         let module = self.program.modules.get(module_id);
-        if !module.read().is_code() {
+        if !module.is_code() {
             return Ok(());
         }
 
@@ -221,8 +221,8 @@ impl Linter {
             .program
             .modules
             .iter()
-            .filter(|module| module.read().package_id == package_id)
-            .map(|module| module.read().id)
+            .filter(|module| module.package_id == package_id)
+            .map(|module| module.id)
             .collect();
         module_ids.sort_unstable();
 
@@ -235,7 +235,7 @@ impl Linter {
         // skip package scoped rules when no code modules remain
         let Some(options_module_id) = module_ids.iter().copied().find(|module_id| {
             let module = self.program.modules.get(*module_id);
-            module.read().is_code()
+            module.is_code()
         }) else {
             return Ok(());
         };

@@ -58,7 +58,7 @@ impl InlineResult {
 pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<InlineResult> {
     // resolve the module and query context
     let module = get_module_by_file_id(session, file)?;
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // find the symbol at the cursor
@@ -138,7 +138,7 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
         limit_to_file: None,
     };
     for module in session.modules.iter() {
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             continue;
         };

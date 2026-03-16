@@ -368,7 +368,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                 .ctx
                 .program
                 .artifacts
-                .dir_snapshot(primary_declaration.module_id, self.ctx.profile_id)
+                .dir_analyzed(primary_declaration.module_id, self.ctx.profile_id)
             else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
@@ -391,7 +391,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                 .ctx
                 .program
                 .artifacts
-                .dir_snapshot(primary_declaration.module_id, self.ctx.profile_id)
+                .dir_analyzed(primary_declaration.module_id, self.ctx.profile_id)
             else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
@@ -427,7 +427,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             .ctx
             .program
             .artifacts
-            .dir_snapshot(symbol_type_id.module_id, self.ctx.profile_id)
+            .dir_analyzed(symbol_type_id.module_id, self.ctx.profile_id)
         else {
             return false;
         };

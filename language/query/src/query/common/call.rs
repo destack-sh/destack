@@ -88,7 +88,7 @@ pub(crate) fn resolve_call_target(
 /// Check whether a symbol id refers to a function declaration.
 fn symbol_is_function(session: &Session, symbol_id: GlobalSymbolId) -> bool {
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = crate::query_context(session, &module) else {
         return false;
     };

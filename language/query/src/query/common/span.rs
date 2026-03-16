@@ -2,23 +2,21 @@ use std::collections::HashSet;
 use std::panic;
 use std::sync::Arc;
 
+use super::QueryContext;
 use destack_ast as ast;
 use destack_dir::{self as dir, LocalNodeIdAny};
 use destack_source::{EnclosingSpan, File, FileId, Span};
-use parking_lot::RwLock;
-
-use super::QueryContext;
-use destack_workspace::{Module, ModuleAst, ModuleDirData, Session};
+use destack_workspace::{Module, ModuleAst, ModuleDir, Session};
 
 /// Get a module by FileId.
-pub fn get_module_by_file_id(session: &Session, file_id: FileId) -> Option<Arc<RwLock<Module>>> {
+pub fn get_module_by_file_id(session: &Session, file_id: FileId) -> Option<Arc<Module>> {
     session.modules.get_by_file_id(file_id)
 }
 
 /// Get the span of a DIR node by mapping through AST source map.
 pub fn get_dir_node_span(
     ast: &ModuleAst,
-    dir: &ModuleDirData,
+    dir: &ModuleDir,
     dir_node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // get the AST node id from the DIR node
@@ -32,7 +30,7 @@ pub fn get_dir_node_span(
 /// Falls back to full span if no main span is set.
 pub fn get_dir_node_main_span(
     ast: &ModuleAst,
-    dir: &ModuleDirData,
+    dir: &ModuleDir,
     dir_node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // get the AST node id from the DIR node

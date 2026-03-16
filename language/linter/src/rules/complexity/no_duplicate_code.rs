@@ -263,13 +263,12 @@ fn collect_occurrences(
     let mut candidates = Vec::new();
 
     for module_ref in ctx.program.modules.iter() {
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         let file = ctx.program.files.get(module.file_id);
         if !file.ty.is_code() || is_declaration_file(file.ty, ctx) {
             continue;
         }
-
-        let Some(module_ast) = module.ast_maybe() else {
+        let Some(module_ast) = ctx.program.artifacts.ast(module.id) else {
             continue;
         };
 
@@ -312,8 +311,8 @@ fn collect_occurrences(
     for candidate_index in candidate_indices {
         let candidate = &candidates[candidate_index];
         let module_ref = ctx.program.modules.get(candidate.module_id);
-        let module = module_ref.read();
-        let Some(module_ast) = module.ast_maybe() else {
+        let module = module_ref.as_ref();
+        let Some(module_ast) = ctx.program.artifacts.ast(module.id) else {
             continue;
         };
 

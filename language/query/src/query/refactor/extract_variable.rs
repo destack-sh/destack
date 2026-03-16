@@ -60,7 +60,7 @@ pub fn extract_variable(
 
     // resolve the module and query context
     let module = get_module_by_file_id(session, file)?;
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // resolve source text for edits

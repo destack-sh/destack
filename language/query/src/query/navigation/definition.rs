@@ -130,7 +130,7 @@ fn resolve_import_definition_at_offset(
 ) -> Option<Span> {
     // resolve the module and query context for this file
     let module = get_module_by_file_id(session, file)?;
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
     let dir_tree = ctx.tree();
 
@@ -139,8 +139,8 @@ fn resolve_import_definition_at_offset(
         let item = dir_tree.get::<DependencyItem>(item_id);
 
         // resolve the main declaration span for coarse overlap checks
-        let fallback_span = get_dir_node_main_span(ctx.ast, &ctx.dir, item_id.into())
-            .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, item_id.into()));
+        let fallback_span = get_dir_node_main_span(&ctx.ast, &ctx.dir, item_id.into())
+            .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, item_id.into()));
 
         // skip items that do not cover the cursor
         if !fallback_span.is_some_and(|span| span.contains(offset)) {
@@ -214,7 +214,7 @@ pub fn goto_declaration(session: &Session, file: FileId, offset: u32) -> Option<
 fn get_declaration_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<Span> {
     // get module and dir
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
     let declaration = {
         let symbols = ctx.symbols();
@@ -222,8 +222,8 @@ fn get_declaration_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Op
         symbol.primary_declaration?
     };
 
-    get_dir_node_main_span(ctx.ast, &ctx.dir, declaration.local_id)
-        .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, declaration.local_id))
+    get_dir_node_main_span(&ctx.ast, &ctx.dir, declaration.local_id)
+        .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, declaration.local_id))
 }
 
 /// Find the type definition of the symbol at the given position.
@@ -247,11 +247,10 @@ pub fn goto_type_definition(
 
     // get the module to access type table
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     if let Some(span) = type_definition_span_for_symbol(session, symbol_id) {
-        drop(module);
         return Some(DefinitionResult::single(span));
     }
 
@@ -279,7 +278,6 @@ pub fn goto_type_definition(
 
     // final fallback: try to get type from declaration context
     if let Some(type_symbol) = get_type_from_declaration_context(session, &ctx, symbol_at.node_id) {
-        drop(module);
         let span = get_symbol_definition_span(session, type_symbol)?;
         return Some(DefinitionResult::single(span));
     }
@@ -342,7 +340,7 @@ fn get_type_from_declaration_context(
             if let Some(target) = expr.target_symbol() {
                 // verify target is a type symbol
                 let target_module = session.modules.get(target.module_id);
-                let target_module = target_module.read();
+                let target_module = target_module.as_ref();
                 let target_ctx = crate::query_context(session, &target_module)?;
                 let symbols = target_ctx.symbols();
                 let symbol = symbols.get_symbol(target.local_id);
@@ -375,7 +373,7 @@ fn overload_definition_span_for_call_site(
 
     // resolve the query context for this file
     let module = get_module_by_file_id(session, file)?;
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
     let dir_tree = ctx.tree();
 
@@ -432,7 +430,7 @@ fn overload_declaration_span_for_signature(
 ) -> Option<Span> {
     // resolve the symbol context and declarations
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
     let (primary_declaration, secondary_declarations) = {
         let symbols = ctx.symbols();
@@ -467,8 +465,8 @@ fn overload_declaration_span_for_signature(
             .zip(dynamic_parameter_types.iter())
             .all(|(left, right)| left == right)
         {
-            return get_dir_node_main_span(ctx.ast, &ctx.dir, declaration.local_id)
-                .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, declaration.local_id));
+            return get_dir_node_main_span(&ctx.ast, &ctx.dir, declaration.local_id)
+                .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, declaration.local_id));
         }
     }
 
@@ -521,7 +519,7 @@ fn resolve_type_definition_from_imports(
 ) -> Option<Span> {
     // resolve the module and query context for this file
     let module = get_module_by_file_id(session, file)?;
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // find the smallest enclosing AST node at the cursor

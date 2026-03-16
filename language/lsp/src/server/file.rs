@@ -234,8 +234,13 @@ pub(super) fn format_file(
 
     // resolve module state for this file
     let module_lock = session.modules.get_by_file_id(file_id)?;
-    let module = module_lock.read();
-    let ast = module.ast_maybe()?;
+    let module = module_lock.as_ref();
+    let program = if let Some(path) = file.path.as_ref() {
+        session.find_program_for_path(path)
+    } else {
+        session.get_or_create_program(session.cwd.clone())
+    };
+    let ast = program.artifacts.ast(module.id)?;
 
     // build format context from committed semantic state
     let side_span = Parser::compute_side_span_from_tree(&ast.tree);

@@ -68,7 +68,7 @@ pub(crate) fn parameter_data_for_symbol(
 ) -> Option<ParameterData> {
     // read the target module and build a query context
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the symbol and its primary declaration
@@ -94,7 +94,7 @@ pub(crate) fn parameter_data_for_symbol(
             };
 
             let ast_node_id = dir_tree.get_source(declaration_id.id);
-            let docs = parameter_doc_map(ctx.ast, source, ast_node_id);
+            let docs = parameter_doc_map(&ctx.ast, source, ast_node_id);
             let names =
                 dynamic_parameter_display_names(session, dir_tree, &signature.dynamic_parameters);
 
@@ -110,7 +110,7 @@ pub(crate) fn parameter_data_for_symbol(
             };
 
             let ast_node_id = dir_tree.get_source(member_id.id);
-            let docs = parameter_doc_map(ctx.ast, source, ast_node_id);
+            let docs = parameter_doc_map(&ctx.ast, source, ast_node_id);
             let names =
                 dynamic_parameter_display_names(session, dir_tree, &signature.dynamic_parameters);
 
