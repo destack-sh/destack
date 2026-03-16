@@ -45,19 +45,20 @@ Aspiritionally, Destack is intended as a meta framework for developing and maint
 
 It has been more than 50 years since C introduced higher order programming as we still know it today, yet programming is still astoundingly immature.
 We routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it's not well integrated with other software.
+Like the proverbial frog, we've just grown accustomed to software being clunky, broken, and slow.
 
-Software is very useful, we have a lot of it, and there is about to be much, much more with exciting new possibilities to integrate symbolic and probabilistic computation.
-However, the deep inscrutability, inefficiency, instability, and fragmentation of software can only be solved by reimagining the full software process end-to-end; in the limit, that requires unifying the disparate parts that have remained separate for historical reasons.
+Software "engineering" bears strikingly little resemblence to real engineering, with only the best teams at the best times managing to build correct and optimal outputs using [different, bespoke tools and processes](https://apple.github.io/foundationdb/architecture.html).
+We believe that the inscrutability, inefficiency, instability, and fragmentation of _all_ software must thus be solved by reimagining software processes end-to-end; in the limit, that requires unifying the disparate parts that have remained separate for historical reasons.
 
+Software is very useful, we have a lot of it, and there is about to be much, much more - with exciting new possibilities to integrate symbolic and probabilistic computation.
 The more we can express in software, the higher order the abstractions we can program.
-In the beginning, software was the digital shadow of "real" systems, but done correctly, software is an enabling technology for new systems that were previously impossible.
 There is great promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a universal software engine is the best way to support that.
 
 ---
 
 ## Why You Should Not Use Destack
 
-Destack has been in development for years and went through a _lot_ of iteration, and Destack intentionally follows good standards like TypeScript, TSX, Node and Web-shaped APIs.
+Destack has been in development [for years](https://github.com/destack-sh/destack/graphs/commit-activity) and went through a _lot_ of iteration, and Destack intentionally follows good standards like TypeScript, TSX, Node and Web-shaped APIs.
 However, it is still rather early, it is definitely quite radical, and there are sound arguments against the Destack-shaped "universal software engine" way:
 
 1. **Maybe the existing stack is already good enough**: The existing "stack", its layers and components exist for a good reason and have withstood significant evolutionary pressure, thus trying to combine or even rearrange them in a substantially different way may very well turn out net negative.
@@ -84,7 +85,7 @@ However, it is still rather early, it is definitely quite radical, and there are
 > **Destack is an alpha-stage, _experimental_ computing stack.**
 > Things may change or break or vanish.
 
-To get started using Destack, despite our best warnings:
+**Get started with Destack**:
 - Install Destack via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack/cli`.
 - Create a new Destack app with `npm create destack@latest my-destack-app` or `bun create destack my-destack-app`.
 
