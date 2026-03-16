@@ -8,7 +8,10 @@ use crossbeam_deque::{Injector, Steal};
 use dashmap::DashMap;
 use parking_lot::{Condvar, Mutex};
 
-use crate::{BuildKey, BuildRequirementSet, Task, TaskHandle, TaskId, TaskOutcome, TaskStatus};
+use crate::{
+    BuildKey, BuildRequirement, BuildRequirementSet, Task, TaskHandle, TaskId, TaskOutcome,
+    TaskStatus,
+};
 
 #[derive(Debug, Default)]
 struct TaskIndex {
@@ -100,6 +103,7 @@ impl TaskQueue {
         handle.status = TaskStatus::Queued;
         handle.last_outcome = None;
         handle.yield_count = 0;
+        handle.final_requirements.clear();
         drop(tasks);
 
         self.push_ready(task_id);
@@ -154,6 +158,26 @@ impl TaskQueue {
                 return;
             }
             handle.last_outcome = Some(outcome);
+        }
+    }
+
+    /// Replace the final requirements recorded for one task.
+    pub(super) fn set_final_requirements(
+        &self,
+        task_id: TaskId,
+        requirements: Vec<BuildRequirement>,
+    ) {
+        let mut tasks = self.tasks.lock();
+        if let Some(handle) = tasks.handles.get_mut(task_id.0 as usize) {
+            handle.final_requirements = requirements;
+        }
+    }
+
+    /// Clear the final requirements recorded for one task.
+    pub(super) fn clear_final_requirements(&self, task_id: TaskId) {
+        let mut tasks = self.tasks.lock();
+        if let Some(handle) = tasks.handles.get_mut(task_id.0 as usize) {
+            handle.final_requirements.clear();
         }
     }
 
@@ -227,6 +251,17 @@ impl TaskQueue {
             .ids
             .get(build_key)
             .and_then(|task_id| tasks.handles.get(task_id.0 as usize).cloned())
+    }
+
+    /// Find the task id for one build key.
+    pub(super) fn find_task_id(&self, build_key: &BuildKey) -> Option<TaskId> {
+        let tasks = self.tasks.lock();
+        tasks.ids.get(build_key).copied()
+    }
+
+    /// Return the current task count.
+    pub(super) fn task_count(&self) -> usize {
+        self.tasks.lock().handles.len()
     }
 
     /// Find a task by its build key and return its status.

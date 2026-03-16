@@ -2,8 +2,8 @@ use dashmap::DashMap;
 
 use destack_source::{CacheKind, FileVersion, ModuleId, ProfileId, ProfileVersion};
 use destack_workspace::{
-    CacheError, CacheStore, ModuleAstCacheEntry, ModuleAstData, ModuleDirCacheEntry, ModuleDirData,
-    ModuleMirCacheEntry, ModuleMirData,
+    CacheError, CacheStore, ModuleAst, ModuleAstCacheEntry, ModuleDir, ModuleDirCacheEntry,
+    ModuleMir, ModuleMirCacheEntry,
 };
 
 use super::disk::CacheDiskState;
@@ -103,7 +103,7 @@ impl CacheRegistry {
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
-        payload: ModuleAstData,
+        payload: ModuleAst,
     ) -> Result<(), CacheError> {
         // skip when cache is disabled
         if !options.is_enabled() {
@@ -166,7 +166,7 @@ impl CacheRegistry {
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
-        payload: ModuleDirData,
+        payload: ModuleDir,
     ) -> Result<(), CacheError> {
         self.write_dir_cache_with_kind(
             cache_store,
@@ -209,7 +209,7 @@ impl CacheRegistry {
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
-        payload: ModuleDirData,
+        payload: ModuleDir,
     ) -> Result<(), CacheError> {
         self.write_dir_cache_with_kind(
             cache_store,
@@ -252,7 +252,7 @@ impl CacheRegistry {
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
-        payload: ModuleDirData,
+        payload: ModuleDir,
     ) -> Result<(), CacheError> {
         self.write_dir_cache_with_kind(
             cache_store,
@@ -295,7 +295,7 @@ impl CacheRegistry {
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
-        payload: ModuleDirData,
+        payload: ModuleDir,
     ) -> Result<(), CacheError> {
         self.write_dir_cache_with_kind(
             cache_store,
@@ -315,7 +315,7 @@ impl CacheRegistry {
         context: &CacheContext,
         module_id: ModuleId,
         cache_kind: CacheKind,
-        payload: ModuleDirData,
+        payload: ModuleDir,
     ) -> Result<(), CacheError> {
         // skip when cache is disabled
         if !options.is_enabled() {
@@ -619,7 +619,7 @@ impl CacheRegistry {
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
-        payload: ModuleMirData,
+        payload: ModuleMir,
     ) -> Result<(), CacheError> {
         // skip when cache is disabled
         if !options.is_enabled() {

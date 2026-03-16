@@ -13,8 +13,8 @@ use destack_source::{
 };
 use destack_workspace::{
     ArtifactKey, CacheMode, CachePolicy, CacheScope, CacheValidate, Destack, DiskCacheStore,
-    FileUpdate, MemoryCacheStore, ModuleAst, ModuleGraphKey, ModuleMir, ModuleSignatureKey,
-    Session, TargetId, Workspace, WorkspaceIndexHeader, WorkspaceIndexStore, hash_workspace_config,
+    FileUpdate, MemoryCacheStore, ModuleAst, ModuleGraphKey, Session, Workspace,
+    WorkspaceIndexHeader, WorkspaceIndexStore, hash_workspace_config,
 };
 
 impl TestProgram {
@@ -41,12 +41,31 @@ impl TestProgram {
         self.check_no_diagnostic(DiagnosticSeverity::Note);
     }
 
+    /// Compile and analyze the provided modules with one retained compiler.
+    fn compile_analyze_modules_with(&self, compiler: &Compiler, modules: &[ModuleId]) {
+        // reset diagnostics for a clean assertion pass
+        let _ = self.program.diagnostics.drain();
+
+        // enqueue analyze tasks for the requested modules
+        for module_id in modules {
+            let profile = self.default_profile_id(*module_id);
+            compiler.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+                module: *module_id,
+                profile,
+            }));
+        }
+
+        // run compilation and check diagnostics
+        compiler.compile();
+        self.check_no_diagnostic(DiagnosticSeverity::Note);
+    }
+
     /// Replace module source and invalidate program state.
     fn replace_module_source(&self, module_id: ModuleId, content: &str) {
         // capture the module path for filesystem updates
         let module_path = {
             let module = self.program.modules.get(module_id);
-            let module = module.read();
+            let module = module.as_ref();
             if !module.is_code() {
                 panic!("expected a code module for source replacement");
             }
@@ -68,7 +87,7 @@ impl TestProgram {
         }
 
         // invalidate the module via program api
-        let file_id = self.program.modules.get(module_id).read().file_id;
+        let file_id = self.program.modules.get(module_id).file_id;
         self.program
             .invalidate_file(
                 file_id,
@@ -100,7 +119,7 @@ fn test_task_rebuilds_after_module_version_change() {
         .unwrap_or_else(|| panic!("missing dependency for {artifact_key:?}"));
 
     // invalidate the module to bump its version
-    let file_id = test.program.modules.get(module_id).read().file_id;
+    let file_id = test.program.modules.get(module_id).file_id;
     test.program
         .invalidate_file(file_id, FileUpdate::Touch)
         .unwrap_or_else(|error| panic!("failed to invalidate file: {error}"));
@@ -128,10 +147,15 @@ fn test_task_rebuilds_after_module_version_change() {
     );
 }
 
-/// Signature changes invalidate dependent modules.
+/// Exact build requirements mark dependent DIR artifacts stale.
 #[test]
-fn test_module_signature_invalidation() {
+fn test_exact_requirements_mark_dependent_dir_stale() {
     let test = TestProgram::memory_sequential();
+    let compiler = Compiler::new(
+        test.session.clone(),
+        test.program.clone(),
+        test.compiler.options.clone(),
+    );
     let module_a_id = test.add_module(
         "a.ts",
         r#"
@@ -147,32 +171,23 @@ value;
 "#,
     );
 
-    // seed signatures and module graph
-    test.compile_analyze_modules(&[module_a_id, module_b_id]);
+    // seed analyzed artifacts and exact requirements
+    test.compile_analyze_modules_with(&compiler, &[module_a_id, module_b_id]);
 
     let profile = test.default_profile_id(module_a_id);
-    let signature_key = ModuleSignatureKey::new(module_a_id, profile);
-    let initial_signature = test
-        .program
-        .index
-        .module_signatures
-        .get(&signature_key)
-        .unwrap_or_else(|| panic!("missing signature for {module_a_id:?}"));
-    let initial_hash = initial_signature.value().hash;
+    let build_key = BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+        module: module_b_id,
+        profile,
+    });
     let b_has_dir_before = test
         .program
         .artifacts
         .dir_analyzed(module_b_id, profile)
         .is_some();
-    let b_signature_before = test
-        .program
-        .index
-        .module_signatures
-        .get(&ModuleSignatureKey::new(module_b_id, profile))
-        .unwrap_or_else(|| panic!("missing signature for {module_b_id:?}"));
-    let b_signature_hash_before = b_signature_before.value().hash;
-    drop(initial_signature);
-    drop(b_signature_before);
+    assert!(
+        compiler.build_key_is_available(&build_key),
+        "expected dependent dir to be available before edits"
+    );
 
     // update module a without changing its export surface
     test.replace_module_source(
@@ -181,85 +196,32 @@ value;
 export const value: number = 2;
 "#,
     );
-    test.compile_analyze_modules(&[module_a_id]);
+    test.compile_analyze_modules_with(&compiler, &[module_a_id]);
 
-    let stable_signature = test
-        .program
-        .index
-        .module_signatures
-        .get(&signature_key)
-        .unwrap_or_else(|| panic!("missing signature for {module_a_id:?}"));
-    let stable_hash = stable_signature.value().hash;
     let b_has_dir_after_internal = test
         .program
         .artifacts
         .dir_analyzed(module_b_id, profile)
         .is_some();
-    let b_signature_after_internal = test
-        .program
-        .index
-        .module_signatures
-        .get(&ModuleSignatureKey::new(module_b_id, profile))
-        .unwrap_or_else(|| panic!("missing signature for {module_b_id:?}"));
-    let b_signature_hash_after_internal = b_signature_after_internal.value().hash;
-    drop(stable_signature);
-    drop(b_signature_after_internal);
 
-    // check that the signature and dependent state are unchanged
-    assert_eq!(
-        stable_hash, initial_hash,
-        "expected signature hash to remain stable for internal change"
-    );
     assert_eq!(
         b_has_dir_after_internal, b_has_dir_before,
-        "expected dependent dir preserved for internal change"
-    );
-    assert_eq!(
-        b_signature_hash_after_internal, b_signature_hash_before,
-        "expected dependent signature hash preserved for internal change"
-    );
-
-    // update module a with an export change
-    test.replace_module_source(
-        module_a_id,
-        r#"
-export const value: string = "value";
-"#,
-    );
-    test.compile_analyze_modules(&[module_a_id]);
-
-    let changed_signature = test
-        .program
-        .index
-        .module_signatures
-        .get(&signature_key)
-        .unwrap_or_else(|| panic!("missing signature for {module_a_id:?}"));
-    let changed_hash = changed_signature.value().hash;
-    let b_has_dir_after_export = test
-        .program
-        .artifacts
-        .dir_analyzed(module_b_id, profile)
-        .is_some();
-    let b_signature_after_export = test
-        .program
-        .index
-        .module_signatures
-        .get(&ModuleSignatureKey::new(module_b_id, profile))
-        .unwrap_or_else(|| panic!("missing signature for {module_b_id:?}"));
-    let b_signature_hash_after_export = b_signature_after_export.value().hash;
-
-    // check that the signature and dependent state are changed
-    assert_ne!(
-        changed_hash, initial_hash,
-        "expected signature hash to change when exports change"
+        "expected dependent dir artifact to remain published"
     );
     assert!(
-        !b_has_dir_after_export,
-        "expected dependent dir invalidated on export change"
+        !compiler.build_key_is_available(&build_key),
+        "expected dependent dir to become stale after dependency change"
     );
-    assert_eq!(
-        b_signature_hash_after_export, b_signature_hash_before,
-        "expected dependent signature retained for export change"
+
+    // rerun the dependent build and restore availability
+    let outcome = compiler.run_build_key(build_key.clone());
+    assert!(
+        matches!(outcome, TaskOutcome::Complete { .. }),
+        "expected dependent dir rebuild to complete"
+    );
+    assert!(
+        compiler.build_key_is_available(&build_key),
+        "expected dependent dir to be available after rebuild"
     );
 }
 
@@ -363,10 +325,15 @@ value;
     );
 }
 
-/// Signature changes propagate through reexports.
+/// Exact build requirements propagate staleness through reexports.
 #[test]
-fn test_module_signature_transitive_invalidation() {
+fn test_exact_requirements_propagate_through_reexports() {
     let test = TestProgram::memory_sequential();
+    let compiler = Compiler::new(
+        test.session.clone(),
+        test.program.clone(),
+        test.compiler.options.clone(),
+    );
     let module_b_id = test.add_module(
         "b.ts",
         r#"
@@ -388,32 +355,29 @@ value;
 "#,
     );
 
-    // seed signatures and module graph
-    test.compile_analyze_modules(&[module_b_id, module_a_id, module_c_id]);
+    // seed analyzed artifacts and exact requirements
+    test.compile_analyze_modules_with(&compiler, &[module_b_id, module_a_id, module_c_id]);
 
     let profile = test.default_profile_id(module_a_id);
-    let a_signature_before = test
-        .program
-        .index
-        .module_signatures
-        .get(&ModuleSignatureKey::new(module_a_id, profile))
-        .unwrap_or_else(|| panic!("missing signature for {module_a_id:?}"));
-    let a_hash_before = a_signature_before.value().hash;
-    let c_has_dir_before = test
-        .program
-        .artifacts
-        .dir_analyzed(module_c_id, profile)
-        .is_some();
-    drop(a_signature_before);
+    let a_build_key = BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+        module: module_a_id,
+        profile,
+    });
+    let c_build_key = BuildKey::Artifact(ArtifactKey::DirAnalyzed {
+        module: module_c_id,
+        profile,
+    });
+    assert!(compiler.build_key_is_available(&a_build_key));
+    assert!(compiler.build_key_is_available(&c_build_key));
 
-    // update module b with export change
+    // update module b without changing its export surface
     test.replace_module_source(
         module_b_id,
         r#"
-export const value: string = "value";
+export const value: number = 2;
 "#,
     );
-    test.compile_analyze_modules(&[module_b_id]);
+    test.compile_analyze_modules_with(&compiler, &[module_b_id]);
 
     let a_has_dir_after_b = test
         .program
@@ -425,60 +389,35 @@ export const value: string = "value";
         .artifacts
         .dir_analyzed(module_c_id, profile)
         .is_some();
-    let a_signature_after_b = test
-        .program
-        .index
-        .module_signatures
-        .get(&ModuleSignatureKey::new(module_a_id, profile))
-        .unwrap_or_else(|| panic!("missing signature for {module_a_id:?}"));
-    let a_hash_after_b = a_signature_after_b.value().hash;
-    drop(a_signature_after_b);
 
-    // check that the module signature is updated
+    // check that both downstream artifacts remain published but stale
     assert!(
-        !a_has_dir_after_b,
-        "expected reexporting module dir invalidated by dependency change"
+        a_has_dir_after_b,
+        "expected reexporting module dir artifact to remain published"
     );
     assert!(
-        c_has_dir_after_b && c_has_dir_before,
-        "expected dependent dir retained before signature recompute"
-    );
-    assert_eq!(
-        a_hash_after_b, a_hash_before,
-        "expected signature retained until recompute"
-    );
-
-    // recompute module a signature to propagate invalidation
-    test.compile_analyze_modules(&[module_a_id]);
-
-    let a_signature_after_a = test
-        .program
-        .index
-        .module_signatures
-        .get(&ModuleSignatureKey::new(module_a_id, profile))
-        .unwrap_or_else(|| panic!("missing signature for {module_a_id:?}"));
-    let a_hash_after_a = a_signature_after_a.value().hash;
-    let c_has_dir_after_a = test
-        .program
-        .artifacts
-        .dir_analyzed(module_c_id, profile)
-        .is_some();
-
-    // check that the module signature is updated
-    assert_ne!(
-        a_hash_after_a, a_hash_before,
-        "expected signature change after reexport update"
+        c_has_dir_after_b,
+        "expected transitive dependent dir artifact to remain published"
     );
     assert!(
-        !c_has_dir_after_a,
-        "expected dependent dir invalidated after signature update"
+        !compiler.build_key_is_available(&a_build_key),
+        "expected reexporting module dir to become stale"
+    );
+    assert!(
+        !compiler.build_key_is_available(&c_build_key),
+        "expected transitive dependent dir to become stale"
     );
 }
 
-/// Signature changes clear dependent MIR caches.
+/// Exact build requirements mark dependent patched DIR artifacts stale.
 #[test]
-fn test_module_signature_clears_dependent_mir() {
+fn test_exact_requirements_mark_dependent_patched_dir_stale() {
     let test = TestProgram::memory_sequential();
+    let compiler = Compiler::new(
+        test.session.clone(),
+        test.program.clone(),
+        test.compiler.options.clone(),
+    );
     let module_a_id = test.add_module(
         "a.ts",
         r#"
@@ -494,49 +433,54 @@ value;
 "#,
     );
 
-    // seed module graph and signatures
-    test.compile_analyze_modules(&[module_a_id, module_b_id]);
+    // seed analyzed artifacts first
+    test.compile_analyze_modules_with(&compiler, &[module_a_id, module_b_id]);
 
-    // seed a mir artifact to validate invalidation behavior
+    // seed a patched dir artifact to validate freshness behavior
     let profile = test.default_profile_id(module_b_id);
-    let package_id = test.program.modules.get(module_b_id).read().package_id;
-    let target_id = TargetId::new(package_id, "native");
-    let module_version = test.module_version(module_b_id);
-    let mir = ModuleMir::new(module_b_id, module_version, target_id.clone());
-    test.program
-        .artifacts
-        .set_mir(module_b_id, profile, target_id.clone(), mir.to_data());
+    let build_key = BuildKey::Artifact(ArtifactKey::DirPatched {
+        module: module_b_id,
+        profile,
+    });
+    let outcome = compiler.run_build_key(build_key.clone());
+    assert!(matches!(outcome, TaskOutcome::Complete { .. }));
 
-    let b_has_mir_before = test
+    let b_has_patched_dir_before = test
         .program
         .artifacts
-        .optimized_mir(module_b_id, profile, &target_id)
-        .or_else(|| test.program.artifacts.mir(module_b_id, profile, &target_id))
+        .dir_patched(module_b_id, profile)
         .is_some();
 
-    // check that the mir is seeded before edits
-    assert!(b_has_mir_before, "expected mir to be seeded before edits");
+    // check that the patched dir is seeded before edits
+    assert!(
+        b_has_patched_dir_before,
+        "expected patched dir to be seeded before edits"
+    );
+    assert!(compiler.build_key_is_available(&build_key));
 
-    // update module a with an export change
+    // update module a without changing its export surface
     test.replace_module_source(
         module_a_id,
         r#"
-export const value: string = "value";
+export const value: number = 2;
 "#,
     );
-    test.compile_analyze_modules(&[module_a_id]);
+    test.compile_analyze_modules_with(&compiler, &[module_a_id]);
 
-    let b_has_mir_after = test
+    let b_has_patched_dir_after = test
         .program
         .artifacts
-        .optimized_mir(module_b_id, profile, &target_id)
-        .or_else(|| test.program.artifacts.mir(module_b_id, profile, &target_id))
+        .dir_patched(module_b_id, profile)
         .is_some();
 
-    // check that the mir is cleared after edits
+    // check that the patched dir artifact remains published but stale
     assert!(
-        !b_has_mir_after,
-        "expected dependent mir cleared after signature change"
+        b_has_patched_dir_after,
+        "expected dependent patched dir artifact to remain published"
+    );
+    assert!(
+        !compiler.build_key_is_available(&build_key),
+        "expected dependent patched dir to become stale after dependency change"
     );
 }
 
@@ -565,7 +509,7 @@ fn test_cache_roundtrip_disk() {
         dependency_hash: 0,
     };
     let module_id = ModuleId::new(PackageId::new(1), 1);
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
+    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
 
     let cache_store = DiskCacheStore::new();
     let registry = CacheRegistry::new();
@@ -613,7 +557,7 @@ fn test_cache_disk_access_markers() {
         dependency_hash: 0,
     };
     let module_id = ModuleId::new(PackageId::new(2), 3);
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
+    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
 
     let cache_store = DiskCacheStore::new();
     let registry = CacheRegistry::new();
@@ -758,7 +702,7 @@ fn test_cache_roundtrip_memory() {
         dependency_hash: 0,
     };
     let module_id = ModuleId::new(PackageId::new(2), 2);
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
+    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
 
     let cache_store = MemoryCacheStore::new();
     let registry = CacheRegistry::new();
@@ -807,7 +751,7 @@ fn test_cache_miss_on_context_change() {
         dependency_hash: 0,
     };
     let module_id = ModuleId::new(PackageId::new(3), 3);
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
+    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
 
     let cache_store = DiskCacheStore::new();
     let registry = CacheRegistry::new();
@@ -858,7 +802,7 @@ fn test_cache_miss_on_dependency_change() {
         dependency_hash: 10,
     };
     let module_id = ModuleId::new(PackageId::new(4), 4);
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
+    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
 
     let cache_store = MemoryCacheStore::new();
     let registry = CacheRegistry::new();
@@ -911,7 +855,7 @@ fn test_cache_miss_on_file_version_bump() {
     };
     let cache_store = test.session.cache_store.as_ref();
     let registry = CacheRegistry::new();
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
+    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
     registry
         .write_ast_cache(cache_store, &options, &context_before, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write ast cache entry: {error}"));
@@ -980,7 +924,7 @@ fn test_cache_miss_on_tsconfig_change() {
     };
     let cache_store = test.session.cache_store.as_ref();
     let registry = CacheRegistry::new();
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
+    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
     registry
         .write_ast_cache(cache_store, &options, &context_before, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write ast cache entry: {error}"));
@@ -990,8 +934,7 @@ fn test_cache_miss_on_tsconfig_change() {
         .program
         .modules
         .get(module_id)
-        .read()
-        .tsconfig_id
+        .tsconfig_id()
         .unwrap_or_else(|| panic!("expected tsconfig for {module_id:?}"));
     let tsconfig = test.program.tsconfigs.get(tsconfig_id);
     let tsconfig = tsconfig.read();
@@ -1039,7 +982,7 @@ value;
 "#,
     );
     let profile_id = test.default_profile_id(module_b_id);
-    // seed module graph, signatures, and resolved dir artifacts
+    // seed module graph and resolved dir artifacts
     test.compile_analyze_modules(&[module_a_id, module_b_id]);
     let context_before = test
         .compiler
@@ -1073,8 +1016,8 @@ value;
         )
         .unwrap_or_else(|error| panic!("failed to write dir cache entry: {error}"));
 
-    // update the dependency export surface and rebuild its signature
-    test.replace_module_source(module_a_id, "export const value = 'value';");
+    // update the dependency without changing its export surface
+    test.replace_module_source(module_a_id, "export const value = 2;");
     test.compile_analyze_modules(&[module_a_id]);
 
     let context_after = test
@@ -1085,7 +1028,7 @@ value;
     // check that the dependency hash is changed
     assert_ne!(
         context_after.dependency_hash, context_before.dependency_hash,
-        "expected dependency hash to change after export update"
+        "expected dependency hash to change after dependency artifact update"
     );
 
     // check that the dir cache entry is not read from disk
@@ -1094,6 +1037,6 @@ value;
         .unwrap_or_else(|error| panic!("failed to read dir cache entry: {error}"));
     assert!(
         entry.is_none(),
-        "expected cache miss after dependency signature change"
+        "expected cache miss after dependency artifact change"
     );
 }

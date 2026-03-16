@@ -24,6 +24,8 @@ thread_local! {
     static IN_WORKER_LOOP: Cell<bool> = const { Cell::new(false) };
     /// The task currently being executed on this worker.
     static CURRENT_TASK: RefCell<Option<Task>> = const { RefCell::new(None) };
+    /// The exact build requirements satisfied by the current task attempt.
+    static CURRENT_REQUIREMENTS: RefCell<Vec<crate::BuildRequirement>> = const { RefCell::new(Vec::new()) };
 }
 
 impl Compiler {
@@ -36,6 +38,77 @@ impl Compiler {
     pub(crate) fn current_build_key(&self) -> Option<BuildKey> {
         self.current_task().map(|task| task.build_key().clone())
     }
+
+    /// Record one satisfied build requirement for the current task attempt.
+    pub(crate) fn record_current_requirement(&self, requirement: crate::BuildRequirement) {
+        if !self.should_record_current_requirement(&requirement) {
+            return;
+        }
+
+        CURRENT_REQUIREMENTS.with(|requirements| {
+            let mut requirements = requirements.borrow_mut();
+            if requirements.iter().any(|existing| {
+                existing.key == requirement.key && existing.dependency == requirement.dependency
+            }) {
+                return;
+            }
+
+            requirements.push(requirement);
+        });
+    }
+
+    /// Return whether one exact requirement was already satisfied in the current task attempt.
+    pub(crate) fn current_requirement_is_recorded(
+        &self,
+        requirement: &crate::BuildRequirement,
+    ) -> bool {
+        CURRENT_REQUIREMENTS.with(|requirements| {
+            requirements.borrow().iter().any(|existing| {
+                existing.key == requirement.key && existing.dependency == requirement.dependency
+            })
+        })
+    }
+
+    /// Return whether one satisfied requirement should persist past task completion.
+    fn should_record_current_requirement(&self, requirement: &crate::BuildRequirement) -> bool {
+        match (&self.current_build_key(), &requirement.key) {
+            (None, _) => false,
+            (
+                Some(BuildKey::Artifact(
+                    ArtifactKey::LanguageEnvironment { .. }
+                    | ArtifactKey::IntrinsicEnvironment { .. }
+                    | ArtifactKey::LibEnvironment { .. },
+                )),
+                _,
+            ) => false,
+            (Some(BuildKey::Artifact(_)), BuildKey::Artifact(required_key)) => {
+                if matches!(
+                    required_key,
+                    ArtifactKey::LanguageEnvironment { .. }
+                        | ArtifactKey::IntrinsicEnvironment { .. }
+                        | ArtifactKey::LibEnvironment { .. }
+                ) {
+                    return false;
+                }
+
+                true
+            }
+            _ => true,
+        }
+    }
+
+    /// Clear the current task requirement log.
+    fn clear_current_requirements(&self) {
+        CURRENT_REQUIREMENTS.with(|requirements| {
+            requirements.borrow_mut().clear();
+        });
+    }
+
+    /// Take the current task requirement log.
+    fn take_current_requirements(&self) -> Vec<crate::BuildRequirement> {
+        CURRENT_REQUIREMENTS.with(|requirements| std::mem::take(&mut *requirements.borrow_mut()))
+    }
+
     /// Enqueue a task to the compiler.
     /// Noop if we already have the same task queued, returns the existing TaskId.
     pub fn enqueue<T: Into<Task>>(&self, task: T) -> (TaskId, bool) {
@@ -44,13 +117,24 @@ impl Compiler {
         let event = format!("{}.{}.enqueue", task.phase().name(), task.name());
         let args = task.trace_args(&self.program);
 
-        // rerun stale final tasks when the current build requirement is no longer satisfied
-        if !self.build_key_is_available(&build_key)
-            && let Some(task_id) = self.queue.try_requeue_final(&build_key)
-        {
-            self.stats.record_enqueue();
-            tracing::trace!(%event, %args, ?task_id, "compile.enqueue");
-            return (task_id, false);
+        // reuse existing queued or running tasks directly
+        if let Some(handle) = self.queue.find_task_handle(&build_key) {
+            if !handle.status.is_final() {
+                self.stats.record_enqueue();
+                tracing::trace!(%event, %args, task_id = ?handle.id, "compile.enqueue");
+                return (handle.id, false);
+            }
+
+            // rerun stale final tasks when the current build requirement is no longer satisfied
+            if !self.build_key_is_available(&build_key) {
+                let task_id = self
+                    .queue
+                    .try_requeue_final(&build_key)
+                    .expect("existing final task should requeue");
+                self.stats.record_enqueue();
+                tracing::trace!(%event, %args, ?task_id, "compile.enqueue");
+                return (task_id, false);
+            }
         }
 
         let (task_id, is_new) = self.queue.enqueue(task);
@@ -152,7 +236,7 @@ impl Compiler {
     fn fail_stalled_yielded_tasks(&self) {
         let yielded_tasks = self.queue.yielded_tasks_with_requirements();
         for (task_id, requirement) in yielded_tasks {
-            let handle = self.queue.get_task(task_id);
+            let _handle = self.queue.get_task(task_id);
             let error = self.get_yield_failed_error(task_id, &requirement);
             self.queue.set_status(
                 task_id,
@@ -160,7 +244,6 @@ impl Compiler {
                     error: error.clone(),
                 },
             );
-            self.clear_retained_build_frame(handle.task.build_key());
             self.error(error);
             self.fail_waiters(task_id);
         }
@@ -182,7 +265,7 @@ impl Compiler {
             if let Some(status) = self.queue.get_status(target_id) {
                 match status {
                     TaskStatus::Complete => {
-                        return TaskOutcome::Complete { product: None };
+                        return TaskOutcome::Complete;
                     }
                     TaskStatus::Skipped { reason } => {
                         return TaskOutcome::Skipped { reason };
@@ -236,7 +319,7 @@ impl Compiler {
         // process task
         let started_at = Instant::now();
         self.queue.set_status(task_id, TaskStatus::Running);
-        self.clear_current_build_frame();
+        self.clear_current_requirements();
         CURRENT_TASK.with(|current| {
             *current.borrow_mut() = Some(handle.task.clone());
         });
@@ -244,7 +327,6 @@ impl Compiler {
         CURRENT_TASK.with(|current| {
             current.borrow_mut().take();
         });
-        self.clear_current_build_frame();
 
         // handle outcome
         let elapsed = started_at.elapsed();
@@ -317,7 +399,7 @@ impl Compiler {
             BuildKey::Artifact(ArtifactKey::DirPatched { module, profile }) => {
                 self.process_dir_patched(*module, *profile).into()
             }
-            BuildKey::Artifact(ArtifactKey::Mir {
+            BuildKey::Artifact(ArtifactKey::MirBase {
                 module,
                 profile,
                 target,
@@ -369,14 +451,14 @@ impl Compiler {
         let mut requeued = false;
         match &outcome {
             // complete and wake waiters
-            TaskOutcome::Complete { product } => {
+            TaskOutcome::Complete => {
                 let event = format!("{}.{}.complete", handle.phase().name(), handle.task.name());
                 tracing::debug!(%event, %description, ?task_id);
 
-                // publish the completed product before waking waiters
-                self.commit_completed_build(handle.task.build_key(), product);
-                self.clear_retained_build_frame(handle.task.build_key());
-
+                // publish the current dependency stamp before waking waiters
+                self.commit_completed_build(handle.task.build_key());
+                self.queue
+                    .set_final_requirements(task_id, self.take_current_requirements());
                 self.queue.set_status(task_id, TaskStatus::Complete);
                 self.wake_waiters(task_id);
                 self.stats.record_complete();
@@ -385,7 +467,7 @@ impl Compiler {
                 // record per-package time from task anchor
                 let anchor = handle.task.anchor();
                 if let Some(module_id) = anchor.module_id() {
-                    let package_id = self.program.modules.get(module_id).read().package_id;
+                    let package_id = self.program.modules.get(module_id).package_id;
                     self.stats.record_package_time(package_id, elapsed);
                 } else if let Some(package_id) = anchor.package_id() {
                     self.stats.record_package_time(package_id, elapsed);
@@ -403,9 +485,10 @@ impl Compiler {
             TaskOutcome::Skipped { reason } => {
                 let event = format!("{}.{}.skip", handle.phase().name(), handle.task.name());
                 tracing::debug!(%event, %description, ?task_id);
+                self.queue.clear_final_requirements(task_id);
+                self.clear_current_requirements();
                 self.queue
                     .set_status(task_id, TaskStatus::Skipped { reason: *reason });
-                self.clear_retained_build_frame(handle.task.build_key());
                 self.stats.record_skip();
                 self.stats.record_phase_time(handle.phase(), elapsed);
                 self.wake_waiters(task_id);
@@ -413,7 +496,7 @@ impl Compiler {
                 // record per-package time from task anchor
                 let anchor = handle.task.anchor();
                 if let Some(module_id) = anchor.module_id() {
-                    let package_id = self.program.modules.get(module_id).read().package_id;
+                    let package_id = self.program.modules.get(module_id).package_id;
                     self.stats.record_package_time(package_id, elapsed);
                 } else if let Some(package_id) = anchor.package_id() {
                     self.stats.record_package_time(package_id, elapsed);
@@ -433,13 +516,14 @@ impl Compiler {
                 let event = format!("{}.{}.error", handle.phase().name(), handle.task.name());
                 tracing::debug!(%event, %description, ?task_id);
                 self.stats.record_fail();
+                self.queue.clear_final_requirements(task_id);
+                self.clear_current_requirements();
                 self.queue.set_status(
                     task_id,
                     TaskStatus::Failed {
                         error: error.clone(),
                     },
                 );
-                self.clear_retained_build_frame(handle.task.build_key());
                 self.error(error.clone());
                 self.fail_waiters(task_id);
 
@@ -453,6 +537,7 @@ impl Compiler {
             }
             // yield if possible
             TaskOutcome::Yield { requirement } => {
+                self.clear_current_requirements();
                 // check for yield errors
                 if let Some(internal_error) = self.check_yield(task_id, handle, requirement) {
                     let event = format!("{}.{}.circuit", handle.phase().name(), handle.task.name());
@@ -463,7 +548,6 @@ impl Compiler {
                             error: internal_error.clone().into(),
                         },
                     );
-                    self.clear_retained_build_frame(handle.task.build_key());
                     self.error(internal_error.clone());
                     self.fail_waiters(task_id);
 

@@ -96,7 +96,7 @@ impl Compiler {
     fn analyze_policy_severity(&self, error: &AnalyzeError) -> Option<DiagnosticSeverity> {
         let module_id = error.anchor().module_id()?;
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let policy = match error {
             AnalyzeError::AnyTypeDisabled { .. } => self
                 .program
@@ -211,7 +211,7 @@ impl Compiler {
     fn import_policy_severity(&self, error: &ImportError) -> Option<DiagnosticSeverity> {
         let module_id = error.anchor().module_id()?;
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let policy = match error {
             ImportError::ConflictingBinding { is_local, .. } => {
                 if *is_local {
@@ -235,7 +235,7 @@ impl Compiler {
     fn resolve_policy_severity(&self, error: &ResolveError) -> Option<DiagnosticSeverity> {
         let module_id = error.anchor().module_id()?;
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let policy = match error {
             ResolveError::UnsupportedInternalModule { .. } => self
                 .program
@@ -266,15 +266,8 @@ impl Compiler {
                 });
                 let decorator_map = self.collect_well_known_decorators(profile_id);
 
-                // load the module and dir tree
-                // select the correct dir tree
-                let snapshot = if let Some(profile_id) = anchored.profile_id {
-                    self.program
-                        .artifacts
-                        .dir_snapshot(anchored.module_id(), profile_id)
-                } else {
-                    self.artifact_dir_base(anchored.module_id())
-                };
+                // load the base dir tree
+                let snapshot = self.artifact_dir_base(anchored.module_id());
                 let Some(snapshot) = snapshot else {
                     return Vec::new();
                 };
@@ -302,11 +295,18 @@ impl Compiler {
                 let decorator_map = self.collect_well_known_decorators(profile_id);
 
                 // load the module and mir tree
-                let Some(mir) = self.program.artifacts.mir_snapshot(
-                    anchored.module_id(),
-                    profile_id,
-                    &anchored.target_id,
-                ) else {
+                let Some(mir) = self
+                    .program
+                    .artifacts
+                    .mir_optimized(anchored.module_id(), profile_id, &anchored.target_id)
+                    .or_else(|| {
+                        self.program.artifacts.mir_base(
+                            anchored.module_id(),
+                            profile_id,
+                            &anchored.target_id,
+                        )
+                    })
+                else {
                     return Vec::new();
                 };
 

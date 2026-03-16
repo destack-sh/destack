@@ -10,13 +10,13 @@ impl Compiler {
     /// Get the current module version.
     pub fn module_version(&self, module_id: ModuleId) -> ModuleVersion {
         let module = self.program.modules.get(module_id);
-        module.read().version
+        module.version()
     }
 
     /// Get the current source version for one module.
     pub fn module_source_version(&self, module_id: ModuleId) -> FileVersion {
         let module = self.program.modules.get(module_id);
-        module.read().source_version
+        module.source_version()
     }
 
     /// Get the current module stamp.
@@ -83,7 +83,7 @@ impl Compiler {
     where
         E: TaskSkipError,
     {
-        if module.version == module_version {
+        if module.version() == module_version {
             Ok(())
         } else {
             Err(E::skipped(TaskSkipReason::StaleModuleVersion))

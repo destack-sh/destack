@@ -50,15 +50,15 @@ impl DiagnosticAnchor {
         match self {
             Self::DirNode(anchored) => {
                 let module = program.modules.get(anchored.module_id());
-                let module = module.read();
-                let ast = module.ast_maybe()?;
+                let module = module.as_ref();
+                let ast = program.artifacts.ast(anchored.module_id())?;
                 let local_id = anchored.local_id().id;
 
                 // look in profile-specific DIR if we have a profile
                 if let Some(profile_id) = anchored.profile_id
                     && let Some(dir) = program
                         .artifacts
-                        .dir_snapshot(anchored.module_id(), profile_id)
+                        .dir_analyzed(anchored.module_id(), profile_id)
                 {
                     let tree = &dir.tree;
                     if tree.has_node_id(local_id) {
@@ -81,14 +81,19 @@ impl DiagnosticAnchor {
             }
             Self::MirNode(anchored) => {
                 let module = program.modules.get(anchored.module_id());
-                let module = module.read();
-                let ast = module.ast_maybe()?;
+                let module = module.as_ref();
+                let ast = program.artifacts.ast(anchored.module_id())?;
                 let profile_id = program.default_profile_id_for_module(anchored.module_id());
-                let mir = program.artifacts.mir_snapshot(
-                    anchored.module_id(),
-                    profile_id,
-                    &anchored.target_id,
-                )?;
+                let mir = program
+                    .artifacts
+                    .mir_optimized(anchored.module_id(), profile_id, &anchored.target_id)
+                    .or_else(|| {
+                        program.artifacts.mir_base(
+                            anchored.module_id(),
+                            profile_id,
+                            &anchored.target_id,
+                        )
+                    })?;
                 let mir_tree = &mir.tree;
 
                 // get source DIR node from MIR
@@ -107,7 +112,7 @@ impl DiagnosticAnchor {
             }
             Self::Module(module_id) => {
                 let module = program.modules.get(*module_id);
-                let module = module.read();
+                let module = module.as_ref();
                 // point to file start
                 Some((module.file_id, Span::empty(module.file_id)))
             }

@@ -168,7 +168,7 @@ impl Compiler {
 
         // load module and compatibility options
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let options = self.module_check_options_for_module(module_id);
         let skip_lib_check = self.skip_lib_check_for_anchor(anchor, module_id);
 
