@@ -1,28 +1,33 @@
 use std::io::ErrorKind;
 use std::path::Path;
-#[cfg(test)]
+#[cfg(all(test, not(target_os = "android")))]
 use std::sync::{Mutex, OnceLock};
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+#[cfg(not(target_os = "android"))]
+use crate::diagnostic::RuntimeError;
+use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
+#[cfg(not(target_os = "android"))]
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::PowerState;
-use crate::platform::os::power::core::{OS_POWER_STATE_OPERATION, OS_POWER_SUSPEND_OPERATION};
+use crate::platform::os::power::core::OS_POWER_SUSPEND_OPERATION;
 use crate::runtime::BindingCallContext;
 
 /// Power-supply root path on linux-like hosts.
 const LINUX_POWER_SUPPLY_PATH: &str = "/sys/class/power_supply";
 /// System suspend-state control path on linux-like hosts.
+#[cfg(not(target_os = "android"))]
 const LINUX_POWER_STATE_PATH: &str = "/sys/power/state";
 /// Preferred linux suspend target ordering.
+#[cfg(not(target_os = "android"))]
 const LINUX_SUSPEND_STATES: [&str; 3] = ["mem", "standby", "freeze"];
 
 /// Shared suspend hook used by linux tests.
-#[cfg(test)]
+#[cfg(all(test, not(target_os = "android")))]
 type LinuxSuspendHook = fn() -> RuntimeResult<()>;
 
 /// Return the shared linux suspend hook slot for tests.
-#[cfg(test)]
+#[cfg(all(test, not(target_os = "android")))]
 fn linux_suspend_hook_slot() -> &'static Mutex<Option<LinuxSuspendHook>> {
     static HOOK: OnceLock<Mutex<Option<LinuxSuspendHook>>> = OnceLock::new();
 
@@ -30,7 +35,7 @@ fn linux_suspend_hook_slot() -> &'static Mutex<Option<LinuxSuspendHook>> {
 }
 
 /// Install one linux suspend hook for tests.
-#[cfg(test)]
+#[cfg(all(test, not(target_os = "android")))]
 pub(crate) fn set_test_suspend_hook(hook: Option<LinuxSuspendHook>) {
     let mut slot = linux_suspend_hook_slot()
         .lock()
@@ -40,7 +45,7 @@ pub(crate) fn set_test_suspend_hook(hook: Option<LinuxSuspendHook>) {
 }
 
 /// Resolve the active linux suspend hook for tests.
-#[cfg(test)]
+#[cfg(all(test, not(target_os = "android")))]
 fn require_test_suspend_hook() -> RuntimeResult<LinuxSuspendHook> {
     let hook = linux_suspend_hook_slot()
         .lock()
@@ -63,6 +68,7 @@ fn read_trimmed(path: &Path) -> Option<String> {
 }
 
 /// Read the preferred linux suspend target from the kernel power-state interface.
+#[cfg(not(target_os = "android"))]
 fn read_suspend_target() -> RuntimeResult<&'static str> {
     let states = std::fs::read_to_string(LINUX_POWER_STATE_PATH).map_err(|error| {
         let Some(error_code) = error.raw_os_error() else {
@@ -100,6 +106,7 @@ fn read_suspend_target() -> RuntimeResult<&'static str> {
 }
 
 /// Map one linux suspend write error into one runtime error.
+#[cfg(not(target_os = "android"))]
 fn linux_suspend_error(error: std::io::Error) -> Box<RuntimeError> {
     let Some(error_code) = error.raw_os_error() else {
         return core_platform::io_operation_error(
@@ -184,20 +191,25 @@ pub(crate) fn read_power_state(_binding: &BindingCallContext) -> RuntimeResult<P
 
 /// Request one host suspend transition through the linux power-state interface.
 pub(crate) fn request_suspend(_binding: &BindingCallContext) -> RuntimeResult<()> {
-    #[cfg(test)]
+    #[cfg(all(test, not(target_os = "android")))]
     {
         let hook = require_test_suspend_hook()?;
 
         return hook();
     }
 
-    #[cfg(not(test))]
+    #[cfg(target_os = "android")]
+    {
+        Err(core_platform::not_supported(OS_POWER_SUSPEND_OPERATION))
+    }
+
+    #[cfg(all(not(test), not(target_os = "android")))]
     let state = read_suspend_target()?;
-    #[cfg(not(test))]
+    #[cfg(all(not(test), not(target_os = "android")))]
     let payload = format!("{state}\n");
-    #[cfg(not(test))]
+    #[cfg(all(not(test), not(target_os = "android")))]
     std::fs::write(LINUX_POWER_STATE_PATH, payload).map_err(linux_suspend_error)?;
 
-    #[cfg(not(test))]
+    #[cfg(all(not(test), not(target_os = "android")))]
     Ok(())
 }

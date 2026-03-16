@@ -9,6 +9,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::os::PowerState;
 use crate::platform::os::tests::with_harness_context;
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 use crate::tests::platform::error_code_from_result;
 
 #[cfg(target_os = "linux")]

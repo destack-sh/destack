@@ -1,22 +1,22 @@
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "macos", windows)))]
 use std::path::Path;
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "macos", windows)))]
 use std::time::UNIX_EPOCH;
 
 use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::VmArray;
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "macos", windows)))]
 use crate::platform::core::io_operation_error;
 use crate::platform::core::{NativeAbiCodec, VmAbiCodec, not_supported};
-#[cfg(all(test, not(any(unix, windows))))]
+#[cfg(all(test, any(target_os = "macos", windows), not(any(unix, windows))))]
 use crate::platform::fs::abi_generated::{OsPathBytesValue, OsPathValue, PathBytesValue};
-#[cfg(all(test, unix))]
+#[cfg(all(test, any(target_os = "macos", windows), unix))]
 use crate::platform::fs::abi_generated::{OsPathBytesValue, OsPathValue, PathBytesValue};
 #[cfg(all(test, windows))]
 use crate::platform::fs::abi_generated::{OsPathUtf16Value, OsPathValue, PathUtf16Value};
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "macos", windows)))]
 use crate::platform::os::abi_generated::DocumentDescriptorValue;
 use crate::platform::os::abi_generated::DocumentPickOptionsValue;
 use crate::platform::os::{DocumentAccess, DocumentDescriptor, DocumentDescriptorVm};
@@ -127,7 +127,7 @@ pub(crate) fn pick_vm(
 }
 
 /// Build one document descriptor from one host-visible local path.
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "macos", windows)))]
 pub(super) fn document_descriptor_value_from_path(
     path: &Path,
 ) -> RuntimeResult<DocumentDescriptorValue> {
@@ -162,7 +162,7 @@ pub(super) fn document_descriptor_value_from_path(
 }
 
 /// Encode one local host path into one `file://` URI.
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "macos", windows)))]
 pub(super) fn file_uri_from_path(path: &Path) -> String {
     #[cfg(unix)]
     {
@@ -190,7 +190,7 @@ pub(super) fn file_uri_from_path(path: &Path) -> String {
 }
 
 /// Encode one local host path into one runtime path value.
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "macos", windows)))]
 pub(super) fn os_path_value_from_path(path: &Path) -> OsPathValue {
     #[cfg(unix)]
     {
@@ -226,7 +226,7 @@ pub(super) fn os_path_value_from_path(path: &Path) -> OsPathValue {
 }
 
 /// Percent-encode one URI byte payload.
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "macos", windows)))]
 fn percent_encode_bytes(bytes: &[u8]) -> String {
     let mut encoded = String::with_capacity(bytes.len());
 

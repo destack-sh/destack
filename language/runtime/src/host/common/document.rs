@@ -56,7 +56,7 @@ pub(crate) fn normalized_document_extensions(
 }
 
 /// Percent-encode one byte slice for a URI payload.
-#[cfg(any(all(not(test), windows), all(not(test), target_os = "macos")))]
+#[cfg(any(all(not(test), target_os = "macos"), all(not(test), windows)))]
 pub(crate) fn percent_encode_bytes(bytes: &[u8]) -> String {
     let mut output = String::with_capacity(bytes.len());
 

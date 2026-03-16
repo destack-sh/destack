@@ -5,7 +5,7 @@ mod adapter;
 #[cfg(any(test, target_os = "android"))]
 pub(crate) mod bluetooth;
 #[cfg(any(test, target_os = "android"))]
-mod bridge;
+pub(crate) mod bridge;
 #[cfg(any(test, target_os = "android"))]
 pub(crate) mod camera;
 #[cfg(any(test, target_os = "android"))]
@@ -17,7 +17,7 @@ mod tests;
 
 #[cfg(target_os = "android")]
 pub(crate) use adapter::AndroidHost;
-#[cfg(any(test, target_os = "android"))]
+#[cfg(test)]
 pub(crate) use bridge::bindings::AndroidHostBindings;
 #[cfg(any(test, target_os = "android"))]
 pub(crate) use bridge::unregister_android_bindings;

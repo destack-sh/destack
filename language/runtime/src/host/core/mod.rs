@@ -17,9 +17,9 @@ pub use event::{
     HostWallClockEvent,
 };
 pub(crate) use queue::HostQueue;
-pub(crate) use registry::{
-    HostEventObserver, HostIngressHandle, HostRuntimeRegistry, RuntimeIngressObserver,
-};
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
+pub(crate) use registry::RuntimeIngressObserver;
+pub(crate) use registry::{HostEventObserver, HostIngressHandle, HostRuntimeRegistry};
 pub(crate) use request::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
 pub use runtime::HostSession;
 pub use status::{

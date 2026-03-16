@@ -43,6 +43,7 @@ pub(crate) fn io_would_block(operation: &str, message: impl Into<String>) -> Box
 }
 
 /// Build one io-busy runtime error scoped to one binding operation.
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 pub(crate) fn io_busy(operation: &str, message: impl Into<String>) -> Box<RuntimeError> {
     io_operation_error(operation, Some(PlatformErrorCode::IoBusy), message)
 }

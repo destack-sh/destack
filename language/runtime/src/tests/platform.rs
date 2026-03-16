@@ -118,14 +118,14 @@ pub(crate) fn is_not_supported_code(code: Option<PlatformErrorCode>) -> bool {
     code == Some(PlatformErrorCode::NotSupported)
 }
 
-#[cfg(any(test, feature = "execution"))]
 /// Return whether one concrete platform error code is not-supported.
+#[cfg(any(test, feature = "execution"))]
 pub(crate) fn is_not_supported_platform_code(code: PlatformErrorCode) -> bool {
     is_not_supported_code(Some(code))
 }
 
-#[cfg(any(test, feature = "execution"))]
 /// Assert one failed runtime result carries not-supported.
+#[cfg(any(test, feature = "execution"))]
 pub(crate) fn assert_not_supported_result<T>(result: RuntimeResult<T>) -> RuntimeResult<()> {
     let code = error_code_from_result(result)?;
     assert!(is_not_supported_platform_code(code));
@@ -149,34 +149,40 @@ pub(crate) fn result_or_skip_not_supported<T>(
     }
 }
 
-#[cfg(any(test, feature = "execution"))]
 /// Assert one runtime error carries not-supported.
+#[cfg(any(
+    feature = "execution",
+    all(
+        test,
+        any(target_os = "linux", target_os = "macos", target_os = "ios", windows)
+    )
+))]
 pub(crate) fn assert_not_supported_error(error: &RuntimeError) {
     let code = error_code_from_runtime_error(error).expect("expected one platform error payload");
     assert!(is_not_supported_platform_code(code));
 }
 
-#[cfg(any(test, feature = "execution"))]
 /// Assert one concrete platform error code carries not-supported.
+#[cfg(any(test, feature = "execution"))]
 pub(crate) fn assert_not_supported_platform_code(code: PlatformErrorCode) {
     assert!(is_not_supported_platform_code(code));
 }
 
-#[cfg(any(test, feature = "execution"))]
 /// Assert one concrete platform error code does not carry not-supported.
+#[cfg(any(test, feature = "execution"))]
 pub(crate) fn assert_not_not_supported_platform_code(code: PlatformErrorCode) {
     assert!(!is_not_supported_platform_code(code));
 }
 
-#[cfg(any(test, feature = "execution"))]
 /// Assert one runtime error carries one exact platform code.
+#[cfg(any(test, feature = "execution"))]
 pub(crate) fn assert_runtime_error_code(error: &RuntimeError, expected: PlatformErrorCode) {
     let code = error_code_from_runtime_error(error).expect("expected one platform error payload");
     assert_eq!(code, expected);
 }
 
-#[cfg(any(test, feature = "execution"))]
 /// Fail privileged runs when assertions observe permission-denied errors.
+#[cfg(any(test, feature = "execution"))]
 fn assert_no_permission_denied_in_privileged_mode(
     observed: PlatformErrorCode,
     expected: &[PlatformErrorCode],

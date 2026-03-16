@@ -1,5 +1,5 @@
 mod core;
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "macos", windows)))]
 mod tests;
 #[cfg(unix)]
 pub(crate) mod unix;
