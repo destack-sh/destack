@@ -2,6 +2,7 @@
 use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+#[cfg(test)]
 use crate::platform::PlatformError;
 use crate::platform::core::{io_operation_error, io_would_block, not_supported};
 use crate::platform::diagnostic::PlatformErrorCode;

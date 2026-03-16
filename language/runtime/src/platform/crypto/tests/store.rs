@@ -194,7 +194,7 @@ fn test_store_open_follows_probe_availability() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             let options = context.store_options_value(kind);
             let result = context.destack_crypto_store_open(options);
@@ -227,7 +227,7 @@ fn test_store_open_follows_probe_availability() {
         // provider lane should be available through the software provider
         let capability = context.destack_crypto_store_probe_capability(
             CryptoStoreKind::Provider,
-            CryptoStoreProvider::OpenSsl,
+            Some(CryptoStoreProvider::OpenSsl),
         )?;
         let capability = context.store_capability_from_value(capability)?;
         assert!(capability.is_available);
@@ -254,7 +254,7 @@ fn test_store_list_certificates_for_available_host_lanes() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -291,7 +291,7 @@ fn test_store_probe_capability_host_lane_key_fields() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -333,7 +333,7 @@ fn test_store_probe_capability_key_usage_masks_match_wrap_support() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -372,7 +372,7 @@ fn test_store_probe_capability_accepts_provider_for_non_provider_kind() {
         // provider input is required by the ABI and should not block non-provider probes
         let capability = context.destack_crypto_store_probe_capability(
             CryptoStoreKind::System,
-            CryptoStoreProvider::OpenSsl,
+            Some(CryptoStoreProvider::OpenSsl),
         )?;
         let capability = context.store_capability_from_value(capability)?;
         assert_eq!(capability.kind, CryptoStoreKind::System);
@@ -437,7 +437,7 @@ fn test_store_probe_capability_ephemeral() {
         // inspect one ephemeral lane capability descriptor
         let capability = context.destack_crypto_store_probe_capability(
             CryptoStoreKind::Ephemeral,
-            CryptoStoreProvider::OpenSsl,
+            Some(CryptoStoreProvider::OpenSsl),
         )?;
         let capability = context.store_capability_from_value(capability)?;
 
@@ -493,7 +493,7 @@ fn test_store_probe_capability_provider() {
         // default provider lane should resolve to openssl and stay available
         let capability = context.destack_crypto_store_probe_capability(
             CryptoStoreKind::Provider,
-            CryptoStoreProvider::OpenSsl,
+            Some(CryptoStoreProvider::OpenSsl),
         )?;
         let capability = context.store_capability_from_value(capability)?;
 
@@ -541,7 +541,7 @@ fn test_store_probe_capability_key_wrap_rows_match_probe() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
 
             // skip unavailable store lanes
@@ -652,7 +652,7 @@ fn test_store_probe_kinds_reports_ephemeral() {
         // verify each reported kind resolves to one available capability
         for kind in kinds {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             assert!(capability.is_available);
         }

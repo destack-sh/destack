@@ -1,10 +1,10 @@
-use super::with_native_harness_context;
+use super::with_harness_context;
 
 /// Exit a forked child through process bindings and verify the exit code.
 #[cfg(unix)]
 #[test]
 fn test_process_exit_in_child() {
-    with_native_harness_context(|mut context| {
+    with_harness_context(|mut context| {
         let child = unsafe { libc::fork() };
         if child == 0 {
             let _ = context.destack_process_exit(23);

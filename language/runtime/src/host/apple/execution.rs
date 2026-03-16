@@ -12,11 +12,14 @@ where
 {
     #[cfg(target_os = "macos")]
     {
+        // run immediately when already on the process main context
         if is_process_main_context() {
-            return callback();
+            callback()
         }
-
-        return dispatch2::run_on_main(|_| callback());
+        // otherwise hop to the process main context
+        else {
+            dispatch2::run_on_main(|_| callback())
+        }
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -34,9 +37,11 @@ pub(crate) fn with_process_main_context_marker_if_needed<R>(
 where
     R: Send,
 {
+    // run immediately when already on the process main context
     if let Some(marker) = objc2::MainThreadMarker::new() {
         return callback(marker);
     }
 
-    dispatch2::run_on_main(|marker| callback(marker))
+    // otherwise hop to the process main context
+    dispatch2::run_on_main(callback)
 }

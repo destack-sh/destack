@@ -55,7 +55,7 @@ fn test_probe_key_residencies_match_host_store_capabilities() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if capability.supports_hardware_backed {
                 supports_hardware_backed = true;

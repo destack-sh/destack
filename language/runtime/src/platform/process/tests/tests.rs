@@ -60,6 +60,8 @@ pub(crate) struct ProcessStdioSpec {
     pub kind: ProcessStdioKind,
     /// Descriptor payload for `Descriptor` kind.
     pub descriptor: i32,
+    /// Runtime resource id payload for `File` and `Pipe` kinds.
+    pub resource_id: Option<ResourceId>,
 }
 
 /// Fd action spec for spawnWithActions tests.
@@ -128,10 +130,12 @@ fn test_process_helper_variants_constructible() {
     let file_stdio = ProcessStdioSpec {
         kind: ProcessStdioKind::File,
         descriptor: 0,
+        resource_id: Some(ResourceId(7)),
     };
     let pipe_stdio = ProcessStdioSpec {
         kind: ProcessStdioKind::Pipe,
         descriptor: 0,
+        resource_id: Some(ResourceId(9)),
     };
 
     // construct close fd-action helper
@@ -351,13 +355,16 @@ fn vm_process_stdio_slice(
                 })
             }
             ProcessStdioKind::File => {
+                let resource_id = value
+                    .resource_id
+                    .expect("file stdio should provide one resource id");
                 ProcessStdioVm::ProcessStdioFile(process_platform::ProcessStdioFileVm {
                     kind: vm::StringHandle::new(
                         context
                             .intern_string("file")
                             .expect("vm test string should intern"),
                     ),
-                    file: resource::FileHandle(ResourceId(0)),
+                    file: resource::FileHandle(resource_id),
                 })
             }
             ProcessStdioKind::Inherit => {
@@ -379,13 +386,16 @@ fn vm_process_stdio_slice(
                 })
             }
             ProcessStdioKind::Pipe => {
+                let resource_id = value
+                    .resource_id
+                    .expect("pipe stdio should provide one resource id");
                 ProcessStdioVm::ProcessStdioPipe(process_platform::ProcessStdioPipeVm {
                     kind: vm::StringHandle::new(
                         context
                             .intern_string("pipe")
                             .expect("vm test string should intern"),
                     ),
-                    pipe: resource::PipeHandle(ResourceId(0)),
+                    pipe: resource::PipeHandle(resource_id),
                 })
             }
         };
@@ -834,19 +844,6 @@ where
     callback(&native);
     let vm = ProcessHarnessHandle::Vm(VmProcessHarness::new());
     callback(&vm);
-}
-
-/// Run one callback against the native harness only.
-pub(crate) fn with_native_harness_context<F>(callback: F)
-where
-    F: for<'call> FnOnce(ProcessHarnessContext<'call>) -> RuntimeResult<()>,
-{
-    let _guard = PROCESS_TEST_LOCK
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-
-    let native = ProcessHarnessHandle::Native(NativeProcessHarness::new());
-    native.run(callback);
 }
 
 /// Run one callback against both harness contexts.

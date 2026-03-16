@@ -39,7 +39,7 @@ impl Engine for CompleteEngine {
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
-        _heap: &mut heap::Heap,
+        _memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -47,8 +47,8 @@ impl Engine for CompleteEngine {
             output: EngineOutput {
                 value: heap::Value::VOID,
                 stats: Default::default(),
-                heap_cells: 0,
-                raw_heap_cells: 0,
+                managed_allocation_count: 0,
+                raw_allocation_count: 0,
             },
         })
     }
@@ -56,7 +56,7 @@ impl Engine for CompleteEngine {
     /// Run one replayable entrypoint without yielding.
     fn run_replayable_entry(
         &mut self,
-        _heap: &mut heap::Heap,
+        _memory: &mut heap::MemoryContext<'_>,
         _entry: &EntryReference,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -64,8 +64,8 @@ impl Engine for CompleteEngine {
             output: EngineOutput {
                 value: heap::Value::VOID,
                 stats: Default::default(),
-                heap_cells: 0,
-                raw_heap_cells: 0,
+                managed_allocation_count: 0,
+                raw_allocation_count: 0,
             },
         })
     }
@@ -73,7 +73,7 @@ impl Engine for CompleteEngine {
     /// Resume one continuation and complete immediately.
     fn resume(
         &mut self,
-        _heap: &mut heap::Heap,
+        _memory: &mut heap::MemoryContext<'_>,
         continuation: EngineContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
@@ -87,8 +87,8 @@ impl Engine for CompleteEngine {
             output: EngineOutput {
                 value: heap::Value::VOID,
                 stats: Default::default(),
-                heap_cells: 0,
-                raw_heap_cells: 0,
+                managed_allocation_count: 0,
+                raw_allocation_count: 0,
             },
         })
     }

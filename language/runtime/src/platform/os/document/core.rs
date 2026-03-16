@@ -169,7 +169,7 @@ pub(super) fn file_uri_from_path(path: &Path) -> String {
         let bytes = path.as_os_str().as_encoded_bytes();
         let payload = percent_encode_bytes(bytes);
 
-        return format!("file://{payload}");
+        format!("file://{payload}")
     }
 
     #[cfg(windows)]
@@ -196,10 +196,10 @@ pub(super) fn os_path_value_from_path(path: &Path) -> OsPathValue {
     {
         let bytes = path.as_os_str().as_encoded_bytes().to_vec();
 
-        return OsPathValue::OsPathBytes(OsPathBytesValue {
+        OsPathValue::OsPathBytes(OsPathBytesValue {
             kind: "bytes".to_string(),
             bytes: PathBytesValue(bytes),
-        });
+        })
     }
 
     #[cfg(windows)]

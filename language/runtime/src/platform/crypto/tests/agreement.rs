@@ -242,7 +242,7 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;

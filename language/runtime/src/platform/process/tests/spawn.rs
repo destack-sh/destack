@@ -5,8 +5,6 @@ use std::os::fd::AsRawFd;
 use super::ProcessFdActionKind;
 #[cfg(unix)]
 use super::unique_temp_file_path;
-#[cfg(any(unix, windows))]
-use super::with_native_harness_context;
 use super::{
     ProcessFdActionSpec, ProcessSpawnOptionsSpec, ProcessStdioKind, ProcessStdioSpec,
     ProcessWaitKind, shell_exit_command, with_harness_context,
@@ -30,17 +28,13 @@ use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(unix)]
 use crate::platform::fs;
-#[cfg(any(unix, windows))]
-use crate::platform::fs::core as core_fs;
 use crate::platform::process as process_platform;
+#[cfg(any(unix, windows))]
+use crate::platform::resource;
 #[cfg(unix)]
 use crate::platform::resource::ProcessFdHandle;
-#[cfg(any(unix, windows))]
-use crate::platform::resource::{self, ResourceId};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use process_platform::ProcessId;
-#[cfg(any(unix, windows))]
-use process_platform::{ProcessFdAction, ProcessSpawnOptions, ProcessStdio};
 use process_platform::{ProcessFdFlags, ProcessWaitFlags};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use process_platform::{ProcessFdSignalFlags, Signal};
@@ -329,14 +323,17 @@ fn test_process_spawn_with_actions_wait_roundtrip() {
             ProcessStdioSpec {
                 kind: ProcessStdioKind::Null,
                 descriptor: 0,
+                resource_id: None,
             },
             ProcessStdioSpec {
                 kind: ProcessStdioKind::Null,
                 descriptor: 0,
+                resource_id: None,
             },
             ProcessStdioSpec {
                 kind: ProcessStdioKind::Null,
                 descriptor: 0,
+                resource_id: None,
             },
         ];
         let actions = Vec::<ProcessFdActionSpec>::new();
@@ -366,7 +363,7 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
     let cwd = current_working_directory();
 
     #[cfg(unix)]
-    with_native_harness_context(|mut context| {
+    with_harness_context(|mut context| {
         let mut pipe = UnixPipeDescriptors::open()?;
 
         let call_context = context.call_context;
@@ -380,47 +377,38 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
         );
         let pipe_handle = resource::PipeHandle(pipe_resource_id);
 
-        let command = core_fs::os_path_from_utf8_string(call_context, "/bin/sh".to_string());
-        let arguments = call_context.store_string_slice(vec![
-            call_context.store_string("-c"),
-            call_context.store_string("printf PIPE_STDIO_OK"),
-        ]);
-        let environment = call_context.store_string_slice(Vec::new());
-        let options = ProcessSpawnOptions {
-            cwd: core_fs::os_path_from_utf8_string(call_context, cwd.clone()),
-            detached: false,
-            reset_signals: false,
-            new_process_group: false,
-        };
+        let command = "/bin/sh".to_string();
+        let arguments = vec!["-c".to_string(), "printf PIPE_STDIO_OK".to_string()];
+        let environment = Vec::new();
+        let options = ProcessSpawnOptionsSpec::inherit(cwd.clone());
 
-        let stdio_values = vec![
-            ProcessStdio::ProcessStdioInherit(process_platform::ProcessStdioInherit {
-                kind: call_context.store_string("inherit"),
-            }),
-            ProcessStdio::ProcessStdioPipe(process_platform::ProcessStdioPipe {
-                kind: call_context.store_string("pipe"),
-                pipe: pipe_handle,
-            }),
-            ProcessStdio::ProcessStdioInherit(process_platform::ProcessStdioInherit {
-                kind: call_context.store_string("inherit"),
-            }),
+        let stdio = vec![
+            ProcessStdioSpec {
+                kind: ProcessStdioKind::Inherit,
+                descriptor: 0,
+                resource_id: None,
+            },
+            ProcessStdioSpec {
+                kind: ProcessStdioKind::Pipe,
+                descriptor: 0,
+                resource_id: Some(pipe_handle.0),
+            },
+            ProcessStdioSpec {
+                kind: ProcessStdioKind::Inherit,
+                descriptor: 0,
+                resource_id: None,
+            },
         ];
-        let stdio = call_context.store_slice(stdio_values);
-        let actions = call_context.store_slice(Vec::<ProcessFdAction>::new());
+        let actions = Vec::<ProcessFdActionSpec>::new();
 
-        let mut child = resource::ProcessHandle(ResourceId(0));
-        unsafe {
-            process_platform::native::destack_process_spawn_with_actions(
-                call_context,
-                &mut child,
-                command,
-                arguments,
-                environment,
-                options,
-                stdio,
-                actions,
-            )?;
-        }
+        let child = context.destack_process_spawn_with_actions(
+            context.path_value(&command)?,
+            context.string_slice_value(&arguments)?,
+            context.string_slice_value(&environment)?,
+            context.spawn_options_value(&options)?,
+            context.stdio_slice_value(&stdio)?,
+            context.fd_action_slice_value(&actions)?,
+        )?;
 
         // close the parent write descriptor to allow EOF on the read side
         let _ = call_context.agent().resources.remove(
@@ -445,7 +433,7 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
     });
 
     #[cfg(windows)]
-    with_native_harness_context(|mut context| {
+    with_harness_context(|mut context| {
         let mut pipe = WindowsPipeDescriptors::open()?;
 
         let call_context = context.call_context;
@@ -467,47 +455,38 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
         );
         let pipe_handle = resource::PipeHandle(pipe_resource_id);
 
-        let command = core_fs::os_path_from_utf8_string(call_context, "cmd".to_string());
-        let arguments = call_context.store_string_slice(vec![
-            call_context.store_string("/C"),
-            call_context.store_string("echo PIPE_STDIO_OK"),
-        ]);
-        let environment = call_context.store_string_slice(Vec::new());
-        let options = ProcessSpawnOptions {
-            cwd: core_fs::os_path_from_utf8_string(call_context, cwd.clone()),
-            detached: false,
-            reset_signals: false,
-            new_process_group: false,
-        };
+        let command = "cmd".to_string();
+        let arguments = vec!["/C".to_string(), "echo PIPE_STDIO_OK".to_string()];
+        let environment = Vec::new();
+        let options = ProcessSpawnOptionsSpec::inherit(cwd.clone());
 
-        let stdio_values = vec![
-            ProcessStdio::ProcessStdioInherit(process_platform::ProcessStdioInherit {
-                kind: call_context.store_string("inherit"),
-            }),
-            ProcessStdio::ProcessStdioPipe(process_platform::ProcessStdioPipe {
-                kind: call_context.store_string("pipe"),
-                pipe: pipe_handle,
-            }),
-            ProcessStdio::ProcessStdioInherit(process_platform::ProcessStdioInherit {
-                kind: call_context.store_string("inherit"),
-            }),
+        let stdio = vec![
+            ProcessStdioSpec {
+                kind: ProcessStdioKind::Inherit,
+                descriptor: 0,
+                resource_id: None,
+            },
+            ProcessStdioSpec {
+                kind: ProcessStdioKind::Pipe,
+                descriptor: 0,
+                resource_id: Some(pipe_handle.0),
+            },
+            ProcessStdioSpec {
+                kind: ProcessStdioKind::Inherit,
+                descriptor: 0,
+                resource_id: None,
+            },
         ];
-        let stdio = call_context.store_slice(stdio_values);
-        let actions = call_context.store_slice(Vec::<ProcessFdAction>::new());
+        let actions = Vec::<ProcessFdActionSpec>::new();
 
-        let mut child = resource::ProcessHandle(ResourceId(0));
-        unsafe {
-            process_platform::native::destack_process_spawn_with_actions(
-                call_context,
-                &mut child,
-                command,
-                arguments,
-                environment,
-                options,
-                stdio,
-                actions,
-            )?;
-        }
+        let child = context.destack_process_spawn_with_actions(
+            context.path_value(&command)?,
+            context.string_slice_value(&arguments)?,
+            context.string_slice_value(&environment)?,
+            context.spawn_options_value(&options)?,
+            context.stdio_slice_value(&stdio)?,
+            context.fd_action_slice_value(&actions)?,
+        )?;
 
         // close the parent write descriptor to allow EOF on the read side
         let _ = call_context.agent().resources.remove(
@@ -651,14 +630,17 @@ fn test_process_spawn_with_actions_dup2_stderr_roundtrip() {
             ProcessStdioSpec {
                 kind: ProcessStdioKind::Inherit,
                 descriptor: 0,
+                resource_id: None,
             },
             ProcessStdioSpec {
                 kind: ProcessStdioKind::Descriptor,
                 descriptor: output_descriptor,
+                resource_id: None,
             },
             ProcessStdioSpec {
                 kind: ProcessStdioKind::Inherit,
                 descriptor: 0,
+                resource_id: None,
             },
         ];
         let actions = vec![ProcessFdActionSpec {

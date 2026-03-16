@@ -328,7 +328,7 @@ fn test_mac_streaming_host_secret_follows_lane_support() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;

@@ -1056,7 +1056,7 @@ fn test_key_generate_follows_host_lane_write_support() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -1118,7 +1118,7 @@ fn test_key_generate_nonpersistent_host_keys_do_not_survive_reopen() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -1183,7 +1183,7 @@ fn test_key_generate_persistent_roundtrip_on_supported_host_lanes() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -1272,7 +1272,7 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -1486,7 +1486,7 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -1662,7 +1662,7 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -1799,7 +1799,7 @@ fn test_key_generate_persistent_rejects_host_lanes_without_persistence() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || capability.supports_persistent {
                 continue;
@@ -1851,7 +1851,7 @@ fn test_key_generate_hardware_backed_secret_follows_host_lane_support() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -1924,7 +1924,7 @@ fn test_key_generate_hardware_backed_pair_follows_host_lane_support() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;

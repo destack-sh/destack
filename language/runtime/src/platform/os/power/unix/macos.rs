@@ -301,7 +301,7 @@ pub(crate) fn request_suspend(_binding: &BindingCallContext) -> RuntimeResult<()
     {
         let hook = require_test_suspend_hook()?;
 
-        return map_macos_suspend_error(hook());
+        map_macos_suspend_error(hook())
     }
 
     #[cfg(not(test))]
