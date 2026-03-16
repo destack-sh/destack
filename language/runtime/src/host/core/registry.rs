@@ -128,6 +128,7 @@ impl HostRuntimeRegistry {
     }
 
     /// Register one runtime ingress observer.
+    #[cfg(any(test, target_os = "linux", target_os = "macos", windows))]
     pub(crate) fn register_runtime_ingress_observer(
         runtime_id: RuntimeId,
         observer: &Arc<dyn RuntimeIngressObserver>,
@@ -240,6 +241,7 @@ impl HostRuntimeRegistry {
     }
 
     /// Register one runtime ingress observer in the current registry state.
+    #[cfg(any(test, target_os = "linux", target_os = "macos", windows))]
     fn register_runtime_ingress_observer_inner(
         &mut self,
         runtime_id: RuntimeId,

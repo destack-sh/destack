@@ -1,6 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::HostStatus;
-use crate::host::android::credentials::ffi::{
+use crate::host::android::bridge::credentials::ffi::{
     destack_host_android_credentials_authenticate, destack_host_android_credentials_contains,
     destack_host_android_credentials_delete, destack_host_android_credentials_read,
     destack_host_android_credentials_write,

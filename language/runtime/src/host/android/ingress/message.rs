@@ -22,7 +22,7 @@ unsafe extern "C" {
 }
 
 /// Service immediately ready platform ingress without blocking.
-pub(super) fn process_ingress_ready(ignore_quit_message: bool) -> bool {
+pub(crate) fn process_ingress_ready(ignore_quit_message: bool) -> bool {
     // ignore quit-message policy for android looper polling
     let _ = ignore_quit_message;
     let mut dispatched_any = false;

@@ -1,6 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::abi::HostStatus;
-use crate::host::android::midi::ffi::{
+use crate::host::android::bridge::midi::ffi::{
     destack_host_android_midi_describe_backend, destack_host_android_midi_event_close,
     destack_host_android_midi_event_open, destack_host_android_midi_event_read,
     destack_host_android_midi_input_port_close, destack_host_android_midi_input_port_list,
@@ -9,7 +9,7 @@ use crate::host::android::midi::ffi::{
     destack_host_android_midi_output_port_list, destack_host_android_midi_output_port_open,
     destack_host_android_midi_output_virtual_create, destack_host_android_midi_output_write,
 };
-use crate::host::android::midi::types::{
+use crate::host::android::bridge::midi::types::{
     AndroidHostMidiEventHeader, AndroidHostMidiInputRecordHeader, AndroidHostMidiOpenedPortHeader,
     AndroidHostMidiPortDescriptorHeader,
 };

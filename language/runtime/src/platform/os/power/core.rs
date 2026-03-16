@@ -6,6 +6,7 @@ use crate::runtime::BindingCallContext;
 use crate::platform::os::power::backend;
 
 /// Binding operation name for power-state reads.
+#[cfg(not(target_os = "android"))]
 pub(crate) const OS_POWER_STATE_OPERATION: &str = "destack.os.power.state";
 /// Binding operation name for suspend requests.
 pub(crate) const OS_POWER_SUSPEND_OPERATION: &str = "destack.os.power.suspend";

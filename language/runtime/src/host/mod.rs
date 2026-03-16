@@ -2,7 +2,7 @@
 
 pub(crate) mod abi;
 #[cfg(any(test, target_os = "android"))]
-mod android;
+pub(crate) mod android;
 #[cfg(any(target_os = "ios", target_os = "macos"))]
 pub(crate) mod apple;
 pub(crate) mod common;

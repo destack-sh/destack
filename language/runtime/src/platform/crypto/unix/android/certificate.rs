@@ -2,7 +2,7 @@ use openssl::x509::X509;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::HostStatus;
-use crate::host::android::crypto::ffi::{
+use crate::host::android::bridge::crypto::ffi::{
     destack_host_android_crypto_delete_certificate, destack_host_android_crypto_import_certificate,
     destack_host_android_crypto_supports_certificate_write,
 };

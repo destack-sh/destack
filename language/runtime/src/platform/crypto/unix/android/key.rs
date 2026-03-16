@@ -3,7 +3,7 @@ use openssl::pkey::{PKey, Private};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::HostStatus;
-use crate::host::android::crypto::ffi::{
+use crate::host::android::bridge::crypto::ffi::{
     destack_host_android_crypto_compute_hardware_mac,
     destack_host_android_crypto_decrypt_hardware_key,
     destack_host_android_crypto_decrypt_hardware_secret_key,
