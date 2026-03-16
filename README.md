@@ -63,23 +63,23 @@ there is great promise in turning more things _into_ correct, optimal, integrate
 Destack has been in development [for years](https://github.com/destack-sh/destack/graphs/commit-activity) and went through a _lot_ of iteration, and Destack intentionally follows good standards like TypeScript, TSX, Node and Web-shaped APIs.
 However, it is still rather early, it is definitely quite radical, and there are sound arguments against the Destack-shaped "universal software engine" way:
 
-1. **Maybe the existing stack is already good enough**: The existing "stack", its layers and components exist for a good reason and have withstood significant evolutionary pressure, thus trying to combine or even rearrange them in a substantially different way may very well turn out net negative.
+1. **Maybe the existing stack is already good enough**: The existing "stack", its layers and components exist for a good reason and have withstood significant evolutionary pressure; therefore, trying to combine or even rearrange them in a substantially different way may very well turn out net negative.
 
-2. **Maybe Destack is too Destack-special**: Destack is compatible with JS/TS, yes, and runs modern TS, yes, but many of the most interesting features only work with "modern" TS, and especially when integrating with more of the "destack" stack, which is a larger shift of development processes.
+2. **Maybe Destack is hard to adopt properly**: Destack is compatible with JS/TS, yes, and runs modern TS/Node/Web*, yes, but many of the most interesting features only work with "modern" TS, and especially when integrating with Destacks-specific features, which require a larger shift of development processes.
 
 3. **Maybe any ecosystem split is too expensive now**: The web ecosystem fork implied by any new language and paradigm is costly, and while transforming code is now significantly cheaper than it used to be, transforming understanding and habits and the "hard" ecosystem bits still has high friction.
 
 4. **Maybe Destack should be more radical**: The existing (web) standards could be followed _less_ and since code transformation is now relatively cheap, and this is a unique time of disruption, maybe Destack should be even _more_ adventorous and experimtal in its design to finally do software in the "most optimal" way.
 
-5. **Maybe Destack should be less radical**: The existing (web) standards could be followed _more_ religiously, maybe we shouldn't just pick and choose the "best" ones; they are pretty good by now and while they're not perfect, any deviation necessarily implies imperfect transformation at some lossy edge.
+5. **Maybe Destack should be less radical**: The existing (web) standards could be followed _more_ religiously, maybe we shouldn't just pick and choose the "best" ones; they are pretty good by now, and while they're not perfect, any deviation necessarily implies imperfect transformation at some lossy edge.
 
-6. **Maybe "TS++" is too complex and weird**: The "++" in our "TS++" language might be trying to do too much; maybe TypeScript is not meant to be load-bearing in this way and just cannot structurally support it, and thus all systems programming should be left to the real "native" systems languages.
+6. **Maybe "TS++" is too complex and weird**: The "++" in our "TypeScript++" language might be doing too much; maybe TypeScript cannot be load-bearing in this way and just cannot structurally support it, and thus all systems programming should be left to the "real" native systems languages.
 
 7. **Maybe Destack is too complex and weird** Following TS/TSX/Node/Web standards is nice, but there is still a novel combination of features and technologies here, and the ways of working and new processes required to make the most of Destack are unconventional and unestablished.
 
-8. **Maybe Destack is actually good but it's too late**: Part of the value of the common software "stack" comes from having been around for a while and thus to have stood the test of time; any new way of doing things is thus inherently suspicious, _even if_ it is "objectively" better according to some theoretical ideal.
+8. **Maybe Destack is actually good but it's too late**: Part of the value of the common software stack comes from having been around for a while and thus to have stood the test of time; any new way of doing things is thus inherently suspicious, _even if_ it is "objectively" better according to some theoretical ideal.
 
-9. **Maybe Destack is good _today_ but "best of breed" wins eventually**: Having a fully integrated solution win out early at the onset of a technological revolution due to the benefits of integration is quite common, and then losing out against the benefits of specialisation is also quite common.
+9. **Maybe Destack is good _today_ but "best of breed" wins eventually**: Having the vertically integrated solution be better at the beginning of a technological revolution due to the benefits of co-design is quite common, and then losing out against the benefits of specialisation is also quite common.
 
 ### If you _really_ insist on using Destack
 
@@ -111,8 +111,7 @@ Both Python and Rust are bad at "UI stuff", and both are structurally difficult 
 3. **Which JavaScript/TypeScript features are supported on Destack?** 
 Destack is a TypeScript engine, not a JavaScript engine.
 *Modern strict TypeScript* is fully supported, including all the fun stuff like structural interfaces and mapped types.
-However, Destack is intentionally not ECMAScript compliant because dynamic runtime features like `prototype`, `eval` / `Function`, or dynamic `class` are forbidden.
-We also don't support dynamic protocols like `[[Call]]` or "thenables" (only their explicit typed forms).
+However, Destack is intentionally not strictly ECMAScript compliant because dynamic runtime features like `prototype`, `eval` / `Function`, dynamic `class`, and dynamic protocols like `[[Call]]` / "thenables" are forbidden (their typed forms are supported).
 
 4. **How does Destack interact with the existing JavaScript/TypeScript/Node/web ecosystem?**
 Destack runs TS directly, and "TS++" (`.ds` files) can transpile into `.js`/`.ts` for browsers and other JS-only runtimes. 
