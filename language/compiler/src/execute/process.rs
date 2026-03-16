@@ -1,16 +1,12 @@
 use crate::timing::tags;
-use crate::{BuildKey, BuildProduct, BuildRequirementError, Compiler, ExecuteError, ExecuteResult};
+use crate::{BuildKey, BuildRequirementError, Compiler, ExecuteError, ExecuteResult};
 
 use destack_source::ModuleId;
 use destack_workspace::{ArtifactKey, ProfileId};
 
 impl Compiler {
     /// Build patched DIR for one module.
-    pub fn process_dir_patched(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> ExecuteResult<BuildProduct> {
+    pub fn process_dir_patched(&self, module: ModuleId, profile: ProfileId) -> ExecuteResult<()> {
         let module_version = self.module_version(module);
         let profile_version = self.profile_version(profile);
         self.ensure_module_profile_matches::<ExecuteError>(
@@ -28,7 +24,11 @@ impl Compiler {
             self.stats.record_execute();
         }
 
-        Ok(BuildProduct::Dir(payload))
+        self.program
+            .artifacts
+            .set_dir_patched(module, profile, payload);
+
+        Ok(())
     }
 
     /// Ensure patched DIR exists for a module.

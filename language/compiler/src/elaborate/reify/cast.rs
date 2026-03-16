@@ -14,8 +14,8 @@ use super::r#type::{
     is_nullable_union, is_object_type, is_pointer_type, is_scalar_literal_type, is_string_type,
     is_union_type, is_unknown_type, numeric_cast_operator,
 };
+use crate::analyze::TypeView;
 use crate::analyze::common::TypeContext;
-use crate::analyze::{DirReadBoundary, TypeView};
 use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateError, ElaborateResult, ElaborateWarning};
 
@@ -37,6 +37,21 @@ struct RecordLikeTargetInfo {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve the runtime target type for one record-like conversion candidate.
+    fn record_like_runtime_target_type_id(
+        &self,
+        state: &mut ElaborateState<'_>,
+        origin_id: LocalNodeId<Expression>,
+        type_id: LocalTypeId,
+    ) -> ElaborateResult<LocalTypeId> {
+        let type_id = self.unwrap_value_type_id(state, type_id);
+        let Some(target_info) = self.record_like_map_target(state, origin_id, type_id)? else {
+            return Ok(type_id);
+        };
+
+        Ok(target_info.map_type_id)
+    }
+
     /// Reify an explicit cast expression into a cast node.
     pub(super) fn reify_explicit_cast_expression(
         &self,
@@ -157,11 +172,10 @@ impl Compiler {
             symbol_entry.space
         } else {
             let dir = self
-                .require_artifact_dir_for_boundary(
+                .require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
                     target_symbol.module_id,
                     state.ctx.profile,
-                    DirReadBoundary::Analyzed,
-                )
+                ))
                 .map_err(|error| self.elaborate_error_from_requirement(error))?;
             let symbol_entry = dir.symbols.get_symbol(target_symbol.local_id);
             symbol_entry.space
@@ -196,12 +210,18 @@ impl Compiler {
         let target_type_id = self.unwrap_value_type_id(state, target_type_id);
         let source_type_id = self.unwrap_value_type_id(state, source_type_id);
 
-        // skip when the types are semantically identical
-        if are_types_semantically_equal(
+        // skip when the types are already equivalent
+        let types_match = are_types_semantically_equal(
             state.types.get_type(source_type_id),
             state.types.get_type(target_type_id),
             state.types,
-        ) {
+        ) || self.record_like_runtime_shapes_match(
+            state,
+            expression_id,
+            source_type_id,
+            target_type_id,
+        )?;
+        if types_match {
             return Ok(());
         }
 
@@ -1052,6 +1072,8 @@ impl Compiler {
         // check casts that change representation despite matching type ids
         let value_type = state.types.get_type(value_type_id).clone();
         let target_type = state.types.get_type(target_type_id).clone();
+        let record_like_runtime_shapes_match =
+            self.record_like_runtime_shapes_match(state, origin_id, value_type_id, target_type_id)?;
 
         let value_is_concrete = self.is_concrete_resolution(state, value_id)
             || self.is_concrete_new_expression(state, value_id)
@@ -1062,7 +1084,8 @@ impl Compiler {
                 value: TypeLiteral::Null | TypeLiteral::Undefined,
             }
         );
-        let types_match = are_types_semantically_equal(&value_type, &target_type, state.types);
+        let types_match = are_types_semantically_equal(&value_type, &target_type, state.types)
+            || record_like_runtime_shapes_match;
         let source_is_interface = self.is_interface_reference_type(state, value_type_id);
         let target_is_interface = self.is_interface_reference_type(state, target_type_id);
 
@@ -1265,39 +1288,50 @@ impl Compiler {
         Ok(cast_expression_id)
     }
 
+    /// Return whether two types already lower to the same record-like runtime shape.
+    fn record_like_runtime_shapes_match(
+        &self,
+        state: &mut ElaborateState<'_>,
+        origin_id: LocalNodeId<Expression>,
+        source_type_id: LocalTypeId,
+        target_type_id: LocalTypeId,
+    ) -> ElaborateResult<bool> {
+        let source_runtime_type_id =
+            self.record_like_runtime_target_type_id(state, origin_id, source_type_id)?;
+        let target_runtime_type_id =
+            self.record_like_runtime_target_type_id(state, origin_id, target_type_id)?;
+        Ok(are_types_semantically_equal(
+            state.types.get_type(source_runtime_type_id),
+            state.types.get_type(target_runtime_type_id),
+            state.types,
+        ))
+    }
+
     /// Resolve the value type id for an expression node.
     fn value_type_id_for_expression(
         &self,
-        state: &ElaborateState<'_>,
+        state: &mut ElaborateState<'_>,
         value_id: LocalNodeId<Expression>,
     ) -> Option<LocalTypeId> {
         // prefer declared or inferred types on the node
         if let Some(type_id) = state
             .types
             .get_declared_or_inferred_type_id(value_id.into_global_any(state.ctx.module_id))
+            .map(|type_id| self.unwrap_value_type_id(state, type_id))
         {
-            return Some(self.unwrap_value_type_id(state, type_id));
+            return Some(type_id);
         }
 
-        // read the expression node
+        // otherwise fall back to reference symbol value types
         let expression = state.tree.get(value_id);
-
-        // prefer symbol value types when referencing a binding
         let symbol = match expression {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
             _ => None,
-        };
-
-        // return the symbol value type when available
-        if let Some(symbol) = symbol
-            && let Some(type_id) = state.types.get_value_type_id(symbol)
-        {
-            return Some(self.unwrap_value_type_id(state, type_id));
-        }
-
-        None
+        }?;
+        let type_id = state.types.get_value_type_id(symbol)?;
+        Some(self.unwrap_value_type_id(state, type_id))
     }
 
     /// Resolve the type id encoded in a type expression.

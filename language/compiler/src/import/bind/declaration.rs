@@ -7,7 +7,7 @@ use destack_dir::{
     LocalScopeMark, ModuleBinding, Name, NamespaceKind, NodeTree, NodeType, ScopeKind, StaticKey,
     SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
 };
-use destack_workspace::{Module, ModuleAst, ModuleBindingReference};
+use destack_workspace::{ImportDir, Module, ModuleAst, ModuleBindingReference};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -20,7 +20,7 @@ impl Compiler {
             .entry(module.package_id)
             .or_default();
         let registry = entry.value_mut();
-        registry.module_versions.insert(module.id, module.version);
+        registry.module_versions.insert(module.id, module.version());
         let binding_ref = ModuleBindingReference {
             module_id: module.id,
             declaration: binding.declaration,
@@ -406,6 +406,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         ast_declaration_id: ast::LocalNodeId<ast::Declaration>,
         is_statement_declaration: bool,
@@ -433,8 +434,7 @@ impl Compiler {
             } => {
                 let descriptor =
                     self.bind_global_descriptor(module, ast, scope, descriptor, symbols);
-                let global_scope_id =
-                    self.with_active_base_dir(module.id, |dir| dir.global_augmentation_scope);
+                let global_scope_id = dir.global_augmentation_scope;
                 let global_scope = (global_scope_id, symbols.get_scope_mark(global_scope_id));
                 let expressions: Vec<LocalNodeId<Expression>> = expressions
                     .iter()
@@ -442,6 +442,7 @@ impl Compiler {
                         self.bind_expression(
                             module,
                             ast,
+                            dir,
                             global_scope,
                             *expression,
                             Some(declaration_id),
@@ -478,6 +479,7 @@ impl Compiler {
                 let generics = self.bind_generics(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
                     Some(declaration_id),
@@ -491,6 +493,7 @@ impl Compiler {
                         self.bind_expression(
                             module,
                             ast,
+                            dir,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *expression,
                             Some(declaration_id),
@@ -588,6 +591,7 @@ impl Compiler {
                             self.bind_parameter(
                                 module,
                                 ast,
+                                dir,
                                 (scope_id, symbols.get_scope_mark(scope_id)),
                                 SymbolSpace::Type,
                                 *param,
@@ -603,6 +607,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *value,
                     Some(declaration_id),
@@ -656,6 +661,7 @@ impl Compiler {
                         let value = self.bind_expression(
                             module,
                             ast,
+                            dir,
                             scope,
                             *value,
                             Some(declaration_id),
@@ -720,6 +726,7 @@ impl Compiler {
                 let generics = self.bind_generics(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
                     Some(declaration_id),
@@ -730,6 +737,7 @@ impl Compiler {
                 let heritage = self.bind_heritage(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
                     Some(declaration_id),
@@ -743,6 +751,7 @@ impl Compiler {
                         self.bind_member(
                             module,
                             ast,
+                            dir,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *member,
                             Some(declaration_id),
@@ -780,6 +789,7 @@ impl Compiler {
                 let generics = self.bind_generics(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
                     Some(declaration_id),
@@ -790,6 +800,7 @@ impl Compiler {
                 let heritage = self.bind_heritage(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
                     Some(declaration_id),
@@ -803,6 +814,7 @@ impl Compiler {
                         self.bind_member(
                             module,
                             ast,
+                            dir,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *member,
                             Some(declaration_id),
@@ -842,6 +854,7 @@ impl Compiler {
                 let generics = self.bind_generics(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
                     Some(declaration_id),
@@ -852,6 +865,7 @@ impl Compiler {
                 let heritage = self.bind_heritage(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
                     Some(declaration_id),
@@ -865,6 +879,7 @@ impl Compiler {
                         self.bind_enum_field(
                             module,
                             ast,
+                            dir,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *field,
                             Some(declaration_id),
@@ -880,6 +895,7 @@ impl Compiler {
                         self.bind_member(
                             module,
                             ast,
+                            dir,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *member,
                             Some(declaration_id),
@@ -919,6 +935,7 @@ impl Compiler {
                 let generics = self.bind_generics(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
                     Some(declaration_id),
@@ -929,6 +946,7 @@ impl Compiler {
                 let heritage = self.bind_heritage(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
                     Some(declaration_id),
@@ -942,6 +960,7 @@ impl Compiler {
                         self.bind_member(
                             module,
                             ast,
+                            dir,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *member,
                             Some(declaration_id),
@@ -980,6 +999,7 @@ impl Compiler {
                 let generics = self.bind_generics(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
                     Some(declaration_id),
@@ -990,6 +1010,7 @@ impl Compiler {
                 let target_type = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *target_type,
                     Some(declaration_id),
@@ -1001,6 +1022,7 @@ impl Compiler {
                 let heritage = self.bind_heritage(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
                     Some(declaration_id),
@@ -1014,6 +1036,7 @@ impl Compiler {
                         self.bind_member(
                             module,
                             ast,
+                            dir,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *member,
                             Some(declaration_id),
@@ -1060,6 +1083,7 @@ impl Compiler {
                 let signature = self.bind_function_signature(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     signature,
                     Some(declaration_id),
@@ -1071,6 +1095,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         body,
                         Some(declaration_id),
@@ -1112,9 +1137,7 @@ impl Compiler {
                 export_assignment_symbol,
             };
             self.bind_module_binding(module, &module_binding);
-            self.with_active_base_dir(module.id, |dir| {
-                dir.module_bindings.write().push(module_binding);
-            });
+            dir.module_bindings.push(module_binding);
         }
 
         // attach the declaration to the symbol
@@ -1138,6 +1161,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         ast_field_id: ast::LocalNodeId<ast::EnumField>,
         parent_id: Option<LocalNodeIdAny>,
@@ -1156,6 +1180,7 @@ impl Compiler {
             self.bind_expression(
                 module,
                 ast,
+                dir,
                 scope,
                 value,
                 Some(field_id),

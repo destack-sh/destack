@@ -3,11 +3,11 @@ use std::sync::Arc;
 
 use super::declaration::DeclaratorConstraint;
 
+use crate::analyze::StaticSubstitutionEnvironment;
 use crate::analyze::common::{
     CanonicalSymbolMode, ConstContext, ContextualTypingMode, FreshnessMode, InferContext,
     ModuleSymbolView, RelationMode, TreeSymbolView, TypeContext, TypeRewriteCache, WideningMode,
 };
-use crate::analyze::{DirReadBoundary, StaticSubstitutionEnvironment};
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, BreakTargetKind,
@@ -79,7 +79,7 @@ impl Compiler {
         expression: &Expression,
     ) {
         // cache strict mode once per expression
-        let is_strict = ctx.module.source_type.is_module() || ctx.options.always_strict;
+        let is_strict = ctx.module.source_type().is_module() || ctx.options.always_strict;
 
         match expression {
             Expression::Assign { left, .. } | Expression::AssignBinary { left, .. } => {
@@ -1301,7 +1301,8 @@ impl Compiler {
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // enforce strict mode delete restrictions on bindings
-        let enforce_strict_mode = ctx.module.source_type.is_module() || state.options.always_strict;
+        let enforce_strict_mode =
+            ctx.module.source_type().is_module() || state.options.always_strict;
         if enforce_strict_mode && matches!(ctx.module.source, ModuleSource::User) {
             let target_id = self.unwrap_parenthesized_expression(value, ctx.tree);
 
@@ -1423,7 +1424,7 @@ impl Compiler {
                     if state.options.no_implicit_this
                         && !matches!(ctx.module.source, ModuleSource::Builtin(_))
                     {
-                        let is_script = ctx.module.source_type.is_script();
+                        let is_script = ctx.module.source_type().is_script();
                         let in_function = state.in_function.is_some();
                         if is_script || in_function {
                             self.error(AnalyzeError::ImplicitThis {
@@ -1435,7 +1436,7 @@ impl Compiler {
                     }
 
                     // default to undefined in modules, unknown in scripts
-                    if ctx.module.source_type.is_module() {
+                    if ctx.module.source_type().is_module() {
                         let ty = Type::TypeLiteral {
                             value: TypeLiteral::Undefined,
                         };
@@ -3937,7 +3938,13 @@ impl Compiler {
             } => {
                 // extract the static key from the dynamic key
                 let static_key = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key)
+                    self.static_key_from_dynamic_key(
+                        ctx.profile,
+                        ctx.tree,
+                        ctx.symbols,
+                        ctx.types,
+                        key,
+                    )
                 });
 
                 // derive an expected field type from the contextual object type
@@ -4038,7 +4045,13 @@ impl Compiler {
             } => {
                 let expected_method_ty_id = key
                     .and_then(|key| {
-                        self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key)
+                        self.static_key_from_dynamic_key(
+                            ctx.profile,
+                            ctx.tree,
+                            ctx.symbols,
+                            ctx.types,
+                            key,
+                        )
                     })
                     .and_then(|key| {
                         self.expected_field_type(expected_object_ty_id, &key, ctx.types)
@@ -4140,7 +4153,13 @@ impl Compiler {
                     }
                 }
                 let static_key = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key)
+                    self.static_key_from_dynamic_key(
+                        ctx.profile,
+                        ctx.tree,
+                        ctx.symbols,
+                        ctx.types,
+                        key,
+                    )
                 });
                 let is_optional = modifiers
                     .as_ref()
@@ -4219,30 +4238,22 @@ impl Compiler {
         )
     }
 
-    /// Resolve a global symbol name across module boundaries.
-    pub(crate) fn symbol_name_for_global(
+    /// Resolve a global symbol name with one explicit local symbol table when available.
+    pub(crate) fn symbol_name_for_global_in(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
     ) -> Option<StringId> {
-        if symbol.module_id == module.id {
-            if let Some(dir) =
-                self.current_active_dir_frame(module.id, profile, DirReadBoundary::Declared)
-            {
-                return dir.symbols.read().get_symbol(symbol.local_id).name();
-            }
-
-            let snapshot = self
-                .require_artifact_dir_for_boundary(module.id, profile, DirReadBoundary::Declared)
-                .ok()?;
-            return snapshot.symbols.get_symbol(symbol.local_id).name();
-        }
-
-        let snapshot = self
-            .require_artifact_dir_for_boundary(symbol.module_id, profile, DirReadBoundary::Declared)
-            .ok()?;
-        snapshot.symbols.get_symbol(symbol.local_id).name()
+        self.with_module_symbols_or_local_for_artifact(
+            view.module,
+            view.profile,
+            symbol.module_id,
+            view.symbols,
+            destack_workspace::ArtifactKey::dir_declared,
+            |_, symbols| symbols.get_symbol(symbol.local_id).name(),
+        )
+        .ok()
+        .flatten()
     }
 
     /// Resolve the dependency item that introduced a symbol when possible.
@@ -4286,7 +4297,9 @@ impl Compiler {
         export_name: StringId,
     ) -> bool {
         let Some(exports) = self
-            .require_artifact_dir_for_boundary(module_id, profile, DirReadBoundary::Interface)
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_interface(
+                module_id, profile,
+            ))
             .ok()
             .map(|snapshot| snapshot.exported_symbols.clone())
         else {
@@ -4500,7 +4513,7 @@ impl Compiler {
         // reject globalThis references when configured
         if state.options.no_global_this && matches!(ctx.module.source, ModuleSource::User) {
             let global_this_name = self.program.strings.intern("globalThis");
-            if self.symbol_name_for_global(ctx.module, state.profile, canonical_symbol)
+            if self.symbol_name_for_global_in(ctx.module_symbol_view(), canonical_symbol)
                 == Some(global_this_name)
             {
                 self.error(AnalyzeError::GlobalThisDisabled {
@@ -4513,9 +4526,9 @@ impl Compiler {
 
         // synthesize a globalThis object type on demand
         let global_this_name = self.program.strings.intern("globalThis");
-        let is_global_this =
-            self.symbol_name_for_global(ctx.module, state.profile, canonical_symbol)
-                == Some(global_this_name);
+        let is_global_this = self
+            .symbol_name_for_global_in(ctx.module_symbol_view(), canonical_symbol)
+            == Some(global_this_name);
 
         // pick the base type for the symbol by applying narrowing and inference
         let narrowed_ty_id =

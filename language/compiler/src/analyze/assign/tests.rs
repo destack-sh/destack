@@ -2,17 +2,18 @@
 
 use destack_dir::{
     Asynchrony, FloatType, FunctionCardinality, GlobalSymbolId, IntType, LocalNodeIdAny,
-    LocalSymbolId, LocalTypeId, PrimitiveType, ScalarLiteral, StaticKey, StringId, SymbolTable,
-    SymbolType, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
+    LocalSymbolId, LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, StringId, SymbolTable, SymbolType, Type, TypeElement, TypeField,
+    TypeIndexSignature, TypeLiteral, TypeTable,
 };
 use destack_source::{FileContent, Span};
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{ImportDir, Module, ProfileId};
 
 use crate::analyze::common::TypeContext;
 use crate::{AnalyzeOptions, Assignability, Compiler, TestProgram};
 
 /// Return a stable source id for test types.
-fn test_source_id(dir: &ModuleDir) -> LocalNodeIdAny {
+fn test_source_id(dir: &ImportDir) -> LocalNodeIdAny {
     // use the first root as a stable source id
     dir.roots[0].into_any()
 }
@@ -45,15 +46,14 @@ fn is_type_assignable(
     compiler: &Compiler,
     module: &Module,
     profile: ProfileId,
-    dir: &ModuleDir,
+    tree: &NodeTree,
     symbols: &SymbolTable,
     target_id: LocalTypeId,
     source_id: LocalTypeId,
     types: &mut TypeTable,
     options: &AnalyzeOptions,
 ) -> Assignability {
-    let tree = dir.tree.read();
-    let mut ctx = TypeContext::new(module, profile, options, &tree, symbols, types);
+    let mut ctx = TypeContext::new(module, profile, options, tree, symbols, types);
     compiler.is_type_assignable(&mut ctx, target_id, source_id)
 }
 
@@ -66,16 +66,17 @@ fn test_analyze_assignability_same_primitive() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id_for_root();
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -87,11 +88,11 @@ fn test_analyze_assignability_same_primitive() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             number_ty,
             number_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -119,12 +120,13 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
 
     // load module state
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     // resolve symbol ids
@@ -137,7 +139,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
 
     // build reference types
     let array_buffer_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Reference {
             symbol: array_buffer_symbol,
@@ -145,7 +147,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
         },
     );
     let array_buffer_like_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Reference {
             symbol: array_buffer_like_symbol,
@@ -159,11 +161,11 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             array_buffer_like_ty,
             array_buffer_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -179,23 +181,24 @@ fn test_analyze_assignability_different_primitives() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
         },
     );
     let string_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::String),
@@ -207,11 +210,11 @@ fn test_analyze_assignability_different_primitives() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             number_ty,
             string_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -227,23 +230,24 @@ fn test_analyze_assignability_literal_to_primitive() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
         },
     );
     let literal_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42)),
@@ -255,11 +259,11 @@ fn test_analyze_assignability_literal_to_primitive() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             number_ty,
             literal_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -275,23 +279,24 @@ fn test_analyze_assignability_any() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let any_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Any,
         },
     );
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -303,11 +308,11 @@ fn test_analyze_assignability_any() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             any_ty,
             number_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -323,23 +328,24 @@ fn test_analyze_assignability_never_source() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let never_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Never,
         },
     );
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -351,11 +357,11 @@ fn test_analyze_assignability_never_source() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             number_ty,
             never_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -371,23 +377,24 @@ fn test_analyze_assignability_never_target() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let never_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Never,
         },
     );
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -399,11 +406,11 @@ fn test_analyze_assignability_never_target() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             never_ty,
             number_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -419,30 +426,31 @@ fn test_analyze_assignability_tuple() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
         },
     );
     let string_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::String),
         },
     );
     let tuple_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Tuple {
             elements: vec![TypeElement::new(number_ty), TypeElement::new(string_ty)],
@@ -455,11 +463,11 @@ fn test_analyze_assignability_tuple() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             tuple_ty,
             tuple_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -475,30 +483,31 @@ fn test_analyze_assignability_tuple_different_length() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
         },
     );
     let string_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::String),
         },
     );
     let tuple_short = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Tuple {
             elements: vec![TypeElement::new(number_ty)],
@@ -506,7 +515,7 @@ fn test_analyze_assignability_tuple_different_length() {
         },
     );
     let tuple_long = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Tuple {
             elements: vec![TypeElement::new(number_ty), TypeElement::new(string_ty)],
@@ -519,11 +528,11 @@ fn test_analyze_assignability_tuple_different_length() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             tuple_short,
             tuple_long,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -539,23 +548,24 @@ fn test_analyze_assignability_array() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
         },
     );
     let array_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Array {
             element: Some(number_ty),
@@ -568,11 +578,11 @@ fn test_analyze_assignability_array() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             array_ty,
             array_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -588,23 +598,24 @@ fn test_analyze_assignability_tuple_to_array() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
         },
     );
     let tuple_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Tuple {
             elements: vec![TypeElement::new(number_ty), TypeElement::new(number_ty)],
@@ -612,7 +623,7 @@ fn test_analyze_assignability_tuple_to_array() {
         },
     );
     let array_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Array {
             element: Some(number_ty),
@@ -625,11 +636,11 @@ fn test_analyze_assignability_tuple_to_array() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             array_ty,
             tuple_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -645,24 +656,25 @@ fn test_analyze_assignability_object_structural() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
         },
     );
     let string_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::String),
@@ -673,7 +685,7 @@ fn test_analyze_assignability_object_structural() {
     let key_b = StaticKey::Name(strings.intern("b"));
 
     let obj_small = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![TypeField {
@@ -688,7 +700,7 @@ fn test_analyze_assignability_object_structural() {
         },
     );
     let obj_large = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![
@@ -717,11 +729,11 @@ fn test_analyze_assignability_object_structural() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             obj_small,
             obj_large,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -733,11 +745,11 @@ fn test_analyze_assignability_object_structural() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             obj_large,
             obj_small,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -753,17 +765,18 @@ fn test_analyze_assignability_object_optional_field() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -783,7 +796,7 @@ fn test_analyze_assignability_object_optional_field() {
     };
 
     let required_obj = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![required_field],
@@ -793,7 +806,7 @@ fn test_analyze_assignability_object_optional_field() {
         },
     );
     let optional_obj = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![optional_field],
@@ -808,11 +821,11 @@ fn test_analyze_assignability_object_optional_field() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             required_obj,
             optional_obj,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -822,11 +835,11 @@ fn test_analyze_assignability_object_optional_field() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             optional_obj,
             required_obj,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -842,30 +855,31 @@ fn test_analyze_assignability_object_call_signatures() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
         },
     );
     let string_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::String),
         },
     );
     let signature_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Function {
             asynchrony: Asynchrony::Sync,
@@ -878,7 +892,7 @@ fn test_analyze_assignability_object_call_signatures() {
     );
 
     let target_obj = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: Vec::new(),
@@ -888,7 +902,7 @@ fn test_analyze_assignability_object_call_signatures() {
         },
     );
     let source_obj = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: Vec::new(),
@@ -898,7 +912,7 @@ fn test_analyze_assignability_object_call_signatures() {
         },
     );
     let missing_call = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: Vec::new(),
@@ -913,11 +927,11 @@ fn test_analyze_assignability_object_call_signatures() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_obj,
             source_obj,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -927,11 +941,11 @@ fn test_analyze_assignability_object_call_signatures() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_obj,
             missing_call,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -947,23 +961,24 @@ fn test_analyze_assignability_function_param_count() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
         },
     );
     let string_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::String),
@@ -971,7 +986,7 @@ fn test_analyze_assignability_function_param_count() {
     );
 
     let target_fn = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Function {
             asynchrony: Asynchrony::Sync,
@@ -983,7 +998,7 @@ fn test_analyze_assignability_function_param_count() {
         },
     );
     let source_fn_fewer = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Function {
             asynchrony: Asynchrony::Sync,
@@ -995,7 +1010,7 @@ fn test_analyze_assignability_function_param_count() {
         },
     );
     let source_fn_more = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Function {
             asynchrony: Asynchrony::Sync,
@@ -1012,11 +1027,11 @@ fn test_analyze_assignability_function_param_count() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_fn,
             source_fn_fewer,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -1026,11 +1041,11 @@ fn test_analyze_assignability_function_param_count() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_fn,
             source_fn_more,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -1046,17 +1061,18 @@ fn test_analyze_assignability_function_this_parameter() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -1067,7 +1083,7 @@ fn test_analyze_assignability_function_this_parameter() {
     let key_b = StaticKey::Name(strings.intern("b"));
 
     let this_small = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![TypeField {
@@ -1082,7 +1098,7 @@ fn test_analyze_assignability_function_this_parameter() {
         },
     );
     let this_large = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![
@@ -1106,7 +1122,7 @@ fn test_analyze_assignability_function_this_parameter() {
     );
 
     let target_fn = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Function {
             asynchrony: Asynchrony::Sync,
@@ -1118,7 +1134,7 @@ fn test_analyze_assignability_function_this_parameter() {
         },
     );
     let source_fn_wider_this = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Function {
             asynchrony: Asynchrony::Sync,
@@ -1130,7 +1146,7 @@ fn test_analyze_assignability_function_this_parameter() {
         },
     );
     let source_fn_narrow_this = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Function {
             asynchrony: Asynchrony::Sync,
@@ -1147,11 +1163,11 @@ fn test_analyze_assignability_function_this_parameter() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_fn,
             source_fn_wider_this,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -1161,11 +1177,11 @@ fn test_analyze_assignability_function_this_parameter() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             source_fn_wider_this,
             source_fn_narrow_this,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -1181,24 +1197,25 @@ fn test_analyze_assignability_object_index_signatures() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
     let string_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::String),
         },
     );
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -1224,7 +1241,7 @@ fn test_analyze_assignability_object_index_signatures() {
     };
 
     let target_obj = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: Vec::new(),
@@ -1234,7 +1251,7 @@ fn test_analyze_assignability_object_index_signatures() {
         },
     );
     let source_obj = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: Vec::new(),
@@ -1244,7 +1261,7 @@ fn test_analyze_assignability_object_index_signatures() {
         },
     );
     let compatible_fields = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![matching_field],
@@ -1254,7 +1271,7 @@ fn test_analyze_assignability_object_index_signatures() {
         },
     );
     let incompatible_fields = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![mismatched_field],
@@ -1264,7 +1281,7 @@ fn test_analyze_assignability_object_index_signatures() {
         },
     );
     let missing_index = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: Vec::new(),
@@ -1279,11 +1296,11 @@ fn test_analyze_assignability_object_index_signatures() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_obj,
             source_obj,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -1293,11 +1310,11 @@ fn test_analyze_assignability_object_index_signatures() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_obj,
             missing_index,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -1307,11 +1324,11 @@ fn test_analyze_assignability_object_index_signatures() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_obj,
             compatible_fields,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -1321,11 +1338,11 @@ fn test_analyze_assignability_object_index_signatures() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_obj,
             incompatible_fields,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -1341,24 +1358,25 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
     let string_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::String),
         },
     );
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -1378,7 +1396,7 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
     };
 
     let target_number = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: Vec::new(),
@@ -1388,7 +1406,7 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
         },
     );
     let source_string = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: Vec::new(),
@@ -1398,7 +1416,7 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
         },
     );
     let target_string = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: Vec::new(),
@@ -1408,7 +1426,7 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
         },
     );
     let source_number = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: Vec::new(),
@@ -1423,11 +1441,11 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_number,
             source_string,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -1437,11 +1455,11 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_string,
             source_number,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -1457,17 +1475,18 @@ fn test_analyze_assignability_object_numeric_key_field_match() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -1488,7 +1507,7 @@ fn test_analyze_assignability_object_numeric_key_field_match() {
     };
 
     let target_obj = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![target_field],
@@ -1498,7 +1517,7 @@ fn test_analyze_assignability_object_numeric_key_field_match() {
         },
     );
     let source_obj = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![source_field],
@@ -1513,11 +1532,11 @@ fn test_analyze_assignability_object_numeric_key_field_match() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_obj,
             source_obj,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -1533,31 +1552,32 @@ fn test_analyze_assignability_object_index_signature_optional_field() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let strings = test.program.strings.clone();
 
     let string_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::String),
         },
     );
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
         },
     );
     let undefined_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Undefined,
@@ -1583,7 +1603,7 @@ fn test_analyze_assignability_object_index_signature_optional_field() {
     };
 
     let target_obj = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: Vec::new(),
@@ -1593,7 +1613,7 @@ fn test_analyze_assignability_object_index_signature_optional_field() {
         },
     );
     let source_optional_number = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![optional_number_field],
@@ -1603,7 +1623,7 @@ fn test_analyze_assignability_object_index_signature_optional_field() {
         },
     );
     let source_optional_undefined = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![optional_undefined_field],
@@ -1618,11 +1638,11 @@ fn test_analyze_assignability_object_index_signature_optional_field() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_obj,
             source_optional_number,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -1632,11 +1652,11 @@ fn test_analyze_assignability_object_index_signature_optional_field() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_obj,
             source_optional_undefined,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -1652,30 +1672,31 @@ fn test_analyze_assignability_union_target() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
         },
     );
     let string_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::String),
         },
     );
     let union_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Union {
             elements: vec![number_ty, string_ty],
@@ -1687,11 +1708,11 @@ fn test_analyze_assignability_union_target() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             union_ty,
             number_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -1975,23 +1996,24 @@ fn test_analyze_assignability_literal_to_int() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let int_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)),
         },
     );
     let literal_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42)),
@@ -2003,11 +2025,11 @@ fn test_analyze_assignability_literal_to_int() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             int_ty,
             literal_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -2023,23 +2045,24 @@ fn test_analyze_assignability_literal_to_float() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let float_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64)),
         },
     );
     let literal_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             #[allow(clippy::approx_constant)]
@@ -2052,11 +2075,11 @@ fn test_analyze_assignability_literal_to_float() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             float_ty,
             literal_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -2072,23 +2095,24 @@ fn test_analyze_assignability_int_out_of_range() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let int8_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
         },
     );
     let literal_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1000)),
@@ -2100,11 +2124,11 @@ fn test_analyze_assignability_int_out_of_range() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             int8_ty,
             literal_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -2120,23 +2144,24 @@ fn test_analyze_numeric_widening_int() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let int8_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
         },
     );
     let int16_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int16)),
@@ -2149,11 +2174,11 @@ fn test_analyze_numeric_widening_int() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             int16_ty,
             int8_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -2164,11 +2189,11 @@ fn test_analyze_numeric_widening_int() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             int8_ty,
             int16_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -2184,23 +2209,24 @@ fn test_analyze_numeric_widening_signed_to_unsigned_not_allowed() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let int8_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
         },
     );
     let uint8_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)),
@@ -2212,11 +2238,11 @@ fn test_analyze_numeric_widening_signed_to_unsigned_not_allowed() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             uint8_ty,
             int8_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -2243,7 +2269,7 @@ class Labrador extends Dog { color: string = "" }
     let labrador_id = test.resolve_to_symbol("test.ds", "Labrador").unwrap();
 
     let dir = test.artifact_dir(module_id, test.default_profile_id(module_id));
-    let types = dir.types.read();
+    let types = &dir.types;
 
     // labrador extends dog
     let labrador_lineage = types
@@ -2289,7 +2315,7 @@ save(): void {}
     let document_id = test.resolve_to_symbol("test.ds", "Document").unwrap();
 
     let dir = test.artifact_dir(module_id, test.default_profile_id(module_id));
-    let types = dir.types.read();
+    let types = &dir.types;
     let doc_lineage = types
         .get_lineage_for_symbol(document_id)
         .expect("Document should have lineage");
@@ -2344,22 +2370,21 @@ y: this.y + other.y,
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let tree = dir.tree.read();
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let add_vec2_name = test.program.strings.intern("AddVec2");
     let vec2_name = test.program.strings.intern("Vec2");
     let add_vec2_symbol = expect_symbol_by_name(&symbols, add_vec2_name, SymbolType::TypeAlias);
     let vec2_symbol = expect_symbol_by_name(&symbols, vec2_name, SymbolType::Struct);
-
     let target_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Reference {
             symbol: add_vec2_symbol,
@@ -2367,7 +2392,7 @@ y: this.y + other.y,
         },
     );
     let source_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Reference {
             symbol: vec2_symbol,
@@ -2376,65 +2401,118 @@ y: this.y + other.y,
     );
 
     // capture the prepared alias surface
-    let prepared_target_ty = {
-        let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
-        test.compiler
-            .prepare_assignability_type(&mut ctx, target_ty)
-    };
-    let prepared_source_ty = {
-        let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
-        test.compiler
-            .prepare_assignability_type(&mut ctx, source_ty)
-    };
-    let alias_target_ty = types
-        .get_alias_target_type_id(add_vec2_symbol)
-        .map(|type_id| format!("{:?}", types.get_type(type_id)))
-        .unwrap_or_else(|| "<missing>".to_string());
-    let alias_instance_ty = types
-        .get_instance_type_id(add_vec2_symbol)
-        .map(|type_id| format!("{:?}", types.get_type(type_id)))
-        .unwrap_or_else(|| "<missing>".to_string());
-
     assert_eq!(
         is_type_assignable(
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             target_ty,
             source_ty,
-            &mut types,
+            types,
             &options,
         ),
         Assignability::Assignable,
-        "prepared_target_ty={:?} prepared_source_ty={:?} raw_target_ty={:?} raw_source_ty={:?} add_vec2_symbol={:?} alias_target_ty={alias_target_ty} alias_instance_ty={alias_instance_ty} declared_alias_target={:?} interface_alias_target={:?} analyzed_alias_target={:?}",
-        types.get_type(prepared_target_ty),
-        types.get_type(prepared_source_ty),
+    );
+}
+
+/// Imported nominal interfaces stay nominal across module boundaries.
+#[test]
+fn test_analyze_assignability_imported_nominal_interface_requires_implements() {
+    let test = TestProgram::memory_sequential();
+    test.add_module(
+        "contract.ds",
+        r#"
+export newtype interface Add<T> {
+add(other: T): T;
+}
+"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+import { Add } from "./contract.ds";
+
+struct Vec2 {
+x: int32;
+y: int32;
+
+add(other: Vec2): Vec2 {
+return Vec2 {
+x: this.x + other.x,
+y: this.y + other.y,
+};
+}
+}
+"#,
+    );
+    test.analyze_module(module_id);
+    test.compile_check_clean();
+
+    let module = test.program.modules.get(module_id);
+    let module = module.as_ref();
+    let profile = test.default_profile_id(module_id);
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
+    let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
+    let options = test.compiler.analyze_context_options_for_module(module.id);
+
+    let add_name = test.program.strings.intern("Add");
+    let vec2_name = test.program.strings.intern("Vec2");
+    let add_symbol = symbols
+        .active_symbol_ids()
+        .find_map(|local_id| {
+            let symbol = symbols.get_symbol(local_id);
+            (symbol.key == Some(StaticKey::Name(add_name))).then(|| {
+                LocalSymbolId::new_typed(local_id.id, symbol.ty).into_global(symbols.module_id)
+            })
+        })
+        .expect("expected imported Add symbol");
+    let vec2_symbol = expect_symbol_by_name(&symbols, vec2_name, SymbolType::Struct);
+    let vec2_reference_ty = insert_test_type(
+        types,
+        source_id,
+        Type::Reference {
+            symbol: vec2_symbol,
+            static_arguments: None,
+        },
+    );
+    let target_ty = insert_test_type(
+        types,
+        source_id,
+        Type::Reference {
+            symbol: add_symbol,
+            static_arguments: Some(vec![StaticArgument::Evaluated {
+                name: None,
+                value: StaticExpression::Type {
+                    ty: vec2_reference_ty,
+                },
+            }]),
+        },
+    );
+    let source_ty = vec2_reference_ty;
+
+    let assignability = is_type_assignable(
+        &test.compiler,
+        &module,
+        profile,
+        tree,
+        &symbols,
+        target_ty,
+        source_ty,
+        types,
+        &options,
+    );
+    assert_eq!(
+        assignability,
+        Assignability::NotAssignable,
+        "expected imported nominal interface to reject structural assignment: add_symbol={add_symbol:?} add_symbol_type={:?} target={:?} source={:?}",
+        add_symbol.ty(),
         types.get_type(target_ty),
         types.get_type(source_ty),
-        add_vec2_symbol,
-        test.program
-            .artifacts
-            .dir_declared(module_id, profile)
-            .and_then(|dir| dir
-                .types
-                .get_alias_target_type_id(add_vec2_symbol)
-                .map(|id| format!("{:?}", dir.types.get_type(id)))),
-        test.program
-            .artifacts
-            .dir_interface(module_id, profile)
-            .and_then(|dir| dir
-                .types
-                .get_alias_target_type_id(add_vec2_symbol)
-                .map(|id| format!("{:?}", dir.types.get_type(id)))),
-        test.program
-            .artifacts
-            .dir_analyzed(module_id, profile)
-            .and_then(|dir| dir
-                .types
-                .get_alias_target_type_id(add_vec2_symbol)
-                .map(|id| format!("{:?}", dir.types.get_type(id)))),
     );
 }
 
@@ -2447,16 +2525,17 @@ fn test_analyze_assignability_object_to_object() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Object,
@@ -2468,11 +2547,11 @@ fn test_analyze_assignability_object_to_object() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             object_ty,
             object_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -2488,16 +2567,17 @@ fn test_analyze_assignability_object_literal_to_object() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Object,
@@ -2505,7 +2585,7 @@ fn test_analyze_assignability_object_literal_to_object() {
     );
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -2513,7 +2593,7 @@ fn test_analyze_assignability_object_literal_to_object() {
     );
 
     let object_literal_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Object {
             fields: vec![TypeField {
@@ -2533,11 +2613,11 @@ fn test_analyze_assignability_object_literal_to_object() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             object_ty,
             object_literal_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -2553,16 +2633,17 @@ fn test_analyze_assignability_array_to_object() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Object,
@@ -2570,7 +2651,7 @@ fn test_analyze_assignability_array_to_object() {
     );
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -2578,7 +2659,7 @@ fn test_analyze_assignability_array_to_object() {
     );
 
     let array_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Array {
             element: Some(number_ty),
@@ -2591,11 +2672,11 @@ fn test_analyze_assignability_array_to_object() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             object_ty,
             array_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -2611,16 +2692,17 @@ fn test_analyze_assignability_function_to_object() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Object,
@@ -2628,7 +2710,7 @@ fn test_analyze_assignability_function_to_object() {
     );
 
     let void_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Void,
@@ -2636,7 +2718,7 @@ fn test_analyze_assignability_function_to_object() {
     );
 
     let function_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::Function {
             asynchrony: Asynchrony::Sync,
@@ -2653,11 +2735,11 @@ fn test_analyze_assignability_function_to_object() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             object_ty,
             function_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::Assignable
@@ -2673,16 +2755,17 @@ fn test_analyze_assignability_primitive_not_to_object() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Object,
@@ -2690,7 +2773,7 @@ fn test_analyze_assignability_primitive_not_to_object() {
     );
 
     let number_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -2702,15 +2785,77 @@ fn test_analyze_assignability_primitive_not_to_object() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             object_ty,
             number_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
     );
+}
+
+/// Imported nominal interface declarators reject structural tagged initializers.
+#[test]
+fn test_type_check_imported_nominal_interface_tagged_initializer_requires_implements() {
+    let test = TestProgram::memory_sequential();
+    test.add_module(
+        "contract.ds",
+        r#"
+export newtype interface Add<T> {
+add(other: T): T;
+}
+"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+import { Add } from "./contract.ds";
+
+struct Vec2 {
+x: int32;
+y: int32;
+
+add(other: Vec2): Vec2 {
+return Vec2 {
+x: this.x + other.x,
+y: this.y + other.y,
+};
+}
+}
+
+const value: Add<Vec2> = Vec2 { x: 0, y: 0 };
+"#,
+    );
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostics(&["EA101"]);
+}
+
+/// Generic newtype constructors require explicit wrapping.
+#[test]
+fn test_type_check_generic_newtype_union_constructor_requires_wrapping() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+struct Ok<T> {
+value: T;
+}
+
+struct Err<E> {
+error: E;
+}
+
+newtype Result<T, E> = Ok<T> | Err<E>;
+
+const value: Result<int32, string> = Ok { value: 1 };
+"#,
+    );
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostics(&["EA101"]);
 }
 
 /// Null is NOT assignable to object.
@@ -2722,16 +2867,17 @@ fn test_analyze_assignability_null_not_to_object() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Object,
@@ -2739,7 +2885,7 @@ fn test_analyze_assignability_null_not_to_object() {
     );
 
     let null_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Null,
@@ -2751,11 +2897,11 @@ fn test_analyze_assignability_null_not_to_object() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             object_ty,
             null_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable
@@ -2771,16 +2917,17 @@ fn test_analyze_assignability_undefined_not_to_object() {
     test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let source_id = test_source_id(&dir);
+    let types = &mut dir.types;
     let options = test.compiler.analyze_context_options_for_module(module.id);
 
     let object_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Object,
@@ -2788,7 +2935,7 @@ fn test_analyze_assignability_undefined_not_to_object() {
     );
 
     let undefined_ty = insert_test_type(
-        &mut types,
+        types,
         source_id,
         Type::TypeLiteral {
             value: TypeLiteral::Undefined,
@@ -2800,11 +2947,11 @@ fn test_analyze_assignability_undefined_not_to_object() {
             &test.compiler,
             &module,
             profile,
-            &dir,
+            tree,
             &symbols,
             object_ty,
             undefined_ty,
-            &mut types,
+            types,
             &options
         ),
         Assignability::NotAssignable

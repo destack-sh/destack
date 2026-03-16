@@ -10,12 +10,12 @@ impl Compiler {
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve the enum field symbol entry
         let Some((is_enum_field, scope_owner)) = self
-            .with_module_symbols_base_or_local_at_boundary(
+            .with_module_symbols_or_local_for_artifact(
                 view.module,
                 view.profile,
                 member_symbol.module_id,
                 view.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |_, owner_symbols| {
                     let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
                     let scope = owner_symbols.get_scope_by_symbol(member_symbol.local_id);
@@ -66,19 +66,15 @@ impl Compiler {
             return Ok(None);
         }
 
-        let lookup = MemberLookupModuleContext::new(
+        // resolve the member symbol from the enum declaration
+        let mut visited = Vec::new();
+        self.resolve_member_symbol_for_symbol(
+            ctx.module,
             ctx.module.id,
             ctx.profile,
             ctx.tree,
             ctx.symbols,
             ctx.types,
-        );
-
-        // resolve the member symbol from the enum declaration
-        let mut visited = Vec::new();
-        self.resolve_member_symbol_for_symbol(
-            ctx.module,
-            &lookup,
             left_symbol,
             member_key,
             MemberLookupMode::Value,
@@ -182,14 +178,20 @@ impl Compiler {
             return Ok(self.enum_field_symbol_for_member_key_in_tree(ctx, enum_symbol, member_key));
         }
 
-        self.with_module_tree_symbol_view_at_boundary(
-            ctx.module,
-            ctx.profile,
-            enum_symbol.module_id,
-            DirReadBoundary::Declared,
-            |view| self.enum_field_symbol_for_member_key_in_tree(view, enum_symbol, member_key),
-        )
-        .map_err(AnalyzeError::from)
+        let module = self.program.modules.get(enum_symbol.module_id);
+        let module = module.as_ref();
+        let dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                enum_symbol.module_id,
+                ctx.profile,
+            ))
+            .map_err(AnalyzeError::from)?;
+
+        Ok(self.enum_field_symbol_for_member_key_in_tree(
+            TreeSymbolView::new(module, ctx.profile, &dir.tree, &dir.symbols),
+            enum_symbol,
+            member_key,
+        ))
     }
 
     /// Resolve enum declarations for a matching field key.

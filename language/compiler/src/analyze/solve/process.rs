@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::analyze::common::InferContext;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
@@ -9,7 +11,7 @@ impl Compiler {
     /// Phase 4: Solve infer constraints.
     pub(crate) fn analyze_module_solve(
         &self,
-        dir: &ModuleDir,
+        dir: &mut ModuleDir,
         infer: Option<&mut InferTable>,
         module_id: ModuleId,
         profile: ProfileId,
@@ -37,7 +39,7 @@ impl Compiler {
 
         // declaration modules have no solve-time infer table
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         if module.language_type.is_declaration() {
             return Ok(());
         }
@@ -46,14 +48,17 @@ impl Compiler {
         let Some(infer) = infer else {
             return Ok(());
         };
-
         // solve transient infer constraints
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let mut types = dir.types.write();
-        let mut ctx = InferContext::with_dir(
-            &module, profile, &options, dir, &tree, &symbols, &mut types, infer,
-        );
+        let ModuleDir {
+            tree,
+            symbols,
+            types,
+            ..
+        } = dir;
+        let tree = tree.as_ref();
+        let symbols = symbols.as_ref();
+        let types = Arc::make_mut(types);
+        let mut ctx = InferContext::new(&module, profile, &options, tree, symbols, types, infer);
         {
             let (mut ctx, infer) = ctx.split_type_context_and_infer();
             self.solve_infer_table(&mut ctx, infer);

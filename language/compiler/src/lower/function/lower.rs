@@ -4,10 +4,9 @@ use std::sync::Arc;
 use destack_core::{StringId, StringPool};
 use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, IfCondition, LocalNodeId};
 use destack_source::ModuleId;
-use destack_workspace::{ModuleDirData, ProfileId, Program, WellKnownIntrinsics};
+use destack_workspace::{ModuleDir, ProfileId, Program, WellKnownIntrinsics};
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::analyze::DirReadBoundary;
 use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
 
 use super::constructor::ConstructorState;
@@ -191,28 +190,30 @@ impl<'a> FunctionLowerer<'a> {
         Self { env, state }
     }
 
-    /// Read one committed DIR snapshot for a module when available.
+    /// Read one committed declared DIR snapshot for a module when available.
     pub(crate) fn artifact_dir_data_if_present(
         &self,
         module_id: ModuleId,
-    ) -> Option<Arc<ModuleDirData>> {
+    ) -> Option<Arc<ModuleDir>> {
         self.env
             .compiler
             .program
             .artifacts
-            .dir_snapshot(module_id, self.env.profile)
+            .dir_declared(module_id, self.env.profile)
     }
 
     /// Read one committed analyzed DIR snapshot for a module.
     pub(crate) fn require_analyzed_dir_data(
         &self,
         module_id: ModuleId,
-    ) -> LowerResult<Arc<ModuleDirData>> {
-        let snapshot = self.env.compiler.require_artifact_dir_for_boundary(
-            module_id,
-            self.env.profile,
-            DirReadBoundary::Analyzed,
-        );
+    ) -> LowerResult<Arc<ModuleDir>> {
+        let snapshot =
+            self.env
+                .compiler
+                .require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
+                    module_id,
+                    self.env.profile,
+                ));
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),

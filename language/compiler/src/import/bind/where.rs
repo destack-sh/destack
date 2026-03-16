@@ -6,7 +6,7 @@ use destack_dir::{
 
 use crate::Compiler;
 
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -15,6 +15,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         ast_where_clause_id: ast::LocalNodeId<ast::WhereClause>,
         parent_id: Option<LocalNodeIdAny>,
@@ -36,6 +37,7 @@ impl Compiler {
         let right = self.bind_expression(
             module,
             ast,
+            dir,
             scope,
             ast_where_clause.right,
             Some(where_clause_id),

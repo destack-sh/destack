@@ -39,15 +39,13 @@ impl Compiler {
             return self.collect_or_defer_type_expression(ctx, expression_id, true);
         }
 
-        match self.resolve_declared_type_expression(&mut ctx.reborrow(), expression_id, true, true)
-        {
-            Ok(type_id) => Ok(type_id),
-            // keep a declared slot stable even when eager resolution still depends on later work
-            Err(AnalyzeError::Yield { .. }) => {
-                self.collect_or_defer_type_expression(ctx, expression_id, true)
-            }
-            Err(error) => Err(error),
+        let type_id =
+            self.query_declared_type_expression(&mut ctx.reborrow(), expression_id, true, true)?;
+        if let Some(type_id) = type_id {
+            return Ok(type_id);
         }
+
+        self.collect_or_defer_type_expression(ctx, expression_id, true)
     }
 
     /// Report missing declared associated requirements for one declaration in one ctx context.
@@ -325,12 +323,10 @@ impl Compiler {
             ctx.types
                 .set_declared_type(value.into_global_any(ctx.module.id), value_ty_id);
 
-            let member_symbol = ctx.tree.get(member_id).symbol();
-            let member_symbol_entry = ctx.symbols.get_symbol(member_symbol);
-            let member_symbol = GlobalSymbolId::new(
-                ctx.module.id,
-                member_symbol.with_type(member_symbol_entry.ty),
-            );
+            let member_symbol = ctx.tree.get(member_id).symbol().into_global(ctx.module.id);
+            let member_symbol = self
+                .declaration_symbol_id(ctx.module_symbol_view(), member_symbol)
+                .unwrap_or(member_symbol);
             ctx.types
                 .set_alias_target_type_id(member_symbol, value_ty_id);
             ctx.types.set_instance_type(member_symbol, value_ty_id);

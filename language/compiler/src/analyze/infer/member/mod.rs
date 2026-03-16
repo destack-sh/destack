@@ -9,5 +9,4 @@ mod visibility;
 
 pub(crate) use model::MemberResolution;
 pub(super) use model::*;
-pub(crate) use resolve::MemberLookupModuleContext;
 pub(super) use shared::*;

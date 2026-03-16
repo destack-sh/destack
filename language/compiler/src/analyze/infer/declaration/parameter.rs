@@ -1,4 +1,4 @@
-use crate::analyze::common::{DirReadBoundary, TreeSymbolView, TypeContext, TypeView};
+use crate::analyze::common::{TreeSymbolView, TypeContext, TypeView};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeType,
@@ -23,11 +23,12 @@ impl Compiler {
         }
 
         let remote_constraint = self
-            .with_module_types_at_boundary(
+            .with_module_types_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
-                DirReadBoundary::Declared,
+                ctx.types,
+                destack_workspace::ArtifactKey::dir_declared,
                 |_owner_module, owner_types| {
                     let owner_constraint_type_id =
                         owner_types.query_artifact_static_parameter_constraint_type(symbol)?;
@@ -108,12 +109,12 @@ impl Compiler {
         }
 
         // resolve from published declare entries first
-        if let Ok(Some(kind)) = self.with_module_types_or_local_at_boundary(
+        if let Ok(Some(kind)) = self.with_module_types_or_local_for_artifact(
             ctx.module,
             ctx.profile,
             symbol.module_id,
             ctx.types,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |_owner_module, owner_types| owner_types.query_artifact_static_parameter_kind(symbol),
         ) {
             ctx.types.set_static_parameter_kind(symbol, kind);
@@ -146,12 +147,12 @@ impl Compiler {
         }
 
         // resolve from published declare entries first
-        if let Ok(Some(variance)) = self.with_module_types_or_local_at_boundary(
+        if let Ok(Some(variance)) = self.with_module_types_or_local_for_artifact(
             ctx.module,
             ctx.profile,
             symbol.module_id,
             ctx.types,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |_owner_module, owner_types| {
                 owner_types
                     .query_artifact_static_parameter_variance(symbol)
@@ -232,7 +233,7 @@ impl Compiler {
             let source_id = symbol_entry
                 .primary_declaration
                 .map(|declaration| declaration.local_id)
-                .unwrap_or(ctx.local_anchor_node());
+                .unwrap_or(ctx.anchor_node());
             let artifact_constraint_type_id = if let Some(primary_declaration) =
                 symbol_entry.primary_declaration
                 && let Some(declared_type_id) = ctx.types.get_declared_type_id(primary_declaration)
@@ -311,12 +312,12 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> Option<Vec<GlobalSymbolId>> {
         if let Some(cached) = self
-            .with_module_types_or_local_at_boundary(
+            .with_module_types_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
                 ctx.types,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |_, owner_types| owner_types.query_artifact_static_parameter_symbols(symbol),
             )
             .ok()
@@ -354,43 +355,34 @@ impl Compiler {
                 continue;
             }
 
-            let Some((parameters, next)) = self
-                .with_module_tree_symbol_type_view_at_boundary(
-                    ctx.module,
-                    ctx.profile,
-                    current.module_id,
-                    DirReadBoundary::Declared,
-                    |view| {
-                        let owner_module = self.program.modules.get(current.module_id);
-                        let owner_module = owner_module.read();
-                        if let Some(cached) =
-                            view.types.query_artifact_static_parameter_symbols(current)
-                        {
-                            return (Some(cached), None);
-                        }
-
-                        if let Some(parameters) = self.collect_static_parameter_symbols_in_module(
-                            TreeSymbolView::new(
-                                &owner_module,
-                                ctx.profile,
-                                view.tree,
-                                view.symbols,
-                            ),
-                            current,
-                        ) {
-                            return (Some(parameters), None);
-                        }
-
-                        let symbol_entry = view.symbols.get_symbol(current.local_id);
-                        (
-                            None,
-                            symbol_entry.target_symbol.or(symbol_entry.canonical_symbol),
-                        )
-                    },
-                )
-                .ok()
-            else {
+            let Ok(owner_dir) = self.require_artifact_dir(
+                destack_workspace::ArtifactKey::dir_declared(current.module_id, ctx.profile),
+            ) else {
                 break None;
+            };
+            let owner_module = self.program.modules.get(current.module_id);
+            let owner_module = owner_module.as_ref();
+            let (parameters, next) = if let Some(cached) = owner_dir
+                .types
+                .query_artifact_static_parameter_symbols(current)
+            {
+                (Some(cached), None)
+            } else if let Some(parameters) = self.collect_static_parameter_symbols_in_module(
+                TreeSymbolView::new(
+                    &owner_module,
+                    ctx.profile,
+                    &owner_dir.tree,
+                    &owner_dir.symbols,
+                ),
+                current,
+            ) {
+                (Some(parameters), None)
+            } else {
+                let symbol_entry = owner_dir.symbols.get_symbol(current.local_id);
+                (
+                    None,
+                    symbol_entry.target_symbol.or(symbol_entry.canonical_symbol),
+                )
             };
             if let Some(parameters) = parameters {
                 break Some(parameters);
@@ -477,20 +469,22 @@ impl Compiler {
     ) -> StaticParameter {
         // prefer parameter metadata from the owning module
         let parameter = self
-            .with_module_tree_symbol_view_or_local_at_boundary(
+            .with_module_tree_symbol_view_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 symbol_id.module_id,
                 ctx.tree,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |view| {
                     let owner_options = self.analyze_context_options_for_module(view.module.id);
-                    let mut ctx = ctx.reborrow_for_module_with_options(
+                    let mut ctx = TypeContext::new(
                         view.module,
+                        ctx.profile,
                         &owner_options,
                         view.tree,
                         view.symbols,
+                        ctx.types,
                     );
                     self.resolve_static_parameter_in_module(&mut ctx, symbol_id, source_id)
                 },
@@ -717,11 +711,10 @@ impl Compiler {
             // remote modules are read-only here: do not force declaration evaluation
             let remote_declared = {
                 let remote_dir = self
-                    .require_artifact_dir_for_boundary(
+                    .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
                         primary_declaration.module_id,
                         ctx.profile,
-                        DirReadBoundary::Declared,
-                    )
+                    ))
                     .ok()?;
                 let remote_types = &remote_dir.types;
                 remote_types.get_declared_type_id(primary_declaration).map(

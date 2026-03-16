@@ -8,10 +8,8 @@ impl Compiler {
     pub fn emit_module(&self, module_id: ModuleId, target_id: &TargetId) -> EmitResult<()> {
         // get the package for this module
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let package_id = module.package_id;
-        drop(module);
-
         // verify target exists
         let has_target = {
             let package_ref = self.program.packages.get(package_id);

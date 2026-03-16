@@ -1,11 +1,54 @@
 use super::*;
+use crate::AnalyzeResult;
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::TypeContext;
 use crate::analyze::declare::StaticConstantResolutionMode;
-use destack_dir::are_types_equal;
+use destack_dir::{Expression, LocalNodeId, are_types_equal};
+use destack_source::ModuleId;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve one declared type using the owner module syntax and symbols.
+    fn resolve_declared_type_in_owner(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        module_id: ModuleId,
+        type_id: LocalTypeId,
+    ) -> AnalyzeResult<()> {
+        // resolved types do not need any more work
+        if !matches!(ctx.types.get_type(type_id), Type::Unevaluated(_)) {
+            return Ok(());
+        }
+
+        // local declared types can resolve directly
+        if module_id == ctx.module.id && ctx.types.module_id == ctx.module.id {
+            self.resolve_declared_type_or_report(&mut ctx.reborrow(), type_id);
+            return Ok(());
+        }
+
+        // remote declared types reuse local storage with owner syntax and symbols
+        let dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                module_id,
+                ctx.profile,
+            ))
+            .map_err(AnalyzeError::from)?;
+        let module = self.program.modules.get(module_id);
+        let module = module.as_ref();
+        let options = self.analyze_context_options_for_module(module.id);
+        let mut owner_ctx = TypeContext::new(
+            &module,
+            ctx.profile,
+            &options,
+            &dir.tree,
+            &dir.symbols,
+            ctx.types,
+        );
+
+        self.resolve_declared_type_or_report(&mut owner_ctx, type_id);
+        Ok(())
+    }
+
     /// Follow cached alias instances for assignability comparisons.
     pub(super) fn unwrap_assignability_alias_type(
         &self,
@@ -65,10 +108,17 @@ impl Compiler {
         let type_id = self.resolve_assignability_static_constraint(&mut ctx.reborrow(), type_id);
 
         // preserve newtype references as nominal assignability boundaries
-        if let Some(symbol) = self.unwrap_type_value_symbol(ctx.types, type_id)
-            && symbol.ty() == SymbolType::Newtype
-        {
-            return type_id;
+        if let Some(symbol) = self.unwrap_type_value_symbol(ctx.types, type_id) {
+            let symbol = self.canonical_symbol_id(
+                ctx.module_symbol_view(),
+                symbol,
+                CanonicalSymbolMode::PreserveAliases,
+            );
+            if symbol.ty() == SymbolType::Newtype
+                || self.symbol_is_nominal_interface(ctx.tree_symbol_view(), symbol)
+            {
+                return type_id;
+            }
         }
 
         // normalize the prepared type once so downstream checks see a stable shape
@@ -188,9 +238,9 @@ impl Compiler {
         ctx: &mut AssignContext<'_>,
         target_count: LocalTypeId,
         source_count: LocalTypeId,
-    ) -> bool {
+    ) -> AnalyzeResult<bool> {
         if target_count == source_count {
-            return true;
+            return Ok(true);
         }
 
         let target_count =
@@ -198,15 +248,18 @@ impl Compiler {
         let source_count =
             self.unwrapped_value_without_as_comptime_type_id(source_count, ctx.types);
         if target_count == source_count || are_types_equal(target_count, source_count, ctx.types) {
-            return true;
+            return Ok(true);
         }
 
-        let target_value = self.array_sized_count_literal_value(&mut ctx.reborrow(), target_count);
-        let source_value = self.array_sized_count_literal_value(&mut ctx.reborrow(), source_count);
+        let target_value =
+            self.query_array_sized_count_literal_value(&mut ctx.reborrow(), target_count)?;
+        let source_value =
+            self.query_array_sized_count_literal_value(&mut ctx.reborrow(), source_count)?;
         let (Some(target_value), Some(source_value)) = (target_value, source_value) else {
-            return false;
+            return Ok(false);
         };
-        target_value == source_value
+
+        Ok(target_value == source_value)
     }
 
     /// Check whether a fixed array count matches a literal length.
@@ -215,55 +268,38 @@ impl Compiler {
         ctx: &mut AssignContext<'_>,
         count: LocalTypeId,
         length: usize,
-    ) -> bool {
-        let Some(value) = self.array_sized_count_literal_value(&mut ctx.reborrow(), count) else {
-            return false;
+    ) -> AnalyzeResult<bool> {
+        let value = self.query_array_sized_count_literal_value(&mut ctx.reborrow(), count)?;
+        let Some(value) = value else {
+            return Ok(false);
         };
 
-        value == length as i64
+        Ok(value == length as i64)
     }
 
-    /// Extract an integer literal value for a fixed-array count type.
-    pub(super) fn array_sized_count_literal_value(
+    /// Extract an integer literal value for one fixed-array count type.
+    fn query_array_sized_count_literal_value(
         &self,
         ctx: &mut AssignContext<'_>,
         count: LocalTypeId,
-    ) -> Option<i64> {
+    ) -> AnalyzeResult<Option<i64>> {
         let count_ty_id = self.unwrapped_value_without_as_comptime_type_id(count, ctx.types);
+
+        // fast path: integer literals already carry the count
         if let Some(value) = self.integer_literal_value_for_type_id(count_ty_id, ctx.types) {
-            return Some(value);
+            return Ok(Some(value));
         }
+
+        // evaluate local unevaluated counts before looking through references
         if let Type::Unevaluated(expression_id) = ctx.types.get_type(count_ty_id).clone() {
-            let node_id = expression_id.into_global_any(ctx.module.id);
-            if let Some(cached_type_id) = ctx.types.get_declared_or_inferred_type_id(node_id) {
-                let cached_type_id =
-                    self.unwrapped_value_without_as_comptime_type_id(cached_type_id, ctx.types);
-                if cached_type_id != count_ty_id {
-                    return self
-                        .array_sized_count_literal_value(&mut ctx.reborrow(), cached_type_id);
-                }
-            }
-            if ctx.tree.has_node_id(expression_id.id)
-                && let Ok(Some(static_value)) = self.evaluate_static_expression_value(
-                    &mut ctx.type_context_reborrow(),
-                    expression_id,
-                    None,
-                )
-                && let Some(value_type_id) = self.static_expression_type_id_for_substitution(
-                    expression_id.into_any(),
-                    &static_value,
-                    ctx.types,
-                )
-            {
-                let value_type_id =
-                    self.unwrapped_value_without_as_comptime_type_id(value_type_id, ctx.types);
-                if value_type_id != count_ty_id {
-                    return self
-                        .array_sized_count_literal_value(&mut ctx.reborrow(), value_type_id);
-                }
-            }
-            return None;
+            return self.query_array_sized_count_from_unevaluated(
+                &mut ctx.reborrow(),
+                count_ty_id,
+                expression_id,
+            );
         }
+
+        // normalize once before handling references
         let normalized_count = self.normalize_type(
             &mut ctx.type_context_reborrow(),
             count_ty_id,
@@ -283,7 +319,8 @@ impl Compiler {
             if preserves_reference_context {
                 // keep alias references when normalization erases argument context
             } else {
-                return self.array_sized_count_literal_value(&mut ctx.reborrow(), normalized_count);
+                return self
+                    .query_array_sized_count_literal_value(&mut ctx.reborrow(), normalized_count);
             }
         }
         let Type::Reference {
@@ -291,174 +328,236 @@ impl Compiler {
             static_arguments,
         } = ctx.types.get_type(count_ty_id).clone()
         else {
-            return None;
+            return Ok(None);
         };
+        let source_id = ctx.types.get_type_source(count_ty_id);
         let symbol = self
-            .with_module_symbols_or_local_at_boundary(
+            .with_module_symbols_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |owner_module, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
                     GlobalSymbolId::new(owner_module.id, symbol.local_id.with_type(symbol_entry.ty))
                 },
             )
-            .map_err(AnalyzeError::from)
-            .unwrap_or_else(|error| {
-                self.error(error);
-                symbol
-            });
-        let source_id = ctx.types.get_type_source(count_ty_id);
+            .map_err(AnalyzeError::from)?;
+
+        // alias counts need instantiation before integer extraction
         if symbol.ty() == SymbolType::TypeAlias {
-            let expanded = self.expand_assignability_alias_reference(
-                &mut ctx.type_context_reborrow(),
+            return self.query_array_sized_count_from_alias_reference(
+                &mut ctx.reborrow(),
                 count_ty_id,
-            );
-            let expanded = self.unwrapped_value_without_as_comptime_type_id(expanded, ctx.types);
-            if expanded != count_ty_id
-                && !matches!(ctx.types.get_type(expanded), Type::Unevaluated(_))
-            {
-                return self.array_sized_count_literal_value(&mut ctx.reborrow(), expanded);
-            }
-
-            let alias_target_id = self.alias_target_type_id_for_symbol(
-                &mut ctx.type_context_reborrow(),
-                symbol,
                 source_id,
-            );
-            let alias_target_id = alias_target_id?;
-            self.ensure_assignability_alias_target_declared(
-                &mut ctx.type_context_reborrow(),
                 symbol,
-                alias_target_id,
+                static_arguments.as_ref(),
             );
-
-            let resolved_arguments = static_arguments.as_ref().and_then(|arguments| {
-                match self.resolve_type_reference_static_arguments(
-                    &mut ctx.type_context_reborrow(),
-                    source_id,
-                    symbol,
-                    Some(arguments.as_slice()),
-                    false,
-                ) {
-                    Ok(arguments) => arguments,
-                    Err(error) => {
-                        self.error(error);
-                        None
-                    }
-                }
-            });
-            let arguments = resolved_arguments
-                .as_deref()
-                .or(static_arguments.as_deref());
-            let substitutions = if let Some(arguments) = arguments {
-                self.build_type_parameter_substitutions_for_symbol(
-                    &mut ctx.type_context_reborrow(),
-                    symbol,
-                    source_id,
-                    arguments,
-                )
-            } else {
-                HashMap::new()
-            };
-            let mut alias_target_id = alias_target_id;
-            if !substitutions.is_empty() {
-                match self.apply_associated_projection_substitutions(
-                    &mut ctx.type_context_reborrow(),
-                    symbol,
-                    alias_target_id,
-                    &substitutions,
-                ) {
-                    Ok(mapped_alias_target_id) => {
-                        alias_target_id = mapped_alias_target_id;
-                    }
-                    Err(error) => {
-                        self.error(error);
-                    }
-                }
-            }
-            let mut materialize_cache = HashMap::new();
-            let mut substitute_cache = HashMap::new();
-            let instantiated = self.instantiate_type_with_substitutions(
-                &mut ctx.type_context_reborrow(),
-                source_id,
-                Some(symbol),
-                alias_target_id,
-                &substitutions,
-                &mut materialize_cache,
-                &mut substitute_cache,
-            );
-            let instantiated =
-                self.unwrapped_value_without_as_comptime_type_id(instantiated, ctx.types);
-            if let Type::Unevaluated(expression_id) = ctx.types.get_type(instantiated).clone()
-                && !substitutions.is_empty()
-                && ctx.tree.has_node_id(expression_id.id)
-                && let Ok(Some(static_value)) = self
-                    .evaluate_static_expression_value_with_substitutions(
-                        &mut ctx.type_context_reborrow(),
-                        expression_id,
-                        None,
-                        &substitutions,
-                    )
-                && let Some(value_type_id) = self.static_expression_type_id_for_substitution(
-                    source_id,
-                    &static_value,
-                    ctx.types,
-                )
-            {
-                let mut value_type_id =
-                    self.unwrapped_value_without_as_comptime_type_id(value_type_id, ctx.types);
-                if !substitutions.is_empty() {
-                    let mut substitution_cache = HashMap::new();
-                    value_type_id = self.substitute_static_parameters(
-                        value_type_id,
-                        &substitutions,
-                        ctx.types,
-                        &mut substitution_cache,
-                    );
-                    let mut materialize_cache = HashMap::new();
-                    value_type_id = self.materialize_static_arguments_in_type(
-                        &mut ctx.type_context_reborrow(),
-                        value_type_id,
-                        &mut materialize_cache,
-                    );
-                    value_type_id =
-                        self.unwrapped_value_without_as_comptime_type_id(value_type_id, ctx.types);
-                }
-                if value_type_id != instantiated {
-                    return self
-                        .array_sized_count_literal_value(&mut ctx.reborrow(), value_type_id);
-                }
-            }
-            if instantiated == count_ty_id {
-                return None;
-            }
-
-            return self.array_sized_count_literal_value(&mut ctx.reborrow(), instantiated);
         }
 
+        self.query_array_sized_count_from_static_reference(
+            &mut ctx.reborrow(),
+            count_ty_id,
+            source_id,
+            symbol,
+            static_arguments.as_ref(),
+        )
+    }
+
+    /// Query one array-size count from one unevaluated type.
+    fn query_array_sized_count_from_unevaluated(
+        &self,
+        ctx: &mut AssignContext<'_>,
+        count_ty_id: LocalTypeId,
+        expression_id: LocalNodeId<Expression>,
+    ) -> AnalyzeResult<Option<i64>> {
+        let node_id = expression_id.into_global_any(ctx.module.id);
+
+        // follow cached declared or inferred results first
+        if let Some(cached_type_id) = ctx.types.get_declared_or_inferred_type_id(node_id) {
+            let cached_type_id =
+                self.unwrapped_value_without_as_comptime_type_id(cached_type_id, ctx.types);
+            if cached_type_id != count_ty_id {
+                return self
+                    .query_array_sized_count_literal_value(&mut ctx.reborrow(), cached_type_id);
+            }
+        }
+
+        // otherwise evaluate the local static expression directly
+        if !ctx.tree.has_node_id(expression_id.id) {
+            return Ok(None);
+        }
+        let Some(static_value) = self.evaluate_static_expression_value(
+            &mut ctx.type_context_reborrow(),
+            expression_id,
+            None,
+        )?
+        else {
+            return Ok(None);
+        };
+        let Some(value_type_id) = self.static_expression_type_id_for_substitution(
+            expression_id.into_any(),
+            &static_value,
+            ctx.types,
+        ) else {
+            return Ok(None);
+        };
+        let value_type_id =
+            self.unwrapped_value_without_as_comptime_type_id(value_type_id, ctx.types);
+        if value_type_id == count_ty_id {
+            return Ok(None);
+        }
+
+        self.query_array_sized_count_literal_value(&mut ctx.reborrow(), value_type_id)
+    }
+
+    /// Query one array-size count through one alias reference.
+    fn query_array_sized_count_from_alias_reference(
+        &self,
+        ctx: &mut AssignContext<'_>,
+        count_ty_id: LocalTypeId,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&Vec<StaticArgument>>,
+    ) -> AnalyzeResult<Option<i64>> {
+        // expand one already-instantiated alias when possible
+        let expanded = self
+            .expand_assignability_alias_reference(&mut ctx.type_context_reborrow(), count_ty_id);
+        let expanded = self.unwrapped_value_without_as_comptime_type_id(expanded, ctx.types);
+        if expanded != count_ty_id && !matches!(ctx.types.get_type(expanded), Type::Unevaluated(_))
+        {
+            return self.query_array_sized_count_literal_value(&mut ctx.reborrow(), expanded);
+        }
+
+        // resolve the alias target in the owner module
+        let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
+            &mut ctx.type_context_reborrow(),
+            symbol,
+            source_id,
+        ) else {
+            return Ok(None);
+        };
+        self.resolve_declared_type_in_owner(
+            &mut ctx.type_context_reborrow(),
+            symbol.module_id,
+            alias_target_id,
+        )?;
+
+        // build substitutions from the resolved static arguments
+        let resolved_arguments = if let Some(arguments) = static_arguments {
+            self.resolve_type_reference_static_arguments(
+                &mut ctx.type_context_reborrow(),
+                source_id,
+                symbol,
+                Some(arguments.as_slice()),
+                false,
+            )?
+        } else {
+            None
+        };
+        let arguments = resolved_arguments
+            .as_deref()
+            .or(static_arguments.map(Vec::as_slice));
+        let substitutions = if let Some(arguments) = arguments {
+            self.build_type_parameter_substitutions_for_symbol(
+                &mut ctx.type_context_reborrow(),
+                symbol,
+                source_id,
+                arguments,
+            )
+        } else {
+            HashMap::new()
+        };
+
+        // instantiate the alias target under the current substitutions
+        let mut instantiated_target_id = alias_target_id;
+        if !substitutions.is_empty() {
+            instantiated_target_id = self.apply_associated_projection_substitutions(
+                &mut ctx.type_context_reborrow(),
+                symbol,
+                instantiated_target_id,
+                &substitutions,
+            )?;
+        }
+        let mut materialize_cache = HashMap::new();
+        let mut substitute_cache = HashMap::new();
+        let instantiated = self.instantiate_type_with_substitutions(
+            &mut ctx.type_context_reborrow(),
+            source_id,
+            Some(symbol),
+            instantiated_target_id,
+            &substitutions,
+            &mut materialize_cache,
+            &mut substitute_cache,
+        );
+        let instantiated =
+            self.unwrapped_value_without_as_comptime_type_id(instantiated, ctx.types);
+
+        // evaluate instantiated unevaluated aliases once before recurring
+        if let Type::Unevaluated(expression_id) = ctx.types.get_type(instantiated).clone()
+            && !substitutions.is_empty()
+            && ctx.tree.has_node_id(expression_id.id)
+            && let Some(static_value) = self.evaluate_static_expression_value_with_substitutions(
+                &mut ctx.type_context_reborrow(),
+                expression_id,
+                None,
+                &substitutions,
+            )?
+            && let Some(value_type_id) =
+                self.static_expression_type_id_for_substitution(source_id, &static_value, ctx.types)
+        {
+            let mut value_type_id =
+                self.unwrapped_value_without_as_comptime_type_id(value_type_id, ctx.types);
+            let mut substitution_cache = HashMap::new();
+            value_type_id = self.substitute_static_parameters(
+                value_type_id,
+                &substitutions,
+                ctx.types,
+                &mut substitution_cache,
+            );
+            let mut materialize_cache = HashMap::new();
+            value_type_id = self.materialize_static_arguments_in_type(
+                &mut ctx.type_context_reborrow(),
+                value_type_id,
+                &mut materialize_cache,
+            );
+            let value_type_id =
+                self.unwrapped_value_without_as_comptime_type_id(value_type_id, ctx.types);
+            if value_type_id != instantiated {
+                return self
+                    .query_array_sized_count_literal_value(&mut ctx.reborrow(), value_type_id);
+            }
+        }
+        if instantiated == count_ty_id {
+            return Ok(None);
+        }
+
+        self.query_array_sized_count_literal_value(&mut ctx.reborrow(), instantiated)
+    }
+
+    /// Query one array-size count through one non-alias static reference.
+    fn query_array_sized_count_from_static_reference(
+        &self,
+        ctx: &mut AssignContext<'_>,
+        count_ty_id: LocalTypeId,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&Vec<StaticArgument>>,
+    ) -> AnalyzeResult<Option<i64>> {
+        // collect substitutions from the reference surface
         let member_kind = {
             let type_ctx = ctx.type_context_reborrow();
-            match self
-                .query_static_member_symbol_kind_for_symbol(type_ctx.tree_symbol_view(), symbol)
-            {
-                Ok(kind) => kind,
-                Err(error) => {
-                    self.error(error);
-                    None
-                }
-            }
+            self.query_static_member_symbol_kind_for_symbol(type_ctx.tree_symbol_view(), symbol)?
         };
         let mut substitutions = HashMap::new();
         if member_kind == Some(StaticMemberSymbolKind::AssociatedComptimeConst) {
             match self.query_owner_symbol_for_member_symbol(ctx.module_symbol_view(), symbol) {
                 Ok(Some(receiver_symbol)) => {
-                    let receiver_arguments = static_arguments.clone().unwrap_or_default();
+                    let receiver_arguments = static_arguments.cloned().unwrap_or_default();
                     let count_ty = ctx.types.get_type(count_ty_id).clone();
                     if !receiver_arguments.is_empty() {
-                        match self.projection_environment_for_member(
+                        let environment = self.projection_environment_for_member(
                             &mut ctx.type_context_reborrow(),
                             source_id,
                             symbol,
@@ -467,40 +566,28 @@ impl Compiler {
                             None,
                             Some(&count_ty),
                             None,
-                        ) {
-                            Ok(environment) => {
-                                substitutions.extend(environment.substitutions);
-                            }
-                            Err(error) => {
-                                self.error(error);
-                            }
-                        }
+                        )?;
+                        substitutions.extend(environment.substitutions);
                     }
                 }
                 Ok(None) => {}
-                Err(error) => {
-                    self.error(error);
-                }
+                Err(error) => return Err(error),
             }
         } else {
-            let resolved_arguments = static_arguments.as_ref().and_then(|arguments| {
-                match self.resolve_type_reference_static_arguments(
+            let resolved_arguments = if let Some(arguments) = static_arguments {
+                self.resolve_type_reference_static_arguments(
                     &mut ctx.type_context_reborrow(),
                     source_id,
                     symbol,
                     Some(arguments.as_slice()),
                     false,
-                ) {
-                    Ok(arguments) => arguments,
-                    Err(error) => {
-                        self.error(error);
-                        None
-                    }
-                }
-            });
+                )?
+            } else {
+                None
+            };
             let arguments = resolved_arguments
                 .as_deref()
-                .or(static_arguments.as_deref());
+                .or(static_arguments.map(Vec::as_slice));
             if let Some(arguments) = arguments.filter(|arguments| !arguments.is_empty()) {
                 substitutions.extend(self.build_type_parameter_substitutions_for_symbol(
                     &mut ctx.type_context_reborrow(),
@@ -510,101 +597,54 @@ impl Compiler {
                 ));
             }
         }
+
+        // resolve the referenced static constant with the right instantiation mode
         let substitutions = if substitutions.is_empty() {
             None
         } else {
             Some(substitutions)
         };
-        let resolution_mode = if substitutions.is_some() {
-            StaticConstantResolutionMode::InstantiatedInfer
-        } else {
-            StaticConstantResolutionMode::Parametric
-        };
-
+        let resolution_mode =
+            if member_kind == Some(StaticMemberSymbolKind::AssociatedComptimeConst) {
+                StaticConstantResolutionMode::InstantiatedDeclare
+            } else if substitutions.is_some() {
+                StaticConstantResolutionMode::InstantiatedInfer
+            } else {
+                StaticConstantResolutionMode::Parametric
+            };
         let mut visited_symbols = HashSet::new();
-        let static_value = match self.resolve_static_constant_reference_for_mode(
+        let Some(static_value) = self.resolve_static_constant_reference_for_mode(
             &mut ctx.type_context_reborrow(),
             symbol,
             substitutions.as_ref(),
             &mut visited_symbols,
             resolution_mode,
-        ) {
-            Ok(static_value) => static_value?,
-            Err(error) => {
-                self.error(error);
-                return None;
-            }
+        )?
+        else {
+            return Ok(None);
         };
+
+        // evaluate local deferred static expressions before integer conversion
         let static_value = if let StaticExpression::Unevaluated { node } = static_value {
-            // evaluate deferred static expressions before integer conversion
             let local_value = if ctx.tree.has_node_id(node.id) {
-                match self.evaluate_static_expression_value(
-                    &mut ctx.type_context_reborrow(),
-                    node,
-                    None,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        self.error(error);
-                        None
-                    }
-                }
+                self.evaluate_static_expression_value(&mut ctx.type_context_reborrow(), node, None)?
             } else {
-                match self.with_module_tree_symbol_view_at_boundary(
-                    ctx.module,
-                    ctx.profile,
-                    symbol.module_id,
-                    DirReadBoundary::Declared,
-                    |view| {
-                        if !view.tree.has_node_id(node.id) {
-                            return Ok(None);
-                        }
-
-                        let owner_snapshot = self
-                            .require_artifact_dir_for_boundary(
-                                symbol.module_id,
-                                ctx.profile,
-                                DirReadBoundary::Declared,
-                            )
-                            .map_err(AnalyzeError::from)?;
-                        let owner_module = self.program.modules.get(symbol.module_id);
-                        let owner_module = owner_module.read();
-                        let options = self.analyze_context_options_for_module(owner_module.id);
-                        let mut owner_types = owner_snapshot.types.clone();
-                        let mut owner_ctx = ctx
-                            .type_context_reborrow_for_module_with_options_and_types(
-                                &owner_module,
-                                &options,
-                                view.tree,
-                                view.symbols,
-                                &mut owner_types,
-                            );
-                        self.evaluate_static_expression_value(&mut owner_ctx, node, None)
-                    },
-                ) {
-                    Ok(result) => match result {
-                        Ok(value) => value,
-                        Err(error) => {
-                            self.error(error);
-                            None
-                        }
-                    },
-                    Err(error) => {
-                        self.error(AnalyzeError::from(error));
-                        None
-                    }
-                }
+                None
             };
-
             local_value.unwrap_or(StaticExpression::Unevaluated { node })
         } else {
             static_value
         };
+
+        // convert the resulting static expression back into an integer literal
         let value_type_id =
-            self.static_expression_type_id_for_substitution(source_id, &static_value, ctx.types)?;
+            self.static_expression_type_id_for_substitution(source_id, &static_value, ctx.types);
+        let Some(value_type_id) = value_type_id else {
+            return Ok(None);
+        };
         let value_type_id =
             self.unwrapped_value_without_as_comptime_type_id(value_type_id, ctx.types);
-        self.integer_literal_value_for_type_id(value_type_id, ctx.types)
+        Ok(self.integer_literal_value_for_type_id(value_type_id, ctx.types))
     }
 
     /// Check assignability of static arguments on the same reference symbol.
@@ -764,24 +804,27 @@ impl Compiler {
             return static_arguments.cloned().unwrap_or_default();
         }
 
-        let resolved = self
-            .resolve_type_reference_static_arguments(
-                &mut ctx.reborrow(),
-                node_id,
-                symbol,
-                static_arguments.map(|args| args.as_slice()),
-                false,
-            )
-            .unwrap_or_else(|error| {
+        // query one resolved argument list, then fall back to the explicit surface on failure
+        let resolved = match self.resolve_type_reference_static_arguments(
+            &mut ctx.reborrow(),
+            node_id,
+            symbol,
+            static_arguments.map(|arguments| arguments.as_slice()),
+            false,
+        ) {
+            Ok(arguments) => arguments,
+            Err(error) => {
                 self.error(error);
                 None
-            });
+            }
+        };
 
         resolved
             .or_else(|| static_arguments.cloned())
             .unwrap_or_default()
     }
 
+    /// Query one resolved static argument list for assignability comparisons.
     /// Expand type alias references for assignability checks.
     pub(super) fn expand_assignability_alias_reference(
         &self,
@@ -816,11 +859,13 @@ impl Compiler {
         };
 
         // ensure the alias target is evaluated before substitution
-        self.ensure_assignability_alias_target_declared(
+        if let Err(error) = self.resolve_declared_type_in_owner(
             &mut ctx.reborrow(),
-            symbol,
+            symbol.module_id,
             alias_target_id,
-        );
+        ) {
+            self.error(error);
+        }
 
         // normalize directly for aliases without explicit static arguments
         let Some(arguments) = static_arguments.as_ref() else {
@@ -841,18 +886,19 @@ impl Compiler {
         }
 
         // resolve static arguments for substitution
-        let resolved_arguments = self
-            .resolve_type_reference_static_arguments(
-                &mut ctx.reborrow(),
-                source_id,
-                symbol,
-                Some(arguments.as_slice()),
-                false,
-            )
-            .unwrap_or_else(|error| {
+        let resolved_arguments = match self.resolve_type_reference_static_arguments(
+            &mut ctx.reborrow(),
+            source_id,
+            symbol,
+            Some(arguments.as_slice()),
+            false,
+        ) {
+            Ok(arguments) => arguments,
+            Err(error) => {
                 self.error(error);
                 None
-            });
+            }
+        };
         let arguments = resolved_arguments.as_deref().unwrap_or(arguments);
         if arguments.is_empty() {
             return alias_target_id;
@@ -904,42 +950,6 @@ impl Compiler {
     fn resolve_declared_type_or_report(&self, ctx: &mut TypeContext<'_>, type_id: LocalTypeId) {
         if let Err(error) = self.resolve_declared_type(&mut ctx.reborrow(), type_id) {
             self.error(error);
-        }
-    }
-
-    /// Ensure one alias target is declared before assignability-time substitution.
-    fn ensure_assignability_alias_target_declared(
-        &self,
-        ctx: &mut TypeContext<'_>,
-        symbol: GlobalSymbolId,
-        alias_target_id: LocalTypeId,
-    ) {
-        if !matches!(ctx.types.get_type(alias_target_id), Type::Unevaluated(_)) {
-            return;
-        }
-
-        if symbol.module_id == ctx.module.id && ctx.types.module_id == ctx.module.id {
-            self.resolve_declared_type_or_report(&mut ctx.reborrow(), alias_target_id);
-            return;
-        }
-
-        if let Err(error) = self.with_module_tree_symbol_view_at_boundary(
-            ctx.module,
-            ctx.profile,
-            symbol.module_id,
-            DirReadBoundary::Declared,
-            |view| {
-                let options = self.analyze_context_options_for_module(view.module.id);
-                let mut ctx = ctx.reborrow_for_module_with_options(
-                    view.module,
-                    &options,
-                    view.tree,
-                    view.symbols,
-                );
-                self.resolve_declared_type_or_report(&mut ctx, alias_target_id);
-            },
-        ) {
-            self.error(AnalyzeError::from(error));
         }
     }
 

@@ -3,7 +3,7 @@ use destack_dir::{
     Block, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType,
     ScopeKind, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 use crate::Compiler;
 
@@ -14,6 +14,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         ast_block_id: ast::LocalNodeId<ast::Block>,
         parent_id: Option<LocalNodeIdAny>,
@@ -43,6 +44,7 @@ impl Compiler {
                 self.bind_expression(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *expression,
                     Some(block_id),

@@ -1,5 +1,6 @@
 use super::*;
-use crate::analyze::common::{SymbolTypeView, TypeContext};
+use crate::analyze::common::{SymbolTypeView, TreeSymbolView, TypeContext};
+use destack_dir::{Declaration, TypeKind};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -59,26 +60,13 @@ impl Compiler {
 
         let _timing = self.timing_scope(tags::ANALYZE_INFER_ASSIGN_CHECK);
 
-        let dir = ctx.dir;
-        let mut ctx = if let Some(dir) = dir {
-            AssignContext::with_dir(
-                ctx.module,
-                ctx.profile,
-                dir,
-                ctx.tree,
-                ctx.symbols,
-                ctx.types,
-                ctx.options,
-            )
-        } else {
-            AssignContext::new(
-                ctx.module,
-                ctx.profile,
-                ctx.tree,
-                ctx.symbols,
-                ctx.types,
-                ctx.options,
-            )
+        let mut ctx = AssignContext {
+            module: ctx.module,
+            profile: ctx.profile,
+            tree: ctx.tree,
+            symbols: ctx.symbols,
+            types: ctx.types,
+            options: ctx.options,
         };
 
         // normalize and resolve apparent types for assignability
@@ -990,11 +978,19 @@ impl Compiler {
                     return Some(Assignability::NotAssignable);
                 }
 
-                if !self.array_sized_count_matches_length(
+                let count_matches = self.array_sized_count_matches_length(
                     &mut ctx.reborrow(),
                     *target_count,
                     source_elements.len(),
-                ) {
+                );
+                let count_matches = match count_matches {
+                    Ok(count_matches) => count_matches,
+                    Err(error) => {
+                        self.error(error);
+                        return Some(Assignability::NotAssignable);
+                    }
+                };
+                if !count_matches {
                     return Some(Assignability::NotAssignable);
                 }
 
@@ -1049,8 +1045,19 @@ impl Compiler {
                     *source_element,
                 );
 
-                if self.array_sized_counts_match(&mut ctx.reborrow(), *target_count, *source_count)
-                {
+                let counts_match = self.array_sized_counts_match(
+                    &mut ctx.reborrow(),
+                    *target_count,
+                    *source_count,
+                );
+                let counts_match = match counts_match {
+                    Ok(counts_match) => counts_match,
+                    Err(error) => {
+                        self.error(error);
+                        return Some(Assignability::NotAssignable);
+                    }
+                };
+                if counts_match {
                     Some(Assignability::Assignable)
                 } else {
                     Some(Assignability::NotAssignable)
@@ -1518,14 +1525,14 @@ impl Compiler {
         let target_symbol = self.canonical_symbol_id(
             ctx.module_symbol_view(),
             *target_symbol,
-            CanonicalSymbolMode::FollowAliases,
+            CanonicalSymbolMode::PreserveAliases,
         );
         let target_symbol =
             self.normalize_reference_relation_symbol(ctx.symbol_type_view(), target_symbol);
         let source_symbol = self.canonical_symbol_id(
             ctx.module_symbol_view(),
             *source_symbol,
-            CanonicalSymbolMode::FollowAliases,
+            CanonicalSymbolMode::PreserveAliases,
         );
         let source_symbol =
             self.normalize_reference_relation_symbol(ctx.symbol_type_view(), source_symbol);
@@ -1613,6 +1620,25 @@ impl Compiler {
             return Some(Assignability::NotAssignable);
         }
 
+        let target_is_nominal_interface = self.symbol_is_nominal_interface(
+            TreeSymbolView::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols),
+            target_symbol,
+        );
+        let source_is_nominal_interface = self.symbol_is_nominal_interface(
+            TreeSymbolView::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols),
+            source_symbol,
+        );
+
+        // nominal interfaces only assign through explicit lineage
+        if target_is_nominal_interface || source_is_nominal_interface {
+            if self.is_type_lineage_assignable(ctx.symbol_type_view(), source_symbol, target_symbol)
+            {
+                return Some(Assignability::Assignable);
+            }
+
+            return Some(Assignability::NotAssignable);
+        }
+
         // newtypes are nominal: never allow implicit cross symbol assignability
         if matches!(target_symbol.ty(), SymbolType::Newtype)
             || matches!(source_symbol.ty(), SymbolType::Newtype)
@@ -1675,6 +1701,63 @@ impl Compiler {
     ) -> GlobalSymbolId {
         self.query_enum_symbol_for_field_symbol(ctx, symbol)
             .unwrap_or(symbol)
+    }
+
+    /// Return whether one declared interface symbol is nominal.
+    pub(crate) fn symbol_is_nominal_interface(
+        &self,
+        view: TreeSymbolView<'_>,
+        symbol: GlobalSymbolId,
+    ) -> bool {
+        if symbol.ty() != SymbolType::Interface {
+            return false;
+        }
+
+        if self
+            .require_remote_artifact_dir(
+                view.module.id,
+                symbol.module_id,
+                view.profile,
+                destack_workspace::ArtifactKey::dir_declared,
+            )
+            .is_err()
+        {
+            return false;
+        }
+
+        let remote_snapshot;
+
+        // read the local declaration tables directly and fall back to the declared remote artifact
+        let (tree, symbols) = if symbol.module_id == view.module.id {
+            (view.tree, view.symbols)
+        } else {
+            let Ok(snapshot) = self.require_artifact_dir(
+                destack_workspace::ArtifactKey::dir_declared(symbol.module_id, view.profile),
+            ) else {
+                return false;
+            };
+            remote_snapshot = snapshot;
+            (
+                remote_snapshot.tree.as_ref(),
+                remote_snapshot.symbols.as_ref(),
+            )
+        };
+
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            return false;
+        };
+        let Ok(declaration_id) = primary_declaration.try_into_typed::<Declaration>() else {
+            return false;
+        };
+
+        matches!(
+            tree.get(declaration_id.into()),
+            Declaration::Interface {
+                kind: TypeKind::Nominal,
+                ..
+            }
+        )
     }
 
     /// Evaluate bidirectional inner assignability for invariant wrappers.

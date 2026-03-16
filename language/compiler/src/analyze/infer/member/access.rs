@@ -684,6 +684,45 @@ impl Compiler {
         })
     }
 
+    /// Query one member type from the receiver shape when its dependencies are ready.
+    fn query_member_type_from_receiver_shape(
+        &self,
+        ctx: &mut InferContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        receiver_ty: &Type,
+        member_key: &StaticKey,
+        lookup_mode: MemberLookupMode,
+        member_symbol: Option<GlobalSymbolId>,
+        visited: &mut Vec<GlobalSymbolId>,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // let concrete symbol lookup drive static associated member typing
+        if member_symbol.is_some() {
+            return match self.infer_member_of_type(
+                &mut ctx.type_context_reborrow(),
+                expression_id.into_any(),
+                receiver_ty,
+                member_key,
+                lookup_mode,
+                visited,
+            ) {
+                Ok(member_ty_id) => Ok(member_ty_id),
+                Err(AnalyzeError::Yield { .. }) => Ok(None),
+                Err(error) => Err(error),
+            };
+        }
+
+        let member_ty_id = self.infer_member_of_type(
+            &mut ctx.type_context_reborrow(),
+            expression_id.into_any(),
+            receiver_ty,
+            member_key,
+            lookup_mode,
+            visited,
+        )?;
+
+        Ok(member_ty_id)
+    }
+
     /// Infer and commit the member access type from resolved lookup state.
     fn infer_member_access_type_from_lookup(
         &self,
@@ -696,20 +735,15 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         // infer the member type from the receiver shape
         let mut member_type_visited = Vec::new();
-        let member_ty_id = match self.infer_member_of_type(
-            &mut ctx.type_context_reborrow(),
-            expression_id.into_any(),
+        let member_ty_id = self.query_member_type_from_receiver_shape(
+            &mut ctx.reborrow(),
+            expression_id,
             &receiver.receiver_ty,
             &lookup.member_key,
             lookup.receiver_context.lookup_mode,
+            lookup.member_symbol,
             &mut member_type_visited,
-        ) {
-            Ok(member_ty_id) => member_ty_id,
-
-            // let concrete symbol lookup drive static associated member typing
-            Err(AnalyzeError::Yield { .. }) if lookup.member_symbol.is_some() => None,
-            Err(error) => return Err(error),
-        };
+        )?;
         let member_ty_id = self.resolve_member_type_for_symbol(
             &mut ctx.reborrow(),
             expression_id,

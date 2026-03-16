@@ -6,7 +6,7 @@ use destack_dir::{
 
 use crate::Compiler;
 
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -15,6 +15,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope_id: LocalScopeId,
         ast_selector: &ast::MatchSelector,
         parent_id: LocalNodeIdAny,
@@ -30,6 +31,7 @@ impl Compiler {
                 let pattern = self.bind_pattern(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     None,
                     SymbolBinding::Runtime,
@@ -45,6 +47,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         guard,
                         Some(parent_id),
@@ -65,6 +68,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         ast_match_case_id: ast::LocalNodeId<ast::MatchCase>,
         parent_id: Option<LocalNodeIdAny>,
@@ -85,6 +89,7 @@ impl Compiler {
                 let selector = self.bind_match_selector(
                     module,
                     ast,
+                    dir,
                     scope_id,
                     ast_selector,
                     match_case_id,
@@ -95,6 +100,7 @@ impl Compiler {
                 let body = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
                     Some(match_case_id),
@@ -116,6 +122,7 @@ impl Compiler {
                 let selector = self.bind_match_selector(
                     module,
                     ast,
+                    dir,
                     scope_id,
                     ast_selector,
                     match_case_id,
@@ -126,6 +133,7 @@ impl Compiler {
                 let body = self.bind_block(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
                     Some(match_case_id),

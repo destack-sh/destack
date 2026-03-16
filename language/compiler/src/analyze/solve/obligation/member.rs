@@ -73,18 +73,30 @@ impl Compiler {
             return Ok(());
         }
 
-        let actions = match self.collect_missing_member_obligation_actions(ctx, &obligations) {
-            Ok(actions) => actions,
-            Err(AnalyzeError::Yield { requirement }) => {
+        let actions = match self.query_missing_member_obligation_actions(ctx, &obligations)? {
+            Some(actions) => actions,
+            None => {
                 for obligation in obligations {
                     ctx.infer.push_missing_member_obligation(obligation);
                 }
-                return Err(AnalyzeError::Yield { requirement });
+                return Ok(());
             }
-            Err(error) => return Err(error),
         };
 
         self.apply_missing_member_obligation_actions_in_solve(ctx, actions)
+    }
+
+    /// Query missing-member obligation actions after infer convergence.
+    fn query_missing_member_obligation_actions(
+        &self,
+        ctx: &mut InferContext<'_>,
+        obligations: &[MissingMemberObligation],
+    ) -> AnalyzeResult<Option<Vec<MissingMemberObligationAction>>> {
+        match self.collect_missing_member_obligation_actions(ctx, obligations) {
+            Ok(actions) => Ok(Some(actions)),
+            Err(AnalyzeError::Yield { .. }) => Ok(None),
+            Err(error) => Err(error),
+        }
     }
 
     /// Map one member-resolution result to obligation resolution form.

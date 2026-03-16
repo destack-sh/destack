@@ -1,6 +1,7 @@
 use crate::timing::tags;
 use crate::{Compiler, ImportError, ImportResult};
 use destack_source::{ModuleId, ModuleVersion};
+use destack_workspace::ImportDir;
 
 impl Compiler {
     /// Validate module "syntactic" correctness.
@@ -8,6 +9,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         module_version: ModuleVersion,
+        dir: &ImportDir,
     ) -> ImportResult<()> {
         // skip stale tasks
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -19,11 +21,11 @@ impl Compiler {
         }
 
         let module = self.program.modules.get(module_id);
-        let module = module.read();
-        self.validate_dependency_top_level(&module);
-        self.validate_export_local_item_names(&module);
-        self.validate_binding_conflicts(&module);
-        self.validate_export_conflicts(&module);
+        let module = module.as_ref();
+        self.validate_dependency_top_level(&module, dir);
+        self.validate_export_local_item_names(&module, dir);
+        self.validate_binding_conflicts(&module, dir);
+        self.validate_export_conflicts(&module, dir);
         Ok(())
     }
 }

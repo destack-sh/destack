@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::analyze::common::{InferContext, ModuleTreeView, NormalizationMode, TypeContext};
+use crate::analyze::common::{InferContext, NormalizationMode, TypeContext};
 use crate::analyze::r#type::json_value_to_type;
 use crate::timing::tags;
 use crate::{
@@ -11,14 +11,14 @@ use destack_dir::{
     NodeTree, PrimitiveType, Type, TypeLiteral,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{Module, ModuleContent, ModuleDir, ModuleSource, ModuleType, ProfileId};
+use destack_workspace::{Module, ModuleDir, ModuleSource, ProfileId};
 use std::collections::HashSet;
 
 impl Compiler {
     /// Phase 3: Infer expression types.
     pub(crate) fn analyze_module_infer(
         &self,
-        dir: &ModuleDir,
+        dir: &mut ModuleDir,
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
@@ -44,10 +44,17 @@ impl Compiler {
         }
 
         let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let mut types = dir.types.write();
+        let module = module.as_ref();
+        let ModuleDir {
+            tree,
+            symbols,
+            roots,
+            types,
+            ..
+        } = dir;
+        let tree = tree.as_ref();
+        let symbols = symbols.as_ref();
+        let roots = roots.as_ref();
 
         if module.language_type.is_declaration() {
             let module_checks = self.module_check_options_for_module(module.id);
@@ -59,11 +66,11 @@ impl Compiler {
             }
 
             let options = self.analyze_context_options_for_module(module.id);
-            let mut ctx =
-                TypeContext::with_dir(&module, profile, &options, dir, &tree, &symbols, &mut types);
+            let types = Arc::make_mut(types);
+            let mut ctx = TypeContext::new(&module, profile, &options, tree, symbols, types);
 
             // infer enum backing types when declaration validation is enabled
-            for root_id in dir.roots.iter() {
+            for root_id in roots.iter() {
                 let Expression::Declaration { declaration } = ctx.tree.get(*root_id) else {
                     continue;
                 };
@@ -83,7 +90,7 @@ impl Compiler {
         }
 
         // select runtime roots for the inference pass
-        let runtime_roots = self.collect_runtime_roots(&module, &tree, &dir.roots);
+        let runtime_roots = self.collect_runtime_roots(&module, tree, roots);
         let infer_roots = runtime_roots.clone();
 
         // skip infer entirely when no roots require infer work
@@ -94,37 +101,27 @@ impl Compiler {
         // resolve builtins before resolving type-import operator dependencies
         self.require_language_environment(profile)
             .map_err(AnalyzeError::from)?;
-        self.require_type_import_interface_dependencies(ModuleTreeView::new(
-            &module, profile, &tree,
-        ))?;
-
-        drop(types);
-        drop(symbols);
-        drop(tree);
+        self.require_type_import_interface_dependencies(&module, profile, tree)?;
 
         // establish infer dependency preconditions
         self.require_dir_interface(module_id, profile)?;
         self.require_declare_dependencies_for_infer(module_id, profile)?;
         self.require_interface_dependencies(module_id, profile)?;
-        self.require_interface_inference_for_ambient_libs(profile)?;
 
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let mut types = dir.types.write();
         let mut collector = BuildRequirementCollector::new();
         let options = self.analyze_context_options_for_module(module.id);
 
         // initialize infer session state
         let mut session = InferSession::new(profile, options);
         let (infer_table, context) = session.parts_mut();
-        let mut ctx = InferContext::with_dir(
+        let types = Arc::make_mut(types);
+        let mut ctx = InferContext::new(
             &module,
             profile,
             &options,
-            dir,
-            &tree,
-            &symbols,
-            &mut types,
+            tree,
+            symbols,
+            types,
             infer_table,
         );
 
@@ -272,60 +269,63 @@ impl Compiler {
     ///
     /// This function converts the parsed data into a structural DIR type and associates
     /// it with the module's default export symbol.
-    fn analyze_data_module_infer(&self, dir: &ModuleDir, module_id: ModuleId) -> AnalyzeResult<()> {
+    fn analyze_data_module_infer(
+        &self,
+        dir: &mut ModuleDir,
+        module_id: ModuleId,
+    ) -> AnalyzeResult<()> {
         let module_ref = self.program.modules.get(module_id);
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         let default_symbol = dir.default_symbol;
         let source_id = dir.anchor_node;
-        let module_type = module.module_type;
+        if module.loader.is_data() {
+            let ast = match self.program.artifacts.ast(module_id) {
+                Some(ast) => ast,
+                None => return Ok(()),
+            };
+            let value = match &ast.data_value {
+                Some(value) => value,
+                None => return Ok(()),
+            };
+            let types = dir.types_mut();
 
-        match module_type {
-            ModuleType::Data => {
-                let value = match &module.content {
-                    ModuleContent::Data { value, .. } => value.clone(),
-                    _ => return Ok(()),
-                };
-                drop(module);
-                let mut types = dir.types.write();
+            let inferred_type = json_value_to_type(value, source_id, types, &self.program.strings);
 
-                let inferred_type =
-                    json_value_to_type(&value, source_id, &mut types, &self.program.strings);
-
-                // associate the inferred type with the default symbol
-                types.set_value_type(default_symbol.into_global(module_id), inferred_type);
-            }
-            ModuleType::Text => {
-                // text modules are always string
-                let mut types = dir.types.write();
-                let string_type = types.insert_type_from_any(
-                    Type::TypeLiteral {
-                        value: TypeLiteral::Primitive(PrimitiveType::String),
-                    },
-                    source_id,
-                );
-                types.set_value_type(default_symbol.into_global(module_id), string_type);
-            }
-            ModuleType::Binary => {
-                // binary modules are uint8[]
-                let mut types = dir.types.write();
-                let element = types.insert_type_from_any(
-                    Type::TypeLiteral {
-                        value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)),
-                    },
-                    source_id,
-                );
-                let array_type = types.insert_type_from_any(
-                    Type::Array {
-                        element: Some(element),
-                        is_readonly: false,
-                    },
-                    source_id,
-                );
-                types.set_value_type(default_symbol.into_global(module_id), array_type);
-            }
-            ModuleType::Code => {
-                unreachable!("code modules are handled by analyze_module_infer");
-            }
+            // associate the inferred type with the default symbol
+            types.set_value_type(default_symbol.into_global(module_id), inferred_type);
+        }
+        // otherwise text modules are always string
+        else if module.loader.is_text() {
+            let types = dir.types_mut();
+            let string_type = types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::String),
+                },
+                source_id,
+            );
+            types.set_value_type(default_symbol.into_global(module_id), string_type);
+        }
+        // otherwise binary modules are uint8[]
+        else if module.loader.is_binary() {
+            let types = dir.types_mut();
+            let element = types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)),
+                },
+                source_id,
+            );
+            let array_type = types.insert_type_from_any(
+                Type::Array {
+                    element: Some(element),
+                    is_readonly: false,
+                },
+                source_id,
+            );
+            types.set_value_type(default_symbol.into_global(module_id), array_type);
+        }
+        // otherwise code modules are handled elsewhere
+        else {
+            debug_assert!(module.is_code());
         }
 
         Ok(())

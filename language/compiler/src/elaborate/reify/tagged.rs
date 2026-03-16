@@ -7,7 +7,7 @@ use dir::{
     SymbolTable, Type, TypeKind, TypeTable,
 };
 
-use crate::analyze::{DirReadBoundary, TreeSymbolView};
+use crate::analyze::TreeSymbolView;
 use crate::elaborate::common::ElaborateState;
 use crate::{Compiler, ElaborateResult};
 
@@ -131,11 +131,10 @@ impl Compiler {
 
         // load the remote module data for imported symbols
         let dir = self
-            .require_artifact_dir_for_boundary(
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
                 symbol.module_id,
                 state.ctx.profile,
-                DirReadBoundary::Analyzed,
-            )
+            ))
             .map_err(|error| self.elaborate_error_from_requirement(error))?;
 
         let view = NominalLookupView {
@@ -233,7 +232,7 @@ impl Compiler {
             Expression::LocalReference {
                 path,
                 target_symbol,
-                static_arguments: None,
+                ..
             } => {
                 state.tree.replace(
                     callee_id,
@@ -247,7 +246,7 @@ impl Compiler {
             Expression::ModuleReference {
                 path,
                 target_symbol,
-                static_arguments: None,
+                ..
             } => {
                 state.tree.replace(
                     callee_id,
@@ -261,7 +260,7 @@ impl Compiler {
             Expression::GlobalReference {
                 path,
                 target_symbol,
-                static_arguments: None,
+                ..
             } => {
                 state.tree.replace(
                     callee_id,
@@ -272,11 +271,7 @@ impl Compiler {
                     },
                 );
             }
-            Expression::Member {
-                left,
-                name,
-                static_arguments: None,
-            } => {
+            Expression::Member { left, name, .. } => {
                 state.tree.replace(
                     callee_id,
                     Expression::Member {

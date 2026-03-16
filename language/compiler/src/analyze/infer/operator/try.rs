@@ -829,8 +829,6 @@ impl Compiler {
         receiver_ty_id: LocalTypeId,
         receiver_ty: &Type,
     ) -> AnalyzeResult<()> {
-        let lookup = MemberLookupModuleContext::from_infer_context(&*ctx);
-
         // resolve the fromError key once
         let from_error_key = StaticKey::Name(self.program.strings.intern("fromError"));
 
@@ -841,7 +839,11 @@ impl Compiler {
                 let mut visited = Vec::new();
                 let member = self.resolve_member_symbol_for_symbol(
                     ctx.module,
-                    &lookup,
+                    ctx.module.id,
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    &*ctx.types,
                     *symbol,
                     &from_error_key,
                     MemberLookupMode::Value,
@@ -858,7 +860,11 @@ impl Compiler {
                         let mut visited = Vec::new();
                         let member = self.resolve_member_symbol_for_symbol(
                             ctx.module,
-                            &lookup,
+                            ctx.module.id,
+                            ctx.profile,
+                            ctx.tree,
+                            ctx.symbols,
+                            &*ctx.types,
                             *symbol,
                             &from_error_key,
                             MemberLookupMode::Value,
@@ -977,20 +983,13 @@ impl Compiler {
         });
 
         // enforce propagated error compatibility after convergence when needed
-        let assignability_check = self.enforce_assignability_or_defer_diagnostic(
+        self.enforce_assignability_or_defer_diagnostic(
             &mut ctx.reborrow(),
             expression_id.into_any(),
             return_error_ty_id,
             error_ty_id,
             UnassignableRelationFailureMode::ReportAndContinue,
-        );
-        if let Err(error) = assignability_check {
-            if matches!(error, AnalyzeError::Yield { .. }) {
-                return Err(error);
-            }
-
-            self.error(error);
-        }
+        )?;
 
         Ok(())
     }

@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use super::expression::has_implicit_return;
 use crate::analyze::common::{
-    DirReadBoundary, InferContext, ModuleSymbolView, SymbolTypeView, TreeSymbolView, TypeContext,
-    TypeRewriteCache, TypeView, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
+    InferContext, ModuleSymbolView, SymbolTypeView, TreeSymbolView, TypeContext, TypeRewriteCache,
+    TypeView, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
 };
 use crate::analyze::declare::StaticConstantResolutionMode;
 use crate::analyze::infer::member::MemberLookupMode;
@@ -27,7 +27,7 @@ use destack_dir::{
     TypeLiteral, TypeRewriter, TypeRewriterOptions, TypeTable, WhereClause,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleContent, ModuleSource, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 
 /// Describe how a declarator constrains its value type.
 pub(crate) enum DeclaratorConstraint {
@@ -150,13 +150,13 @@ impl<'a> OverrideAssociatedTypeRewriter<'a> {
             .declaration_symbol_id(self.module_symbol_view(), self.receiver_symbol)
             .unwrap_or(self.receiver_symbol);
         self.compiler
-            .with_module_tree_symbol_view_or_local_at_boundary(
+            .with_module_tree_symbol_view_or_local_for_artifact(
                 self.module,
                 self.profile,
                 receiver_symbol.module_id,
                 self.tree,
                 self.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |view| {
                     let symbol_entry = view.symbols.get_symbol(receiver_symbol.local_id);
                     let mut declaration_ids = Vec::new();
@@ -263,9 +263,9 @@ impl TypeRewriter for OverrideAssociatedTypeRewriter<'_> {
             return None;
         }
 
-        let source_name =
-            self.compiler
-                .symbol_name_for_global(self.module, self.profile, source_symbol)?;
+        let source_name = self
+            .compiler
+            .symbol_name_for_global_in(self.module_symbol_view(), source_symbol)?;
         let member_key = StaticKey::Name(source_name);
 
         let mut mapped_symbol = self
@@ -756,9 +756,9 @@ impl Compiler {
                 _ => continue,
             };
 
-            let Some(member_key) = key
-                .and_then(|key| self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key))
-            else {
+            let Some(member_key) = key.and_then(|key| {
+                self.static_key_from_dynamic_key(ctx.profile, ctx.tree, ctx.symbols, ctx.types, key)
+            }) else {
                 continue;
             };
 
@@ -988,13 +988,13 @@ impl Compiler {
         contract_symbol: GlobalSymbolId,
         member_key: StaticKey,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        self.with_module_tree_symbol_view_or_local_at_boundary(
+        self.with_module_tree_symbol_view_or_local_for_artifact(
             view.module,
             view.profile,
             contract_symbol.module_id,
             view.tree,
             view.symbols,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |remote_view| {
                 self.query_static_member_symbol(
                     remote_view.module,
@@ -1051,12 +1051,12 @@ impl Compiler {
             };
             let contract_symbol = contract_context.contract_symbol;
             let contract_is_user_module = self
-                .with_module_types_or_local_at_boundary(
+                .with_module_types_or_local_for_artifact(
                     ctx.module,
                     ctx.profile,
                     contract_symbol.module_id,
                     ctx.types,
-                    DirReadBoundary::Declared,
+                    destack_workspace::ArtifactKey::dir_declared,
                     |module, _| matches!(module.source, ModuleSource::User),
                 )
                 .map_err(AnalyzeError::from)?;
@@ -1223,20 +1223,20 @@ impl Compiler {
         }
 
         // import declared types from remote modules
-        let remote_declared = self
-            .with_module_types_at_boundary(
-                ctx.module,
-                ctx.profile,
+        let remote_dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
                 node_id.module_id,
-                DirReadBoundary::Declared,
-                |_, remote_types| {
-                    let remote_ty_id = remote_types.get_declared_type_id(node_id)?;
-                    let remote_ty = remote_types.get_type(remote_ty_id).clone();
-                    let remote_snapshot = remote_types.clone();
-                    Some((remote_ty, remote_snapshot))
-                },
-            )
+                ctx.profile,
+            ))
             .map_err(AnalyzeError::from)?;
+        let remote_declared = remote_dir
+            .types
+            .get_declared_type_id(node_id)
+            .map(|remote_ty_id| {
+                let remote_ty = remote_dir.types.get_type(remote_ty_id).clone();
+                let remote_snapshot = remote_dir.types.as_ref().clone();
+                (remote_ty, remote_snapshot)
+            });
 
         Ok(remote_declared.map(|(remote_ty, remote_snapshot)| {
             self.import_remote_type_for_node(
@@ -2599,7 +2599,13 @@ impl Compiler {
                     .as_ref()
                     .is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static));
                 let static_key = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key)
+                    self.static_key_from_dynamic_key(
+                        ctx.profile,
+                        ctx.tree,
+                        ctx.symbols,
+                        ctx.types,
+                        key,
+                    )
                 });
                 if is_static
                     && value_ty_id.is_none()
@@ -3575,7 +3581,7 @@ impl Compiler {
             } => {
                 // infer remote value imports from non code module targets
                 let target = self.program.modules.get(target_symbol.module_id);
-                let target = target.read();
+                let target = target.as_ref();
 
                 // infer from non code module targets
                 if *kind == DependencyKind::Value && !target.is_code() {
@@ -3605,44 +3611,53 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         use crate::analyze::r#type::json_value_to_type;
 
-        match &target_module.content {
-            ModuleContent::Data { value, .. } => {
-                // infer structural type from JSON value
-                Ok(json_value_to_type(
-                    value,
-                    source_node,
-                    types,
-                    &self.program.strings,
-                ))
-            }
-            ModuleContent::Text { .. } => {
-                // text imports are always string
-                Ok(types.insert_type_from_any(
-                    Type::TypeLiteral {
-                        value: TypeLiteral::Primitive(PrimitiveType::String),
-                    },
-                    source_node,
-                ))
-            }
-            ModuleContent::Binary { .. } => {
-                // binary imports are uint8[] (Uint8Array on JS targets)
-                let element_type = types.insert_type_from_any(
-                    Type::TypeLiteral {
-                        value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)),
-                    },
-                    source_node,
-                );
-                Ok(types.insert_type_from_any(
-                    Type::Array {
-                        element: Some(element_type),
-                        is_readonly: false,
-                    },
-                    source_node,
-                ))
-            }
-            ModuleContent::Code(_) | ModuleContent::Unloaded => {
-                unreachable!("code modules are handled by analyze_module_infer");
-            }
+        let ast = self
+            .program
+            .artifacts
+            .ast(target_module.id)
+            .ok_or_else(|| AnalyzeError::Internal {
+                message: format!(
+                    "missing parse artifact for data module {:?}",
+                    target_module.id
+                ),
+            })?;
+        if let Some(value) = &ast.data_value {
+            // infer structural type from JSON value
+            Ok(json_value_to_type(
+                value,
+                source_node,
+                types,
+                &self.program.strings,
+            ))
+        }
+        // otherwise text imports are always string
+        else if target_module.loader.is_text() {
+            Ok(types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::String),
+                },
+                source_node,
+            ))
+        }
+        // otherwise binary imports are uint8[] (Uint8Array on JS targets)
+        else if target_module.loader.is_binary() {
+            let element_type = types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)),
+                },
+                source_node,
+            );
+            Ok(types.insert_type_from_any(
+                Type::Array {
+                    element: Some(element_type),
+                    is_readonly: false,
+                },
+                source_node,
+            ))
+        } else {
+            debug_assert!(target_module.is_code());
+
+            unreachable!("code modules are handled by analyze_module_infer");
         }
     }
 
@@ -3799,7 +3814,7 @@ impl Compiler {
         // declared type is now on the declarator node, not the let expression
         let declared_annotation_ty_id = ctx
             .types
-            .get_declared_type_id(declarator_id.into_global(ctx.module.id).into());
+            .get_declared_type_id(declarator_id.into_global_any(ctx.module.id));
         let mut declared_relation_ty_id = declared_annotation_ty_id;
 
         // report implicit any when no annotation or initializer exists
@@ -3850,7 +3865,7 @@ impl Compiler {
             None
         };
 
-        // newtype annotations require explicit construction from the same nominal symbol
+        // nominal annotations require explicit conformance from tagged initializers
         if let (Some(declared_ty_id), Some(value_id)) = (declared_annotation_ty_id, value) {
             // resolve the declared nominal symbol
             let declared_symbol =
@@ -3859,29 +3874,40 @@ impl Compiler {
                         self.canonical_symbol_id(
                             ctx.module_symbol_view(),
                             symbol,
-                            CanonicalSymbolMode::FollowAliases,
+                            CanonicalSymbolMode::PreserveAliases,
                         )
                     });
 
-            // enforce explicit construction only for declared newtypes
+            let declared_is_nominal_interface = declared_symbol.is_some_and(|declared_symbol| {
+                self.symbol_is_nominal_interface(ctx.tree_symbol_view(), declared_symbol)
+            });
+
+            // enforce explicit construction and conformance for nominal targets
+            let tagged_initializer =
+                self.tagged_initializer_reference(&mut ctx.type_context_reborrow(), *value_id)?;
+
             if let Some(declared_symbol) = declared_symbol
-                && declared_symbol.ty() == SymbolType::Newtype
-                && let Some((tagged_symbol, tagged_type_id)) = self
-                    .tagged_initializer_type_symbol(&mut ctx.type_context_reborrow(), *value_id)?
+                && (declared_symbol.ty() == SymbolType::Newtype || declared_is_nominal_interface)
+                && let Some((tagged_symbol, tagged_initializer_ty_id)) = tagged_initializer
             {
                 // resolve the tagged constructor symbol for nominal comparison
                 let tagged_canonical_symbol = self.canonical_symbol_id(
                     ctx.module_symbol_view(),
                     tagged_symbol,
-                    CanonicalSymbolMode::FollowAliases,
+                    CanonicalSymbolMode::PreserveAliases,
                 );
                 let same_nominal_symbol = tagged_canonical_symbol == declared_symbol;
-                let actual_initializer_ty_id = inferred_ty_id
-                    .filter(|ty_id| !self.type_blocks_cascading_diagnostic(*ty_id, ctx.types))
-                    .unwrap_or(tagged_type_id);
+                let satisfies_declared_lineage = declared_is_nominal_interface
+                    && self.is_type_lineage_assignable(
+                        ctx.symbol_type_view(),
+                        tagged_canonical_symbol,
+                        declared_symbol,
+                    );
+                let actual_initializer_ty_id = tagged_initializer_ty_id;
 
                 // reject implicit wrapping through constructors outside the declared nominal symbol
                 if !same_nominal_symbol
+                    && !satisfies_declared_lineage
                     && let Some(error) = self.unassignable_type_error_for_types(
                         ctx.module_type_view(),
                         declarator_id.into_any(),
@@ -4034,8 +4060,8 @@ impl Compiler {
         Ok(())
     }
 
-    /// Resolve one tagged initializer symbol and type id from one value expression.
-    fn tagged_initializer_type_symbol(
+    /// Resolve one tagged initializer authored reference from one value expression.
+    fn tagged_initializer_reference(
         &self,
         ctx: &mut TypeContext<'_>,
         value_id: LocalNodeId<Expression>,
@@ -4047,35 +4073,45 @@ impl Compiler {
             _ => return Ok(None),
         };
 
-        // prefer syntax-resolved constructor identity for nominal checks
-        let syntax_symbol = ctx
-            .tree
-            .get(tag_expression_id)
-            .target_symbol()
-            .map(|symbol| self.resolve_type_reference_symbol(ctx, symbol));
-        let declared_tag_type_id = self.resolve_declared_type_expression(
+        // prefer authored syntax references before declared type evaluation degrades them
+        if let Some(target_symbol) = ctx.tree.get(tag_expression_id).target_symbol() {
+            let target_symbol = self.resolve_type_reference_symbol(ctx, target_symbol);
+            let static_argument_nodes = ctx
+                .tree
+                .get(tag_expression_id)
+                .static_arguments()
+                .map(|arguments| arguments.to_vec());
+            let static_arguments = self
+                .evaluate_static_arguments(&mut ctx.reborrow(), static_argument_nodes.as_deref())?;
+            let authored_type = Type::Reference {
+                symbol: target_symbol,
+                static_arguments,
+            };
+            let authored_type_id = ctx
+                .types
+                .insert_type_from_any(authored_type, tag_expression_id.into_any());
+
+            return Ok(Some((target_symbol, authored_type_id)));
+        }
+
+        // keep authored generic references intact for nominal diagnostics
+        let declared_tag_type = self.resolve_declared_type_expression_value(
             &mut ctx.reborrow(),
             tag_expression_id,
             true,
             true,
+            false,
+            true,
+            true,
         )?;
+        let declared_tag_type_id = ctx
+            .types
+            .insert_type_from_any(declared_tag_type, tag_expression_id.into_any());
         let declared_tag_symbol = self
             .unwrap_type_symbol(ctx.types, declared_tag_type_id)
             .map(|(symbol, _, _)| symbol);
-        let Some(tag_symbol) = syntax_symbol.or(declared_tag_symbol) else {
-            return Ok(None);
-        };
 
-        // keep diagnostics independent of transient error sentinels
-        let tag_type_id = ctx.types.insert_type_from(
-            Type::Reference {
-                symbol: tag_symbol,
-                static_arguments: None,
-            },
-            tag_expression_id,
-        );
-
-        Ok(Some((tag_symbol, tag_type_id)))
+        Ok(declared_tag_symbol.map(|symbol| (symbol, declared_tag_type_id)))
     }
 
     /// Resolve the exposed property type for an accessor method signature.

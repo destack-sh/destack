@@ -34,7 +34,7 @@ impl Compiler {
         expression: &Expression,
     ) {
         // cache strict mode once per expression validation
-        let is_strict = ctx.module.source_type.is_module() || options.always_strict;
+        let is_strict = ctx.module.source_type().is_module() || options.always_strict;
 
         match expression {
             Expression::Labelled { label, .. } => {
@@ -3083,22 +3083,15 @@ impl Compiler {
         };
 
         // resolve the import type symbol
-        let resolved = self.resolve_import_type_symbol(
-            ctx.module_tree_view(),
+        let resolved_symbol = self.query_import_type_symbol(
+            ctx.module,
+            ctx.profile,
             expression_id.into_any(),
             target,
             Some(qualifier),
         );
-        match resolved {
-            Ok(Some(_)) => return,
-            Ok(None) => {}
-            Err(AnalyzeError::Yield { .. } | AnalyzeError::UnsatisfiedRequirement { .. }) => {
-                return;
-            }
-            Err(error) => {
-                self.error(error);
-                return;
-            }
+        if resolved_symbol.is_some() {
+            return;
         }
 
         // emit missing member when the export is absent
@@ -3168,7 +3161,7 @@ impl Compiler {
         let Some(target_dir) = self
             .program
             .artifacts
-            .dir_snapshot(symbol_id.module_id, ctx.profile)
+            .dir_declared(symbol_id.module_id, ctx.profile)
         else {
             return false;
         };

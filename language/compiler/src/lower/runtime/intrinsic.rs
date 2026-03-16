@@ -3,7 +3,6 @@ use destack_dir::GlobalSymbolId;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, WellKnownIntrinsics};
 
-use crate::analyze::DirReadBoundary;
 use crate::lower::{FunctionLowerer, ModuleLowerer};
 use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
 
@@ -82,11 +81,10 @@ fn resolve_canonical_symbol(
         let symbol = local_symbols.get_symbol(symbol_id.local_id);
         (symbol.canonical_symbol, symbol.target_symbol)
     } else {
-        let snapshot = compiler.require_artifact_dir_for_boundary(
+        let snapshot = compiler.require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
             symbol_id.module_id,
             profile,
-            DirReadBoundary::Analyzed,
-        );
+        ));
         let snapshot = match snapshot {
             Ok(snapshot) => snapshot,
             Err(BuildRequirementError::NotReady { requirement }) => {

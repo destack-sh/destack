@@ -5,7 +5,7 @@ use destack_dir::{
     PrimitiveType, ScalarLiteral, SymbolSpaceOrder, SymbolTable, TemplateLiteral, TypeLiteral,
     TypeTable,
 };
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -39,6 +39,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         template_literal: &ast::TemplateLiteral,
         parent_id: Option<LocalNodeIdAny>,
@@ -62,6 +63,7 @@ impl Compiler {
                         self.bind_argument(
                             module,
                             ast,
+                            dir,
                             scope,
                             *argument,
                             parent_id,

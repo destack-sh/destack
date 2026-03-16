@@ -1,78 +1,12 @@
 use super::*;
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
-    CanonicalSymbolMode, DirReadBoundary, InferContext, ModuleSymbolView, ModuleTypeView,
-    SymbolTypeView, TreeSymbolTypeView, TypeView,
+    CanonicalSymbolMode, InferContext, ModuleSymbolView, ModuleTypeView, SymbolTypeView,
+    TypeContext, TypeView,
 };
 use crate::analyze::infer::RemoteValueTypeReadDomain;
 use crate::analyze::module::GlobalMergeCategory;
 use destack_dir::{SymbolSpaceOrder, WellKnownSymbol};
-
-/// Immutable module lookup ctx for member-symbol resolution.
-#[derive(Clone, Copy)]
-pub(crate) struct MemberLookupModuleContext<'a> {
-    /// The owner module id for symbols returned from declaration lookup.
-    pub(crate) owner_module_id: ModuleId,
-    /// The active profile.
-    pub(crate) profile: ProfileId,
-    /// The owner module syntax tree.
-    pub(crate) tree: &'a NodeTree,
-    /// The owner module symbol table.
-    pub(crate) symbols: &'a SymbolTable,
-    /// The owner module type table.
-    pub(crate) types: &'a TypeTable,
-}
-
-impl<'a> MemberLookupModuleContext<'a> {
-    /// Build one owner-lookup context from explicit module ctx.
-    pub(crate) fn new(
-        owner_module_id: ModuleId,
-        profile: ProfileId,
-        tree: &'a NodeTree,
-        symbols: &'a SymbolTable,
-        types: &'a TypeTable,
-    ) -> Self {
-        Self {
-            owner_module_id,
-            profile,
-            tree,
-            symbols,
-            types,
-        }
-    }
-
-    /// Build one owner-lookup context from infer ctx.
-    pub(crate) fn from_infer_context(ctx: &'a InferContext<'_>) -> Self {
-        Self::new(
-            ctx.module.id,
-            ctx.profile,
-            ctx.tree,
-            ctx.symbols,
-            &*ctx.types,
-        )
-    }
-
-    /// Borrow this lookup context as one profile, tree, symbol, and type view.
-    pub(crate) fn tree_symbol_type_view(&self) -> TreeSymbolTypeView<'_> {
-        TreeSymbolTypeView::new(self.profile, self.tree, self.symbols, self.types)
-    }
-
-    /// Borrow this lookup context as one symbol-type view for a caller module.
-    pub(crate) fn symbol_type_view_for_module<'b>(
-        &'b self,
-        module: &'b Module,
-    ) -> SymbolTypeView<'b> {
-        SymbolTypeView::new(module, self.profile, self.symbols, self.types)
-    }
-
-    /// Borrow this lookup context as one module-type view for a caller module.
-    pub(crate) fn module_type_view_for_module<'b>(
-        &'b self,
-        module: &'b Module,
-    ) -> ModuleTypeView<'b> {
-        ModuleTypeView::new(module, self.profile, self.types)
-    }
-}
 
 /// Inputs for resolving member index-signature fallback versus missing-member diagnostics.
 #[derive(Clone, Copy)]
@@ -255,12 +189,12 @@ impl Compiler {
             }
 
             let (normalized_symbol, has_concrete_primary_declaration, next_symbol) = self
-                .with_module_symbols_or_local_at_boundary(
+                .with_module_symbols_or_local_for_artifact(
                     view.module,
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    DirReadBoundary::Declared,
+                    destack_workspace::ArtifactKey::dir_declared,
                     |owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         (
@@ -342,80 +276,67 @@ impl Compiler {
             return Ok(None);
         }
 
-        let remote_import = self
-            .with_module_tree_symbol_type_view_at_boundary(
-                ctx.module,
-                ctx.profile,
+        let remote_dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
                 member_symbol.module_id,
-                DirReadBoundary::Analyzed,
-                |view| -> AnalyzeResult<Option<(GlobalSymbolId, Type, TypeTable)>> {
-                    let mut remote_snapshot = view.types.clone();
-                    let remote_symbol_entry = view.symbols.get_symbol(member_symbol.local_id);
-                    let resolved_symbol = GlobalSymbolId::new(
-                        member_symbol.module_id,
-                        member_symbol.local_id.with_type(remote_symbol_entry.ty),
-                    );
-
-                    let mut remote_type_id = remote_snapshot.get_value_type_id(resolved_symbol);
-                    if remote_type_id.is_none()
-                        && let Some(primary_declaration) = remote_symbol_entry.primary_declaration
-                    {
-                        remote_type_id =
-                            remote_snapshot.get_signature_type_for_node(primary_declaration);
-                    }
-                    if remote_type_id.is_none()
-                        && let Some(primary_declaration) = remote_symbol_entry.primary_declaration
-                    {
-                        remote_type_id = remote_snapshot.get_declared_type_id(primary_declaration);
-                    }
-                    if remote_type_id.is_none()
-                        && let Some(primary_declaration) = remote_symbol_entry.primary_declaration
-                        && primary_declaration.local_id.ty == NodeType::Member
-                    {
-                        let member_id = primary_declaration.local_id.into_typed::<Member>();
-                        if let Member::ComptimeConst {
-                            ty: Some(member_type),
-                            ..
-                        } = view.tree.get(member_id)
-                        {
-                            remote_type_id = remote_snapshot.get_declared_type_id(
-                                member_type.into_global_any(primary_declaration.module_id),
-                            );
-                            if remote_type_id.is_none() {
-                                let remote_options = self
-                                    .analyze_context_options_for_module(member_symbol.module_id);
-                                let remote_module =
-                                    self.program.modules.get(member_symbol.module_id);
-                                let remote_module = remote_module.read();
-                                let mut view = ctx
-                                    .type_context_reborrow_for_module_with_options_and_types(
-                                        &remote_module,
-                                        &remote_options,
-                                        view.tree,
-                                        view.symbols,
-                                        &mut remote_snapshot,
-                                    );
-                                let evaluated_type_id = self.resolve_declared_type_expression(
-                                    &mut view,
-                                    *member_type,
-                                    true,
-                                    true,
-                                )?;
-                                remote_type_id = Some(evaluated_type_id);
-                            }
-                        }
-                    }
-
-                    let Some(remote_type_id) = remote_type_id else {
-                        return Ok(None);
-                    };
-
-                    let remote_type = remote_snapshot.get_type(remote_type_id).clone();
-                    Ok(Some((resolved_symbol, remote_type, remote_snapshot)))
-                },
-            )
+                ctx.profile,
+            ))
             .map_err(AnalyzeError::from)?;
-        let remote_import = remote_import?;
+        let mut remote_snapshot = remote_dir.types.as_ref().clone();
+        let remote_symbol_entry = remote_dir.symbols.get_symbol(member_symbol.local_id);
+        let resolved_symbol = GlobalSymbolId::new(
+            member_symbol.module_id,
+            member_symbol.local_id.with_type(remote_symbol_entry.ty),
+        );
+
+        let mut remote_type_id = remote_snapshot.get_value_type_id(resolved_symbol);
+        if remote_type_id.is_none()
+            && let Some(primary_declaration) = remote_symbol_entry.primary_declaration
+        {
+            remote_type_id = remote_snapshot.get_signature_type_for_node(primary_declaration);
+        }
+        if remote_type_id.is_none()
+            && let Some(primary_declaration) = remote_symbol_entry.primary_declaration
+        {
+            remote_type_id = remote_snapshot.get_declared_type_id(primary_declaration);
+        }
+        if remote_type_id.is_none()
+            && let Some(primary_declaration) = remote_symbol_entry.primary_declaration
+            && primary_declaration.local_id.ty == NodeType::Member
+        {
+            let member_id = primary_declaration.local_id.into_typed::<Member>();
+            if let Member::ComptimeConst {
+                ty: Some(member_type),
+                ..
+            } = remote_dir.tree.get(member_id)
+            {
+                remote_type_id = remote_snapshot.get_declared_type_id(
+                    member_type.into_global_any(primary_declaration.module_id),
+                );
+                if remote_type_id.is_none() {
+                    let remote_options =
+                        self.analyze_context_options_for_module(member_symbol.module_id);
+                    let remote_module = self.program.modules.get(member_symbol.module_id);
+                    let remote_module = remote_module.as_ref();
+                    let mut view = TypeContext::new(
+                        &remote_module,
+                        ctx.profile,
+                        &remote_options,
+                        &remote_dir.tree,
+                        &remote_dir.symbols,
+                        &mut remote_snapshot,
+                    );
+                    let evaluated_type_id =
+                        self.resolve_declared_type_expression(&mut view, *member_type, true, true)?;
+                    remote_type_id = Some(evaluated_type_id);
+                }
+            }
+        }
+
+        let remote_import = remote_type_id.map(|remote_type_id| {
+            let remote_type = remote_snapshot.get_type(remote_type_id).clone();
+            (resolved_symbol, remote_type, remote_snapshot)
+        });
 
         let Some((_resolved_symbol, remote_type, remote_snapshot)) = remote_import else {
             return Ok(None);
@@ -437,14 +358,17 @@ impl Compiler {
         receiver_ty: &Type,
         member_key: &StaticKey,
     ) -> AnalyzeResult<MemberResolution> {
-        let lookup = MemberLookupModuleContext::from_infer_context(&*ctx);
         let resolution = match receiver_ty {
             Type::Reference { .. } => {
                 // resolve nominal members first
                 let mut visited = Vec::new();
                 let member_symbol = self.resolve_member_symbol_for_type(
                     ctx.module,
-                    &lookup,
+                    ctx.module.id,
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    &*ctx.types,
                     receiver_ty,
                     member_key,
                     &mut visited,
@@ -461,7 +385,11 @@ impl Compiler {
                 let mut visited = Vec::new();
                 let member_symbol = self.resolve_member_symbol_for_type(
                     ctx.module,
-                    &lookup,
+                    ctx.module.id,
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    &*ctx.types,
                     receiver_ty,
                     member_key,
                     &mut visited,
@@ -481,7 +409,11 @@ impl Compiler {
                     let mut visited = Vec::new();
                     let mut member_symbol = self.resolve_member_symbol_for_type(
                         ctx.module,
-                        &lookup,
+                        ctx.module.id,
+                        ctx.profile,
+                        ctx.tree,
+                        ctx.symbols,
+                        &*ctx.types,
                         &element_ty,
                         member_key,
                         &mut visited,
@@ -494,7 +426,11 @@ impl Compiler {
                         {
                             member_symbol = self.resolve_member_symbol_for_symbol(
                                 ctx.module,
-                                &lookup,
+                                ctx.module.id,
+                                ctx.profile,
+                                ctx.tree,
+                                ctx.symbols,
+                                &*ctx.types,
                                 instance_symbol,
                                 member_key,
                                 MemberLookupMode::Instance,
@@ -525,7 +461,11 @@ impl Compiler {
                 let mut visited = Vec::new();
                 let member_symbol = self.resolve_member_symbol_for_type(
                     ctx.module,
-                    &lookup,
+                    ctx.module.id,
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    &*ctx.types,
                     receiver_ty,
                     member_key,
                     &mut visited,
@@ -576,14 +516,16 @@ impl Compiler {
             });
         }
 
-        let lookup = MemberLookupModuleContext::from_infer_context(&*ctx);
-
         // prefer static-only lookup for direct class values
         let nominal_receiver = if let Some(nominal_symbol) = receiver_context.nominal_symbol {
             let mut visited = Vec::new();
             let member_symbol = self.resolve_member_symbol_for_symbol(
                 ctx.module,
-                &lookup,
+                ctx.module.id,
+                ctx.profile,
+                ctx.tree,
+                ctx.symbols,
+                &*ctx.types,
                 nominal_symbol,
                 member_key,
                 MemberLookupMode::Value,
@@ -650,11 +592,14 @@ impl Compiler {
             return Ok(None);
         }
 
-        let lookup = MemberLookupModuleContext::from_infer_context(&*ctx);
         let mut visited = Vec::new();
         self.resolve_member_symbol_for_symbol(
             ctx.module,
-            &lookup,
+            ctx.module.id,
+            ctx.profile,
+            ctx.tree,
+            ctx.symbols,
+            &*ctx.types,
             receiver_symbol,
             member_key,
             MemberLookupMode::Value,
@@ -920,7 +865,11 @@ impl Compiler {
     pub(crate) fn resolve_member_symbol_for_type(
         &self,
         module: &Module,
-        lookup: &MemberLookupModuleContext<'_>,
+        owner_module_id: ModuleId,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         receiver_ty: &Type,
         member_key: &StaticKey,
         visited: &mut Vec<GlobalSymbolId>,
@@ -931,14 +880,17 @@ impl Compiler {
 
         let resolved = match receiver_ty {
             Type::Value { .. } => {
-                let Some(type_symbol) =
-                    self.get_language_symbol(lookup.profile, LanguageSymbol::Type)
+                let Some(type_symbol) = self.get_language_symbol(profile, LanguageSymbol::Type)
                 else {
                     return Ok(None);
                 };
                 self.resolve_member_symbol_for_symbol(
                     module,
-                    lookup,
+                    owner_module_id,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
                     type_symbol,
                     member_key,
                     lookup_mode,
@@ -949,10 +901,14 @@ impl Compiler {
                 let element_ids = elements.clone();
                 let mut resolved = None;
                 for element_id in element_ids {
-                    let element_ty = lookup.types.get_type(element_id).clone();
+                    let element_ty = types.get_type(element_id).clone();
                     resolved = self.resolve_member_symbol_for_type(
                         module,
-                        lookup,
+                        owner_module_id,
+                        profile,
+                        tree,
+                        symbols,
+                        types,
                         &element_ty,
                         member_key,
                         visited,
@@ -967,7 +923,11 @@ impl Compiler {
             Type::Reference { symbol, .. } => {
                 let resolved = self.resolve_member_symbol_for_symbol(
                     module,
-                    lookup,
+                    owner_module_id,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
                     *symbol,
                     member_key,
                     lookup_mode,
@@ -975,13 +935,14 @@ impl Compiler {
                 )?;
                 if resolved.is_some() {
                     resolved
-                } else if self
-                    .symbol_is_static_parameter(lookup.symbol_type_view_for_module(module), *symbol)
-                {
+                } else if self.symbol_is_static_parameter(
+                    SymbolTypeView::new(module, profile, symbols, types),
+                    *symbol,
+                ) {
                     if let Some(constraint_type_id) =
-                        lookup.types.get_static_parameter_constraint_type(*symbol)
+                        types.get_static_parameter_constraint_type(*symbol)
                     {
-                        let constraint_type = lookup.types.get_type(constraint_type_id).clone();
+                        let constraint_type = types.get_type(constraint_type_id).clone();
                         if let Type::Reference {
                             symbol: constraint_symbol,
                             ..
@@ -992,7 +953,11 @@ impl Compiler {
                         } else {
                             self.resolve_member_symbol_for_type(
                                 module,
-                                lookup,
+                                owner_module_id,
+                                profile,
+                                tree,
+                                symbols,
+                                types,
                                 &constraint_type,
                                 member_key,
                                 visited,
@@ -1013,29 +978,34 @@ impl Compiler {
             return Ok(resolved);
         }
 
-        let Some(well_known_symbol) = self.well_known_symbol_for_type(receiver_ty, lookup.types)
-        else {
+        let Some(well_known_symbol) = self.well_known_symbol_for_type(receiver_ty, types) else {
             return Ok(None);
         };
 
         let mut symbol =
-            self.resolve_implicit_well_known_carrier_symbol(lookup.profile, well_known_symbol);
+            self.resolve_implicit_well_known_carrier_symbol(profile, well_known_symbol);
         if symbol.is_none() && module.is_user() && self.options.load_libs {
-            self.require_lib_environment(lookup.profile)
+            self.require_lib_environment(profile)
                 .map_err(AnalyzeError::from)?;
-            symbol =
-                self.resolve_implicit_well_known_carrier_symbol(lookup.profile, well_known_symbol);
+            symbol = self.resolve_implicit_well_known_carrier_symbol(profile, well_known_symbol);
         }
 
         let Some(symbol) = symbol else {
             return Ok(None);
         };
         let symbol = self
-            .remap_typevalue_symbol_to_type_space(module, lookup.profile, symbol)
+            .remap_typevalue_symbol_to_type_space(
+                ModuleSymbolView::new(module, profile, symbols),
+                symbol,
+            )
             .map_err(AnalyzeError::from)?;
         self.resolve_member_symbol_for_symbol(
             module,
-            lookup,
+            owner_module_id,
+            profile,
+            tree,
+            symbols,
+            types,
             symbol,
             member_key,
             lookup_mode,
@@ -1047,7 +1017,11 @@ impl Compiler {
     pub(crate) fn resolve_member_symbol_for_symbol(
         &self,
         module: &Module,
-        lookup: &MemberLookupModuleContext<'_>,
+        owner_module_id: ModuleId,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
         lookup_mode: MemberLookupMode,
@@ -1062,13 +1036,17 @@ impl Compiler {
 
         // resolve members from the local module data
         if symbol.module_id == module.id {
-            let symbol_entry = lookup.symbols.get_symbol(symbol.local_id);
+            let symbol_entry = symbols.get_symbol(symbol.local_id);
             let allow_merge = module.language_type.supports_declaration_merging()
                 || symbol_entry.origin.is_global_augmentation()
                 || self.module_is_ambient_lib(module);
             let resolved = self.resolve_member_symbol_in_module(
                 module,
-                lookup,
+                owner_module_id,
+                profile,
+                tree,
+                symbols,
+                types,
                 symbol,
                 member_key,
                 lookup_mode,
@@ -1083,7 +1061,11 @@ impl Compiler {
             // apply visible extensions only after declaration, merge, and lineage lookup
             return self.resolve_member_symbol_in_extensions(
                 module,
-                lookup,
+                profile,
+                symbols,
+                types,
+                owner_module_id,
+                tree,
                 symbol,
                 member_key,
                 lookup_mode,
@@ -1094,46 +1076,49 @@ impl Compiler {
             return Ok(None);
         }
 
-        let resolved = self
-            .with_module_tree_symbol_type_view_at_boundary(
-                module,
-                lookup.profile,
+        let owner_dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
                 symbol.module_id,
-                DirReadBoundary::Declared,
-                |view| {
-                    let owner_symbol_entry = view.symbols.get_symbol(symbol.local_id);
-                    let remote_module = self.program.modules.get(symbol.module_id);
-                    let remote_module = remote_module.read();
-                    let allow_merge = remote_module.language_type.supports_declaration_merging()
-                        || owner_symbol_entry.origin.is_global_augmentation()
-                        || self.module_is_ambient_lib(&remote_module);
-                    let owner_lookup = MemberLookupModuleContext::new(
-                        symbol.module_id,
-                        lookup.profile,
-                        view.tree,
-                        view.symbols,
-                        view.types,
-                    );
-                    self.resolve_member_symbol_in_module(
-                        module,
-                        &owner_lookup,
-                        symbol,
-                        member_key,
-                        lookup_mode,
-                        allow_merge,
-                        self.module_is_ambient_lib(&remote_module),
-                        visited,
-                    )
-                },
-            )
+                profile,
+            ))
             .map_err(AnalyzeError::from)?;
-        let resolved = resolved?;
+        let owner_symbol_entry = owner_dir.symbols.get_symbol(symbol.local_id);
+        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = remote_module.as_ref();
+        let is_ambient_lib = self.module_is_ambient_lib(&remote_module);
+        let allow_merge = remote_module.language_type.supports_declaration_merging()
+            || owner_symbol_entry.origin.is_global_augmentation()
+            || is_ambient_lib;
+        let resolved = self.resolve_member_symbol_in_module(
+            module,
+            symbol.module_id,
+            profile,
+            &owner_dir.tree,
+            &owner_dir.symbols,
+            &owner_dir.types,
+            symbol,
+            member_key,
+            lookup_mode,
+            allow_merge,
+            is_ambient_lib,
+            visited,
+        )?;
         if resolved.is_some() {
             return Ok(resolved);
         }
 
         // apply visible extensions only after remote declaration, merge, and lineage lookup
-        self.resolve_member_symbol_in_extensions(module, lookup, symbol, member_key, lookup_mode)
+        self.resolve_member_symbol_in_extensions(
+            module,
+            profile,
+            symbols,
+            types,
+            owner_module_id,
+            tree,
+            symbol,
+            member_key,
+            lookup_mode,
+        )
     }
 
     /// Resolve member symbols using module-local declarations and merges.
@@ -1141,7 +1126,11 @@ impl Compiler {
     pub(crate) fn resolve_member_symbol_in_module(
         &self,
         module: &Module,
-        lookup: &MemberLookupModuleContext<'_>,
+        owner_module_id: ModuleId,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
         lookup_mode: MemberLookupMode,
@@ -1149,12 +1138,19 @@ impl Compiler {
         owner_is_ambient_lib: bool,
         visited: &mut Vec<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        let symbol_entry = lookup.symbols.get_symbol(symbol.local_id);
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
 
         // step 1: check members declared directly on this symbol
-        if let Some(member_symbol) =
-            self.find_member_symbol_in_declaration(lookup, symbol, member_key, lookup_mode)
-        {
+        if let Some(member_symbol) = self.find_member_symbol_in_declaration(
+            owner_module_id,
+            profile,
+            tree,
+            symbols,
+            types,
+            symbol,
+            member_key,
+            lookup_mode,
+        ) {
             return Ok(Some(member_symbol));
         }
 
@@ -1162,14 +1158,18 @@ impl Compiler {
         if allow_merge {
             // scan merge group peers for members
             if let Some(group_id) = symbol_entry.merge_group {
-                for group_symbol in lookup.symbols.merge_group_symbols(group_id) {
+                for group_symbol in symbols.merge_group_symbols(group_id) {
                     if *group_symbol == symbol.local_id {
                         continue;
                     }
 
                     if let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
                         module,
-                        lookup,
+                        owner_module_id,
+                        profile,
+                        tree,
+                        symbols,
+                        types,
                         group_symbol.into_global(symbol.module_id),
                         member_key,
                         lookup_mode,
@@ -1191,7 +1191,7 @@ impl Compiler {
                 };
                 let merge_symbols = self.collect_global_merge_sources_for_key(
                     module,
-                    lookup.profile,
+                    profile,
                     key,
                     symbol_entry.space,
                     merge_category,
@@ -1206,7 +1206,11 @@ impl Compiler {
 
                         if let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
                             module,
-                            lookup,
+                            owner_module_id,
+                            profile,
+                            tree,
+                            symbols,
+                            types,
                             merge_symbol,
                             member_key,
                             lookup_mode,
@@ -1220,13 +1224,17 @@ impl Compiler {
         }
 
         // step 3: check inherited members
-        let lineage = lookup.types.get_lineage_for_symbol(symbol).cloned();
+        let lineage = types.get_lineage_for_symbol(symbol).cloned();
         if let Some(lineage) = lineage {
             // follow extends first
             if let Some(extends) = lineage.extends
                 && let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
                     module,
-                    lookup,
+                    owner_module_id,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
                     extends,
                     member_key,
                     lookup_mode,
@@ -1240,7 +1248,11 @@ impl Compiler {
             for embedded in &lineage.embedded {
                 if let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
                     module,
-                    lookup,
+                    owner_module_id,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
                     *embedded,
                     member_key,
                     lookup_mode,
@@ -1257,31 +1269,39 @@ impl Compiler {
     pub(crate) fn resolve_member_symbol_in_extensions(
         &self,
         module: &Module,
-        lookup: &MemberLookupModuleContext<'_>,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        owner_module_id: ModuleId,
+        tree: &NodeTree,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
         lookup_mode: MemberLookupMode,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // check visible extensions for this symbol
         let extension_symbols = self.visible_extension_symbols_for_target(
-            lookup.symbol_type_view_for_module(module),
+            SymbolTypeView::new(module, profile, symbols, types),
             symbol,
         )?;
         for extension_symbol in extension_symbols {
             let Some(extension) = self.extension_for_symbol_in_module(
-                lookup.module_type_view_for_module(module),
+                ModuleTypeView::new(module, profile, types),
                 extension_symbol,
             )?
             else {
                 continue;
             };
-            if !self.is_extension_visible(module, lookup.profile, &extension)? {
+            if !self.is_extension_visible(module, profile, &extension)? {
                 continue;
             }
 
             let member_symbol = self.find_member_symbol_in_extension(
                 module,
-                lookup,
+                owner_module_id,
+                profile,
+                tree,
+                symbols,
+                types,
                 extension_symbol,
                 member_key,
                 lookup_mode,
@@ -1298,7 +1318,11 @@ impl Compiler {
     pub(crate) fn find_member_symbol_in_extension(
         &self,
         module: &Module,
-        lookup: &MemberLookupModuleContext<'_>,
+        owner_module_id: ModuleId,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         extension_symbol: GlobalSymbolId,
         member_key: &StaticKey,
         lookup_mode: MemberLookupMode,
@@ -1306,46 +1330,68 @@ impl Compiler {
         // reuse local module data when the extension is local
         if extension_symbol.module_id == module.id {
             return Ok(self.find_member_symbol_in_declaration(
-                lookup,
+                owner_module_id,
+                profile,
+                tree,
+                symbols,
+                types,
                 extension_symbol,
                 member_key,
                 lookup_mode,
             ));
         }
 
-        self.with_module_tree_symbol_type_view_at_boundary(
-            module,
-            lookup.profile,
+        if extension_symbol.module_id == owner_module_id {
+            return Ok(self.find_member_symbol_in_declaration(
+                extension_symbol.module_id,
+                profile,
+                tree,
+                symbols,
+                types,
+                extension_symbol,
+                member_key,
+                lookup_mode,
+            ));
+        }
+
+        self.require_remote_artifact_dir(
+            owner_module_id,
             extension_symbol.module_id,
-            DirReadBoundary::Declared,
-            |view| {
-                let owner_lookup = MemberLookupModuleContext::new(
-                    extension_symbol.module_id,
-                    lookup.profile,
-                    view.tree,
-                    view.symbols,
-                    view.types,
-                );
-                self.find_member_symbol_in_declaration(
-                    &owner_lookup,
-                    extension_symbol,
-                    member_key,
-                    lookup_mode,
-                )
-            },
+            profile,
+            destack_workspace::ArtifactKey::dir_declared,
         )
-        .map_err(AnalyzeError::from)
+        .map_err(AnalyzeError::from)?;
+        let snapshot = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                extension_symbol.module_id,
+                profile,
+            ))
+            .map_err(AnalyzeError::from)?;
+        Ok(self.find_member_symbol_in_declaration(
+            extension_symbol.module_id,
+            profile,
+            &snapshot.tree,
+            &snapshot.symbols,
+            &snapshot.types,
+            extension_symbol,
+            member_key,
+            lookup_mode,
+        ))
     }
 
     /// Find a member symbol inside a declaration for a key.
     pub(crate) fn find_member_symbol_in_declaration(
         &self,
-        lookup: &MemberLookupModuleContext<'_>,
+        owner_module_id: ModuleId,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
         lookup_mode: MemberLookupMode,
     ) -> Option<GlobalSymbolId> {
-        let symbol_entry = lookup.symbols.get_symbol(symbol.local_id);
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
 
         // collect primary and secondary declarations to scan
         let mut declaration_ids = Vec::new();
@@ -1361,7 +1407,7 @@ impl Compiler {
             let Ok(declaration_id) = declaration_id.try_into_local_typed::<Declaration>() else {
                 continue;
             };
-            let declaration = lookup.tree.get(declaration_id);
+            let declaration = tree.get(declaration_id);
 
             if let Declaration::Enum {
                 fields, members, ..
@@ -1370,30 +1416,30 @@ impl Compiler {
                 // only expose enum fields through value lookups
                 if matches!(lookup_mode, MemberLookupMode::Value | MemberLookupMode::Any) {
                     for field_id in fields {
-                        let field = lookup.tree.get(*field_id);
+                        let field = tree.get(*field_id);
                         let field_key = StaticKey::Name(field.name);
                         if field_key.matches(member_key) {
-                            return Some(field.symbol.into_global(lookup.owner_module_id));
+                            return Some(field.symbol.into_global(owner_module_id));
                         }
                     }
                 }
 
                 // check enum methods and members
                 for member_id in members {
-                    let member = lookup.tree.get(*member_id);
+                    let member = tree.get(*member_id);
                     // honor static versus instance lookup modes
                     if !self.member_visible_for_lookup(member, lookup_mode) {
                         continue;
                     }
 
                     let static_key = member.key().and_then(|key| {
-                        self.static_key_from_dynamic_key(lookup.tree_symbol_type_view(), *key)
+                        self.static_key_from_dynamic_key(profile, tree, symbols, types, *key)
                     });
 
                     if let Some(static_key) = static_key
                         && static_key.matches(member_key)
                     {
-                        return Some(member.symbol().into_global(lookup.owner_module_id));
+                        return Some(member.symbol().into_global(owner_module_id));
                     }
                 }
 
@@ -1406,20 +1452,20 @@ impl Compiler {
             };
 
             for member_id in members {
-                let member = lookup.tree.get(*member_id);
+                let member = tree.get(*member_id);
                 // honor static versus instance lookup modes
                 if !self.member_visible_for_lookup(member, lookup_mode) {
                     continue;
                 }
 
                 let static_key = member.key().and_then(|key| {
-                    self.static_key_from_dynamic_key(lookup.tree_symbol_type_view(), *key)
+                    self.static_key_from_dynamic_key(profile, tree, symbols, types, *key)
                 });
 
                 if let Some(static_key) = static_key
                     && static_key.matches(member_key)
                 {
-                    return Some(member.symbol().into_global(lookup.owner_module_id));
+                    return Some(member.symbol().into_global(owner_module_id));
                 }
             }
         }

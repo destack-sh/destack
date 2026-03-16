@@ -109,40 +109,61 @@ impl Compiler {
                 // interface frame for that remote module
                 RemoteValueTypeReadDomain::Surface => {
                     if candidate_symbol.module_id == ctx.module.id {
-                        DirReadBoundary::Declared
+                        destack_workspace::ArtifactKey::dir_declared
                     } else {
-                        DirReadBoundary::Interface
+                        destack_workspace::ArtifactKey::dir_interface
                     }
                 }
-                RemoteValueTypeReadDomain::Interface => DirReadBoundary::Interface,
+                RemoteValueTypeReadDomain::Interface => {
+                    destack_workspace::ArtifactKey::dir_interface
+                }
             };
 
-            let lookup = self
-                .with_module_tree_symbol_type_view_at_boundary(
-                    ctx.module,
+            let lookup = if candidate_symbol.module_id == ctx.module.id {
+                let local_snapshot = ctx.types.clone();
+                self.query_remote_symbol_value_type_from_artifact(
                     ctx.profile,
-                    candidate_symbol.module_id,
-                    read_boundary,
-                    |view| -> AnalyzeResult<RemoteValueTypeLookupResult> {
-                        let remote_module = self.program.modules.get(candidate_symbol.module_id);
-                        let remote_module = remote_module.read();
-                        self.query_remote_symbol_value_type_from_artifact(
-                            ctx.profile,
-                            node_id,
-                            error_node,
-                            candidate_symbol,
-                            read_domain,
-                            RemoteModuleSnapshot {
-                                remote_module: &remote_module,
-                                remote_tree: view.tree,
-                                remote_symbols: view.symbols,
-                                remote_types: view.types,
-                            },
-                            ctx.types,
-                        )
+                    node_id,
+                    error_node,
+                    candidate_symbol,
+                    read_domain,
+                    RemoteModuleSnapshot {
+                        remote_module: ctx.module,
+                        remote_tree: ctx.tree,
+                        remote_symbols: ctx.symbols,
+                        remote_types: &local_snapshot,
                     },
+                    ctx.types,
+                )?
+            } else {
+                self.require_remote_artifact_dir(
+                    ctx.module.id,
+                    candidate_symbol.module_id,
+                    ctx.profile,
+                    read_boundary,
                 )
-                .map_err(AnalyzeError::from)??;
+                .map_err(AnalyzeError::from)?;
+
+                let remote_module = self.program.modules.get(candidate_symbol.module_id);
+                let remote_module = remote_module.as_ref();
+                let key = read_boundary(candidate_symbol.module_id, ctx.profile);
+                let remote_snapshot = self.require_artifact_dir(key).map_err(AnalyzeError::from)?;
+
+                self.query_remote_symbol_value_type_from_artifact(
+                    ctx.profile,
+                    node_id,
+                    error_node,
+                    candidate_symbol,
+                    read_domain,
+                    RemoteModuleSnapshot {
+                        remote_module: &remote_module,
+                        remote_tree: &remote_snapshot.tree,
+                        remote_symbols: &remote_snapshot.symbols,
+                        remote_types: &remote_snapshot.types,
+                    },
+                    ctx.types,
+                )?
+            };
             if let Some(imported_type_id) = lookup.imported_type_id {
                 return Ok(imported_type_id);
             }
@@ -473,11 +494,10 @@ impl Compiler {
         view: ModuleSymbolView<'_>,
         target_symbol: GlobalSymbolId,
     ) -> bool {
-        let Ok(dir) = self.require_artifact_dir_for_boundary(
+        let Ok(dir) = self.require_artifact_dir(destack_workspace::ArtifactKey::dir_interface(
             view.module.id,
             view.profile,
-            DirReadBoundary::Interface,
-        ) else {
+        )) else {
             return false;
         };
         let exported_symbols = &dir.exported_symbols;

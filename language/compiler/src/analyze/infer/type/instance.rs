@@ -402,31 +402,32 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        // load symbol metadata for merge group selection
+        // load symbol metadata from the declared boundary
         let (
             symbol_type,
             symbol_key,
             symbol_space,
             symbol_is_global_augmentation,
             owner_is_ambient_lib,
-        ) = {
-            let symbol_module = self.program.modules.get(symbol.module_id);
-            let symbol_module = symbol_module.read();
-            let symbol_dir = self.artifact_dir_base(symbol.module_id).unwrap_or_else(|| {
-                panic!(
-                    "missing committed base dir artifact for {:?}",
-                    symbol.module_id
-                )
-            });
-            let symbol_entry = symbol_dir.symbols.get_symbol(symbol.local_id);
-            (
-                symbol_entry.ty,
-                symbol_entry.key,
-                symbol_entry.space,
-                symbol_entry.origin.is_global_augmentation(),
-                self.module_is_ambient_lib(&symbol_module),
+        ) = self
+            .with_module_symbols_or_local_for_artifact(
+                ctx.module,
+                ctx.profile,
+                symbol.module_id,
+                ctx.symbols,
+                destack_workspace::ArtifactKey::dir_declared,
+                |owner_module, owner_symbols| {
+                    let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
+                    (
+                        symbol_entry.ty,
+                        symbol_entry.key,
+                        symbol_entry.space,
+                        symbol_entry.origin.is_global_augmentation(),
+                        self.module_is_ambient_lib(owner_module),
+                    )
+                },
             )
-        };
+            .map_err(AnalyzeError::from)?;
 
         // normalize the symbol id to the stored symbol type
         let symbol = GlobalSymbolId::new(symbol.module_id, symbol.local_id.with_type(symbol_type));
@@ -469,19 +470,22 @@ impl Compiler {
         // normalize group symbols to the stored symbol types
         let mut normalized_group_symbols = Vec::with_capacity(group_symbols.len());
         for group_symbol in group_symbols {
-            let group_dir = self
-                .artifact_dir_base(group_symbol.module_id)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "missing committed base dir artifact for {:?}",
-                        group_symbol.module_id
-                    )
-                });
-            let group_entry = group_dir.symbols.get_symbol(group_symbol.local_id);
-            let normalized = GlobalSymbolId::new(
-                group_symbol.module_id,
-                group_symbol.local_id.with_type(group_entry.ty),
-            );
+            let normalized = self
+                .with_module_symbols_or_local_for_artifact(
+                    ctx.module,
+                    ctx.profile,
+                    group_symbol.module_id,
+                    ctx.symbols,
+                    destack_workspace::ArtifactKey::dir_declared,
+                    |owner_module, owner_symbols| {
+                        let group_entry = owner_symbols.get_symbol(group_symbol.local_id);
+                        GlobalSymbolId::new(
+                            owner_module.id,
+                            group_symbol.local_id.with_type(group_entry.ty),
+                        )
+                    },
+                )
+                .map_err(AnalyzeError::from)?;
             normalized_group_symbols.push(normalized);
         }
         let group_symbols = normalized_group_symbols;
@@ -590,6 +594,23 @@ impl Compiler {
         Ok(Some(merged_id))
     }
 
+    /// Query the instance type for a symbol when dependency state is ready.
+    pub(crate) fn query_instance_type_for_symbol(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        node_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+    ) -> Option<LocalTypeId> {
+        match self.resolve_instance_type_for_symbol(&mut ctx.reborrow(), node_id, symbol) {
+            Ok(type_id) => type_id,
+            Err(AnalyzeError::Yield { .. } | AnalyzeError::UnsatisfiedRequirement { .. }) => None,
+            Err(error) => {
+                self.error(error);
+                None
+            }
+        }
+    }
+
     /// Import a remote instance type into the local type table.
     pub(crate) fn import_instance_type_for_symbol(
         &self,
@@ -598,10 +619,18 @@ impl Compiler {
         symbol: GlobalSymbolId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // same-module reads should reuse the current local type table
+        if symbol.module_id == types.module_id {
+            return Ok(types.get_instance_type_id(symbol));
+        }
+
         // declared instance shapes are the earliest stable boundary for class, struct,
         // interface, and extension member access
         let snapshot = self
-            .require_artifact_dir_for_boundary(symbol.module_id, profile, DirReadBoundary::Declared)
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                symbol.module_id,
+                profile,
+            ))
             .map_err(AnalyzeError::from)?;
         let remote_types = &snapshot.types;
         let Some(remote_instance_id) = remote_types.get_instance_type_id(symbol) else {

@@ -74,12 +74,12 @@ fn test_build_flow_graph_short_circuit_guard() {
 
     // load tree data
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
-    let dir = test.artifact_dir(module_id, profile);
-    let tree = dir.tree.read();
-    let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let mut dir = test.artifact_dir(module_id, profile);
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
+    let types = &mut dir.types;
 
     // locate the if expression
     let if_expression_id = dir

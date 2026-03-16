@@ -969,8 +969,8 @@ fn build_symbol_call_graph(modules: &[ModuleWorkItem]) -> SymbolCallGraph {
     // collect definition metadata for all modules
     for module in modules {
         module.with_mir(|mir| {
-            // lock tree and strings for scanning
-            let tree = mir.tree.read();
+            // scan the published mir artifact
+            let tree = &mir.tree;
             let strings = &mir.strings;
 
             // scan for defined functions
@@ -1023,8 +1023,8 @@ fn build_symbol_call_graph(modules: &[ModuleWorkItem]) -> SymbolCallGraph {
         let module_id = module.module_id();
 
         module.with_mir(|mir| {
-            // lock tree and strings for scanning
-            let tree = mir.tree.read();
+            // scan the published mir artifact
+            let tree = &mir.tree;
             let strings = &mir.strings;
 
             // build symbol names for all functions
@@ -1568,7 +1568,7 @@ mod tests {
         pool.copy_from_immutable(&strings);
 
         let mut module_mir = ModuleMir::new(module_id, ModuleVersion::INITIAL, target_id.clone());
-        *module_mir.tree.write() = tree;
+        module_mir.tree = tree;
         module_mir.strings = pool;
 
         ModuleWorkItem::new(module_id, target_id, module_mir, PipelineOptions::default())

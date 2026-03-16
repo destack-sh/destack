@@ -8,7 +8,7 @@ impl Compiler {
     /// Phase 5: Commit solved infer table outputs and discharge obligations.
     pub(crate) fn analyze_module_commit(
         &self,
-        dir: &ModuleDir,
+        dir: &mut ModuleDir,
         infer: Option<&mut InferTable>,
         module_id: ModuleId,
         profile: ProfileId,
@@ -36,7 +36,7 @@ impl Compiler {
 
         // declaration modules have no commit-time infer table
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         if module.language_type.is_declaration() {
             return Ok(());
         }
@@ -45,6 +45,6 @@ impl Compiler {
             return Ok(());
         };
 
-        self.commit_module_solved_infer_table(dir, infer, &module, profile)
+        self.commit_solved_infer_table(dir, infer, &module, profile)
     }
 }

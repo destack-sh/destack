@@ -289,8 +289,8 @@ impl TestProgram {
         // load the dir module state
         let profile = self.default_profile_id(module_id);
         let dir = self.artifact_dir(module_id, profile);
-        let tree = dir.tree.read();
-        let types = dir.types.read();
+        let tree = &dir.tree;
+        let types = &dir.types;
 
         // scan for the named function declaration
         for (_, declaration) in tree.iter_nodes_of_type::<dir::Declaration>() {

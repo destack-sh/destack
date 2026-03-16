@@ -1,9 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{
-    CanonicalSymbolMode, DirReadBoundary, ModuleSymbolView, REWRITER_TAG_ASSOCIATED_ALIAS,
-    TreeSymbolView, TypeContext, TypeRewriteCache, TypeView, TypeWalkContext, TypeWalkKey,
-    rewrite_type_with_cache,
+    CanonicalSymbolMode, ModuleSymbolView, REWRITER_TAG_ASSOCIATED_ALIAS, TreeSymbolView,
+    TypeContext, TypeRewriteCache, TypeView, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
 };
 use crate::{AnalyzeError, AnalyzeResult, Compiler, ResolveResult};
 use destack_core::StringId;
@@ -461,10 +460,10 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> AnalyzeResult<bool> {
         let Some(symbol) = self
-            .declaration_symbol_id_at_boundary(
+            .declaration_symbol_id_for_artifact(
                 ctx.module_symbol_view(),
                 symbol,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
             )
             .map_err(AnalyzeError::from)?
         else {
@@ -478,12 +477,12 @@ impl Compiler {
         }
 
         let has_missing_requirements = self
-            .with_module_types_or_local_at_boundary(
+            .with_module_types_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
                 ctx.types,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |_, owner_types| {
                     owner_types.symbol_has_unimplemented_associated_requirements(symbol)
                 },
@@ -590,10 +589,10 @@ impl Compiler {
     ) -> AnalyzeResult<Vec<AssociatedTypeRequirement>> {
         // normalize contract references to declaration owners
         let Some(contract_symbol) = self
-            .declaration_symbol_id_at_boundary(
+            .declaration_symbol_id_for_artifact(
                 ctx.module_symbol_view(),
                 contract_symbol,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
             )
             .map_err(AnalyzeError::from)?
         else {
@@ -628,13 +627,13 @@ impl Compiler {
 
         // collect local requirements and direct parent contracts
         let (local_requirements, parent_contracts) = self
-            .with_module_tree_symbol_view_or_local_at_boundary(
+            .with_module_tree_symbol_view_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 contract_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |view| {
                     let mut requirements = Vec::new();
                     let mut parents = Vec::new();
@@ -761,10 +760,10 @@ impl Compiler {
     ) -> AnalyzeResult<Vec<AssociatedComptimeRequirement>> {
         // normalize contract references to declaration owners
         let Some(contract_symbol) = self
-            .declaration_symbol_id_at_boundary(
+            .declaration_symbol_id_for_artifact(
                 ctx.module_symbol_view(),
                 contract_symbol,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
             )
             .map_err(AnalyzeError::from)?
         else {
@@ -799,13 +798,13 @@ impl Compiler {
 
         // collect local requirements and direct parent contracts
         let (local_requirements, parent_contracts) = self
-            .with_module_tree_symbol_view_or_local_at_boundary(
+            .with_module_tree_symbol_view_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 contract_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |view| {
                     let mut requirements = Vec::new();
                     let mut parents = Vec::new();
@@ -990,13 +989,13 @@ impl Compiler {
 
         // resolve the projected member symbol on the normalized receiver symbol
         let projected_symbol = self
-            .with_module_tree_symbol_view_or_local_at_boundary(
+            .with_module_tree_symbol_view_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 lookup_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                DirReadBoundary::Interface,
+                destack_workspace::ArtifactKey::dir_interface,
                 |view| {
                     self.query_static_member_symbol(
                         view.module,
@@ -1257,15 +1256,15 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         let module = self.program.modules.get(current_module_id);
-        let module = module.read();
+        let module = module.as_ref();
 
-        Ok(self.with_module_tree_symbol_view_or_local_at_boundary(
+        Ok(self.with_module_tree_symbol_view_or_local_for_artifact(
             &module,
             profile_id,
             owner_module_id,
             tree,
             symbols,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |view| {
                 self.query_declared_direct_member_symbol_in_view(
                     view,
@@ -1298,11 +1297,13 @@ impl Compiler {
             }
 
             let symbol = self
-                .with_module_tree_symbol_view_at_boundary(
+                .with_module_tree_symbol_view_or_local_for_artifact(
                     ctx.module,
                     ctx.profile,
                     extension_symbol.module_id,
-                    DirReadBoundary::Declared,
+                    ctx.tree,
+                    ctx.symbols,
+                    destack_workspace::ArtifactKey::dir_declared,
                     |view| {
                         self.query_declared_direct_member_symbol_in_view(
                             view,
@@ -1455,17 +1456,24 @@ impl Compiler {
         view: ModuleSymbolView<'_>,
         member_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        self.with_module_tree_symbol_view_at_boundary(
+        let member_symbol = self
+            .declaration_symbol_id(view, member_symbol)
+            .unwrap_or_else(|| {
+                self.canonical_symbol_id(view, member_symbol, CanonicalSymbolMode::FollowAliases)
+            });
+
+        self.with_module_symbols_or_local_for_artifact(
             view.module,
             view.profile,
             member_symbol.module_id,
-            DirReadBoundary::Declared,
-            |owner_view| {
+            view.symbols,
+            destack_workspace::ArtifactKey::dir_declared,
+            |owner_module, owner_symbols| {
                 // resolve the member entry and its scope owner
-                let member_entry = owner_view.symbols.get_symbol(member_symbol.local_id);
-                let scope = owner_view.symbols.get_scope_by_id(member_entry.scope.0);
+                let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
+                let scope = owner_symbols.get_scope_by_id(member_entry.scope.0);
                 let owner_id = scope.owner_id?;
-                let owner_entry = owner_view.symbols.get_symbol(owner_id);
+                let owner_entry = owner_symbols.get_symbol(owner_id);
 
                 // keep only declaration owners that can hold member types
                 if !matches!(
@@ -1482,7 +1490,7 @@ impl Compiler {
                 Some(
                     owner_id
                         .with_type(owner_entry.ty)
-                        .into_global(owner_view.module.id),
+                        .into_global(owner_module.id),
                 )
             },
         )
@@ -1495,13 +1503,13 @@ impl Compiler {
         ctx: TreeSymbolView<'_>,
         symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<StaticMemberSymbolKind>> {
-        self.with_module_tree_symbol_view_or_local_at_boundary(
+        self.with_module_tree_symbol_view_or_local_for_artifact(
             ctx.module,
             ctx.profile,
             symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |view| {
                 let symbol_entry = view.symbols.get_symbol(symbol.local_id);
                 let primary_declaration = symbol_entry.primary_declaration?;

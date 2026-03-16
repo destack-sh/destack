@@ -1,11 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use super::SignatureResolutionMode;
-use super::member::{MemberLookupMode, MemberLookupModuleContext, MemberResolution};
+use super::member::{MemberLookupMode, MemberResolution};
 use crate::analyze::StaticSubstitutionEnvironment;
-use crate::analyze::common::{
-    CanonicalSymbolMode, DirReadBoundary, InferContext, ModuleContext, TreeSymbolView, TypeView,
-};
+use crate::analyze::common::{CanonicalSymbolMode, InferContext, TreeSymbolView, TypeView};
 use crate::analyze::infer::RemoteValueTypeReadDomain;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferState};
@@ -1335,19 +1333,15 @@ impl Compiler {
         element_ty: &Type,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        let lookup = MemberLookupModuleContext::new(
+        // first try direct member lookup on the element type
+        let mut visited = Vec::new();
+        let mut member_symbol = self.resolve_member_symbol_for_type(
+            context.tree_symbols.module,
             context.tree_symbols.module.id,
             context.tree_symbols.profile,
             context.tree_symbols.tree,
             context.tree_symbols.symbols,
             types,
-        );
-
-        // first try direct member lookup on the element type
-        let mut visited = Vec::new();
-        let mut member_symbol = self.resolve_member_symbol_for_type(
-            context.tree_symbols.module,
-            &lookup,
             element_ty,
             context.member_key,
             &mut visited,
@@ -1361,7 +1355,11 @@ impl Compiler {
         if let Some(instance_symbol) = types.symbol_for_instance_type(element_id) {
             member_symbol = self.resolve_member_symbol_for_symbol(
                 context.tree_symbols.module,
-                &lookup,
+                context.tree_symbols.module.id,
+                context.tree_symbols.profile,
+                context.tree_symbols.tree,
+                context.tree_symbols.symbols,
+                types,
                 instance_symbol,
                 context.member_key,
                 MemberLookupMode::Instance,
@@ -3075,13 +3073,13 @@ impl Compiler {
         ctx: &InferContext<'_>,
         class_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        self.with_module_tree_symbol_view_or_local_at_boundary(
+        self.with_module_tree_symbol_view_or_local_for_artifact(
             ctx.module,
             ctx.profile,
             class_symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |view| {
                 // resolve the nominal declaration for the class symbol
                 let class_entry = view.symbols.get_symbol(class_symbol.local_id);
@@ -3544,7 +3542,7 @@ impl Compiler {
             parameters_for_call.push(parameter.clone());
         }
         let assigned_for_call = self.assign_static_argument_values(
-            ModuleContext::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols, ctx.options),
+            TreeSymbolView::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols),
             node_id,
             &argument_values,
             &parameters_for_call,
@@ -3633,11 +3631,12 @@ impl Compiler {
                 .and_then(|mapping| mapping.get(&static_parameter.symbol))
                 .cloned()
             {
-                let call_site =
-                    ModuleContext::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols, ctx.options);
+                let call_site = TreeSymbolView::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols);
+                let call_site_options = ctx.options;
                 self.resolve_static_argument(
                     &mut ctx.type_context_reborrow(),
                     call_site,
+                    call_site_options,
                     static_parameter,
                     Some(expected_argument),
                     true,
@@ -3647,11 +3646,12 @@ impl Compiler {
             };
 
             // resolve one concrete static argument value for this slot
-            let call_site =
-                ModuleContext::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols, ctx.options);
+            let call_site = TreeSymbolView::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols);
+            let call_site_options = ctx.options;
             let resolved_assigned_argument = self.resolve_static_argument(
                 &mut ctx.type_context_reborrow(),
                 call_site,
+                call_site_options,
                 static_parameter,
                 assigned_argument,
                 true,

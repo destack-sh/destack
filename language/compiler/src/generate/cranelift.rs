@@ -14,7 +14,7 @@ impl Compiler {
     ) -> GenerateResult<()> {
         // construct target id from module's package
         let module = self.program.modules.get(module_id);
-        let package_id = module.read().package_id;
+        let package_id = module.package_id;
         let target_id = TargetId::new(package_id, &target.name);
 
         // require module to be optimized
@@ -122,12 +122,17 @@ impl Compiler {
         mir_node: destack_mir::LocalNodeIdAny,
     ) -> Option<AnchoredGlobalNodeId> {
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let target_id = TargetId::new(module.package_id, target_name);
         let mir = self
             .program
             .artifacts
-            .mir_snapshot(module_id, profile, &target_id)
+            .mir_optimized(module_id, profile, &target_id)
+            .or_else(|| {
+                self.program
+                    .artifacts
+                    .mir_base(module_id, profile, &target_id)
+            })
             .expect("code generation requires MIR artifact");
         let mir_tree = &mir.tree;
 

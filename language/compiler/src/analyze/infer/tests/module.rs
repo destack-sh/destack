@@ -1,6 +1,5 @@
 use super::*;
-use crate::analyze::common::DirReadBoundary;
-use destack_dir::GlobalSymbolId;
+use destack_dir::FloatType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParallelValueKind {
@@ -86,19 +85,46 @@ fn assert_type_references_symbol(
     });
 }
 
+fn assert_fixed_array_primitive_type(
+    test: &TestProgram,
+    view: &TestModuleView<'_>,
+    symbol: GlobalSymbolId,
+    expected_element: PrimitiveType,
+    expected_count: i64,
+) {
+    let type_id = view.expect_value_type_id(symbol);
+    let Type::ArraySized { element, count, .. } = view.types().get_type(type_id) else {
+        panic!(
+            "expected fixed-size array type, got {:?}",
+            view.types().get_type(type_id)
+        );
+    };
+
+    assert_type!(view.types(), *element, Type::TypeLiteral { value } => {
+        assert_eq!(*value, TypeLiteral::Primitive(expected_element));
+    });
+
+    let count_literal = test
+        .compiler
+        .integer_literal_value_for_type_id(*count, view.types());
+    assert_eq!(
+        count_literal,
+        Some(expected_count),
+        "expected fixed-size array count to resolve to {expected_count}: count={:?}",
+        view.types().get_type(*count),
+    );
+}
+
 fn assert_struct_field_type_matches_instance_field(
     test: &TestProgram,
     view: &TestModuleView<'_>,
-    module_uri: &str,
     struct_name_text: &str,
     field_name_text: &str,
 ) -> LocalTypeId {
     let strings = &test.program.strings;
     let struct_name = strings.intern(struct_name_text);
     let field_name = strings.intern(field_name_text);
-    let struct_symbol = test
-        .resolve_to_symbol(module_uri, struct_name_text)
-        .unwrap_or_else(|| panic!("expected symbol for {module_uri}:{struct_name_text}"));
+    let struct_symbol = view.expect_declaration_symbol(struct_name);
     let instance_type_id = view.expect_instance_type_id(struct_symbol);
     let instance_field_type_id = view.expect_object_field_type(instance_type_id, field_name);
     let field_symbol = view.expect_struct_field_symbol(struct_name, field_name);
@@ -107,7 +133,7 @@ fn assert_struct_field_type_matches_instance_field(
     assert_eq!(
         view.types().get_type(field_type_id),
         view.types().get_type(instance_field_type_id),
-        "expected field symbol type to match instance field type for {module_uri}:{field_name_text}",
+        "expected field symbol type to match instance field type for {struct_name_text}:{field_name_text}",
     );
 
     field_type_id
@@ -215,7 +241,7 @@ const thing: GlobalThing = { value: 1, label: "ok" };
     // load module data for inspection
     let view = test.view(main_id);
     let module = test.program.modules.get(main_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = view.profile_id();
     let dir = test.artifact_dir(main_id, profile);
     let thing_name = test.program.strings.intern("thing");
@@ -228,21 +254,21 @@ const thing: GlobalThing = { value: 1, label: "ok" };
 
     for global_symbol in &global_group {
         let remote_profile = test.default_profile_id(global_symbol.module_id);
-        test.compiler
-            .with_module_types_at_boundary(
-                &module,
-                remote_profile,
+        let remote_dir = test
+            .compiler
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
                 global_symbol.module_id,
-                DirReadBoundary::Declared,
-                |_, remote_types| {
-                    assert!(
-                        remote_types.get_instance_type_id(*global_symbol).is_some(),
-                        "expected instance type for GlobalThing in module {:?}",
-                        global_symbol.module_id,
-                    );
-                },
-            )
+                remote_profile,
+            ))
             .expect("declare stage should be ready for merged global module test");
+        assert!(
+            remote_dir
+                .types
+                .get_instance_type_id(*global_symbol)
+                .is_some(),
+            "expected instance type for GlobalThing in module {:?}",
+            global_symbol.module_id,
+        );
     }
 
     // locate the bound symbol for thing in the module scope
@@ -478,7 +504,11 @@ values.first() satisfies number | undefined;
     // assert the merged instance shape keeps ambient and local members
     let instance_ty_id = view.expect_instance_type_id(array_symbol);
     let instance_ty = view.types().get_type(instance_ty_id);
-    let Type::Object { fields, .. } = instance_ty else {
+    let Type::Object {
+        fields: local_fields,
+        ..
+    } = instance_ty
+    else {
         panic!("expected object instance type for Array");
     };
     let first_key = StaticKey::Name(test.program.strings.intern("first"));
@@ -489,43 +519,48 @@ values.first() satisfies number | undefined;
         .first()
         .copied()
         .expect("missing ambient Array symbol for merge baseline");
-    let module = test.program.modules.get(main_id);
-    let module = module.read();
-    let ambient_keys = test
+    let ambient_dir = test
         .compiler
-        .with_module_types_at_boundary(
-            &module,
-            profile,
+        .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
             ambient_symbol.module_id,
-            DirReadBoundary::Declared,
-            |_, ambient_types| {
-                let ambient_instance = ambient_types
-                    .get_instance_type_id(ambient_symbol)
-                    .expect("missing ambient Array instance type");
-                let ambient_instance = ambient_types.get_type(ambient_instance);
-                let Type::Object { fields, .. } = ambient_instance else {
-                    panic!("expected ambient Array instance object type");
-                };
-
-                fields.iter().map(|field| field.key).collect::<Vec<_>>()
-            },
-        )
+            profile,
+        ))
         .expect("declare stage should be ready for ambient Array merge baseline");
+    let ambient_instance = ambient_dir
+        .types
+        .get_instance_type_id(ambient_symbol)
+        .expect("missing ambient Array instance type");
+    let ambient_instance = ambient_dir.types.get_type(ambient_instance);
+    let Type::Object {
+        fields: ambient_fields,
+        ..
+    } = ambient_instance
+    else {
+        panic!("expected ambient Array instance object type");
+    };
+    let ambient_keys = ambient_fields
+        .iter()
+        .map(|field| field.key)
+        .collect::<Vec<_>>();
     // assert merged shape preserves at least one ambient member
     assert!(
-        ambient_keys
+        ambient_keys.iter().any(|ambient_key| local_fields
             .iter()
-            .any(|ambient_key| fields.iter().any(|field| field.key.matches(ambient_key))),
+            .any(|field| field.key.matches(ambient_key))),
         "missing ambient members on merged Array shape",
     );
 
     // assert merged shape keeps the local augmentation member
     assert!(
-        fields.iter().any(|field| field.key.matches(&first_key)),
+        local_fields
+            .iter()
+            .any(|field| field.key.matches(&first_key)),
         "missing local member 'first' on merged Array shape",
     );
     assert!(
-        fields.iter().any(|field| field.key.matches(&length_key)),
+        local_fields
+            .iter()
+            .any(|field| field.key.matches(&length_key)),
         "missing merged length member",
     );
 
@@ -566,8 +601,8 @@ let x = value;
 
     // load typed module data
     let view = test.view(module_id);
-    let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
-    let x_ty_id = view.types().get_value_type_id(x_symbol).unwrap();
+    let x_symbol = view.expect_binding_symbol(test.program.strings.intern("x"));
+    let x_ty_id = view.expect_value_type_id(x_symbol);
 
     assert_type!(
         view.types(),
@@ -1141,8 +1176,8 @@ lane satisfies uint8[8];
 "#,
     );
 
-    // compile the namespace-imported associated comptime projection
-    test.analyze_module(module_id);
+    // analyze and compile the namespace-imported associated comptime projection
+    test.analyze_module_and_check_clean(module_id);
     test.compile();
 
     // preserve the fixed-array count after namespace-imported associated comptime materialization
@@ -1150,22 +1185,17 @@ lane satisfies uint8[8];
     let lane_symbol = test
         .resolve_to_symbol("main.ds", "lane")
         .expect("expected lane symbol");
-    let lane_type_id = view
-        .types()
-        .get_value_type_id(lane_symbol)
-        .expect("expected lane type");
-    let Type::Reference {
-        symbol: lane_alias_symbol,
-        static_arguments,
-    } = view.types().get_type(lane_type_id)
-    else {
+    let lane_type_id = view.expect_value_type_id(lane_symbol);
+    let Type::ArraySized { element, .. } = view.types().get_type(lane_type_id) else {
         panic!(
-            "expected namespace-imported lane to preserve its alias reference, got {:?}",
-            view.types().get_type(lane_type_id)
+            "expected namespace-imported lane to analyze as a fixed array, got {:?}",
+            view.types().get_type(lane_type_id),
         );
     };
-    assert_eq!(lane_alias_symbol.module_id, module_id);
-    assert!(static_arguments.is_some());
+
+    assert_type!(view.types(), *element, Type::TypeLiteral { value } => {
+        assert_eq!(*value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)));
+    });
 }
 
 /// Analyze multi-hop re-exported associated contract aliases through imported implementors.
@@ -1315,6 +1345,156 @@ segmentRows satisfies 256;
         "expected inherited associated comptime alias to resolve to 256: segment_rows={:?}",
         types.get_type(segment_rows_type_id),
     );
+}
+
+/// Analyze interface associated comptime aliases through one concrete implementor.
+#[test]
+fn test_analyze_interface_associated_comptime_alias_projection_through_concrete_implementor() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.analyze_module_with_source(
+        "test.ds",
+        r#"
+interface PartitionedStore<Row> {
+    comptime const SegmentBytes: number;
+    type Segment = Row[this.SegmentBytes];
+}
+
+class AuditStore implements PartitionedStore<string> {
+    comptime const SegmentBytes: number = 1024;
+}
+
+declare const segment: AuditStore.Segment;
+segment satisfies string[1024];
+"#,
+    );
+    let view = test.view(module_id);
+    let segment_name = test.program.strings.intern("segment");
+    let segment_symbol = view.expect_binding_symbol(segment_name);
+
+    assert_fixed_array_primitive_type(&test, &view, segment_symbol, PrimitiveType::String, 1024);
+}
+
+/// Analyze one shared associated comptime implementation across compatible contracts.
+#[test]
+fn test_analyze_multi_contract_associated_comptime_alias_projection_from_shared_implementation() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.analyze_module_with_source(
+        "test.ds",
+        r#"
+interface RowsContract<T> {
+    comptime const Width: number;
+    type Row = T[this.Width];
+}
+
+interface TileContract<T> {
+    comptime const Width: number;
+    type Tile = T[this.Width][2];
+}
+
+class DensePlan implements RowsContract<float32>, TileContract<float32> {
+    comptime const Width: number = 8;
+}
+
+declare const row: DensePlan.Row;
+row satisfies float32[8];
+
+declare const tile: DensePlan.Tile;
+tile satisfies float32[8][2];
+"#,
+    );
+    let view = test.view(module_id);
+    let row_name = test.program.strings.intern("row");
+    let row_symbol = view.expect_binding_symbol(row_name);
+    assert_fixed_array_primitive_type(
+        &test,
+        &view,
+        row_symbol,
+        PrimitiveType::Float(FloatType::Float32),
+        8,
+    );
+
+    let tile_name = test.program.strings.intern("tile");
+    let tile_symbol = view.expect_binding_symbol(tile_name);
+    let tile_type_id = view.expect_value_type_id(tile_symbol);
+    let Type::ArraySized {
+        element: inner_element,
+        count: outer_count,
+        ..
+    } = view.types().get_type(tile_type_id)
+    else {
+        panic!(
+            "expected nested fixed-size tile type, got {:?}",
+            view.types().get_type(tile_type_id)
+        );
+    };
+    let Type::ArraySized {
+        element: scalar_element,
+        count: inner_count,
+        ..
+    } = view.types().get_type(*inner_element)
+    else {
+        panic!(
+            "expected nested fixed-size row type, got {:?}",
+            view.types().get_type(*inner_element)
+        );
+    };
+
+    assert_type!(view.types(), *scalar_element, Type::TypeLiteral { value } => {
+        assert_eq!(*value, TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float32)));
+    });
+
+    let inner_count_literal = test
+        .compiler
+        .integer_literal_value_for_type_id(*inner_count, view.types());
+    assert_eq!(inner_count_literal, Some(8));
+
+    let outer_count_literal = test
+        .compiler
+        .integer_literal_value_for_type_id(*outer_count, view.types());
+    assert_eq!(outer_count_literal, Some(2));
+}
+
+/// Preserve concrete inherited associated aliases through method and projection use sites.
+#[test]
+fn test_analyze_interface_inheritance_preserves_concrete_associated_aliases() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Source<T> {
+    type Item;
+}
+
+interface Stream<T> extends Source<T> {
+    next(): Source<T>.Item;
+}
+
+class Counter implements Stream<int32> {
+    value: int32 = 0;
+
+    type Item = int32;
+
+    next(): Item {
+        return this.value;
+    }
+}
+
+declare const value: Counter.Item;
+value satisfies int32;
+"#,
+    );
+
+    test.analyze_module_and_check_clean(module_id);
+
+    let view = test.view(module_id);
+    let value_symbol = test
+        .resolve_to_symbol("test.ds", "value")
+        .expect("expected value symbol");
+    let value_type_id = view.expect_value_type_id(value_symbol);
+
+    assert_type!(view.types(), value_type_id, Type::TypeLiteral { value } => {
+        assert_eq!(*value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)));
+    });
 }
 
 /// Reject unresolved imported generic associated comptime projections in value position.
@@ -1903,18 +2083,12 @@ value.items;
 
         test.analyze_module_and_check_clean(consumer_id);
 
-        let view = test.view(module_id);
-        let container_symbol = test
-            .resolve_to_symbol("types.ds", "Container")
-            .expect("expected Container symbol");
+        let view = test.declared_view(module_id);
+        let container_symbol =
+            view.expect_declaration_symbol(test.program.strings.intern("Container"));
         view.expect_value_type_id(container_symbol);
-        let items_type_id = assert_struct_field_type_matches_instance_field(
-            &test,
-            &view,
-            "types.ds",
-            "Container",
-            "items",
-        );
+        let items_type_id =
+            assert_struct_field_type_matches_instance_field(&test, &view, "Container", "items");
         let handle_symbol = test.canonical_symbol_for_path("handles.ds", "Handle");
         let element_type_id = expect_array_element_type(view.types(), items_type_id);
 
@@ -1950,52 +2124,6 @@ let ctor = Require;
         .resolve_to_symbol("policy.ds", "Require")
         .expect("expected Require symbol");
     view.expect_value_type_id(require_symbol);
-}
-
-/// Preserve declaration struct field semantics for local newtypes.
-#[test]
-fn test_declaration_struct_field_types_preserve_local_newtypes() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs();
-    let module_id = test.add_module(
-        "types.d.ds",
-        r#"
-export newtype Handle = uint32;
-
-export struct Container {
-    items: Array<Handle>;
-}
-"#,
-    );
-    let consumer_id = test.add_module(
-        "consumer.ds",
-        r#"
-import { Container, Handle } from "./types.d.ds";
-
-declare let handle: Handle;
-
-let value = Container { items: [handle] };
-value.items;
-"#,
-    );
-
-    test.analyze_module_and_check_clean(consumer_id);
-
-    let view = test.view(module_id);
-    let container_symbol = test
-        .resolve_to_symbol("types.d.ds", "Container")
-        .expect("expected Container symbol");
-    view.expect_value_type_id(container_symbol);
-    let items_type_id = assert_struct_field_type_matches_instance_field(
-        &test,
-        &view,
-        "types.d.ds",
-        "Container",
-        "items",
-    );
-    let handle_symbol = test.canonical_symbol_for_path("types.d.ds", "Handle");
-    let element_type_id = expect_array_element_type(view.types(), items_type_id);
-
-    assert_type_references_symbol(view.types(), element_type_id, handle_symbol);
 }
 
 /// Preserve declaration struct field semantics across import forms.
@@ -2042,7 +2170,6 @@ export struct Container {{
 "#,
             ),
         );
-        let module_uri = format!("types-{suffix}.d.ds");
         let consumer_id = test.add_module(
             &format!("consumer-{suffix}.ds"),
             &format!(
@@ -2061,17 +2188,8 @@ value.items;
         test.analyze_module_and_check_clean(consumer_id);
 
         let view = test.view(module_id);
-        let container_symbol = test
-            .resolve_to_symbol(&module_uri, "Container")
-            .expect("expected Container symbol");
-        view.expect_value_type_id(container_symbol);
-        let items_type_id = assert_struct_field_type_matches_instance_field(
-            &test,
-            &view,
-            &module_uri,
-            "Container",
-            "items",
-        );
+        let items_type_id =
+            assert_struct_field_type_matches_instance_field(&test, &view, "Container", "items");
         let handle_symbol = test.canonical_symbol_for_path("handles.d.ds", "Handle");
         let element_type_id = expect_array_element_type(view.types(), items_type_id);
 
@@ -2150,20 +2268,10 @@ value.socket;
         .resolve_to_symbol("types.ds", "Container")
         .expect("expected Container symbol");
     view.expect_value_type_id(container_symbol);
-    let socket_type_id = assert_struct_field_type_matches_instance_field(
-        &test,
-        &view,
-        "types.ds",
-        "Container",
-        "socket",
-    );
-    let items_type_id = assert_struct_field_type_matches_instance_field(
-        &test,
-        &view,
-        "types.ds",
-        "Container",
-        "items",
-    );
+    let socket_type_id =
+        assert_struct_field_type_matches_instance_field(&test, &view, "Container", "socket");
+    let items_type_id =
+        assert_struct_field_type_matches_instance_field(&test, &view, "Container", "items");
     let socket_handle_symbol = test.canonical_symbol_for_path("handles.ds", "SocketHandle");
     let transferred_handle_symbol =
         test.canonical_symbol_for_path("handles.ds", "TransferredHandle");

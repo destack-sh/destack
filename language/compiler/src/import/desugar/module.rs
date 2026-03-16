@@ -2,6 +2,7 @@ use crate::timing::tags;
 use crate::{Compiler, ImportError, ImportResult};
 use destack_dir::Expression;
 use destack_source::{ModuleId, ModuleVersion};
+use destack_workspace::ImportDir;
 
 impl Compiler {
     /// Desugar module syntactically: transforms that don't need type information:
@@ -11,6 +12,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         module_version: ModuleVersion,
+        dir: &mut ImportDir,
     ) -> ImportResult<()> {
         // skip stale tasks
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -21,14 +23,11 @@ impl Compiler {
             return Ok(());
         }
 
-        self.with_active_base_dir(module_id, |dir| {
-            let mut tree = dir.tree.write();
-
-            // desugar expressions
-            for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-                self.desugar_expression(expression_id, &mut tree);
-            }
-        });
+        // desugar expressions
+        let expression_ids = dir.tree.iter_node_ids_of_type::<Expression>();
+        for expression_id in expression_ids {
+            self.desugar_expression(expression_id, &mut dir.tree);
+        }
         Ok(())
     }
 }

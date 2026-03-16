@@ -5,9 +5,8 @@ use super::{
     index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
 use crate::analyze::common::{
-    ConstContext, DirReadBoundary, REWRITER_TAG_LITERAL_WIDENING, ReadonlyMaterializer,
-    RelationMode, TypeContext, TypeRewriteCache, TypeWalkContext, TypeWalkKey, WideningMode,
-    rewrite_type_with_cache,
+    ConstContext, REWRITER_TAG_LITERAL_WIDENING, ReadonlyMaterializer, RelationMode, TypeContext,
+    TypeRewriteCache, TypeWalkContext, TypeWalkKey, WideningMode, rewrite_type_with_cache,
 };
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferState};
 use destack_dir::{

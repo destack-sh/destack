@@ -433,7 +433,7 @@ let boxed: Box<Node> = value;
 
     // compare assignability using the module profile
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
@@ -530,7 +530,7 @@ let number_value: number = value;
 
     // compare assignability using the module profile
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
@@ -586,7 +586,7 @@ let ok: boolean = value;
         .get_declared_type_id(ok_declarator_id.into_global(module_id).into())
         .expect("expected ok declared type");
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();

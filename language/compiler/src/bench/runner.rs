@@ -485,7 +485,7 @@ fn collect_line_stats(test: &BenchProgram, modules: &[ModuleId]) -> LineStats {
         }
 
         let module_ref = test.program.modules.get(*module_id);
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         let Some(file) = test.program.files.get_maybe(module.file_id) else {
             line_counts.push(0);
             continue;
@@ -626,7 +626,7 @@ fn run_list_builtin_lib_modules(options: &BenchOptions) {
         }
 
         let module_ref = test.program.modules.get(module_id);
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         let display = module
             .path
             .as_ref()
