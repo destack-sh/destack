@@ -25,7 +25,7 @@ Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, 
 
 **Destack is a universal software engine with a language, compiler, toolchain, runtime, libraries, services, and apps built on top of TypeScript and the open web ecosystem.**
 Conceptually, Destack is the antithesis to the very idea of a "stack":
-instead of wrangling many disparate languages, tools, libraries, approaches, runtimes, services, and apps, Destack unifies the processes of software development into _one_ universal computing stack:
+instead of wrangling many disparate languages, tools, libraries, approaches, runtimes, services, and apps, Destack unifies the processes of software production into _one_ universal computing stack:
 
 - [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
 - [**Destack Library**](library/README.md): Rich standard library for most things most software needs.
@@ -35,24 +35,24 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Bridge**](bridge/README.md): Two-way bridges for the Destack universe.
 - [**Destack Platform**](platform/README.md): First-party site, apps, and services (hosting the above).
 
-The structure of Destack is much more of "do-it-yourself software kit" than it is "ready-to-wear software apps".
-We do provide common apps built on top of our library and services, but the entire Destack is optimized for programmers building their _own_ software processes in one correct, optimal, integrated system.
+The structure of Destack is much more "do-it-yourself software" than it is "ready-to-wear software".
+We do provide common apps built on top of our kits, but the entire Destack is optimized for programmers building their _own_ software processes in one correct, optimal, integrated system.
 Aspiritionally, Destack is intended as a meta framework for developing and maintaining custom software stacks using [foundational building blocks](https://caseymuratori.com/blog_0016).
 
 ---
 
 ## Higher-Order Programming
 
-It has been more than 50 years since C introduced higher order programming as we still know it today, yet programming is still astoundingly immature.
+It has been more than [50 years since C introduced higher order programming](https://en.wikipedia.org/wiki/C_(programming_language)#History) as we still know it today, yet programming is still astoundingly immature.
 We routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it's not well integrated with other software.
-Like the proverbial frog, we've just grown accustomed to software being clunky, broken, and slow.
+Like the proverbial frog, we've just grown accustomed to most software being clunky, broken, and slow.
 
-Software "engineering" bears strikingly little resemblence to real engineering, with only the best teams at the best times managing to build correct and optimal outputs using [different, bespoke tools and processes](https://apple.github.io/foundationdb/architecture.html).
-We believe that the inscrutability, inefficiency, instability, and fragmentation of _all_ software must thus be solved by reimagining software processes end-to-end; in the limit, that requires unifying the disparate parts that have remained separate for historical reasons.
+Software "engineering" bears little resemblence to real engineering, with only the best teams at the best times managing to build correct, optimal outputs using [different, bespoke tools and processes](https://apple.github.io/foundationdb/architecture.html).
+We believe that the inscrutability, inefficiency, and instability of _all_ software must thus be solved by reimagining software processes end-to-end; in the limit, that requires unifying the disparate parts that have remained separate for historical reasons.
 
-Software is very useful, we have a lot of it, and there is about to be much, much more - with exciting new possibilities to integrate symbolic and probabilistic computation.
-The more we can express in software, the higher order the abstractions we can program.
-There is great promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a universal software engine is the best way to support that.
+Software is very useful, we have a lot of it, and there is about to be much, much more, with exciting new possibilities to integrate symbolic and probabilistic computation.
+The more we can express in software, the higher order the tasks we can program -
+there is great promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a universal software engine is the best way to support that.
 
 ---
 
@@ -101,7 +101,7 @@ All of it, none of it.
 Mechanically, Destack _is_ a TSX-family language and toolchain with a VM, AOT compiler, Node-like runtime, formatter, linter, rich standard libraries, and a set of common services and apps. 
 Conceptually, Destack is a new kind of thing: a fully integrated computing stack, a software toolkit, the building blocks you need to build your own stack.
 
-2. **Why is Destack built on TypeScript and not some other language (like Python or Rust)?**
+2. **Why is Destack built on TypeScript and not some other language like Python or Rust?**
 Both Python and Rust are great languages, and both fail the "universal language" test for surprisingly symmetrical reasons:
 Python is pathological to optimize, but great for scripting, while Rust is great to optimize, but cumbersome for scripting.
 Both Python and Rust are bad at "UI stuff", and both are structurally difficult to deploy well in a browser, which is the most popular, most universal software platform.
