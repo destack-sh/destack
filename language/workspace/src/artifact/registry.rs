@@ -253,6 +253,23 @@ impl ArtifactRegistry {
         self.get_shared(&self.asts, &module)
     }
 
+    /// Get one DIR artifact for one exact key.
+    pub fn dir(&self, key: &ArtifactKey) -> Option<Arc<ModuleDir>> {
+        match key {
+            ArtifactKey::DirBase { module } => self.dir_base(*module),
+            ArtifactKey::DirPrepared { module, profile } => self.dir_prepared(*module, *profile),
+            ArtifactKey::DirResolved { module, profile } => self.dir_resolved(*module, *profile),
+            ArtifactKey::DirDeclared { module, profile } => self.dir_declared(*module, *profile),
+            ArtifactKey::DirInterface { module, profile } => self.dir_interface(*module, *profile),
+            ArtifactKey::DirAnalyzed { module, profile } => self.dir_analyzed(*module, *profile),
+            ArtifactKey::DirElaborated { module, profile } => {
+                self.dir_elaborated(*module, *profile)
+            }
+            ArtifactKey::DirPatched { module, profile } => self.dir_patched(*module, *profile),
+            _ => None,
+        }
+    }
+
     /// Insert one AST artifact.
     pub fn set_ast(&self, module: ModuleId, ast: impl Into<Arc<ModuleAst>>) -> Arc<ModuleAst> {
         self.set_shared(&self.asts, module, ast)

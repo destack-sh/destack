@@ -310,6 +310,28 @@ impl ModuleDir {
         Arc::make_mut(&mut self.tree)
     }
 
+    /// Return the mutable tree, symbols, and types together for one phase-local working set.
+    pub fn tree_symbols_types_mut(
+        &mut self,
+    ) -> (
+        &mut dir::NodeTree,
+        &mut dir::SymbolTable,
+        &mut dir::TypeTable,
+    ) {
+        let Self {
+            tree,
+            symbols,
+            types,
+            ..
+        } = self;
+
+        (
+            Arc::make_mut(tree),
+            Arc::make_mut(symbols),
+            Arc::make_mut(types),
+        )
+    }
+
     /// Return the mutable symbol table, cloning only when still shared.
     pub fn symbols_mut(&mut self) -> &mut dir::SymbolTable {
         Arc::make_mut(&mut self.symbols)

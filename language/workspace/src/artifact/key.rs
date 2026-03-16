@@ -67,6 +67,46 @@ pub enum ArtifactKey {
 }
 
 impl ArtifactKey {
+    /// Build one base DIR artifact key.
+    pub fn dir_base(module: ModuleId) -> Self {
+        Self::DirBase { module }
+    }
+
+    /// Build one prepared DIR artifact key.
+    pub fn dir_prepared(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirPrepared { module, profile }
+    }
+
+    /// Build one resolved DIR artifact key.
+    pub fn dir_resolved(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirResolved { module, profile }
+    }
+
+    /// Build one declared DIR artifact key.
+    pub fn dir_declared(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirDeclared { module, profile }
+    }
+
+    /// Build one interface DIR artifact key.
+    pub fn dir_interface(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirInterface { module, profile }
+    }
+
+    /// Build one analyzed DIR artifact key.
+    pub fn dir_analyzed(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirAnalyzed { module, profile }
+    }
+
+    /// Build one elaborated DIR artifact key.
+    pub fn dir_elaborated(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirElaborated { module, profile }
+    }
+
+    /// Build one patched DIR artifact key.
+    pub fn dir_patched(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirPatched { module, profile }
+    }
+
     /// Return the artifact family for this key.
     pub fn family(&self) -> ArtifactFamily {
         match self {
@@ -84,6 +124,45 @@ impl ArtifactKey {
             Self::DirPatched { .. } => ArtifactFamily::DirPatched,
             Self::MirBase { .. } => ArtifactFamily::MirBase,
             Self::MirOptimized { .. } => ArtifactFamily::MirOptimized,
+        }
+    }
+
+    /// Return the module id encoded in this key when one exists.
+    pub fn module_id(&self) -> Option<ModuleId> {
+        match self {
+            Self::Ast { module }
+            | Self::DirBase { module }
+            | Self::DirPrepared { module, .. }
+            | Self::DirResolved { module, .. }
+            | Self::DirDeclared { module, .. }
+            | Self::DirInterface { module, .. }
+            | Self::DirAnalyzed { module, .. }
+            | Self::DirElaborated { module, .. }
+            | Self::DirPatched { module, .. }
+            | Self::MirBase { module, .. }
+            | Self::MirOptimized { module, .. } => Some(*module),
+            Self::LanguageEnvironment { .. }
+            | Self::IntrinsicEnvironment { .. }
+            | Self::LibEnvironment { .. } => None,
+        }
+    }
+
+    /// Return the profile id encoded in this key when one exists.
+    pub fn profile_id(&self) -> Option<ProfileId> {
+        match self {
+            Self::LanguageEnvironment { profile }
+            | Self::IntrinsicEnvironment { profile }
+            | Self::LibEnvironment { profile }
+            | Self::DirPrepared { profile, .. }
+            | Self::DirResolved { profile, .. }
+            | Self::DirDeclared { profile, .. }
+            | Self::DirInterface { profile, .. }
+            | Self::DirAnalyzed { profile, .. }
+            | Self::DirElaborated { profile, .. }
+            | Self::DirPatched { profile, .. }
+            | Self::MirBase { profile, .. }
+            | Self::MirOptimized { profile, .. } => Some(*profile),
+            Self::Ast { .. } | Self::DirBase { .. } => None,
         }
     }
 }
