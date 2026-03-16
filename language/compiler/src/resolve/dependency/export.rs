@@ -168,12 +168,10 @@ impl Compiler {
 
         // skip non commonjs modules
         let module = self.program.modules.get(module_id);
-        let module = module.read();
-        if !module.module_format.is_commonjs() {
+        let module = module.as_ref();
+        if !module.module_format().is_commonjs() {
             return Ok(None);
         }
-        drop(module);
-
         // ensure the target module is ready before scanning roots
         self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 

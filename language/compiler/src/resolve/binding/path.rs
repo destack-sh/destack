@@ -7,89 +7,29 @@ use destack_dir::{
     LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId,
     SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
-use destack_workspace::{ModuleDir, ModuleDirData, ModuleSource, ProfileId};
+use destack_workspace::{Module, ModuleDir, ModuleSource, ProfileId};
 
 use crate::resolve::binding::cache::{
     ResolveAbsoluteSymbolCacheKey, ResolveExpressionCache, ResolveScopeIndexCache,
 };
-use crate::{Compiler, ResolveError, ResolveModuleContext, ResolveResult};
-
-/// One resolve-time view over either a transient builder DIR or one immutable artifact snapshot.
-#[derive(Clone, Copy)]
-enum ResolveDirRef<'a> {
-    /// The current transient resolve builder.
-    Current(&'a ModuleDir),
-    /// One immutable artifact snapshot.
-    Snapshot(&'a destack_workspace::ModuleDirData),
-}
-
-impl<'a> ResolveDirRef<'a> {
-    /// Return the module namespace symbol.
-    fn namespace_symbol(self) -> LocalSymbolId {
-        match self {
-            Self::Current(dir) => dir.namespace_symbol,
-            Self::Snapshot(dir) => dir.namespace_symbol,
-        }
-    }
-
-    /// Return the module namespace scope.
-    fn namespace_scope(self) -> LocalScopeId {
-        match self {
-            Self::Current(dir) => dir.namespace_scope,
-            Self::Snapshot(dir) => dir.namespace_scope,
-        }
-    }
-
-    /// Return the global augmentation scope.
-    fn global_augmentation_scope(self) -> LocalScopeId {
-        match self {
-            Self::Current(dir) => dir.global_augmentation_scope,
-            Self::Snapshot(dir) => dir.global_augmentation_scope,
-        }
-    }
-
-    /// Return the immutable node tree when available directly.
-    fn tree(&self) -> Option<&'a NodeTree> {
-        match self {
-            Self::Current(_) => None,
-            Self::Snapshot(dir) => Some(&dir.tree),
-        }
-    }
-
-    /// Resolve one exported symbol from this DIR view.
-    fn resolve_exported_symbol(
-        self,
-        compiler: &Compiler,
-        module: &ResolveModuleContext,
-        profile_id: ProfileId,
-        tree: &'a NodeTree,
-        order: SymbolSpaceOrder,
-        key: StaticKey,
-    ) -> Option<GlobalSymbolId> {
-        match self {
-            Self::Current(dir) => {
-                let exports = dir.exported_symbols.read();
-                compiler.resolve_exported_symbol(module, profile_id, &exports, tree, order, key)
-            }
-            Self::Snapshot(dir) => compiler.resolve_exported_symbol(
-                module,
-                profile_id,
-                &dir.exported_symbols,
-                tree,
-                order,
-                key,
-            ),
-        }
-    }
-}
+use crate::{Compiler, ResolveError, ResolveResult};
 
 /// Shared resolve state for one unresolved path pass.
 #[derive(Clone, Copy)]
 struct ResolveState<'a> {
     /// The module being resolved.
-    module: &'a ResolveModuleContext,
-    /// The active resolve DIR view.
-    dir: ResolveDirRef<'a>,
+    module: &'a Module,
+    /// The current module namespace symbol when resolving inside the active module.
+    current_namespace_symbol: Option<LocalSymbolId>,
+    /// The current module namespace scope when resolving inside the active module.
+    current_namespace_scope: Option<LocalScopeId>,
+    /// The current module global augmentation scope when resolving inside the active module.
+    current_global_augmentation_scope: Option<LocalScopeId>,
+    /// The current module exported symbols when resolving inside the active module.
+    current_exported_symbols:
+        Option<&'a indexmap::IndexMap<(SymbolSpace, StaticKey), destack_dir::Export>>,
+    /// The immutable artifact snapshot for remote module reads.
+    artifact_dir: Option<&'a ModuleDir>,
     /// The active profile id.
     profile_id: ProfileId,
     /// The origin node used for diagnostics.
@@ -98,14 +38,122 @@ struct ResolveState<'a> {
     space_order: SymbolSpaceOrder,
     /// The active symbol table.
     symbols: &'a SymbolTable,
-    /// The active current-module tree when this pass is running inside one mutable builder.
-    tree: Option<&'a NodeTree>,
+    /// The current-module tree when one local resolve pass needs syntax reads.
+    current_tree: Option<&'a NodeTree>,
+}
+
+impl<'a> ResolveState<'a> {
+    /// Build resolve state for one current-module pass.
+    fn current(
+        module: &'a Module,
+        profile_id: ProfileId,
+        node: GlobalNodeIdAny,
+        space_order: SymbolSpaceOrder,
+        symbols: &'a SymbolTable,
+        namespace_symbol: LocalSymbolId,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        exported_symbols: &'a indexmap::IndexMap<(SymbolSpace, StaticKey), destack_dir::Export>,
+        tree: Option<&'a NodeTree>,
+    ) -> Self {
+        Self {
+            module,
+            current_namespace_symbol: Some(namespace_symbol),
+            current_namespace_scope: Some(namespace_scope),
+            current_global_augmentation_scope: Some(global_augmentation_scope),
+            current_exported_symbols: Some(exported_symbols),
+            artifact_dir: None,
+            profile_id,
+            node,
+            space_order,
+            symbols,
+            current_tree: tree,
+        }
+    }
+
+    /// Build resolve state for one artifact-backed pass.
+    fn artifact(
+        module: &'a Module,
+        profile_id: ProfileId,
+        node: GlobalNodeIdAny,
+        space_order: SymbolSpaceOrder,
+        symbols: &'a SymbolTable,
+        dir: &'a ModuleDir,
+    ) -> Self {
+        Self {
+            module,
+            current_namespace_symbol: None,
+            current_namespace_scope: None,
+            current_global_augmentation_scope: None,
+            current_exported_symbols: None,
+            artifact_dir: Some(dir),
+            profile_id,
+            node,
+            space_order,
+            symbols,
+            current_tree: None,
+        }
+    }
+
+    /// Return the current namespace symbol.
+    fn namespace_symbol(self) -> LocalSymbolId {
+        self.current_namespace_symbol
+            .or_else(|| self.artifact_dir.map(|dir| dir.namespace_symbol))
+            .expect("resolve state is missing namespace symbol")
+    }
+
+    /// Return the current namespace scope.
+    fn namespace_scope(self) -> LocalScopeId {
+        self.current_namespace_scope
+            .or_else(|| self.artifact_dir.map(|dir| dir.namespace_scope))
+            .expect("resolve state is missing namespace scope")
+    }
+
+    /// Return the current global augmentation scope.
+    fn global_augmentation_scope(self) -> LocalScopeId {
+        self.current_global_augmentation_scope
+            .or_else(|| self.artifact_dir.map(|dir| dir.global_augmentation_scope))
+            .expect("resolve state is missing global augmentation scope")
+    }
+
+    /// Resolve one exported symbol from the active module state.
+    fn resolve_exported_symbol(
+        self,
+        compiler: &Compiler,
+        module: &Module,
+        tree: &'a NodeTree,
+        order: SymbolSpaceOrder,
+        key: StaticKey,
+    ) -> Option<GlobalSymbolId> {
+        if let Some(exported_symbols) = self.current_exported_symbols {
+            return compiler.resolve_exported_symbol(
+                module,
+                self.profile_id,
+                exported_symbols,
+                tree,
+                order,
+                key,
+            );
+        }
+
+        let dir = self
+            .artifact_dir
+            .expect("artifact-backed resolve read is missing module dir");
+        compiler.resolve_exported_symbol(
+            module,
+            self.profile_id,
+            &dir.exported_symbols,
+            tree,
+            order,
+            key,
+        )
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Return true when one module should receive implicit prelude lookup.
-    fn module_uses_prelude(&self, module: &ResolveModuleContext) -> bool {
+    fn module_uses_prelude(&self, module: &Module) -> bool {
         match module.source {
             ModuleSource::User => true,
             ModuleSource::Builtin(BuiltinLibKind::Std | BuiltinLibKind::Lib) => true,
@@ -115,7 +163,7 @@ impl Compiler {
 
     fn allow_runtime_namespace_member_fallback(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         space_order: SymbolSpaceOrder,
     ) -> bool {
         if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
@@ -132,7 +180,7 @@ impl Compiler {
     fn prelude_resolved_artifact(
         &self,
         profile: ProfileId,
-    ) -> ResolveResult<Option<(ResolveModuleContext, Arc<ModuleDirData>)>> {
+    ) -> ResolveResult<Option<(Arc<Module>, Arc<ModuleDir>)>> {
         // check if prelude injection is enabled
         if !self.options.inject_prelude {
             return Ok(None);
@@ -145,8 +193,10 @@ impl Compiler {
         let prelude_module_id = builtins.prelude_module_id;
 
         // prelude symbols can come from reexports, so require resolved exports
-        let (prelude_context, prelude_dir) =
-            self.resolved_module_artifact(prelude_module_id, profile)?;
+        let prelude_context = self.program.modules.get(prelude_module_id);
+        let prelude_dir = self
+            .require_artifact_dir_resolved(prelude_module_id, profile)
+            .map_err(ResolveError::from)?;
 
         Ok(Some((prelude_context, prelude_dir)))
     }
@@ -166,7 +216,7 @@ impl Compiler {
         }
 
         // only commonjs modules expose these runtime bindings by default
-        if !pass.module.module_format.is_commonjs() {
+        if !pass.module.module_format().is_commonjs() {
             return None;
         }
 
@@ -182,7 +232,7 @@ impl Compiler {
         }
 
         // resolve both roots against the current module namespace symbol
-        let namespace_symbol = pass.dir.namespace_symbol().into_global(pass.module.id);
+        let namespace_symbol = pass.namespace_symbol().into_global(pass.module.id);
 
         // map `module` directly to the runtime module object
         if is_module_root {
@@ -350,7 +400,7 @@ impl Compiler {
                 };
 
                 let module = self.program.modules.get(pass.module.id);
-                let module = module.read();
+                let module = module.as_ref();
                 let resolved_member = self.resolve_static_member_symbol(
                     &module,
                     pass.profile_id,
@@ -375,7 +425,7 @@ impl Compiler {
     /// Build a Member expression chain from a root expression with remaining path segments.
     pub(crate) fn resolve_absolute_symbol(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         dir: &ModuleDir,
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
@@ -385,15 +435,18 @@ impl Compiler {
         symbols: &SymbolTable,
         scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<LocalSymbolId> {
-        let pass = ResolveState {
+        let pass = ResolveState::current(
             module,
-            dir: ResolveDirRef::Current(dir),
             profile_id,
             node,
             space_order,
             symbols,
-            tree: None,
-        };
+            dir.namespace_symbol,
+            dir.namespace_scope,
+            dir.global_augmentation_scope,
+            &dir.exported_symbols,
+            Some(&dir.tree),
+        );
 
         self.resolve_absolute_symbol_from_state(pass, scope, key, scope_cache)
     }
@@ -401,8 +454,8 @@ impl Compiler {
     /// Resolve one absolute symbol from one immutable DIR artifact.
     pub(crate) fn resolve_absolute_symbol_from_artifact(
         &self,
-        module: &ResolveModuleContext,
-        dir: &ModuleDirData,
+        module: &Module,
+        dir: &ModuleDir,
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
@@ -411,15 +464,7 @@ impl Compiler {
         symbols: &SymbolTable,
         scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<LocalSymbolId> {
-        let pass = ResolveState {
-            module,
-            dir: ResolveDirRef::Snapshot(dir),
-            profile_id,
-            node,
-            space_order,
-            symbols,
-            tree: None,
-        };
+        let pass = ResolveState::artifact(module, profile_id, node, space_order, symbols, dir);
 
         self.resolve_absolute_symbol_from_state(pass, scope, key, scope_cache)
     }
@@ -528,7 +573,7 @@ impl Compiler {
             {
                 match self.resolve_relative_symbol_with_ambient_merge_from_state(
                     ResolveState {
-                        tree: Some(&*tree),
+                        current_tree: Some(&*tree),
                         ..pass
                     },
                     owner_id,
@@ -623,8 +668,7 @@ impl Compiler {
         for module_id in selected_lib_modules {
             let is_current_module = module_id == pass.module.id;
             let selected_module = self.program.modules.get(module_id);
-            let selected_module = selected_module.read();
-            let selected_context = ResolveModuleContext::from_module(&selected_module);
+            let selected_context = selected_module.clone();
             let selected_artifact = if is_current_module {
                 None
             } else {
@@ -637,20 +681,19 @@ impl Compiler {
             let selected_namespace_scope = selected_artifact
                 .as_ref()
                 .map(|dir| dir.namespace_scope)
-                .unwrap_or(pass.dir.namespace_scope());
+                .unwrap_or(pass.namespace_scope());
             let selected_global_scope = selected_artifact
                 .as_ref()
                 .map(|dir| dir.global_augmentation_scope)
-                .unwrap_or(pass.dir.global_augmentation_scope());
+                .unwrap_or(pass.global_augmentation_scope());
             let symbols = selected_artifact
                 .as_ref()
-                .map(|dir| &dir.symbols)
-                .unwrap_or(pass.symbols);
+                .map_or(pass.symbols, |dir| &dir.symbols);
             let tree = selected_artifact
                 .as_ref()
-                .map(|dir| &dir.tree)
-                .or(pass.tree)
-                .or(pass.dir.tree())
+                .map(|dir| &*dir.tree)
+                .or(pass.artifact_dir.map(|dir| &*dir.tree))
+                .or(pass.current_tree)
                 .expect("selected lib resolve requires active tree for current module");
 
             // scope declarations
@@ -700,23 +743,23 @@ impl Compiler {
                 };
 
                 let candidate = if let Some(dir) = selected_artifact.as_ref() {
-                    ResolveDirRef::Snapshot(dir).resolve_exported_symbol(
-                        self,
+                    ResolveState::artifact(
                         &selected_context,
                         profile_id,
+                        pass.node,
+                        export_order,
+                        symbols,
+                        dir,
+                    )
+                    .resolve_exported_symbol(
+                        self,
+                        &selected_context,
                         tree,
                         export_order,
                         key,
                     )
                 } else {
-                    pass.dir.resolve_exported_symbol(
-                        self,
-                        &selected_context,
-                        profile_id,
-                        tree,
-                        export_order,
-                        key,
-                    )
+                    pass.resolve_exported_symbol(self, &selected_context, tree, export_order, key)
                 };
                 let Some(candidate) = candidate else {
                     continue;
@@ -797,7 +840,7 @@ impl Compiler {
         else {
             return Err(ResolveError::MissingSymbol {
                 node: pass.node.into_anchored(Some(pass.profile_id)),
-                scope: pass.dir.namespace_scope().into_global(pass.module.id),
+                scope: pass.namespace_scope().into_global(pass.module.id),
                 via_module: None,
                 key: StaticKey::Name(path.segments[0]),
             });
@@ -806,7 +849,11 @@ impl Compiler {
         let (target_context, target_dir) = if prelude_symbol.module_id == prelude_context.id {
             (prelude_context, prelude_dir)
         } else {
-            self.resolved_module_artifact(prelude_symbol.module_id, pass.profile_id)?
+            let target_context = self.program.modules.get(prelude_symbol.module_id);
+            let target_dir = self
+                .require_artifact_dir_resolved(prelude_symbol.module_id, pass.profile_id)
+                .map_err(ResolveError::from)?;
+            (target_context, target_dir)
         };
         let target_symbols = &target_dir.symbols;
 
@@ -816,15 +863,14 @@ impl Compiler {
         if symbol.kind == SymbolKind::Namespace {
             // resolve remaining path within the prelude module's namespace
             let remaining_path = path.slice(1..);
-            let prelude_pass = ResolveState {
-                module: &target_context,
-                dir: ResolveDirRef::Snapshot(target_dir.as_ref()),
-                profile_id: pass.profile_id,
-                node: pass.node,
-                space_order: pass.space_order,
-                symbols: target_symbols,
-                tree: None,
-            };
+            let prelude_pass = ResolveState::artifact(
+                &target_context,
+                pass.profile_id,
+                pass.node,
+                pass.space_order,
+                target_symbols,
+                target_dir.as_ref(),
+            );
             match self.resolve_relative_symbol_with_ambient_merge_from_state(
                 prelude_pass,
                 local_symbol_id,
@@ -905,17 +951,15 @@ impl Compiler {
             } else {
                 Some(self.require_artifact_dir_prepared(symbol_id.module_id, pass.profile_id)?)
             };
-            let ambient_context = if is_current_module {
-                *pass.module
+            let ambient_module_owner = if is_current_module {
+                None
             } else {
-                let ambient_module = self.program.modules.get(symbol_id.module_id);
-                let ambient_module = ambient_module.read();
-                ResolveModuleContext::from_module(&ambient_module)
+                Some(self.program.modules.get(symbol_id.module_id))
             };
+            let ambient_module = ambient_module_owner.as_deref().unwrap_or(pass.module);
             let symbols = ambient_artifact
                 .as_ref()
-                .map(|dir| &dir.symbols)
-                .unwrap_or(pass.symbols);
+                .map_or(pass.symbols, |dir| &dir.symbols);
             let symbol = symbols.get_symbol(symbol_id.local_id);
             let global_this_name = self.program.strings.intern("globalThis");
             let matches_space = symbol.space == SymbolSpace::TypeValue
@@ -932,18 +976,23 @@ impl Compiler {
 
                 if symbol.kind == SymbolKind::Namespace {
                     let remaining_path = path.slice(1..);
-                    let ambient_pass = ResolveState {
-                        module: &ambient_context,
-                        dir: ambient_artifact
-                            .as_ref()
-                            .map(|dir| ResolveDirRef::Snapshot(dir.as_ref()))
-                            .unwrap_or(pass.dir),
-                        profile_id: pass.profile_id,
-                        node: pass.node,
-                        space_order: pass.space_order,
-                        symbols,
-                        tree: ambient_artifact.as_ref().map(|dir| &dir.tree).or(pass.tree),
+                    let mut ambient_pass = if let Some(dir) = ambient_artifact.as_ref() {
+                        ResolveState::artifact(
+                            ambient_module,
+                            pass.profile_id,
+                            pass.node,
+                            pass.space_order,
+                            symbols,
+                            dir.as_ref(),
+                        )
+                    } else {
+                        pass
                     };
+                    ambient_pass.current_tree = ambient_artifact
+                        .as_ref()
+                        .map(|dir| &*dir.tree)
+                        .or(pass.current_tree)
+                        .or(Some(&*tree));
                     match self.resolve_relative_symbol_with_ambient_merge_from_state(
                         ambient_pass,
                         symbol_id.local_id,
@@ -1003,18 +1052,19 @@ impl Compiler {
             }
 
             // read the ambient module's symbols
-            let (ambient_context, ambient_dir) =
-                self.prepared_module_artifact(module_id, pass.profile_id)?;
+            let ambient_context = self.program.modules.get(module_id);
+            let ambient_dir = self
+                .require_artifact_dir_prepared(module_id, pass.profile_id)
+                .map_err(ResolveError::from)?;
             let symbols = &ambient_dir.symbols;
-            let ambient_pass = ResolveState {
-                module: &ambient_context,
-                dir: ResolveDirRef::Snapshot(ambient_dir.as_ref()),
-                profile_id: pass.profile_id,
-                node: pass.node,
-                space_order: pass.space_order,
+            let ambient_pass = ResolveState::artifact(
+                &ambient_context,
+                pass.profile_id,
+                pass.node,
+                pass.space_order,
                 symbols,
-                tree: None,
-            };
+                ambient_dir.as_ref(),
+            );
 
             // find symbol in the ambient module namespace scope first
             let namespace_scope = symbols.get_scope_by_id(ambient_dir.namespace_scope);
@@ -1122,8 +1172,7 @@ impl Compiler {
     /// Resolve one top-level symbol from the selected lib modules for a profile.
     pub(crate) fn resolve_selected_lib_symbol(
         &self,
-        module: &ResolveModuleContext,
-        _dir: &ModuleDir,
+        module: &Module,
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
         key: StaticKey,
@@ -1138,18 +1187,19 @@ impl Compiler {
             }
 
             // read the selected lib module symbols
-            let (selected_context, selected_dir) =
-                self.prepared_module_artifact(module_id, profile_id)?;
+            let selected_context = self.program.modules.get(module_id);
+            let selected_dir = self
+                .require_artifact_dir_prepared(module_id, profile_id)
+                .map_err(ResolveError::from)?;
             let symbols = &selected_dir.symbols;
-            let selected_pass = ResolveState {
-                module: &selected_context,
-                dir: ResolveDirRef::Snapshot(selected_dir.as_ref()),
+            let selected_pass = ResolveState::artifact(
+                &selected_context,
                 profile_id,
                 node,
                 space_order,
                 symbols,
-                tree: None,
-            };
+                selected_dir.as_ref(),
+            );
 
             // prefer the selected lib module namespace scope
             let namespace_scope = symbols.get_scope_by_id(selected_dir.namespace_scope);
@@ -1200,8 +1250,8 @@ impl Compiler {
     /// Resolve one relative symbol from one immutable DIR artifact with ambient merge rules.
     pub(crate) fn resolve_relative_symbol_with_ambient_merge_from_artifact(
         &self,
-        module: &ResolveModuleContext,
-        dir: &ModuleDirData,
+        module: &Module,
+        dir: &ModuleDir,
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
         symbol_id: LocalSymbolId,
@@ -1210,15 +1260,7 @@ impl Compiler {
         symbols: &SymbolTable,
         scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<(GlobalSymbolId, Option<Path>)> {
-        let pass = ResolveState {
-            module,
-            dir: ResolveDirRef::Snapshot(dir),
-            profile_id,
-            node,
-            space_order,
-            symbols,
-            tree: None,
-        };
+        let pass = ResolveState::artifact(module, profile_id, node, space_order, symbols, dir);
 
         self.resolve_relative_symbol_with_ambient_merge_from_state(
             pass,
@@ -1297,18 +1339,19 @@ impl Compiler {
             }
 
             // prepare and read the source module before resolving
-            let (source_context, source_dir) =
-                self.prepared_module_artifact(source_symbol.module_id, pass.profile_id)?;
+            let source_context = self.program.modules.get(source_symbol.module_id);
+            let source_dir = self
+                .require_artifact_dir_prepared(source_symbol.module_id, pass.profile_id)
+                .map_err(ResolveError::from)?;
             let source_symbols = &source_dir.symbols;
-            let source_pass = ResolveState {
-                module: &source_context,
-                dir: ResolveDirRef::Snapshot(source_dir.as_ref()),
-                profile_id: pass.profile_id,
-                node: pass.node,
-                space_order: pass.space_order,
-                symbols: source_symbols,
-                tree: None,
-            };
+            let source_pass = ResolveState::artifact(
+                &source_context,
+                pass.profile_id,
+                pass.node,
+                pass.space_order,
+                source_symbols,
+                source_dir.as_ref(),
+            );
 
             // resolve using the source module symbols table
             match self.resolve_relative_symbol_from_state(
@@ -1432,8 +1475,11 @@ impl Compiler {
     /// Falls back to prelude lookup if local lookup fails and inject_prelude is enabled.
     pub(crate) fn resolve_absolute_path(
         &self,
-        module: &ResolveModuleContext,
-        dir: &ModuleDir,
+        module: &Module,
+        namespace_symbol: LocalSymbolId,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        exported_symbols: &indexmap::IndexMap<(SymbolSpace, StaticKey), destack_dir::Export>,
         expression_id: LocalNodeId<Expression>,
         node: GlobalNodeIdAny,
         profile: ProfileId,
@@ -1445,15 +1491,18 @@ impl Compiler {
         tree: &mut NodeTree,
         cache: &mut ResolveExpressionCache,
     ) -> ResolveResult<Expression> {
-        let pass = ResolveState {
+        let pass = ResolveState::current(
             module,
-            dir: ResolveDirRef::Current(dir),
-            profile_id: profile,
+            profile,
             node,
             space_order,
             symbols,
-            tree: None,
-        };
+            namespace_symbol,
+            namespace_scope,
+            global_augmentation_scope,
+            exported_symbols,
+            None,
+        );
         let first_segment = path.first_segment().expect("path is empty in {node:?}");
         let first_segment_str = self.program.strings.get(first_segment);
         let scope_mark = if module.language_type.is_declaration() {
@@ -1538,6 +1587,10 @@ impl Compiler {
         } else {
             let local_result = {
                 let scope_cache = cache.scope_indices();
+                let pass = ResolveState {
+                    current_tree: Some(&*tree),
+                    ..pass
+                };
                 self.resolve_absolute_symbol_from_state(
                     pass,
                     scope,
@@ -1576,58 +1629,58 @@ impl Compiler {
         }
 
         // resolve inherited associated type names from enclosing declaration heritage
-        if space_order.spaces().contains(&SymbolSpace::Type)
-            && let Some(associated_symbol) = self.resolve_heritage_associated_type_symbol(
+        if space_order.spaces().contains(&SymbolSpace::Type) {
+            if let Some(associated_symbol) = self.resolve_heritage_associated_type_symbol(
                 pass,
                 expression_id,
                 scope,
                 first_segment,
                 tree,
-            )?
-        {
-            if path.segments.len() == 1 {
-                if associated_symbol.module_id == module.id {
-                    return Ok(self.resolve_symbol_to_expression(
+            )? {
+                if path.segments.len() == 1 {
+                    if associated_symbol.module_id == module.id {
+                        return Ok(self.resolve_symbol_to_expression(
+                            module,
+                            associated_symbol.local_id,
+                            path,
+                            static_arguments,
+                            symbols,
+                        ));
+                    }
+
+                    return Ok(Expression::GlobalReference {
+                        path: path.clone(),
+                        static_arguments,
+                        target_symbol: associated_symbol,
+                    });
+                }
+
+                let root_path = Path {
+                    segments: vec![first_segment].into(),
+                };
+                let root_expr = if associated_symbol.module_id == module.id {
+                    self.resolve_symbol_to_expression(
                         module,
                         associated_symbol.local_id,
-                        path,
-                        static_arguments,
+                        &root_path,
+                        None,
                         symbols,
-                    ));
-                }
-
-                return Ok(Expression::GlobalReference {
-                    path: path.clone(),
+                    )
+                } else {
+                    Expression::GlobalReference {
+                        path: root_path,
+                        static_arguments: None,
+                        target_symbol: associated_symbol,
+                    }
+                };
+                return Ok(self.build_member_chain(
+                    expression_id,
+                    root_expr,
+                    &path.slice(1..),
                     static_arguments,
-                    target_symbol: associated_symbol,
-                });
+                    tree,
+                ));
             }
-
-            let root_path = Path {
-                segments: vec![first_segment].into(),
-            };
-            let root_expr = if associated_symbol.module_id == module.id {
-                self.resolve_symbol_to_expression(
-                    module,
-                    associated_symbol.local_id,
-                    &root_path,
-                    None,
-                    symbols,
-                )
-            } else {
-                Expression::GlobalReference {
-                    path: root_path,
-                    static_arguments: None,
-                    target_symbol: associated_symbol,
-                }
-            };
-            return Ok(self.build_member_chain(
-                expression_id,
-                root_expr,
-                &path.slice(1..),
-                static_arguments,
-                tree,
-            ));
         }
 
         // check for builtin types (boolean, int, string, etc.)
@@ -1654,6 +1707,10 @@ impl Compiler {
             let module_mark = LocalScopeMark::end();
             let module_result = {
                 let scope_cache = cache.scope_indices();
+                let pass = ResolveState {
+                    current_tree: Some(&*tree),
+                    ..pass
+                };
                 self.resolve_absolute_symbol_from_state(
                     pass,
                     (module_scope_id, module_scope, module_mark),
@@ -1692,7 +1749,6 @@ impl Compiler {
         // resolve global symbols
         if let Some(expr) = self.resolve_global_path(
             module,
-            dir,
             expression_id,
             node,
             profile,
@@ -1711,7 +1767,7 @@ impl Compiler {
         {
             // canonicalize prelude symbols to avoid alias identity mismatches
             let prelude_symbol =
-                self.resolve_canonical_symbol_chain(profile, node, prelude_symbol, dir)?;
+                self.resolve_canonical_symbol_chain(profile, node, prelude_symbol, pass.symbols)?;
             return self.resolve_prelude_path(
                 pass,
                 expression_id,
@@ -1769,7 +1825,7 @@ impl Compiler {
             let remaining_path = path.slice(1..);
             match self.resolve_relative_symbol_with_ambient_merge_from_state(
                 ResolveState {
-                    tree: Some(&*tree),
+                    current_tree: Some(&*tree),
                     ..pass
                 },
                 local_id,

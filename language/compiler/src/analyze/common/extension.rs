@@ -1,13 +1,27 @@
 use std::collections::HashSet;
 
-use crate::analyze::common::{
-    CanonicalSymbolMode, DirReadBoundary, ModuleTypeView, SymbolTypeView,
-};
+use crate::analyze::common::{CanonicalSymbolMode, ModuleTypeView, SymbolTypeView};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{Extension, ExtensionKind, GlobalSymbolId, Lineage, ModuleTarget, SymbolType};
 use destack_workspace::{ModuleSource, ProfileId};
 
 impl Compiler {
+    /// Query visible extension symbols for a target when dependency state is ready.
+    pub(crate) fn query_visible_extension_symbols_for_target(
+        &self,
+        ctx: SymbolTypeView<'_>,
+        target_symbol: GlobalSymbolId,
+    ) -> Option<Vec<GlobalSymbolId>> {
+        match self.visible_extension_symbols_for_target(ctx, target_symbol) {
+            Ok(symbols) => Some(symbols),
+            Err(AnalyzeError::Yield { .. } | AnalyzeError::UnsatisfiedRequirement { .. }) => None,
+            Err(error) => {
+                self.error(error);
+                None
+            }
+        }
+    }
+
     /// Collect extension symbols visible for a target in the current module.
     pub(crate) fn visible_extension_symbols_for_target(
         &self,
@@ -42,72 +56,52 @@ impl Compiler {
         }
 
         // include local extensions from directly imported modules
-        let imported_module_ids = if let Some(dir) =
-            self.current_active_dir_frame(ctx.module.id, ctx.profile, DirReadBoundary::Declared)
-        {
-            let imported_modules = dir.imported_modules.read();
-            let mut imported_module_ids = HashSet::new();
-            for resolution in imported_modules.values() {
-                for target in [resolution.value, resolution.ty] {
-                    let Some(ModuleTarget::Module(module_id)) = target else {
-                        continue;
-                    };
-                    imported_module_ids.insert(module_id);
-                }
-            }
-            imported_module_ids
-        } else {
-            let declared_dir = self
-                .require_artifact_dir_for_boundary(
-                    ctx.module.id,
-                    ctx.profile,
-                    DirReadBoundary::Declared,
-                )
-                .map_err(AnalyzeError::from)?;
-
-            let mut imported_module_ids = HashSet::new();
-            for resolution in declared_dir.imported_modules.values() {
-                for target in [resolution.value, resolution.ty] {
-                    let Some(ModuleTarget::Module(module_id)) = target else {
-                        continue;
-                    };
-                    imported_module_ids.insert(module_id);
-                }
-            }
-            imported_module_ids
-        };
-        for imported_module_id in imported_module_ids {
-            self.with_module_types_by_id_at_boundary(
+        let declared_dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_resolved(
+                ctx.module.id,
                 ctx.profile,
-                imported_module_id,
-                DirReadBoundary::Declared,
-                |_, imported_types| {
-                    if let Some(extension_ids) =
-                        imported_types.get_extensions_for_target(declaration_target)
-                    {
-                        for extension_id in extension_ids {
-                            let extension = imported_types.get_extension(*extension_id);
-                            if extension.kind != ExtensionKind::Local {
-                                continue;
-                            }
-                            if seen.insert(extension.symbol) {
-                                extensions.push(extension.symbol);
-                            }
-                        }
-                    }
-                },
-            )
+            ))
             .map_err(AnalyzeError::from)?;
+        let mut imported_module_ids = HashSet::new();
+        for resolution in declared_dir.imported_modules.values() {
+            for target in [resolution.value, resolution.ty] {
+                let Some(ModuleTarget::Module(module_id)) = target else {
+                    continue;
+                };
+                imported_module_ids.insert(module_id);
+            }
+        }
+        for imported_module_id in imported_module_ids {
+            let imported_dir = self
+                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                    imported_module_id,
+                    ctx.profile,
+                ))
+                .map_err(AnalyzeError::from)?;
+            if let Some(extension_ids) = imported_dir
+                .types
+                .get_extensions_for_target(declaration_target)
+            {
+                for extension_id in extension_ids {
+                    let extension = imported_dir.types.get_extension(*extension_id);
+                    if extension.kind != ExtensionKind::Local {
+                        continue;
+                    }
+                    if seen.insert(extension.symbol) {
+                        extensions.push(extension.symbol);
+                    }
+                }
+            }
         }
 
         // include inherent extensions from the target module
         let mut include_inherent_extensions = |target_symbol: GlobalSymbolId| -> AnalyzeResult<()> {
-            self.with_module_types_or_local_at_boundary(
+            self.with_module_types_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 target_symbol.module_id,
                 ctx.types,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |_, target_types| {
                     if let Some(extension_ids) =
                         target_types.get_extensions_for_target(target_symbol)
@@ -133,12 +127,12 @@ impl Compiler {
 
         // include inherent extensions for global symbol groups
         let (should_scan_global_group, target_key, target_space) = self
-            .with_module_symbols_or_local_at_boundary(
+            .with_module_symbols_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 declaration_target.module_id,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |target_module, target_symbols| {
                     let symbol_entry = target_symbols.get_symbol(declaration_target.local_id);
                     let should_scan_global_group = if declaration_target.module_id == ctx.module.id
@@ -235,17 +229,15 @@ impl Compiler {
         profile: ProfileId,
         extension_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<Extension>> {
-        self.with_module_types_by_id_at_boundary(
-            profile,
-            extension_symbol.module_id,
-            DirReadBoundary::Declared,
-            |_, types| {
-                let extension_id = types.get_extension_id_for_symbol(extension_symbol)?;
+        let dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                extension_symbol.module_id,
+                profile,
+            ))
+            .map_err(AnalyzeError::from)?;
+        let extension_id = dir.types.get_extension_id_for_symbol(extension_symbol);
 
-                Some(types.get_extension(extension_id).clone())
-            },
-        )
-        .map_err(AnalyzeError::from)
+        Ok(extension_id.map(|extension_id| dir.types.get_extension(extension_id).clone()))
     }
 
     /// Load extension metadata using local ctx when possible.
@@ -262,6 +254,22 @@ impl Compiler {
         }
 
         self.extension_for_symbol(ctx.profile, extension_symbol)
+    }
+
+    /// Query extension metadata using local ctx when dependency state is ready.
+    pub(crate) fn query_extension_for_symbol_in_module(
+        &self,
+        ctx: ModuleTypeView<'_>,
+        extension_symbol: GlobalSymbolId,
+    ) -> Option<Extension> {
+        match self.extension_for_symbol_in_module(ctx, extension_symbol) {
+            Ok(extension) => extension,
+            Err(AnalyzeError::Yield { .. } | AnalyzeError::UnsatisfiedRequirement { .. }) => None,
+            Err(error) => {
+                self.error(error);
+                None
+            }
+        }
     }
 
     /// Load extension lineage data using local ctx when possible.
@@ -281,12 +289,28 @@ impl Compiler {
             return Ok(Some(ctx.types.get_lineage(lineage_id).clone()));
         }
 
-        self.with_module_types_by_id_at_boundary(
-            ctx.profile,
-            extension_symbol.module_id,
-            DirReadBoundary::Declared,
-            |_, owner_types| Some(owner_types.get_lineage(lineage_id).clone()),
-        )
-        .map_err(AnalyzeError::from)
+        let owner_dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                extension_symbol.module_id,
+                ctx.profile,
+            ))
+            .map_err(AnalyzeError::from)?;
+        Ok(Some(owner_dir.types.get_lineage(lineage_id).clone()))
+    }
+
+    /// Query extension lineage data when dependency state is ready.
+    pub(crate) fn query_extension_lineage_for_symbol_in_module(
+        &self,
+        ctx: ModuleTypeView<'_>,
+        extension_symbol: GlobalSymbolId,
+    ) -> Option<Lineage> {
+        match self.extension_lineage_for_symbol_in_module(ctx, extension_symbol) {
+            Ok(lineage) => lineage,
+            Err(AnalyzeError::Yield { .. } | AnalyzeError::UnsatisfiedRequirement { .. }) => None,
+            Err(error) => {
+                self.error(error);
+                None
+            }
+        }
     }
 }

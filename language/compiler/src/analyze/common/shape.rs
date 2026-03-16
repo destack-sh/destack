@@ -1,4 +1,4 @@
-use crate::analyze::common::{DirReadBoundary, TypeContext};
+use crate::analyze::common::TypeContext;
 use crate::analyze::module::GlobalMergeCategory;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
@@ -195,25 +195,30 @@ impl Compiler {
         global_symbol: GlobalSymbolId,
         kind: RemoteMergeShapeKind,
     ) -> AnalyzeResult<Option<ObjectShape>> {
-        let remote_shape_type = self.with_module_tree_symbol_type_view_at_boundary(
-            ctx.module,
-            ctx.profile,
+        self.require_remote_artifact_dir(
+            ctx.module.id,
             global_symbol.module_id,
-            DirReadBoundary::Declared,
-            |view| {
-                // pick the remote shape source type
-                let remote_type_id = match kind {
-                    RemoteMergeShapeKind::Instance => {
-                        view.types.get_instance_type_id(global_symbol)?
-                    }
-                    RemoteMergeShapeKind::Value => view.types.get_value_type_id(global_symbol)?,
-                };
+            ctx.profile,
+            destack_workspace::ArtifactKey::dir_declared,
+        )
+        .map_err(AnalyzeError::from)?;
+        let snapshot = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                global_symbol.module_id,
+                ctx.profile,
+            ))
+            .map_err(AnalyzeError::from)?;
 
-                let remote_type = view.types.get_type(remote_type_id).clone();
-                let remote_snapshot = view.types.clone();
-                Some((remote_type, remote_snapshot))
-            },
-        )?;
+        // pick the remote shape source type
+        let remote_type_id = match kind {
+            RemoteMergeShapeKind::Instance => snapshot.types.get_instance_type_id(global_symbol),
+            RemoteMergeShapeKind::Value => snapshot.types.get_value_type_id(global_symbol),
+        };
+        let remote_shape_type = remote_type_id.map(|remote_type_id| {
+            let remote_type = snapshot.types.get_type(remote_type_id).clone();
+            let remote_snapshot = snapshot.types.clone();
+            (remote_type, remote_snapshot)
+        });
         let Some((remote_type, remote_snapshot)) = remote_shape_type else {
             return Ok(None);
         };
@@ -528,8 +533,16 @@ impl Compiler {
         }
 
         // traverse lineage to collect inherited or embedded fields
-        let lineage = ctx.types.get_lineage_for_symbol(symbol).cloned();
-        if let Some(lineage) = lineage {
+        if let Some(lineage) = self
+            .lineage_for_symbol_or_local_for_artifact(
+                ctx.module,
+                ctx.profile,
+                symbol,
+                ctx.types,
+                destack_workspace::ArtifactKey::dir_declared,
+            )
+            .map_err(AnalyzeError::from)?
+        {
             if let Some(extends) = lineage.extends {
                 self.collect_embed_shape_for_symbol(
                     &mut ctx.reborrow(),

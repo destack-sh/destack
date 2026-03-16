@@ -1,5 +1,6 @@
 use crate::analyze::common::TreeSymbolView;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use crate::import::{SymbolDescriptor, can_merge_declarations};
 use crate::{Compiler, ImportError};
@@ -198,20 +199,29 @@ impl Compiler {
     pub(super) fn build_module_binding_exports(
         &self,
         module: &Module,
-        dir: &ModuleDir,
-        tree: &NodeTree,
-        symbols: &mut SymbolTable,
+        dir: &mut ModuleDir,
         dependency_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
         export_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
         export_assignments_by_scope: &FxHashMap<LocalScopeId, Option<LocalNodeId<DependencyItem>>>,
     ) {
+        let ModuleDir {
+            tree,
+            symbols,
+            module_bindings,
+            module_binding_exports,
+            ..
+        } = dir;
+        let tree = tree.as_ref();
+        let symbols = Arc::make_mut(symbols);
+        let module_binding_exports = Arc::make_mut(module_binding_exports);
+
         // cache the default export name
         let default_name = self.program.strings.intern("default");
 
         // build the binding export table
-        let bindings = dir.module_bindings.read().clone();
+        let bindings = module_bindings.as_ref().clone();
         if bindings.is_empty() {
-            *dir.module_binding_exports.write() = IndexMap::new();
+            *module_binding_exports = IndexMap::new();
             return;
         }
         let mut binding_exports = IndexMap::with_capacity(bindings.len());
@@ -274,7 +284,7 @@ impl Compiler {
         }
 
         // store the binding export table
-        *dir.module_binding_exports.write() = binding_exports;
+        *module_binding_exports = binding_exports;
     }
 
     /// Insert symbol exports for a module binding.
@@ -728,16 +738,25 @@ impl Compiler {
     pub(super) fn build_module_exports(
         &self,
         module: &Module,
-        dir: &ModuleDir,
-        tree: &NodeTree,
-        symbols: &mut SymbolTable,
+        dir: &mut ModuleDir,
         dependency_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
         export_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
         export_assignments_by_scope: &FxHashMap<LocalScopeId, Option<LocalNodeId<DependencyItem>>>,
     ) {
+        let ModuleDir {
+            tree,
+            symbols,
+            roots,
+            exported_symbols,
+            ..
+        } = dir;
+        let tree = tree.as_ref();
+        let symbols = Arc::make_mut(symbols);
+        let exported_symbols = Arc::make_mut(exported_symbols);
+
         // cache the default export name
         let default_name = self.program.strings.intern("default");
-        let is_commonjs_module = module.module_format.is_commonjs();
+        let is_commonjs_module = module.module_format().is_commonjs();
 
         // collect the export assignment if present
         let dependency_items = dependency_items_by_scope
@@ -748,14 +767,13 @@ impl Compiler {
             .get(&dir.namespace_scope)
             .copied()
             .flatten();
-        *dir.export_assignment.write() = export_assignment_item;
+        dir.export_assignment = export_assignment_item;
         let export_items = export_items_by_scope
             .get(&dir.namespace_scope)
             .map(|items| items.as_slice())
             .unwrap_or_default();
 
         // insert exports declared by symbols
-        let mut exports = dir.exported_symbols.write();
         let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
         if export_items.is_empty()
             && namespace_scope.named_symbols.is_empty()
@@ -763,10 +781,10 @@ impl Compiler {
             && !self.module_is_ambient_lib(module)
             && !is_commonjs_module
         {
-            exports.clear();
+            exported_symbols.clear();
             return;
         }
-        exports.reserve(
+        exported_symbols.reserve(
             namespace_scope.named_symbols.len()
                 + namespace_scope.anonymous_symbols.len()
                 + dependency_items.len(),
@@ -774,9 +792,10 @@ impl Compiler {
         self.insert_symbol_exports(
             module.id,
             module.language_type,
-            dir,
+            dir.namespace_scope,
+            dir.default_symbol,
             symbols,
-            &mut exports,
+            exported_symbols,
             export_assignment_item,
             default_name,
         );
@@ -786,10 +805,10 @@ impl Compiler {
             self.insert_dependency_exports(
                 module.id,
                 module.language_type,
-                dir,
+                dir.default_symbol,
                 tree,
                 symbols,
-                &mut exports,
+                exported_symbols,
                 export_assignment_item,
                 default_name,
                 export_items,
@@ -798,7 +817,14 @@ impl Compiler {
 
         // add ambient exports when a builtin lib is global
         if self.module_is_ambient_lib(module) {
-            self.insert_ambient_exports(module.id, dir, symbols, &mut exports);
+            self.insert_ambient_exports(
+                module.id,
+                dir.namespace_scope,
+                dir.default_symbol,
+                dir.export_assignment_symbol,
+                symbols,
+                exported_symbols,
+            );
         }
 
         // synthesize static named exports for commonjs modules
@@ -807,10 +833,10 @@ impl Compiler {
                 module.id,
                 dir.namespace_scope,
                 dir.namespace_symbol.into_global(module.id),
-                &dir.roots,
+                roots,
                 tree,
                 symbols,
-                &mut exports,
+                exported_symbols,
             );
         }
     }
@@ -820,14 +846,15 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         language_type: LanguageType,
-        dir: &ModuleDir,
+        namespace_scope: LocalScopeId,
+        default_symbol: LocalSymbolId,
         symbols: &mut SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export_assignment_item: Option<LocalNodeId<DependencyItem>>,
         default_name: destack_core::StringId,
     ) {
         // collect namespace symbols
-        let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
+        let namespace_scope = symbols.get_scope_by_id(namespace_scope);
         let named_symbol_ids: Vec<LocalSymbolId> = namespace_scope
             .named_symbols
             .iter()
@@ -882,19 +909,16 @@ impl Compiler {
 
             // align the module default symbol with default export declarations
             if export_mode == DependencyMode::Default
-                && symbols
-                    .get_symbol(dir.default_symbol)
-                    .target_symbol
-                    .is_none()
+                && symbols.get_symbol(default_symbol).target_symbol.is_none()
             {
                 symbols
-                    .get_symbol_mut(dir.default_symbol)
+                    .get_symbol_mut(default_symbol)
                     .resolve_to(symbol_id.into_global(module_id));
             }
         }
 
         for symbol_id in anonymous_symbol_ids {
-            if symbol_id == dir.default_symbol {
+            if symbol_id == default_symbol {
                 continue;
             }
             let symbol = symbols.get_symbol(symbol_id);
@@ -943,13 +967,10 @@ impl Compiler {
 
             // align the module default symbol with default export declarations
             if export_mode == DependencyMode::Default
-                && symbols
-                    .get_symbol(dir.default_symbol)
-                    .target_symbol
-                    .is_none()
+                && symbols.get_symbol(default_symbol).target_symbol.is_none()
             {
                 symbols
-                    .get_symbol_mut(dir.default_symbol)
+                    .get_symbol_mut(default_symbol)
                     .resolve_to(symbol_id.into_global(module_id));
             }
         }
@@ -960,7 +981,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         language_type: LanguageType,
-        dir: &ModuleDir,
+        default_symbol: LocalSymbolId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
@@ -1019,7 +1040,7 @@ impl Compiler {
                     if *mode == DependencyMode::Default {
                         let key = StaticKey::Name(default_name);
                         let export =
-                            Export::local(module_id, key, SymbolSpace::Value, dir.default_symbol);
+                            Export::local(module_id, key, SymbolSpace::Value, default_symbol);
                         self.insert_exports(
                             module_id,
                             language_type,
@@ -1064,12 +1085,20 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        dir: &ModuleDir,
-        tree: &NodeTree,
-        symbols: &mut SymbolTable,
+        dir: &mut ModuleDir,
     ) {
+        let ModuleDir {
+            tree,
+            symbols,
+            exported_symbols,
+            ..
+        } = dir;
+        let tree = tree.as_ref();
+        let symbols = Arc::make_mut(symbols);
+        let exported_symbols = Arc::make_mut(exported_symbols);
+
         // resolve export assignment target symbols
-        if let Some(item_id) = *dir.export_assignment.read() {
+        if let Some(item_id) = dir.export_assignment {
             let DependencyItem::Value { mode, value } = tree.get(item_id) else {
                 return;
             };
@@ -1099,16 +1128,15 @@ impl Compiler {
         }
 
         // resolve export targets for reexports
-        let mut exports = dir.exported_symbols.write();
-        self.finalize_export_targets(tree, &mut exports);
+        self.finalize_export_targets(tree, exported_symbols);
         self.normalize_reexport_export_spaces(
             module.id,
             module.language_type,
             tree,
             symbols,
-            &mut exports,
+            exported_symbols,
         );
-        self.finalize_export_dependencies(module, profile, tree, symbols, &mut exports);
+        self.finalize_export_dependencies(module, profile, tree, symbols, exported_symbols);
     }
 
     /// Finalize export targets for module bindings after dependency resolution.
@@ -1116,16 +1144,22 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        dir: &ModuleDir,
-        tree: &NodeTree,
-        symbols: &mut SymbolTable,
+        dir: &mut ModuleDir,
         dependency_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
     ) {
-        // snapshot module bindings for export resolution
-        let bindings = dir.module_bindings.read().clone();
+        let ModuleDir {
+            tree,
+            symbols,
+            module_bindings,
+            module_binding_exports,
+            ..
+        } = dir;
+        let tree = tree.as_ref();
+        let symbols = Arc::make_mut(symbols);
+        let binding_exports = Arc::make_mut(module_binding_exports);
 
-        // load the binding exports table for updates
-        let mut binding_exports = dir.module_binding_exports.write();
+        // snapshot module bindings for export resolution
+        let bindings = module_bindings.as_ref().clone();
 
         // finalize exports for each module binding
         for binding in bindings {
@@ -1414,26 +1448,28 @@ impl Compiler {
     fn insert_ambient_exports(
         &self,
         module_id: ModuleId,
-        dir: &ModuleDir,
+        namespace_scope: LocalScopeId,
+        default_symbol: LocalSymbolId,
+        export_assignment_symbol: LocalSymbolId,
         symbols: &SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
     ) {
         // collect namespace symbols
-        let scope = symbols.get_scope_by_id(dir.namespace_scope);
+        let scope = symbols.get_scope_by_id(namespace_scope);
         let symbol_ids: Vec<LocalSymbolId> = symbols
             .active_named_symbols(scope)
             .map(|(_, symbol_id)| symbol_id)
             .chain(
                 symbols
                     .active_anonymous_symbols(scope)
-                    .filter(|symbol_id| *symbol_id != dir.default_symbol),
+                    .filter(|symbol_id| *symbol_id != default_symbol),
             )
             .collect();
 
         // insert exports without overriding explicit entries
         for symbol_id in symbol_ids {
             // skip synthetic export assignment symbol
-            if symbol_id == dir.export_assignment_symbol {
+            if symbol_id == export_assignment_symbol {
                 continue;
             }
 

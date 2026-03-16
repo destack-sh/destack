@@ -662,9 +662,9 @@ impl Compiler {
                 }
 
                 dir::Expression::Type { value } => {
-                    // read the committed dir snapshot for the active profile
+                    // read the committed dir artifact for the active profile
                     let dir = self
-                        .unbind_dir_snapshot(module.id, context.profile)
+                        .best_unbind_dir(module.id, context.profile)
                         .unwrap_or_else(|| panic!("missing committed dir artifact for module {:?}", module.id));
 
                     let ast_expression_id = self.unbind_type_expression(

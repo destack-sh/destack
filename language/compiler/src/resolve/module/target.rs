@@ -15,7 +15,7 @@ impl Compiler {
     ) -> ResolveResult<GlobalSymbolTableKey> {
         // load module and package metadata
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let package_id = module.package_id;
         let package = self.program.packages.get(package_id);
         let package = package.read();
@@ -65,7 +65,7 @@ impl Compiler {
     ) -> ResolveResult<(GlobalSymbolTableKey, Vec<ModuleId>)> {
         // load module and package metadata
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let package_id = module.package_id;
         let package = self.program.packages.get(package_id);
         let package = package.read();
@@ -110,7 +110,7 @@ impl Compiler {
         profile_id: ProfileId,
     ) -> ResolveResult<Option<(TargetId, Target)>> {
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let package_id = module.package_id;
         let package = self.program.packages.get(package_id);
         let package = package.read();
@@ -135,7 +135,7 @@ impl Compiler {
     ) -> ResolveResult<Option<(TargetId, Target)>> {
         // load package metadata for target inspection
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let package_id = module.package_id;
         let package = self.program.packages.get(package_id);
         let package = package.read();

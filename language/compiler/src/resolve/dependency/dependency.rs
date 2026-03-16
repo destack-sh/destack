@@ -1,18 +1,17 @@
 use destack_ast::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, GlobalNodeIdAny,
-    GlobalSymbolId, LocalNodeId, LocalScopeMark, ModuleTarget, Name, NodeTree, StaticKey,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    GlobalSymbolId, LocalNodeId, LocalScopeMark, ModuleTarget, Name, StaticKey, SymbolSpace,
+    SymbolSpaceOrder,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ModuleDir, ProfileId};
+use destack_workspace::{Module, ModuleDir, ProfileId};
 use rustc_hash::FxHashSet;
 
 use crate::resolve::dependency::cache::{ResolveDependencyItemCache, TargetCacheKey};
 use crate::timing::tags;
 use crate::{
-    Compiler, ImportError, ResolveError, ResolveModuleContext, ResolveResult, SymbolDescriptor,
-    can_merge_declarations,
+    Compiler, ImportError, ResolveError, ResolveResult, SymbolDescriptor, can_merge_declarations,
 };
 
 /// A resolved export symbol with its originating export space.
@@ -111,19 +110,17 @@ impl Compiler {
     /// Resolve a dependency item, optionally using a cache.
     pub(crate) fn resolve_dependency_item(
         &self,
-        module: &ResolveModuleContext,
-        dir: &ModuleDir,
+        module: &Module,
+        dir: &mut ModuleDir,
         profile: ProfileId,
         item_id: LocalNodeId<DependencyItem>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
         mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<DependencyItem>> {
         let module_handle = self.program.modules.get(module.id);
-        let module_handle = module_handle.read();
+        let module_handle = module_handle.as_ref();
 
         // resolve the dependency item based on its mode
-        let item = tree.get(item_id);
+        let item = dir.tree.get(item_id).clone();
         let resolved_item: DependencyItem = match item {
             DependencyItem::UnresolvedRemote {
                 source,
@@ -139,18 +136,18 @@ impl Compiler {
                 let origin_symbol = symbol.map(|symbol| symbol.into_global(module.id));
 
                 // preserve any already-resolved target from the item or parent expression
-                let item_target_module = *target_module;
+                let item_target_module = target_module;
                 let expression_target_module =
-                    self.parent_expression_target_module_for_dependency_item(tree, item_id);
+                    self.parent_expression_target_module_for_dependency_item(&dir.tree, item_id);
                 let loader_override = self.parent_expression_loader_override_for_dependency_item(
-                    module, profile, tree, item_id,
+                    module, profile, &dir.tree, item_id,
                 )?;
 
                 // resolve the target module or binding
                 let remote_target = {
                     let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_IMPORT);
                     if let Some(target_module) = item_target_module
-                        && let Some(remote_target) = target_module.for_kind(*kind)
+                        && let Some(remote_target) = target_module.for_kind(kind)
                     {
                         remote_target
                     } else if let Some(remote_target) = expression_target_module {
@@ -161,9 +158,9 @@ impl Compiler {
                             dir,
                             profile,
                             item_id.into_global_any(module.id),
-                            *source,
-                            *target,
-                            *kind,
+                            source,
+                            target,
+                            kind,
                             loader_override,
                         )?
                         else {
@@ -183,15 +180,15 @@ impl Compiler {
                         module.id,
                         profile,
                         Some(dir),
-                        *target,
-                        self.import_edge_kind(&module_handle, *source),
+                        target,
+                        self.import_edge_kind(&module_handle, source),
                         None,
                     )
                     .unwrap_or_else(|| destack_dir::ModuleResolution::from_target(remote_target))
                 };
                 let remote_symbol_target = self.select_symbol_target_for_dependency(
                     &module_handle,
-                    *kind,
+                    kind,
                     target_module,
                     remote_target,
                 );
@@ -215,10 +212,10 @@ impl Compiler {
                                 remote_symbol_target,
                                 None,
                                 profile,
-                                *kind,
+                                kind,
                                 origin_symbol,
                                 key,
-                                Some(*target),
+                                Some(target),
                                 cache.as_deref_mut(),
                             )?
                         };
@@ -235,15 +232,15 @@ impl Compiler {
                                 item_id.into_global_any(module.id),
                                 remote_symbol_target,
                                 self.fallback_target_for_default_dependency(
-                                    *kind,
+                                    kind,
                                     remote_symbol_target,
                                     remote_target,
                                 ),
                                 profile,
-                                *kind,
+                                kind,
                                 origin_symbol,
                                 key,
-                                Some(*target),
+                                Some(target),
                                 cache.as_deref_mut(),
                             )
                         };
@@ -254,8 +251,8 @@ impl Compiler {
                             Err(error @ ResolveError::MissingSymbol { .. }) => {
                                 if !self.default_import_uses_namespace_fallback(
                                     &module_handle,
-                                    *source,
-                                    *kind,
+                                    source,
+                                    kind,
                                     profile,
                                     remote_target,
                                 )? {
@@ -270,7 +267,7 @@ impl Compiler {
                                     remote_target,
                                     profile,
                                 )?;
-                                (symbol, *kind)
+                                (symbol, kind)
                             }
                             Err(error) => return Err(error),
                         };
@@ -280,13 +277,13 @@ impl Compiler {
                         let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_NAMESPACE);
 
                         // prefer export assignment for import equals
-                        if *source == DependencySource::ImportEquals {
+                        if source == DependencySource::ImportEquals {
                             if let Some(symbol) = self.resolve_export_assignment_symbol(
                                 module.id,
                                 remote_symbol_target,
                                 profile,
                             )? {
-                                (symbol, *kind)
+                                (symbol, kind)
                             } else {
                                 let symbol = self.resolve_namespace_symbol(
                                     module.id,
@@ -294,7 +291,7 @@ impl Compiler {
                                     remote_symbol_target,
                                     profile,
                                 )?;
-                                (symbol, *kind)
+                                (symbol, kind)
                             }
                         } else {
                             // check for namespace exports without alias
@@ -302,12 +299,12 @@ impl Compiler {
                                 && matches!(source, DependencySource::ExportStatement)
                             {
                                 // register `export * from` in module scope
-                                let (item_scope_id, _) = tree.get_scope(item_id);
+                                let (item_scope_id, _) = dir.tree.get_scope(item_id);
                                 if item_scope_id == dir.namespace_scope {
-                                    dir.namespace_exports.write().push(
+                                    dir.namespace_exports_mut().push(
                                         destack_dir::NamespaceExport {
                                             module_id: remote_symbol_target,
-                                            kind: *kind,
+                                            kind,
                                             item: item_id,
                                         },
                                     );
@@ -320,19 +317,19 @@ impl Compiler {
                                 remote_symbol_target,
                                 profile,
                             )?;
-                            (symbol, *kind)
+                            (symbol, kind)
                         }
                     }
                 };
 
                 DependencyItem::Remote {
-                    mode: *mode,
+                    mode,
                     kind: resolved_kind,
-                    name: *name,
-                    alias: *alias,
-                    target: *target,
+                    name,
+                    alias,
+                    target,
                     target_module,
-                    symbol: *symbol,
+                    symbol,
                     target_symbol,
                 }
             }
@@ -349,15 +346,15 @@ impl Compiler {
                 };
 
                 // resolve the local symbol in scope
-                let (scope_id, scope, mark) = symbols.get_scope(item_id, tree);
-                let is_export_item = self.export_item_parent(tree, item_id).is_some();
+                let (scope_id, scope, mark) = dir.symbols.get_scope(item_id, &dir.tree);
+                let is_export_item = self.export_item_parent(&dir.tree, item_id).is_some();
                 let mark = if is_export_item {
                     // export specifiers can reference later declarations
                     LocalScopeMark::end()
                 } else {
                     mark
                 };
-                let space_order = self.export_spaces_for_kind(*kind);
+                let space_order = self.export_spaces_for_kind(kind);
                 let key = StaticKey::Name(name_id.string());
                 let node = item_id.into_global_any(module.id);
 
@@ -370,7 +367,7 @@ impl Compiler {
                     (scope_id, scope, mark),
                     key,
                     space_order,
-                    symbols,
+                    &dir.symbols,
                     cache.as_mut().map(|cache| cache.scope_indices()),
                 );
 
@@ -380,7 +377,7 @@ impl Compiler {
                     Ok(symbol_id) => Ok(symbol_id),
                     Err(ResolveError::MissingSymbol { .. }) => {
                         let global_scope_id = dir.global_augmentation_scope;
-                        let global_scope = symbols.get_scope_by_id(global_scope_id);
+                        let global_scope = dir.symbols.get_scope_by_id(global_scope_id);
                         self.resolve_absolute_symbol(
                             module,
                             dir,
@@ -389,7 +386,7 @@ impl Compiler {
                             (global_scope_id, global_scope, LocalScopeMark::end()),
                             key,
                             space_order,
-                            symbols,
+                            &dir.symbols,
                             cache.as_mut().map(|cache| cache.scope_indices()),
                         )
                     }
@@ -409,11 +406,11 @@ impl Compiler {
                 };
 
                 DependencyItem::Local {
-                    mode: *mode,
-                    kind: *kind,
-                    name: *name,
-                    alias: *alias,
-                    symbol: *symbol,
+                    mode,
+                    kind,
+                    name,
+                    alias,
+                    symbol,
                     target_symbol: target_symbol_id.into_global(module.id),
                 }
             }
@@ -438,7 +435,7 @@ impl Compiler {
         name: Option<StaticKey>,
     ) {
         let left_module = self.program.modules.get(left.module_id);
-        let left_module = left_module.read();
+        let left_module = left_module.as_ref();
         let left_dir = self.artifact_dir_base(left.module_id).unwrap_or_else(|| {
             panic!(
                 "missing committed base dir artifact for {:?}",

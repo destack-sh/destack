@@ -1,27 +1,16 @@
 use std::sync::Arc;
 
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, ModuleDirData, ProfileId};
+use destack_workspace::{ArtifactKey, ModuleDir, ProfileId};
 
 use crate::{
     BuildKey, BuildRequirement, BuildRequirementError, BuildRequirementSet, Compiler,
     DiagnosticAnchor,
 };
 
-/// The artifact boundary required for one cross-module analyze read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum DirReadBoundary {
-    /// The declared module surface.
-    Declared,
-    /// The published interface surface.
-    Interface,
-    /// The fully analyzed module state.
-    Analyzed,
-}
-
 impl Compiler {
-    /// Read one committed base DIR snapshot when available.
-    pub(crate) fn artifact_dir_base(&self, module_id: ModuleId) -> Option<Arc<ModuleDirData>> {
+    /// Read one committed base DIR artifact when available.
+    pub(crate) fn artifact_dir_base(&self, module_id: ModuleId) -> Option<Arc<ModuleDir>> {
         self.program.artifacts.dir_base(module_id)
     }
 
@@ -40,54 +29,57 @@ impl Compiler {
         BuildRequirementSet::one(requirement)
     }
 
-    /// Read one committed DIR snapshot for one required boundary.
-    pub(crate) fn require_artifact_dir_for_boundary(
+    /// Read one committed DIR artifact for one exact key.
+    pub(crate) fn require_artifact_dir(
         &self,
-        module_id: ModuleId,
-        profile: ProfileId,
-        boundary: DirReadBoundary,
-    ) -> Result<Arc<ModuleDirData>, BuildRequirementError> {
-        self.require_module_boundary_for_read(module_id, profile, boundary)?;
-
-        let snapshot = match boundary {
-            DirReadBoundary::Declared => self.program.artifacts.dir_declared(module_id, profile),
-            DirReadBoundary::Interface => self.program.artifacts.dir_interface(module_id, profile),
-            DirReadBoundary::Analyzed => self.program.artifacts.dir_analyzed(module_id, profile),
-        };
-
-        let Some(snapshot) = snapshot else {
-            let key = match boundary {
-                DirReadBoundary::Declared => ArtifactKey::DirDeclared {
-                    module: module_id,
-                    profile,
-                },
-                DirReadBoundary::Interface => ArtifactKey::DirInterface {
-                    module: module_id,
-                    profile,
-                },
-                DirReadBoundary::Analyzed => ArtifactKey::DirAnalyzed {
-                    module: module_id,
-                    profile,
-                },
-            };
-
+        key: ArtifactKey,
+    ) -> Result<Arc<ModuleDir>, BuildRequirementError> {
+        let Some(module_id) = key.module_id() else {
             return Err(BuildRequirementError::Failed {
                 requirement: self.missing_artifact_requirement(key),
             });
         };
 
-        Ok(snapshot)
+        let Some(profile) = key.profile_id() else {
+            return Err(BuildRequirementError::Failed {
+                requirement: self.missing_artifact_requirement(key),
+            });
+        };
+
+        match &key {
+            ArtifactKey::DirResolved { .. } => self.require_dir_resolved(module_id, profile)?,
+            ArtifactKey::DirDeclared { .. } => self.require_dir_declared(module_id, profile)?,
+            ArtifactKey::DirInterface { .. } => self.require_dir_interface(module_id, profile)?,
+            ArtifactKey::DirAnalyzed { .. } => self.require_dir_analyzed(module_id, profile)?,
+            ArtifactKey::DirElaborated { .. } => self.require_dir_elaborated(module_id, profile)?,
+            ArtifactKey::DirPatched { .. } => self.require_dir_patched(module_id, profile)?,
+            ArtifactKey::DirPrepared { .. } => self.require_dir_prepared(module_id, profile)?,
+            ArtifactKey::DirBase { .. } => {}
+            _ => {
+                return Err(BuildRequirementError::Failed {
+                    requirement: self.missing_artifact_requirement(key),
+                });
+            }
+        }
+
+        let Some(dir) = self.program.artifacts.dir(&key) else {
+            return Err(BuildRequirementError::Failed {
+                requirement: self.missing_artifact_requirement(key),
+            });
+        };
+
+        Ok(dir)
     }
 
-    /// Read one committed elaborated DIR snapshot.
+    /// Read one committed elaborated DIR artifact.
     pub(crate) fn require_artifact_dir_elaborated(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-    ) -> Result<Arc<ModuleDirData>, BuildRequirementError> {
+    ) -> Result<Arc<ModuleDir>, BuildRequirementError> {
         self.require_dir_elaborated(module_id, profile)?;
 
-        let Some(snapshot) = self.program.artifacts.dir_elaborated(module_id, profile) else {
+        let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) else {
             return Err(BuildRequirementError::Failed {
                 requirement: self.missing_artifact_requirement(ArtifactKey::DirElaborated {
                     module: module_id,
@@ -96,60 +88,38 @@ impl Compiler {
             });
         };
 
-        Ok(snapshot)
+        Ok(dir)
     }
 
-    /// Read one committed base DIR snapshot.
+    /// Read one committed base DIR artifact.
     pub(crate) fn require_artifact_dir_base(
         &self,
         module_id: ModuleId,
-    ) -> Result<Arc<ModuleDirData>, BuildRequirementError> {
-        let Some(snapshot) = self.artifact_dir_base(module_id) else {
+    ) -> Result<Arc<ModuleDir>, BuildRequirementError> {
+        let Some(dir) = self.artifact_dir_base(module_id) else {
             return Err(BuildRequirementError::Failed {
                 requirement: self
                     .missing_artifact_requirement(ArtifactKey::DirBase { module: module_id }),
             });
         };
 
-        Ok(snapshot)
+        Ok(dir)
     }
 
-    /// Require one artifact boundary when a read targets a different module id.
-    pub(crate) fn require_boundary_for_remote_module_read(
+    /// Require one remote DIR artifact when a read targets a different module id.
+    pub(crate) fn require_remote_artifact_dir(
         &self,
         local_module_id: ModuleId,
         target_module_id: ModuleId,
         profile: ProfileId,
-        boundary: DirReadBoundary,
+        artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
     ) -> Result<(), BuildRequirementError> {
-        // local reads do not need boundary gating
+        // local reads do not need committed artifact gating
         if local_module_id == target_module_id {
             return Ok(());
         }
 
-        self.require_module_boundary_for_read(target_module_id, profile, boundary)
-    }
-
-    /// Ensure one module satisfies the artifact boundary for one cross-module read.
-    pub(crate) fn require_module_boundary_for_read(
-        &self,
-        module_id: ModuleId,
-        profile: ProfileId,
-        boundary: DirReadBoundary,
-    ) -> Result<(), BuildRequirementError> {
-        // current-build active frames already satisfy local in-flight reads
-        if self
-            .current_active_dir_frame(module_id, profile, boundary)
-            .is_some()
-        {
-            return Ok(());
-        }
-
-        // gate reads by artifact boundary
-        match boundary {
-            DirReadBoundary::Declared => self.require_dir_declared(module_id, profile),
-            DirReadBoundary::Interface => self.require_dir_interface(module_id, profile),
-            DirReadBoundary::Analyzed => self.require_dir_analyzed(module_id, profile),
-        }
+        let key = artifact_key(target_module_id, profile);
+        self.require_artifact_dir(key).map(|_| ())
     }
 }

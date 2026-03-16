@@ -1,15 +1,15 @@
+use destack_workspace::{Module, ModuleDir, ProfileId};
+
 use crate::resolve::binding::cache::ResolveExpressionCache;
 use crate::resolve::dependency::cache::ResolveDependencyItemCache;
 use crate::timing::tags;
-use crate::{
-    BuildRequirementCollector, Compiler, ResolveError, ResolveModuleContext, ResolveResult,
-};
+use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, Expression, GlobalSymbolId, LocalNodeId,
     LocalScopeId, NodeTree, SymbolSpace,
 };
-use destack_workspace::{ModuleDir, ProfileId};
 use rustc_hash::FxHashMap;
+use std::sync::Arc;
 
 /// Collect node ids needed for resolve passes.
 struct ResolveModuleWorklist {
@@ -89,9 +89,9 @@ impl Compiler {
     /// Resolve expressions, dependencies, and declarations (phase 1).
     pub(crate) fn resolve_module_direct(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &mut ModuleDir,
     ) -> ResolveResult<()> {
         let _timing = self.timing_scope(tags::RESOLVE_MODULE_DIRECT);
         if !self.is_code_module(module.id) {
@@ -107,10 +107,7 @@ impl Compiler {
         let skip_builtin_global_symbol_table = module.language_type.is_declaration()
             && module.is_builtin()
             && !self.options.validate_builtin_libs;
-        let worklist = {
-            let tree = dir.tree.read();
-            ResolveModuleWorklist::from_tree(&tree)
-        };
+        let worklist = ResolveModuleWorklist::from_tree(&dir.tree);
         let mut expression_cache = ResolveExpressionCache::default();
 
         {
@@ -119,11 +116,13 @@ impl Compiler {
             // resolve module dependency expressions
             {
                 if !skip_builtin_declaration_expressions {
-                    let mut tree = dir.tree.write();
-                    let symbols = dir.symbols.read();
                     let mut collector = BuildRequirementCollector::new();
                     for expression_id in &worklist.dependency_expression_ids {
-                        if !self.is_node_active(&tree, &symbols, (*expression_id).into_any()) {
+                        if !self.is_node_active(
+                            &dir.tree,
+                            &dir.symbols,
+                            (*expression_id).into_any(),
+                        ) {
                             continue;
                         }
                         self.collect(
@@ -133,8 +132,6 @@ impl Compiler {
                                 dir,
                                 profile,
                                 *expression_id,
-                                &mut tree,
-                                &symbols,
                                 &mut expression_cache,
                             ),
                         );
@@ -159,11 +156,9 @@ impl Compiler {
 
             // resolve expressions
             if !skip_builtin_declaration_expressions {
-                let mut tree = dir.tree.write();
-                let symbols = dir.symbols.read();
                 let mut collector = BuildRequirementCollector::new();
                 for expression_id in &worklist.resolve_expression_ids {
-                    if !self.is_node_active(&tree, &symbols, (*expression_id).into_any()) {
+                    if !self.is_node_active(&dir.tree, &dir.symbols, (*expression_id).into_any()) {
                         continue;
                     }
 
@@ -174,8 +169,6 @@ impl Compiler {
                             dir,
                             profile,
                             *expression_id,
-                            &mut tree,
-                            &symbols,
                             &mut expression_cache,
                         ),
                     );
@@ -191,24 +184,15 @@ impl Compiler {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_DECLARATIONS);
 
             // resolve declarations
-            let mut tree = dir.tree.write();
-            let mut symbols = dir.symbols.write();
             let mut collector = BuildRequirementCollector::new();
             for declaration_id in &worklist.declaration_ids {
-                if !self.is_node_active(&tree, &symbols, (*declaration_id).into_any()) {
+                if !self.is_node_active(&dir.tree, &dir.symbols, (*declaration_id).into_any()) {
                     continue;
                 }
 
                 self.collect(
                     &mut collector,
-                    self.resolve_declaration(
-                        &module,
-                        dir,
-                        profile,
-                        *declaration_id,
-                        &mut tree,
-                        &mut symbols,
-                    ),
+                    self.resolve_declaration(&module, dir, profile, *declaration_id),
                 );
             }
 
@@ -220,18 +204,14 @@ impl Compiler {
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_EXPORTS);
             let module_handle = self.program.modules.get(module.id);
-            let module_handle = module_handle.read();
+            let module_handle = module_handle.as_ref();
 
             // finalize export targets (after dependency resolution)
-            let tree = dir.tree.read();
-            let mut symbols = dir.symbols.write();
-            self.finalize_module_exports(&module_handle, profile, dir, &tree, &mut symbols);
+            self.finalize_module_exports(&module_handle, profile, dir);
             self.finalize_module_binding_exports(
                 &module_handle,
                 profile,
                 dir,
-                &tree,
-                &mut symbols,
                 &worklist.dependency_items_by_scope,
             );
         }
@@ -242,8 +222,8 @@ impl Compiler {
     /// Resolve dependency items (imports/reexports) for a module.
     pub(crate) fn resolve_dependency_items(
         &self,
-        module: &ResolveModuleContext,
-        dir: &ModuleDir,
+        module: &Module,
+        dir: &mut ModuleDir,
         profile: ProfileId,
     ) -> ResolveResult<()> {
         let mut cache = ResolveDependencyItemCache::default();
@@ -253,8 +233,8 @@ impl Compiler {
     /// Resolve dependency items using a shared cache across modules.
     pub(crate) fn resolve_dependency_items_with_cache(
         &self,
-        module: &ResolveModuleContext,
-        dir: &ModuleDir,
+        module: &Module,
+        dir: &mut ModuleDir,
         profile: ProfileId,
         cache: &mut ResolveDependencyItemCache,
     ) -> ResolveResult<()> {
@@ -262,28 +242,14 @@ impl Compiler {
         cache.ensure_module_exports(module.id, dir);
 
         // collect dependency item ids once
-        let item_ids = {
-            let tree = dir.tree.read();
-            cache.dependency_item_ids_for(module.id, &tree)
-        };
+        let item_ids = cache.dependency_item_ids_for(module.id, &dir.tree);
 
         // resolve dependency items using read locks
         let mut collector = BuildRequirementCollector::new();
         let mut resolved_items = Vec::new();
         for item_id in item_ids {
-            let resolved_item = {
-                let tree = dir.tree.read();
-                let symbols = dir.symbols.read();
-                self.resolve_dependency_item(
-                    &module,
-                    dir,
-                    profile,
-                    item_id,
-                    &tree,
-                    &symbols,
-                    Some(cache),
-                )
-            };
+            let resolved_item =
+                self.resolve_dependency_item(&module, dir, profile, item_id, Some(cache));
 
             // collect yields and return on non yield errors
             let resolved_item = match resolved_item {
@@ -316,8 +282,10 @@ impl Compiler {
 
         // apply resolved dependency updates
         if !resolved_items.is_empty() {
-            let mut tree = dir.tree.write();
-            let mut symbols = dir.symbols.write();
+            let ModuleDir { tree, symbols, .. } = dir;
+            let tree = Arc::make_mut(tree);
+            let symbols = Arc::make_mut(symbols);
+
             for (item_id, resolved_item, target_info) in resolved_items {
                 // align resolved target symbols with their declared types
                 let mut resolved_item = resolved_item;

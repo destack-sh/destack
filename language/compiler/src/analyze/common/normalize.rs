@@ -6,12 +6,9 @@ use destack_dir::{
     TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable, TypeUnaryOperator,
     WellKnownSymbol,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{ArtifactKey, Module, ProfileId};
 
-use super::{
-    CanonicalSymbolMode, DirReadBoundary, ModuleSymbolView, RelationMode, TypeContext,
-    TypeRewriteCache,
-};
+use super::{CanonicalSymbolMode, ModuleSymbolView, RelationMode, TypeContext, TypeRewriteCache};
 use crate::timing::tags;
 use crate::{AnalyzeError, Compiler};
 
@@ -25,22 +22,50 @@ impl Compiler {
         view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
     ) -> GlobalSymbolId {
-        self.with_module_symbols_base_at_boundary(
-            view.module,
-            view.profile,
-            symbol.module_id,
-            DirReadBoundary::Declared,
-            |owner_module, symbols| {
-                let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
-                self.normalize_reference_symbol_id_with_symbols(
-                    view,
-                    owner_module,
-                    symbol,
-                    symbols,
-                    symbol_entry,
-                )
-            },
+        self.normalize_reference_symbol_id_for_artifact(
+            view,
+            symbol,
+            destack_workspace::ArtifactKey::dir_declared,
         )
+    }
+
+    /// Normalize a reference symbol id to a type space symbol when possible from one exact DIR artifact family.
+    pub(crate) fn normalize_reference_symbol_id_for_artifact(
+        &self,
+        view: ModuleSymbolView<'_>,
+        symbol: GlobalSymbolId,
+        artifact_key: fn(destack_source::ModuleId, ProfileId) -> ArtifactKey,
+    ) -> GlobalSymbolId {
+        self.require_remote_artifact_dir(
+            view.module.id,
+            symbol.module_id,
+            view.profile,
+            artifact_key,
+        )
+        .and_then(|()| {
+            let base_dir = self.require_artifact_dir_base(symbol.module_id)?;
+            let owner_module_handle = if symbol.module_id == view.module.id {
+                None
+            } else {
+                Some(self.program.modules.get(symbol.module_id))
+            };
+            let owner_module = if symbol.module_id == view.module.id {
+                view.module
+            } else {
+                owner_module_handle
+                    .as_deref()
+                    .expect("missing owner module")
+            };
+            let symbol_entry = base_dir.symbols.get_symbol(symbol.local_id).clone();
+
+            Ok(self.normalize_reference_symbol_id_with_symbols(
+                view,
+                owner_module,
+                symbol,
+                &base_dir.symbols,
+                symbol_entry,
+            ))
+        })
         .unwrap_or(symbol)
     }
 
@@ -1117,43 +1142,9 @@ impl Compiler {
             return Some(entry.normalized_type);
         }
 
-        // report recursion when already resolving the same alias
-        if ctx
-            .types
-            .is_normalization_alias_in_progress(symbol, mode, relation_key, &arguments)
-        {
-            let node = source_id
-                .into_global(ctx.module.id)
-                .into_anchored(Some(ctx.profile));
-            self.error(AnalyzeError::RecursiveTypeInstantiation { node });
-            let error_id = ctx.types.insert_type_from_any(Type::Error, source_id);
-            return Some(error_id);
-        }
-
-        // stop non-converging alias expansion before it blows the stack
-        if ctx.types.normalization_alias_in_progress_depth() >= MAX_ALIAS_NORMALIZATION_DEPTH {
-            let node = source_id
-                .into_global(ctx.module.id)
-                .into_anchored(Some(ctx.profile));
-            self.error(AnalyzeError::RecursiveTypeInstantiation { node });
-            let error_id = ctx.types.insert_type_from_any(Type::Error, source_id);
-            return Some(error_id);
-        }
-
-        ctx.types.mark_normalization_alias_in_progress(
-            symbol,
-            mode,
-            relation_key,
-            arguments.clone(),
-        );
         ctx.types.push_normalization_dependency_scope();
 
         let normalized = {
-            // ensure remote declarations are ready before reading instance types
-            if symbol.module_id != ctx.module.id {
-                let _ = self.require_dir_declared(symbol.module_id, ctx.profile);
-            }
-
             // resolve the instance type, including alias targets and remote imports
             let instance_type_id =
                 self.instance_type_id_for_normalization(&mut ctx.reborrow(), symbol, source_id)?;
@@ -1176,6 +1167,36 @@ impl Compiler {
                 source_id,
                 symbol,
                 &arguments,
+            );
+
+            // report recursion only for actual alias expansion
+            if ctx
+                .types
+                .is_normalization_alias_in_progress(symbol, mode, relation_key, &arguments)
+            {
+                let node = source_id
+                    .into_global(ctx.module.id)
+                    .into_anchored(Some(ctx.profile));
+                self.error(AnalyzeError::RecursiveTypeInstantiation { node });
+                let error_id = ctx.types.insert_type_from_any(Type::Error, source_id);
+                return Some(error_id);
+            }
+
+            // stop non-converging alias expansion before it blows the stack
+            if ctx.types.normalization_alias_in_progress_depth() >= MAX_ALIAS_NORMALIZATION_DEPTH {
+                let node = source_id
+                    .into_global(ctx.module.id)
+                    .into_anchored(Some(ctx.profile));
+                self.error(AnalyzeError::RecursiveTypeInstantiation { node });
+                let error_id = ctx.types.insert_type_from_any(Type::Error, source_id);
+                return Some(error_id);
+            }
+
+            ctx.types.mark_normalization_alias_in_progress(
+                symbol,
+                mode,
+                relation_key,
+                arguments.clone(),
             );
 
             if resolved_arguments.is_empty() {
@@ -1291,6 +1312,35 @@ impl Compiler {
             return type_id;
         }
 
+        // resolve structured local alias targets before applying substitutions
+        if let Err(error) = self.resolve_declared_type(&mut ctx.reborrow(), type_id) {
+            self.error(error);
+        }
+        if !matches!(ctx.types.get_type(type_id), Type::Unevaluated(_)) {
+            let mut mapped_type_id = type_id;
+            let mut substitution_cache = HashMap::new();
+            mapped_type_id = self.substitute_static_parameters(
+                mapped_type_id,
+                substitutions,
+                ctx.types,
+                &mut substitution_cache,
+            );
+
+            let mut materialize_cache = TypeRewriteCache::new();
+            mapped_type_id = self.materialize_static_arguments_in_type(
+                &mut ctx.reborrow(),
+                mapped_type_id,
+                &mut materialize_cache,
+            );
+
+            return self.normalize_type_with_relation(
+                &mut ctx.reborrow(),
+                mapped_type_id,
+                NormalizationMode::Assign,
+                RelationMode::STATIC_EVAL,
+            );
+        }
+
         let Ok(Some(static_value)) = self.evaluate_static_expression_value_with_substitutions(
             &mut ctx.reborrow(),
             expression_id,
@@ -1350,27 +1400,33 @@ impl Compiler {
                     {
                         self.error(error);
                     }
-                } else if let Err(error) = self.with_module_tree_symbol_view_at_boundary(
-                    ctx.module,
-                    ctx.profile,
-                    symbol.module_id,
-                    DirReadBoundary::Declared,
-                    |view| {
-                        let options = self.analyze_context_options_for_module(view.module.id);
-                        let mut ctx = ctx.reborrow_for_module_with_options(
-                            view.module,
-                            &options,
-                            view.tree,
-                            view.symbols,
-                        );
-                        if let Err(error) =
-                            self.resolve_declared_type(&mut ctx.reborrow(), alias_target_id)
-                        {
-                            self.error(error);
+                } else {
+                    let dir = self.require_artifact_dir(
+                        destack_workspace::ArtifactKey::dir_declared(symbol.module_id, ctx.profile),
+                    );
+                    match dir {
+                        Ok(dir) => {
+                            let module = self.program.modules.get(symbol.module_id);
+                            let module = module.as_ref();
+                            let options = self.analyze_context_options_for_module(module.id);
+                            let mut ctx = TypeContext::new(
+                                module,
+                                ctx.profile,
+                                &options,
+                                &dir.tree,
+                                &dir.symbols,
+                                ctx.types,
+                            );
+                            if let Err(error) =
+                                self.resolve_declared_type(&mut ctx.reborrow(), alias_target_id)
+                            {
+                                self.error(error);
+                            }
                         }
-                    },
-                ) {
-                    self.error(AnalyzeError::from(error));
+                        Err(error) => {
+                            self.error(AnalyzeError::from(error));
+                        }
+                    }
                 }
             }
 
@@ -1390,13 +1446,13 @@ impl Compiler {
         symbols: &SymbolTable,
         symbol: GlobalSymbolId,
     ) -> bool {
-        self.with_module_tree_symbol_view_or_local_at_boundary(
+        self.with_module_tree_symbol_view_or_local_for_artifact(
             module,
             profile,
             symbol.module_id,
             tree,
             symbols,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |view| {
                 let symbol_entry = view.symbols.get_symbol(symbol.local_id);
 
@@ -1506,39 +1562,42 @@ impl Compiler {
                 &mut materialize_cache,
             )
         } else {
-            self.with_module_tree_symbol_view_at_boundary(
-                ctx.module,
-                ctx.profile,
+            let dir = self.require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
                 symbol.module_id,
-                DirReadBoundary::Declared,
-                |view| {
-                    let options = self.analyze_context_options_for_module(view.module.id);
-                    let mut ctx = ctx.reborrow_for_module_with_options(
-                        view.module,
-                        &options,
-                        view.tree,
-                        view.symbols,
-                    );
+                ctx.profile,
+            ));
+            let Ok(dir) = dir else {
+                return instance_type_id;
+            };
 
-                    // skip materialization when the alias instance is already stable
-                    if !self.alias_instance_needs_materialization(
-                        &mut ctx.reborrow(),
-                        symbol,
-                        instance_type_id,
-                    ) {
-                        return instance_type_id;
-                    }
+            let module = self.program.modules.get(symbol.module_id);
+            let module = module.as_ref();
+            let options = self.analyze_context_options_for_module(module.id);
+            let mut ctx = TypeContext::new(
+                module,
+                ctx.profile,
+                &options,
+                &dir.tree,
+                &dir.symbols,
+                ctx.types,
+            );
 
-                    // materialize static arguments using the alias module context
-                    let mut materialize_cache = HashMap::new();
-                    self.materialize_static_arguments_in_type(
-                        &mut ctx,
-                        instance_type_id,
-                        &mut materialize_cache,
-                    )
-                },
+            // skip materialization when the alias instance is already stable
+            if !self.alias_instance_needs_materialization(
+                &mut ctx.reborrow(),
+                symbol,
+                instance_type_id,
+            ) {
+                return instance_type_id;
+            }
+
+            // materialize static arguments using the alias module context
+            let mut materialize_cache = HashMap::new();
+            self.materialize_static_arguments_in_type(
+                &mut ctx,
+                instance_type_id,
+                &mut materialize_cache,
             )
-            .unwrap_or(instance_type_id)
         }
     }
 

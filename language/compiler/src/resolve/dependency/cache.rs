@@ -4,7 +4,7 @@ use destack_dir::{
     StringId, SymbolSpace,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ModuleDir, ModuleDirData};
+use destack_workspace::ModuleDir;
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
@@ -72,19 +72,19 @@ impl ResolveDependencyItemCache {
         }
 
         // cache the export table once per module
-        let exports = dir.exported_symbols.read();
-        self.module_exports.insert(module_id, exports.clone());
+        self.module_exports
+            .insert(module_id, dir.exported_symbols.as_ref().clone());
     }
 
     /// Return cached module exports for one immutable artifact, inserting when missing.
     pub(crate) fn module_exports_from_artifact(
         &mut self,
         module_id: ModuleId,
-        dir: &ModuleDirData,
+        dir: &ModuleDir,
     ) -> &mut IndexMap<(SymbolSpace, StaticKey), Export> {
         self.module_exports
             .entry(module_id)
-            .or_insert_with(|| dir.exported_symbols.clone())
+            .or_insert_with(|| dir.exported_symbols.as_ref().clone())
     }
 }
 

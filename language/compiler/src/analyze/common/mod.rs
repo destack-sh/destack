@@ -22,15 +22,14 @@ mod template;
 mod r#type;
 mod walk;
 
-pub(crate) use super::DirReadBoundary;
 pub(crate) use canonical::CanonicalSymbolMode;
 pub(crate) use context::{ConstContext, ContextualTypingMode, FreshnessMode, WideningMode};
 pub(crate) use destack_dir::NormalizationMode;
 pub(crate) use literal::evaluate_numeric_literal;
 pub(crate) use materialize::{MaterializationMode, ReadonlyMaterializer};
 pub(crate) use phase::{
-    AssignContext, CommitContext, InferContext, ModuleContext, ModuleSymbolView, ModuleTreeView,
-    ModuleTypeView, SymbolTypeView, TreeSymbolTypeView, TreeSymbolView, TypeContext, TypeView,
+    AssignContext, CommitContext, InferContext, ModuleSymbolView, ModuleTypeView, SymbolTypeView,
+    TreeSymbolView, TypeContext, TypeView,
 };
 pub(crate) use relation::RelationMode;
 pub(crate) use scalar::{evaluate_binary_scalar, evaluate_unary_scalar};

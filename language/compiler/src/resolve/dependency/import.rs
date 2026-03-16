@@ -4,7 +4,7 @@ use destack_dir::{
     GlobalSymbolId, LocalScopeId, ModuleTarget, NodeTree, StaticKey, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ModuleDirData, ProfileId};
+use destack_workspace::{ModuleDir, ProfileId};
 use rustc_hash::FxHashMap;
 
 use crate::resolve::dependency::cache::{
@@ -28,7 +28,9 @@ impl Compiler {
                 self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // load the module namespace symbol
-                let (_, target_dir) = self.prepared_module_artifact(module_id, profile)?;
+                let target_dir = self
+                    .require_artifact_dir_prepared(module_id, profile)
+                    .map_err(ResolveError::from)?;
                 Ok(target_dir.namespace_symbol.into_global(module_id))
             }
             ModuleTarget::Binding(specifier) => {
@@ -60,7 +62,9 @@ impl Compiler {
                 )?;
 
                 // resolve the declaration symbol for the binding
-                let (_, dir) = self.prepared_module_artifact(binding_ref.module_id, profile)?;
+                let dir = self
+                    .require_artifact_dir_prepared(binding_ref.module_id, profile)
+                    .map_err(ResolveError::from)?;
                 let tree = &dir.tree;
                 let declaration = tree.get(binding_ref.declaration);
                 let symbol_id = declaration.descriptor().symbol;
@@ -87,7 +91,9 @@ impl Compiler {
                 self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // load the module export assignment state
-                let (_, target_dir) = self.prepared_module_artifact(module_id, profile)?;
+                let target_dir = self
+                    .require_artifact_dir_prepared(module_id, profile)
+                    .map_err(ResolveError::from)?;
                 if target_dir.export_assignment.is_some() {
                     return Ok(Some(
                         target_dir.export_assignment_symbol.into_global(module_id),
@@ -114,7 +120,9 @@ impl Compiler {
                     )?;
 
                     // load the binding export assignment entry
-                    let (_, dir) = self.prepared_module_artifact(binding_ref.module_id, profile)?;
+                    let dir = self
+                        .require_artifact_dir_prepared(binding_ref.module_id, profile)
+                        .map_err(ResolveError::from)?;
                     let binding_exports = dir
                         .module_binding_exports
                         .get(&binding_ref.declaration.into_any())
@@ -186,7 +194,9 @@ impl Compiler {
                 self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // check if module has an export assignment
-                let (_, dir) = self.prepared_module_artifact(module_id, profile)?;
+                let dir = self
+                    .require_artifact_dir_prepared(module_id, profile)
+                    .map_err(ResolveError::from)?;
                 let export_assignment = dir.export_assignment;
                 let Some(item_id) = export_assignment else {
                     if let (Some(cache), Some(cache_key)) = (cache.as_deref_mut(), cache_key) {
@@ -233,7 +243,9 @@ impl Compiler {
                     )?;
 
                     // load the binding export assignment entry
-                    let (_, dir) = self.prepared_module_artifact(binding_ref.module_id, profile)?;
+                    let dir = self
+                        .require_artifact_dir_prepared(binding_ref.module_id, profile)
+                        .map_err(ResolveError::from)?;
                     let binding_exports = if let Some(cache) = cache.as_deref_mut() {
                         let cache_key = BindingExportCacheKey {
                             module_id: binding_ref.module_id,
@@ -303,7 +315,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        dir: &ModuleDirData,
+        dir: &ModuleDir,
         tree: &NodeTree,
         scope_id: LocalScopeId,
         item: &DependencyItem,
@@ -342,7 +354,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        dir: &ModuleDirData,
+        dir: &ModuleDir,
         tree: &NodeTree,
         scope_id: LocalScopeId,
         target_symbol: GlobalSymbolId,
@@ -375,7 +387,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        dir: &ModuleDirData,
+        dir: &ModuleDir,
         tree: &NodeTree,
         scope_id: LocalScopeId,
         value: destack_dir::LocalNodeId<Expression>,
@@ -679,7 +691,10 @@ impl Compiler {
         }
 
         // load the namespace symbol's module and check if it's a namespace
-        let (module, dir) = self.prepared_module_artifact(namespace_symbol.module_id, profile)?;
+        let module = self.program.modules.get(namespace_symbol.module_id);
+        let dir = self
+            .require_artifact_dir_prepared(namespace_symbol.module_id, profile)
+            .map_err(ResolveError::from)?;
         let symbols = &dir.symbols;
 
         let symbol = symbols.get_symbol(namespace_symbol.local_id);

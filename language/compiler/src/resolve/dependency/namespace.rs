@@ -6,7 +6,7 @@ use destack_dir::{
     GlobalSymbolId, LocalNodeId, LocalScopeId, ModuleTarget, NodeTree, StaticKey,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ModuleDirData, ProfileId};
+use destack_workspace::{Module, ModuleDir, ProfileId};
 use rustc_hash::FxHashMap;
 
 use crate::resolve::dependency::cache::{
@@ -14,18 +14,18 @@ use crate::resolve::dependency::cache::{
 };
 use crate::resolve::dependency::dependency::{ReexportVisitStack, ResolvedExportSymbol};
 use crate::resolve::dependency::loader::LoaderAttribute;
-use crate::{Compiler, ResolveError, ResolveModuleContext, ResolveResult};
+use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Collect namespace reexport targets for a specific scope.
     pub(super) fn collect_namespace_exports_for_scope(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         profile: ProfileId,
         scope_id: LocalScopeId,
         cache: Option<&mut ResolveDependencyItemCache>,
-        dir: &ModuleDirData,
+        dir: &ModuleDir,
     ) -> ResolveResult<Vec<destack_dir::NamespaceExport>> {
         // use cached exports when available
         if let Some(cache) = cache {
@@ -59,9 +59,9 @@ impl Compiler {
     /// Collect namespace exports in a scope without caching.
     fn collect_namespace_exports_in_scope_direct(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         profile: ProfileId,
-        dir: &ModuleDirData,
+        dir: &ModuleDir,
         tree: &NodeTree,
         item_ids: &[LocalNodeId<DependencyItem>],
         scope_id: LocalScopeId,
@@ -84,9 +84,9 @@ impl Compiler {
     /// Build a scope grouped namespace export table for the module.
     fn build_namespace_exports_by_scope(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         profile: ProfileId,
-        dir: &ModuleDirData,
+        dir: &ModuleDir,
         tree: &NodeTree,
         item_ids: &[LocalNodeId<DependencyItem>],
     ) -> ResolveResult<FxHashMap<LocalScopeId, Vec<destack_dir::NamespaceExport>>> {
@@ -109,9 +109,9 @@ impl Compiler {
     /// Resolve a namespace export for a dependency item in the given scope.
     fn namespace_export_for_item(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         profile: ProfileId,
-        dir: &ModuleDirData,
+        dir: &ModuleDir,
         tree: &NodeTree,
         item_id: LocalNodeId<DependencyItem>,
         scope_id: LocalScopeId,
@@ -132,9 +132,9 @@ impl Compiler {
     /// Resolve a namespace export and return its owning scope.
     fn namespace_export_for_item_with_scope(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         profile: ProfileId,
-        dir: &ModuleDirData,
+        dir: &ModuleDir,
         tree: &NodeTree,
         item_id: LocalNodeId<DependencyItem>,
     ) -> ResolveResult<Option<(LocalScopeId, destack_dir::NamespaceExport)>> {
@@ -209,7 +209,7 @@ impl Compiler {
             target_module
         } else if let Some(target) = target {
             let module_handle = self.program.modules.get(module.id);
-            let module_handle = module_handle.read();
+            let module_handle = module_handle.as_ref();
             let Some(target_module) = self.resolve_import_maybe_from_artifact(
                 &module_handle,
                 &dir,
@@ -263,7 +263,10 @@ impl Compiler {
                 self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
 
                 // load namespace exports from the module scope
-                let (module, dir) = self.prepared_module_artifact(module_id, profile)?;
+                let module = self.program.modules.get(module_id);
+                let dir = self
+                    .require_artifact_dir_prepared(module_id, profile)
+                    .map_err(ResolveError::from)?;
                 let exports = self.collect_namespace_exports_for_scope(
                     &module,
                     profile,
@@ -301,8 +304,10 @@ impl Compiler {
                     )?;
 
                     // load the binding scope
-                    let (module, dir) =
-                        self.prepared_module_artifact(binding_ref.module_id, profile)?;
+                    let module = self.program.modules.get(binding_ref.module_id);
+                    let dir = self
+                        .require_artifact_dir_prepared(binding_ref.module_id, profile)
+                        .map_err(ResolveError::from)?;
                     let Some((scope_id, _, _)) =
                         self.binding_info_for_declaration(&dir, binding_ref.declaration)
                     else {
@@ -353,7 +358,7 @@ impl Compiler {
     /// Resolve a loader override from the dependency item's parent expression.
     pub(super) fn parent_expression_loader_override_for_dependency_item(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
         item_id: LocalNodeId<DependencyItem>,
@@ -394,7 +399,7 @@ impl Compiler {
     /// This is used when a symbol isn't found in the direct namespace scope.
     pub(super) fn resolve_symbol_via_namespace_exports(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         node: GlobalNodeIdAny,
         via_target: ModuleTarget,
         profile: ProfileId,

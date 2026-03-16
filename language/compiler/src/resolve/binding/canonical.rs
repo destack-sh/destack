@@ -1,7 +1,7 @@
-use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, SymbolType};
-use destack_workspace::{ModuleDir, ProfileId};
+use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, SymbolTable, SymbolType};
+use destack_workspace::{Module, ModuleDir, ProfileId};
 
-use crate::{Compiler, ResolveError, ResolveModuleContext, ResolveResult};
+use crate::{Compiler, ResolveError, ResolveResult};
 
 impl Compiler {
     pub(super) fn resolve_canonical_symbol_chain(
@@ -9,7 +9,7 @@ impl Compiler {
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
         start_symbol: GlobalSymbolId,
-        dir: &ModuleDir,
+        current_symbols: &SymbolTable,
     ) -> ResolveResult<GlobalSymbolId> {
         // track the original calling module (from node)
         // (we don't need to require_task for this module since we're being called DURING its resolution)
@@ -32,8 +32,7 @@ impl Compiler {
             // read the symbol state
             let (symbol_type, canonical_symbol, target_symbol) =
                 if current.module_id == calling_module {
-                    let symbols = dir.symbols.read();
-                    let symbol = symbols.get_symbol(current.local_id);
+                    let symbol = current_symbols.get_symbol(current.local_id);
                     (symbol.ty, symbol.canonical_symbol, symbol.target_symbol)
                 } else {
                     let dir = self
@@ -66,14 +65,15 @@ impl Compiler {
     /// Resolve and set the canonical_symbol for a symbol that has a target_symbol.
     pub(crate) fn resolve_canonical_symbol(
         &self,
-        _module: &ResolveModuleContext,
-        dir: &ModuleDir,
+        _module: &Module,
+        dir: &mut ModuleDir,
         node: GlobalNodeIdAny,
         symbol_id: GlobalSymbolId,
         profile: ProfileId,
     ) -> ResolveResult<GlobalSymbolId> {
+        let symbols = dir.symbols_mut();
+
         // get the target_symbol
-        let symbols = dir.symbols.read();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         if symbol.ty == SymbolType::Newtype {
             return Ok(symbol_id);
@@ -82,13 +82,11 @@ impl Compiler {
             // no target, this symbol is its own final
             return Ok(symbol_id);
         };
-        drop(symbols);
         // follow the chain from target
         let canonical_symbol =
-            self.resolve_canonical_symbol_chain(profile, node, target_symbol, dir)?;
+            self.resolve_canonical_symbol_chain(profile, node, target_symbol, symbols)?;
 
         // set the canonical_symbol
-        let mut symbols = dir.symbols.write();
         symbols.get_symbol_mut(symbol_id.local_id).canonical_symbol = Some(canonical_symbol);
 
         Ok(canonical_symbol)

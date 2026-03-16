@@ -877,19 +877,16 @@ impl Compiler {
             }
 
             let argument_module = self.program.modules.get(node.module_id);
-            let argument_module = argument_module.read();
-            let snapshot = self
-                .program
-                .artifacts
-                .dir_snapshot(node.module_id, context.profile)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "missing dir artifact for static argument module {:?}",
-                        node.module_id
-                    )
-                });
-            let argument_tree = &snapshot.tree;
-            let argument_symbols = &snapshot.symbols;
+            let argument_module = argument_module.as_ref();
+            let dir = self.best_unbind_dir(node.module_id, context.profile);
+            let dir = dir.unwrap_or_else(|| {
+                panic!(
+                    "missing dir artifact for static argument module {:?}",
+                    node.module_id
+                )
+            });
+            let argument_tree = &dir.tree;
+            let argument_symbols = &dir.symbols;
             return self.unbind_argument(
                 &argument_module,
                 argument_id,

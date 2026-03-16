@@ -3,9 +3,9 @@ use destack_dir::{
     LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId, SymbolSpace,
     SymbolTable, SymbolType,
 };
-use destack_workspace::ProfileId;
+use destack_workspace::{Module, ProfileId};
 
-use crate::{Compiler, ResolveError, ResolveModuleContext, ResolveResult};
+use crate::{Compiler, ResolveError, ResolveResult};
 
 impl Compiler {
     pub(crate) fn build_member_chain(
@@ -66,7 +66,7 @@ impl Compiler {
     /// Find the module binding scope for a global augmentation expression.
     pub(crate) fn resolve_symbol_to_expression(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         symbol_id: LocalSymbolId,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
@@ -94,7 +94,7 @@ impl Compiler {
     /// Labels are in the Label symbol space and can only be found within the same module.
     pub(crate) fn resolve_label_symbol(
         &self,
-        _module: &ResolveModuleContext,
+        _module: &Module,
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
         scope: (LocalScopeId, &Scope, LocalScopeMark),

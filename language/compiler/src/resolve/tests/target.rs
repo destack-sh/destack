@@ -27,7 +27,7 @@ value;
     // load symbol data for the main module
     let profile = test.default_profile_id(main_module_id);
     let dir = test.artifact_dir(main_module_id, profile);
-    let symbols = dir.symbols.read();
+    let symbols = &dir.symbols;
 
     // locate the imported symbol
     let name_id = test.program.strings.intern("value");
@@ -175,7 +175,6 @@ type Share = (typeof import("node:worker_threads"))["SHARE_ENV"];
     let dir = test.dir_base(decl_module_id);
     let bindings = dir
         .module_bindings
-        .read()
         .iter()
         .filter(|binding| binding.specifier == test.program.strings.intern("node:worker_threads"))
         .count();
