@@ -273,7 +273,7 @@ fn test_certificate_import_follows_host_store_write_behavior() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+                .destack_crypto_store_probe_capability(kind, Some(CryptoStoreProvider::OpenSsl))?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -366,7 +366,7 @@ fn test_certificate_system_lane_matches_rustls_native_certs_trust_subset() {
         // skip when the host system lane is unavailable
         let capability = context.destack_crypto_store_probe_capability(
             CryptoStoreKind::System,
-            CryptoStoreProvider::OpenSsl,
+            Some(CryptoStoreProvider::OpenSsl),
         )?;
         let capability = context.store_capability_from_value(capability)?;
         if !capability.is_available {

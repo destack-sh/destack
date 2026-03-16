@@ -109,7 +109,7 @@ impl Engine for TestEngine {
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
-        _heap: &mut heap::Heap,
+        _memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -121,7 +121,7 @@ impl Engine for TestEngine {
     /// Run one replayable entrypoint without yielding.
     fn run_replayable_entry(
         &mut self,
-        _heap: &mut heap::Heap,
+        _memory: &mut heap::MemoryContext<'_>,
         _entry: &EntryReference,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
@@ -133,7 +133,7 @@ impl Engine for TestEngine {
     /// Resume one continuation and yield once before completion.
     fn resume(
         &mut self,
-        _heap: &mut heap::Heap,
+        _memory: &mut heap::MemoryContext<'_>,
         _continuation: EngineContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
@@ -230,11 +230,11 @@ impl Engine for AllocatingEngine {
     /// Run one entrypoint after allocating into the heap.
     fn run(
         &mut self,
-        heap: &mut heap::Heap,
+        memory: &mut heap::MemoryContext<'_>,
         _entry: &Entry,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
-        self.allocate(heap)?;
+        self.allocate(memory.heap())?;
 
         Ok(EngineOutcome::Completed {
             output: void_output(),
@@ -244,11 +244,11 @@ impl Engine for AllocatingEngine {
     /// Run one replayable entrypoint after allocating into the heap.
     fn run_replayable_entry(
         &mut self,
-        heap: &mut heap::Heap,
+        memory: &mut heap::MemoryContext<'_>,
         _entry: &EntryReference,
         _args: &[heap::Value],
     ) -> RuntimeResult<EngineOutcome> {
-        self.allocate(heap)?;
+        self.allocate(memory.heap())?;
 
         Ok(EngineOutcome::Completed {
             output: void_output(),
@@ -258,11 +258,11 @@ impl Engine for AllocatingEngine {
     /// Resume one continuation after allocating into the heap.
     fn resume(
         &mut self,
-        heap: &mut heap::Heap,
+        memory: &mut heap::MemoryContext<'_>,
         _continuation: EngineContinuation,
         _value: heap::Value,
     ) -> RuntimeResult<EngineOutcome> {
-        self.allocate(heap)?;
+        self.allocate(memory.heap())?;
 
         Ok(EngineOutcome::Completed {
             output: void_output(),
@@ -351,7 +351,7 @@ impl AllocatingEngine {
         if self.managed_values > 0 {
             let mut values = Vec::with_capacity(self.managed_values);
             values.resize(self.managed_values, heap::Value::int64(7));
-            let _ = heap.allocate_managed_values(values)?;
+            let _ = heap.allocate_packed_values(values)?;
         }
 
         // raw payload
@@ -1132,8 +1132,8 @@ fn void_output() -> EngineOutput {
     EngineOutput {
         value: heap::Value::VOID,
         stats: Default::default(),
-        heap_cells: 0,
-        raw_heap_cells: 0,
+        managed_allocation_count: 0,
+        raw_allocation_count: 0,
     }
 }
 

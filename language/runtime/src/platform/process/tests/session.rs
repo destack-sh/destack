@@ -1,7 +1,4 @@
-use super::{
-    assert_platform_error_codes_with_privileged_policy, with_harness_context,
-    with_native_harness_context,
-};
+use super::{assert_platform_error_codes_with_privileged_policy, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::process::ProcessId;
 
@@ -21,7 +18,7 @@ fn test_process_session_setpgid_invalid_pid_reports_specific_error() {
 #[cfg(unix)]
 #[test]
 fn test_process_session_setsid_in_child() {
-    with_native_harness_context(|mut context| {
+    with_harness_context(|mut context| {
         let child = unsafe { libc::fork() };
         if child == 0 {
             let setsid_result = context.destack_process_setsid();

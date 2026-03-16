@@ -536,7 +536,7 @@ pub(crate) fn destack_os_clipboard_read_bytes(
 ) -> RuntimeResult<VmSlice<u8>> {
     let value = clipboard::read_bytes(format)?;
 
-    Ok(VmSlice::from_bytes(context, &value)?)
+    VmSlice::from_bytes(context, &value)
 }
 
 /// Read text clipboard payload.
@@ -1073,7 +1073,7 @@ pub(crate) fn destack_os_document_read(
 ) -> RuntimeResult<VmSlice<u8>> {
     let value = document::read(binding, handle, maxbytes, timeoutns)?;
 
-    Ok(VmSlice::from_bytes(context, &value)?)
+    VmSlice::from_bytes(context, &value)
 }
 
 /// Poll one chunk of document bytes without blocking.
@@ -1100,7 +1100,7 @@ pub(crate) fn destack_os_document_try_read(
 ) -> RuntimeResult<VmSlice<u8>> {
     let value = document::try_read(binding, handle, maxbytes)?;
 
-    Ok(VmSlice::from_bytes(context, &value)?)
+    VmSlice::from_bytes(context, &value)
 }
 
 /// Write one chunk of document bytes.
@@ -1430,7 +1430,7 @@ pub(crate) fn destack_os_intent_share_paths(
     paths: VmArray<fs::OsPathVm>,
     mimetype: Option<vm::StringHandle>,
 ) -> RuntimeResult<()> {
-    let paths = paths.read_values(context).map_err(Box::from)?;
+    let paths = paths.read_values(context)?;
     let mut native_paths = Vec::with_capacity(paths.len());
 
     for path in paths {

@@ -21,6 +21,7 @@ pub(crate) struct HostRequestContext {
 
 /// Normalized outbound host command.
 #[allow(dead_code)]
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone)]
 pub(crate) enum HostRequest {
     /// Query whether the host can route one URL.

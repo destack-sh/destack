@@ -1,4 +1,4 @@
-use super::{unique_env_name, with_harness_context, with_native_harness_context};
+use super::{unique_env_name, with_harness_context};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::platform::process::{ProcessId, ProcessNamespaceKind, ProcessUnshareFlags};
 use crate::tests::platform::is_privileged_test_mode;
@@ -87,7 +87,7 @@ fn test_process_chroot_succeeds_in_privileged_mode() {
         return;
     }
 
-    with_native_harness_context(|mut context| {
+    with_harness_context(|mut context| {
         let root_path = std::env::temp_dir().join(unique_env_name("CHROOT_ROOT"));
         std::fs::create_dir_all(&root_path).expect("chroot root directory should be created");
         let root_path_string = root_path.to_string_lossy().to_string();
@@ -149,7 +149,7 @@ fn test_process_set_network_namespace_succeeds_in_privileged_mode() {
         return;
     }
 
-    with_native_harness_context(|mut context| {
+    with_harness_context(|mut context| {
         let child = unsafe { libc::fork() };
         if child == 0 {
             let target = unsafe { libc::fork() };
@@ -239,7 +239,7 @@ fn test_process_setns_self_network_namespace_succeeds_in_privileged_mode() {
         return;
     }
 
-    with_native_harness_context(|mut context| {
+    with_harness_context(|mut context| {
         let child = unsafe { libc::fork() };
         if child == 0 {
             let target = unsafe { libc::fork() };

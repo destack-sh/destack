@@ -24,7 +24,7 @@ use crate::platform::{
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 pub(crate) use crate::tests::platform::assert_platform_error_codes_with_privileged_policy;
 use crate::tests::runtime::TestRuntime;
-use platform_fs::{Dirent, DirentKind, DirentVm, OsPath, OsPathVm, WatchEvent, WatchEventVm};
+use platform_fs::{Dirent, DirentVm, OsPath, OsPathVm, WatchEvent, WatchEventVm};
 
 /// Path reference payload used by filesystem test helpers.
 pub(crate) type FsPathRef = harness::HarnessValue<OsPath, OsPathVm>;
@@ -308,48 +308,12 @@ fn path_ref_string_vm(
     }
 }
 
-/// Decode a VM path reference from an aggregate value.
-fn decode_path_ref_vm(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: vm::Value,
-) -> RuntimeResult<OsPathVm> {
-    OsPathVm::decode_with_context(context, value)
-}
-
 /// Decode a VM directory entry from an aggregate value.
 fn decode_dirent_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
 ) -> RuntimeResult<DirentVm> {
-    let slots = context
-        .aggregate_slots(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    if slots.len() != 2 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "dirent",
-            "expected Dirent aggregate with 2 fields",
-        ))
-        .boxed());
-    }
-
-    let name = decode_path_ref_vm(context, slots[0])?;
-    let (kind, width) = slots[1].as_uint_with_width().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_type("dirent", "Dirent")).boxed()
-    })?;
-    if width != 8 {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type("dirent", "Dirent")).boxed(),
-        );
-    }
-    let kind = match kind as u8 {
-        value if value == DirentKind::Unknown as u8 => DirentKind::Unknown,
-        value if value == DirentKind::File as u8 => DirentKind::File,
-        value if value == DirentKind::Directory as u8 => DirentKind::Directory,
-        value if value == DirentKind::Symlink as u8 => DirentKind::Symlink,
-        _ => DirentKind::Unknown,
-    };
-
-    Ok(DirentVm { name, kind })
+    DirentVm::decode_with_context(context, value)
 }
 
 /// Decode a VM watch event from an aggregate value.
@@ -640,7 +604,7 @@ fn socket_address_vm_from_host_port(
     family: SocketFamily,
 ) -> RuntimeResult<SocketAddressVm> {
     let address = socket_address_native_from_host_port(binding, host, port, family)?;
-    let bytes = VmArray::from_values(context, address.bytes()).map_err(|error| {
+    let bytes = VmArray::from_bytes(context, address.bytes()).map_err(|error| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "address.bytes",
             format!("failed to encode vm byte array: {error}"),

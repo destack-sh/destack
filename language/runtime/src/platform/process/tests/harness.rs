@@ -14,7 +14,6 @@ use crate::platform::process::{
 };
 #[cfg(any(target_os = "linux", windows))]
 use crate::platform::process::{ProcessCpuSet, ProcessCpuSetVm};
-use crate::platform::resource::ResourceId;
 #[cfg(any(target_os = "linux", windows))]
 use crate::platform::thread::ThreadCpu;
 use crate::platform::{NativeArray, VmArray, VmSlice, fs, process as process_platform, resource};
@@ -237,9 +236,12 @@ impl<'call> ProcessHarnessContext<'call> {
                             },
                         ),
                         ProcessStdioKind::File => {
+                            let resource_id = value
+                                .resource_id
+                                .expect("file stdio should provide one resource id");
                             ProcessStdio::ProcessStdioFile(process_platform::ProcessStdioFile {
                                 kind: self.call_context.store_string("file"),
-                                file: resource::FileHandle(ResourceId(0)),
+                                file: resource::FileHandle(resource_id),
                             })
                         }
                         ProcessStdioKind::Inherit => ProcessStdio::ProcessStdioInherit(
@@ -253,9 +255,12 @@ impl<'call> ProcessHarnessContext<'call> {
                             })
                         }
                         ProcessStdioKind::Pipe => {
+                            let resource_id = value
+                                .resource_id
+                                .expect("pipe stdio should provide one resource id");
                             ProcessStdio::ProcessStdioPipe(process_platform::ProcessStdioPipe {
                                 kind: self.call_context.store_string("pipe"),
-                                pipe: resource::PipeHandle(ResourceId(0)),
+                                pipe: resource::PipeHandle(resource_id),
                             })
                         }
                     })
