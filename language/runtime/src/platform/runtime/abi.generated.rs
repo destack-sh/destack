@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, resource, resource as platform_resource, runtime as platform_runtime,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, resource, resource as platform_resource, runtime as platform_runtime,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -37,6 +37,8 @@ impl VmValueCodec for AgentHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for AgentHandle {}
 
 /// Value type for AgentHandle.
 pub type AgentHandleValue = AgentHandle;
@@ -91,6 +93,8 @@ impl VmValueCodec for AgentId {
     }
 }
 
+impl VmCollectionElement for AgentId {}
+
 /// Value type for AgentId.
 pub type AgentIdValue = AgentId;
 
@@ -143,6 +147,8 @@ impl VmValueCodec for BranchId {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for BranchId {}
 
 /// Value type for BranchId.
 pub type BranchIdValue = BranchId;
@@ -197,6 +203,8 @@ impl VmValueCodec for CheckpointId {
     }
 }
 
+impl VmCollectionElement for CheckpointId {}
+
 /// Value type for CheckpointId.
 pub type CheckpointIdValue = CheckpointId;
 
@@ -249,6 +257,8 @@ impl VmValueCodec for ImageId {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ImageId {}
 
 /// Value type for ImageId.
 pub type ImageIdValue = ImageId;
@@ -303,6 +313,8 @@ impl VmValueCodec for ObservationHandle {
     }
 }
 
+impl VmCollectionElement for ObservationHandle {}
+
 /// Value type for ObservationHandle.
 pub type ObservationHandleValue = ObservationHandle;
 
@@ -355,6 +367,8 @@ impl VmValueCodec for ResourceId {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ResourceId {}
 
 /// Value type for ResourceId.
 pub type ResourceIdValue = ResourceId;
@@ -409,6 +423,8 @@ impl VmValueCodec for RevisionId {
     }
 }
 
+impl VmCollectionElement for RevisionId {}
+
 /// Value type for RevisionId.
 pub type RevisionIdValue = RevisionId;
 
@@ -461,6 +477,8 @@ impl VmValueCodec for RuntimeHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for RuntimeHandle {}
 
 /// Value type for RuntimeHandle.
 pub type RuntimeHandleValue = RuntimeHandle;
@@ -515,6 +533,8 @@ impl VmValueCodec for RuntimeId {
     }
 }
 
+impl VmCollectionElement for RuntimeId {}
+
 /// Value type for RuntimeId.
 pub type RuntimeIdValue = RuntimeId;
 
@@ -567,6 +587,8 @@ impl VmValueCodec for SnapshotId {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for SnapshotId {}
 
 /// Value type for SnapshotId.
 pub type SnapshotIdValue = SnapshotId;
@@ -629,6 +651,8 @@ impl VmAggregateCodec for TopologyEdgeIdAbi<VmAbi> {
         <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
+
+impl VmCollectionElement for TopologyEdgeIdAbi<VmAbi> {}
 
 /// Value type for TopologyEdgeId.
 #[repr(transparent)]
@@ -705,6 +729,8 @@ impl VmAggregateCodec for TopologyEdgeKindAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for TopologyEdgeKindAbi<VmAbi> {}
+
 /// Value type for TopologyEdgeKind.
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -779,6 +805,8 @@ impl VmAggregateCodec for TopologyEntityIdAbi<VmAbi> {
         <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
+
+impl VmCollectionElement for TopologyEntityIdAbi<VmAbi> {}
 
 /// Value type for TopologyEntityId.
 #[repr(transparent)]
@@ -855,6 +883,8 @@ impl VmAggregateCodec for TopologyEntityKindAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for TopologyEntityKindAbi<VmAbi> {}
+
 /// Value type for TopologyEntityKind.
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -921,6 +951,8 @@ impl VmValueCodec for TraceCursorHandle {
     }
 }
 
+impl VmCollectionElement for TraceCursorHandle {}
+
 /// Value type for TraceCursorHandle.
 pub type TraceCursorHandleValue = TraceCursorHandle;
 
@@ -973,6 +1005,8 @@ impl VmValueCodec for TraceSequence {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for TraceSequence {}
 
 /// Value type for TraceSequence.
 pub type TraceSequenceValue = TraceSequence;
@@ -1027,6 +1061,8 @@ impl VmValueCodec for WorldHandle {
     }
 }
 
+impl VmCollectionElement for WorldHandle {}
+
 /// Value type for WorldHandle.
 pub type WorldHandleValue = WorldHandle;
 
@@ -1079,6 +1115,8 @@ impl VmValueCodec for WorldViewHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for WorldViewHandle {}
 
 /// Value type for WorldViewHandle.
 pub type WorldViewHandleValue = WorldViewHandle;
@@ -1144,6 +1182,8 @@ impl VmValueCodec for EngineDescriptorKind {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for EngineDescriptorKind {}
 
 /// Value type for EngineDescriptorKind.
 pub type EngineDescriptorKindValue = EngineDescriptorKind;
@@ -1222,6 +1262,8 @@ impl VmValueCodec for ObservationEventKind {
     }
 }
 
+impl VmCollectionElement for ObservationEventKind {}
+
 /// Value type for ObservationEventKind.
 pub type ObservationEventKindValue = ObservationEventKind;
 
@@ -1286,6 +1328,8 @@ impl VmValueCodec for RuntimeEngineKind {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for RuntimeEngineKind {}
 
 /// Value type for RuntimeEngineKind.
 pub type RuntimeEngineKindValue = RuntimeEngineKind;
@@ -1358,6 +1402,8 @@ impl VmValueCodec for RuntimeExecutionMode {
     }
 }
 
+impl VmCollectionElement for RuntimeExecutionMode {}
+
 /// Value type for RuntimeExecutionMode.
 pub type RuntimeExecutionModeValue = RuntimeExecutionMode;
 
@@ -1426,6 +1472,8 @@ impl VmValueCodec for RuntimeTickOutcome {
     }
 }
 
+impl VmCollectionElement for RuntimeTickOutcome {}
+
 /// Value type for RuntimeTickOutcome.
 pub type RuntimeTickOutcomeValue = RuntimeTickOutcome;
 
@@ -1491,6 +1539,8 @@ impl VmValueCodec for RuntimeWorldKind {
     }
 }
 
+impl VmCollectionElement for RuntimeWorldKind {}
+
 /// Value type for RuntimeWorldKind.
 pub type RuntimeWorldKindValue = RuntimeWorldKind;
 
@@ -1555,6 +1605,8 @@ impl VmValueCodec for SnapshotFormat {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for SnapshotFormat {}
 
 /// Value type for SnapshotFormat.
 pub type SnapshotFormatValue = SnapshotFormat;
@@ -1626,6 +1678,8 @@ impl VmValueCodec for TraceEventKind {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for TraceEventKind {}
 
 /// Value type for TraceEventKind.
 pub type TraceEventKindValue = TraceEventKind;
@@ -1745,6 +1799,8 @@ impl VmAggregateCodec for AgentCreateOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AgentCreateOptionsAbi<VmAbi> {}
 
 /// Value type for AgentCreateOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1916,6 +1972,8 @@ impl VmAggregateCodec for AgentDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AgentDescriptorAbi<VmAbi> {}
 
 /// Value type for AgentDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2106,6 +2164,8 @@ impl VmAggregateCodec for AgentFilterAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for AgentFilterAbi<VmAbi> {}
+
 /// Value type for AgentFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AgentFilterValue {
@@ -2295,6 +2355,8 @@ impl VmAggregateCodec for BranchDescriptorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for BranchDescriptorAbi<VmAbi> {}
+
 /// Value type for BranchDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BranchDescriptorValue {
@@ -2457,6 +2519,8 @@ impl VmAggregateCodec for BranchFilterAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for BranchFilterAbi<VmAbi> {}
+
 /// Value type for BranchFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BranchFilterValue {
@@ -2617,6 +2681,8 @@ impl VmAggregateCodec for CheckpointDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CheckpointDescriptorAbi<VmAbi> {}
 
 /// Value type for CheckpointDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2786,6 +2852,8 @@ impl VmAggregateCodec for CheckpointFilterAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CheckpointFilterAbi<VmAbi> {}
 
 /// Value type for CheckpointFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2980,6 +3048,8 @@ impl VmAbiCodec for EngineDescriptor {
     }
 }
 
+impl VmCollectionElement for EngineDescriptor {}
+
 /// ABI struct for EventLoopDescriptor.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -3086,6 +3156,8 @@ impl VmAbiCodec for EventLoopDescriptor {
     }
 }
 
+impl VmCollectionElement for EventLoopDescriptor {}
+
 /// ABI struct for HeapDescriptor.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -3186,6 +3258,8 @@ impl VmAbiCodec for HeapDescriptor {
     }
 }
 
+impl VmCollectionElement for HeapDescriptor {}
+
 /// ABI struct for ImageDescriptor.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -3282,6 +3356,8 @@ impl VmAbiCodec for ImageDescriptor {
     }
 }
 
+impl VmCollectionElement for ImageDescriptor {}
+
 /// ABI struct for ImageFilter.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -3369,6 +3445,8 @@ impl VmAbiCodec for ImageFilter {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for ImageFilter {}
 
 /// ABI struct for ObservationOptions.
 #[repr(C)]
@@ -3485,6 +3563,8 @@ impl VmAbiCodec for ObservationOptions {
     }
 }
 
+impl VmCollectionElement for ObservationOptions {}
+
 /// ABI struct for ObservationRecord.
 #[repr(C)]
 pub struct ObservationRecordAbi<A: BindingAbi> {
@@ -3572,6 +3652,8 @@ impl VmAggregateCodec for ObservationRecordAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ObservationRecordAbi<VmAbi> {}
 
 /// Value type for ObservationRecord.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3733,6 +3815,8 @@ impl VmAggregateCodec for ResourceDescriptorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for ResourceDescriptorAbi<VmAbi> {}
+
 /// Value type for ResourceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ResourceDescriptorValue {
@@ -3890,6 +3974,8 @@ impl VmAggregateCodec for ResourceFilterAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ResourceFilterAbi<VmAbi> {}
 
 /// Value type for ResourceFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4084,6 +4170,8 @@ impl VmAbiCodec for RevisionDescriptor {
     }
 }
 
+impl VmCollectionElement for RevisionDescriptor {}
+
 /// ABI struct for RevisionFilter.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -4170,6 +4258,8 @@ impl VmAbiCodec for RevisionFilter {
     }
 }
 
+impl VmCollectionElement for RevisionFilter {}
+
 /// ABI struct for RuntimeCreateOptions.
 #[repr(C)]
 pub struct RuntimeCreateOptionsAbi<A: BindingAbi> {
@@ -4255,6 +4345,8 @@ impl VmAggregateCodec for RuntimeCreateOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for RuntimeCreateOptionsAbi<VmAbi> {}
 
 /// Value type for RuntimeCreateOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4419,6 +4511,8 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for RuntimeDescriptorAbi<VmAbi> {}
 
 /// Value type for RuntimeDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4591,6 +4685,8 @@ impl VmAggregateCodec for RuntimeFilterAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for RuntimeFilterAbi<VmAbi> {}
+
 /// Value type for RuntimeFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeFilterValue {
@@ -4734,6 +4830,8 @@ impl VmAggregateCodec for RuntimeLabelAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for RuntimeLabelAbi<VmAbi> {}
+
 /// Value type for RuntimeLabel.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeLabelValue {
@@ -4865,6 +4963,8 @@ impl VmAggregateCodec for RuntimeLabelSelectorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for RuntimeLabelSelectorAbi<VmAbi> {}
 
 /// Value type for RuntimeLabelSelector.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5018,6 +5118,8 @@ impl VmAbiCodec for SnapshotDescriptor {
     }
 }
 
+impl VmCollectionElement for SnapshotDescriptor {}
+
 /// ABI struct for TopologyEdge.
 #[repr(C)]
 pub struct TopologyEdgeAbi<A: BindingAbi> {
@@ -5119,6 +5221,8 @@ impl VmAggregateCodec for TopologyEdgeAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for TopologyEdgeAbi<VmAbi> {}
 
 /// Value type for TopologyEdge.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5305,6 +5409,8 @@ impl VmAggregateCodec for TopologyEdgeFilterAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for TopologyEdgeFilterAbi<VmAbi> {}
+
 /// Value type for TopologyEdgeFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TopologyEdgeFilterValue {
@@ -5471,6 +5577,8 @@ impl VmAggregateCodec for TopologyEntityAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for TopologyEntityAbi<VmAbi> {}
+
 /// Value type for TopologyEntity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TopologyEntityValue {
@@ -5626,6 +5734,8 @@ impl VmAggregateCodec for TopologyEntityFilterAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for TopologyEntityFilterAbi<VmAbi> {}
+
 /// Value type for TopologyEntityFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TopologyEntityFilterValue {
@@ -5778,6 +5888,8 @@ impl VmAbiCodec for TraceCursorOptions {
     }
 }
 
+impl VmCollectionElement for TraceCursorOptions {}
+
 /// ABI struct for TraceDescriptor.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -5869,6 +5981,8 @@ impl VmAbiCodec for TraceDescriptor {
     }
 }
 
+impl VmCollectionElement for TraceDescriptor {}
+
 /// ABI struct for TraceRecord.
 #[repr(C)]
 pub struct TraceRecordAbi<A: BindingAbi> {
@@ -5953,6 +6067,8 @@ impl VmAggregateCodec for TraceRecordAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for TraceRecordAbi<VmAbi> {}
 
 /// Value type for TraceRecord.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6122,6 +6238,8 @@ impl VmAggregateCodec for WorldCreateOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WorldCreateOptionsAbi<VmAbi> {}
 
 /// Value type for WorldCreateOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6330,6 +6448,8 @@ impl VmAggregateCodec for WorldDescriptorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for WorldDescriptorAbi<VmAbi> {}
+
 /// Value type for WorldDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WorldDescriptorValue {
@@ -6521,6 +6641,8 @@ impl VmAbiCodec for WorldResourceId {
     }
 }
 
+impl VmCollectionElement for WorldResourceId {}
+
 /// ABI struct for WorldViewOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -6608,6 +6730,8 @@ impl VmAbiCodec for WorldViewOptions {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for WorldViewOptions {}
 
 /// Replay struct for AgentCreateOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, fs as platform_fs,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, fs as platform_fs,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -37,6 +37,8 @@ impl VmValueCodec for AccessMode {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for AccessMode {}
 
 /// Value type for AccessMode.
 pub type AccessModeValue = AccessMode;
@@ -91,6 +93,8 @@ impl VmValueCodec for AllocFlags {
     }
 }
 
+impl VmCollectionElement for AllocFlags {}
+
 /// Value type for AllocFlags.
 pub type AllocFlagsValue = AllocFlags;
 
@@ -143,6 +147,8 @@ impl VmValueCodec for AtFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for AtFlags {}
 
 /// Value type for AtFlags.
 pub type AtFlagsValue = AtFlags;
@@ -197,6 +203,8 @@ impl VmValueCodec for CopyFlags {
     }
 }
 
+impl VmCollectionElement for CopyFlags {}
+
 /// Value type for CopyFlags.
 pub type CopyFlagsValue = CopyFlags;
 
@@ -249,6 +257,8 @@ impl VmValueCodec for FdFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for FdFlags {}
 
 /// Value type for FdFlags.
 pub type FdFlagsValue = FdFlags;
@@ -303,6 +313,8 @@ impl VmValueCodec for FileLockFlags {
     }
 }
 
+impl VmCollectionElement for FileLockFlags {}
+
 /// Value type for FileLockFlags.
 pub type FileLockFlagsValue = FileLockFlags;
 
@@ -355,6 +367,8 @@ impl VmValueCodec for FileMode {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for FileMode {}
 
 /// Value type for FileMode.
 pub type FileModeValue = FileMode;
@@ -409,6 +423,8 @@ impl VmValueCodec for FileOffset {
     }
 }
 
+impl VmCollectionElement for FileOffset {}
+
 /// Value type for FileOffset.
 pub type FileOffsetValue = FileOffset;
 
@@ -461,6 +477,8 @@ impl VmValueCodec for FileSize {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for FileSize {}
 
 /// Value type for FileSize.
 pub type FileSizeValue = FileSize;
@@ -515,6 +533,8 @@ impl VmValueCodec for MmapFlags {
     }
 }
 
+impl VmCollectionElement for MmapFlags {}
+
 /// Value type for MmapFlags.
 pub type MmapFlagsValue = MmapFlags;
 
@@ -567,6 +587,8 @@ impl VmValueCodec for MmapProt {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for MmapProt {}
 
 /// Value type for MmapProt.
 pub type MmapProtValue = MmapProt;
@@ -621,6 +643,8 @@ impl VmValueCodec for MmapSyncFlags {
     }
 }
 
+impl VmCollectionElement for MmapSyncFlags {}
+
 /// Value type for MmapSyncFlags.
 pub type MmapSyncFlagsValue = MmapSyncFlags;
 
@@ -673,6 +697,8 @@ impl VmValueCodec for NodeDevice {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for NodeDevice {}
 
 /// Value type for NodeDevice.
 pub type NodeDeviceValue = NodeDevice;
@@ -727,6 +753,8 @@ impl VmValueCodec for OpenFlags {
     }
 }
 
+impl VmCollectionElement for OpenFlags {}
+
 /// Value type for OpenFlags.
 pub type OpenFlagsValue = OpenFlags;
 
@@ -779,6 +807,8 @@ impl VmValueCodec for OpenResolveFlags {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for OpenResolveFlags {}
 
 /// Value type for OpenResolveFlags.
 pub type OpenResolveFlagsValue = OpenResolveFlags;
@@ -841,6 +871,8 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
+
+impl VmCollectionElement for PathBytesAbi<VmAbi> {}
 
 /// Value type for PathBytes.
 #[repr(transparent)]
@@ -917,6 +949,8 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PathUtf16Abi<VmAbi> {}
+
 /// Value type for PathUtf16.
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -983,6 +1017,8 @@ impl VmValueCodec for ReadWriteFlags {
     }
 }
 
+impl VmCollectionElement for ReadWriteFlags {}
+
 /// Value type for ReadWriteFlags.
 pub type ReadWriteFlagsValue = ReadWriteFlags;
 
@@ -1035,6 +1071,8 @@ impl VmValueCodec for RenameFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for RenameFlags {}
 
 /// Value type for RenameFlags.
 pub type RenameFlagsValue = RenameFlags;
@@ -1089,6 +1127,8 @@ impl VmValueCodec for SpliceFlags {
     }
 }
 
+impl VmCollectionElement for SpliceFlags {}
+
 /// Value type for SpliceFlags.
 pub type SpliceFlagsValue = SpliceFlags;
 
@@ -1141,6 +1181,8 @@ impl VmValueCodec for StatFsFlags {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for StatFsFlags {}
 
 /// Value type for StatFsFlags.
 pub type StatFsFlagsValue = StatFsFlags;
@@ -1195,6 +1237,8 @@ impl VmValueCodec for StatusFlags {
     }
 }
 
+impl VmCollectionElement for StatusFlags {}
+
 /// Value type for StatusFlags.
 pub type StatusFlagsValue = StatusFlags;
 
@@ -1247,6 +1291,8 @@ impl VmValueCodec for StatxFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for StatxFlags {}
 
 /// Value type for StatxFlags.
 pub type StatxFlagsValue = StatxFlags;
@@ -1301,6 +1347,8 @@ impl VmValueCodec for StatxMask {
     }
 }
 
+impl VmCollectionElement for StatxMask {}
+
 /// Value type for StatxMask.
 pub type StatxMaskValue = StatxMask;
 
@@ -1353,6 +1401,8 @@ impl VmValueCodec for SyncFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for SyncFlags {}
 
 /// Value type for SyncFlags.
 pub type SyncFlagsValue = SyncFlags;
@@ -1407,6 +1457,8 @@ impl VmValueCodec for WatchMask {
     }
 }
 
+impl VmCollectionElement for WatchMask {}
+
 /// Value type for WatchMask.
 pub type WatchMaskValue = WatchMask;
 
@@ -1459,6 +1511,8 @@ impl VmValueCodec for XattrFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for XattrFlags {}
 
 /// Value type for XattrFlags.
 pub type XattrFlagsValue = XattrFlags;
@@ -1543,6 +1597,8 @@ impl VmValueCodec for DirentKind {
     }
 }
 
+impl VmCollectionElement for DirentKind {}
+
 /// Value type for DirentKind.
 pub type DirentKindValue = DirentKind;
 
@@ -1620,6 +1676,8 @@ impl VmValueCodec for FileAdvice {
     }
 }
 
+impl VmCollectionElement for FileAdvice {}
+
 /// Value type for FileAdvice.
 pub type FileAdviceValue = FileAdvice;
 
@@ -1694,6 +1752,8 @@ impl VmValueCodec for MmapAdvice {
     }
 }
 
+impl VmCollectionElement for MmapAdvice {}
+
 /// Value type for MmapAdvice.
 pub type MmapAdviceValue = MmapAdvice;
 
@@ -1762,6 +1822,8 @@ impl VmValueCodec for SeekWhence {
     }
 }
 
+impl VmCollectionElement for SeekWhence {}
+
 /// Value type for SeekWhence.
 pub type SeekWhenceValue = SeekWhence;
 
@@ -1829,6 +1891,8 @@ impl VmValueCodec for SymlinkType {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for SymlinkType {}
 
 /// Value type for SymlinkType.
 pub type SymlinkTypeValue = SymlinkType;
@@ -1959,6 +2023,8 @@ impl VmAggregateCodec for DirentNextAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DirentNextAbi<VmAbi> {}
 
 /// Value type for DirentNext.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2124,6 +2190,8 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for OsPathAbi<VmAbi> {}
 
 /// Value type for OsPath.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2343,6 +2411,8 @@ impl VmAggregateCodec for WatchEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for WatchEventAbi<VmAbi> {}
+
 /// Value type for WatchEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum WatchEventValue {
@@ -2542,6 +2612,8 @@ impl VmAggregateCodec for DirentAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for DirentAbi<VmAbi> {}
+
 /// Value type for Dirent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DirentValue {
@@ -2663,6 +2735,8 @@ impl VmAggregateCodec for DirentNextEndAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DirentNextEndAbi<VmAbi> {}
 
 /// Value type for DirentNextEnd.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2786,6 +2860,8 @@ impl VmAggregateCodec for DirentNextEntryAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DirentNextEntryAbi<VmAbi> {}
 
 /// Value type for DirentNextEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2933,6 +3009,8 @@ impl VmAbiCodec for OpenOptions {
     }
 }
 
+impl VmCollectionElement for OpenOptions {}
+
 /// ABI struct for OsPathBytes.
 #[repr(C)]
 pub struct OsPathBytesAbi<A: BindingAbi> {
@@ -3011,6 +3089,8 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for OsPathBytesAbi<VmAbi> {}
 
 /// Value type for OsPathBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3141,6 +3221,8 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for OsPathUtf16Abi<VmAbi> {}
 
 /// Value type for OsPathUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3277,6 +3359,8 @@ impl VmAbiCodec for SpliceCursor {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for SpliceCursor {}
 
 /// ABI struct for Stat.
 #[repr(C)]
@@ -3427,6 +3511,8 @@ impl VmAbiCodec for Stat {
     }
 }
 
+impl VmCollectionElement for Stat {}
+
 /// ABI struct for StatFs.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -3555,6 +3641,8 @@ impl VmAbiCodec for StatFs {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for StatFs {}
 
 /// ABI struct for Statx.
 #[repr(C)]
@@ -3724,6 +3812,8 @@ impl VmAbiCodec for Statx {
     }
 }
 
+impl VmCollectionElement for Statx {}
+
 /// ABI struct for WatchBatch.
 #[repr(C)]
 pub struct WatchBatchAbi<A: BindingAbi> {
@@ -3801,6 +3891,8 @@ impl VmAggregateCodec for WatchBatchAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WatchBatchAbi<VmAbi> {}
 
 /// Value type for WatchBatch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3941,6 +4033,8 @@ impl VmAggregateCodec for WatchCreateEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WatchCreateEventAbi<VmAbi> {}
 
 /// Value type for WatchCreateEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4084,6 +4178,8 @@ impl VmAbiCodec for WatchEventMetadata {
     }
 }
 
+impl VmCollectionElement for WatchEventMetadata {}
+
 /// ABI struct for WatchMetadataEvent.
 #[repr(C)]
 pub struct WatchMetadataEventAbi<A: BindingAbi> {
@@ -4170,6 +4266,8 @@ impl VmAggregateCodec for WatchMetadataEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WatchMetadataEventAbi<VmAbi> {}
 
 /// Value type for WatchMetadataEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4314,6 +4412,8 @@ impl VmAggregateCodec for WatchModifyEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WatchModifyEventAbi<VmAbi> {}
 
 /// Value type for WatchModifyEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4468,6 +4568,8 @@ impl VmAbiCodec for WatchOptions {
     }
 }
 
+impl VmCollectionElement for WatchOptions {}
+
 /// ABI struct for WatchOverflowEvent.
 #[repr(C)]
 pub struct WatchOverflowEventAbi<A: BindingAbi> {
@@ -4549,6 +4651,8 @@ impl VmAggregateCodec for WatchOverflowEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WatchOverflowEventAbi<VmAbi> {}
 
 /// Value type for WatchOverflowEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4687,6 +4791,8 @@ impl VmAggregateCodec for WatchRemoveEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WatchRemoveEventAbi<VmAbi> {}
 
 /// Value type for WatchRemoveEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4837,6 +4943,8 @@ impl VmAggregateCodec for WatchRenameEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WatchRenameEventAbi<VmAbi> {}
 
 /// Value type for WatchRenameEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

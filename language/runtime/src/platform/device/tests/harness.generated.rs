@@ -6,39 +6,8 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::device::tests::DeviceHarnessContext;
-use crate::platform::device::{
-    BluetoothAdapterDescriptor, BluetoothAdapterDescriptorVm, BluetoothAdvertisementData,
-    BluetoothAdvertisementDataVm, BluetoothAdvertisementManufacturerData,
-    BluetoothAdvertisementManufacturerDataVm, BluetoothAdvertisementServiceData,
-    BluetoothAdvertisementServiceDataVm, BluetoothDeviceDescriptor, BluetoothDeviceDescriptorVm,
-    BluetoothGattCharacteristicDescriptor, BluetoothGattCharacteristicDescriptorVm,
-    BluetoothGattDescriptorDescriptor, BluetoothGattDescriptorDescriptorVm,
-    BluetoothGattServiceDescriptor, BluetoothGattServiceDescriptorVm, BluetoothGattValueEvent,
-    BluetoothGattValueEventVm, BluetoothPairState, BluetoothPhy, BluetoothScanFilter,
-    BluetoothScanFilterVm, BluetoothScanMode, BluetoothTransport, CameraColorSpace, CameraControl,
-    CameraControlRange, CameraControlRangeVm, CameraDeviceDescriptor, CameraDeviceDescriptorVm,
-    CameraExposureMode, CameraFrame, CameraFrameMetadata, CameraFrameMetadataVm, CameraFrameVm,
-    CameraPixelFormat, CameraPlaneLayout, CameraPlaneLayoutVm, CameraStabilizationMode,
-    CameraStreamCapability, CameraStreamCapabilityVm, CameraStreamConfig, CameraStreamConfigVm,
-    CameraTorchMode, SerialErrorEvent, SerialErrorEventVm, SerialErrorPayload,
-    SerialErrorPayloadVm, SerialEvent, SerialEventMetadata, SerialEventMetadataVm, SerialEventVm,
-    SerialFlowControl, SerialParity, SerialPortConfig, SerialPortConfigVm, SerialPortDescriptor,
-    SerialPortDescriptorVm, SerialReadReadyEvent, SerialReadReadyEventVm, SerialReadReadyPayload,
-    SerialReadReadyPayloadVm, SerialSignalsChangedEvent, SerialSignalsChangedEventVm,
-    SerialSignalsChangedPayload, SerialSignalsChangedPayloadVm, SerialStopBits,
-    SerialWriteReadyEvent, SerialWriteReadyEventVm, SerialWriteReadyPayload,
-    SerialWriteReadyPayloadVm, UsbConfigurationDescriptor, UsbConfigurationDescriptorVm,
-    UsbControlSetup, UsbControlSetupVm, UsbDeviceDescriptor, UsbDeviceDescriptorVm,
-    UsbEndpointDescriptor, UsbEndpointDescriptorVm, UsbHotplugAttachedEvent,
-    UsbHotplugAttachedEventVm, UsbHotplugDetachedEvent, UsbHotplugDetachedEventVm, UsbHotplugEvent,
-    UsbHotplugEventMetadata, UsbHotplugEventMetadataVm, UsbHotplugEventVm, UsbInterfaceDescriptor,
-    UsbInterfaceDescriptorVm, UsbIsochronousTransferResult, UsbIsochronousTransferResultVm,
-    UsbStringDescriptor, UsbStringDescriptorVm, native as device_native, vm as device_vm,
-};
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, fs, resource,
-};
+use crate::platform::device::{BluetoothAdapterCapabilities, BluetoothAdapterCapabilitiesVm, BluetoothAdapterDescriptor, BluetoothAdapterDescriptorVm, BluetoothAdvertisementData, BluetoothAdvertisementDataVm, BluetoothAdvertisementManufacturerData, BluetoothAdvertisementManufacturerDataVm, BluetoothAdvertisementServiceData, BluetoothAdvertisementServiceDataVm, BluetoothDeviceDescriptor, BluetoothDeviceDescriptorVm, BluetoothGattCharacteristicDescriptor, BluetoothGattCharacteristicDescriptorVm, BluetoothGattCharacteristicProperties, BluetoothGattCharacteristicPropertiesVm, BluetoothGattDescriptorDescriptor, BluetoothGattDescriptorDescriptorVm, BluetoothGattServiceDescriptor, BluetoothGattServiceDescriptorVm, BluetoothGattValueEvent, BluetoothGattValueEventVm, BluetoothGattWriteMode, BluetoothPairState, BluetoothPhy, BluetoothScanDiscoveredEvent, BluetoothScanDiscoveredEventVm, BluetoothScanEvent, BluetoothScanEventMetadata, BluetoothScanEventMetadataVm, BluetoothScanEventVm, BluetoothScanFilter, BluetoothScanFilterVm, BluetoothScanLostEvent, BluetoothScanLostEventVm, BluetoothScanMode, BluetoothScanUpdatedEvent, BluetoothScanUpdatedEventVm, BluetoothSessionDisconnectedEvent, BluetoothSessionDisconnectedEventVm, BluetoothSessionDisconnectedPayload, BluetoothSessionDisconnectedPayloadVm, BluetoothSessionEvent, BluetoothSessionEventMetadata, BluetoothSessionEventMetadataVm, BluetoothSessionEventVm, BluetoothSessionPairStateChangedEvent, BluetoothSessionPairStateChangedEventVm, BluetoothSessionPairStateChangedPayload, BluetoothSessionPairStateChangedPayloadVm, BluetoothTransport, CameraColorSpace, CameraDeviceDescriptor, CameraDeviceDescriptorVm, CameraDynamicRange, CameraExposureCompensationRange, CameraExposureCompensationRangeVm, CameraExposureMode, CameraFacingMode, CameraFocusDistanceRange, CameraFocusDistanceRangeVm, CameraFrame, CameraFrameMetadata, CameraFrameMetadataVm, CameraFrameVm, CameraPixelFormat, CameraPixelFormatDescriptor, CameraPixelFormatDescriptorVm, CameraPixelFormatFamily, CameraPlaneLayout, CameraPlaneLayoutVm, CameraStabilizationMode, CameraStreamCapability, CameraStreamCapabilityVm, CameraStreamConfig, CameraStreamConfigVm, CameraTorchMode, CameraWhiteBalanceRange, CameraWhiteBalanceRangeVm, CameraZoomRatioRange, CameraZoomRatioRangeVm, SerialDataBits, SerialDisconnectedEvent, SerialDisconnectedEventVm, SerialDisconnectedPayload, SerialDisconnectedPayloadVm, SerialErrorEvent, SerialErrorEventVm, SerialErrorKind, SerialErrorPayload, SerialErrorPayloadVm, SerialEvent, SerialEventMetadata, SerialEventMetadataVm, SerialEventVm, SerialFlowControl, SerialFlowControlVm, SerialInputSignals, SerialInputSignalsVm, SerialModemStatusChangedEvent, SerialModemStatusChangedEventVm, SerialModemStatusPayload, SerialModemStatusPayloadVm, SerialOutputSignals, SerialOutputSignalsVm, SerialParity, SerialPortConfig, SerialPortConfigVm, SerialPortDescriptor, SerialPortDescriptorVm, SerialPortOpenOptions, SerialPortOpenOptionsVm, SerialPortTransport, SerialReadReadyEvent, SerialReadReadyEventVm, SerialReadReadyPayload, SerialReadReadyPayloadVm, SerialStopBits, SerialWriteDrainedEvent, SerialWriteDrainedEventVm, SerialWriteDrainedPayload, SerialWriteDrainedPayloadVm, UsbBosCapabilityDescriptor, UsbBosCapabilityDescriptorVm, UsbBosCapabilityKind, UsbConfigurationDescriptor, UsbConfigurationDescriptorVm, UsbControlDeviceTarget, UsbControlDeviceTargetVm, UsbControlEndpointTarget, UsbControlEndpointTargetVm, UsbControlInterfaceTarget, UsbControlInterfaceTargetVm, UsbControlOtherTarget, UsbControlOtherTargetVm, UsbControlSetup, UsbControlSetupVm, UsbControlTarget, UsbControlTargetVm, UsbControlTransferType, UsbDeviceDescriptor, UsbDeviceDescriptorVm, UsbEndpointDescriptor, UsbEndpointDescriptorVm, UsbEndpointDirection, UsbEndpointSelector, UsbEndpointSelectorVm, UsbEndpointTransferType, UsbHotplugAttachedEvent, UsbHotplugAttachedEventVm, UsbHotplugDetachedEvent, UsbHotplugDetachedEventVm, UsbHotplugEvent, UsbHotplugEventMetadata, UsbHotplugEventMetadataVm, UsbHotplugEventVm, UsbInTransferResult, UsbInTransferResultVm, UsbInterfaceDescriptor, UsbInterfaceDescriptorVm, UsbIsochronousPacketResult, UsbIsochronousPacketResultVm, UsbIsochronousTransferResult, UsbIsochronousTransferResultVm, UsbOutTransferResult, UsbOutTransferResultVm, UsbStringDescriptor, UsbStringDescriptorVm, UsbTransferStatus, native as device_native, vm as device_vm};
+use crate::platform::{NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
 use destack_vm as vm;
 
 impl<'call> DeviceHarnessContext<'call> {
@@ -77,30 +46,20 @@ impl<'call> DeviceHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_device_bluetooth_adapter_list(
         &mut self,
-    ) -> RuntimeResult<
-        HarnessValue<
-            NativeSlice<BluetoothAdapterDescriptor>,
-            VmSlice<BluetoothAdapterDescriptorVm>,
-        >,
-    > {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<BluetoothAdapterDescriptor>, VmSlice<BluetoothAdapterDescriptorVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out =
-                    device_vm::destack_device_bluetooth_adapter_list(self.call_context, context)?;
+                let out = device_vm::destack_device_bluetooth_adapter_list(self.call_context, context)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out =
-                    std::mem::MaybeUninit::<NativeSlice<BluetoothAdapterDescriptor>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeSlice<BluetoothAdapterDescriptor>>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_adapter_list(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                    )?;
+                    device_native::destack_device_bluetooth_adapter_list(self.call_context, out.as_mut_ptr())?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -124,39 +83,22 @@ impl<'call> DeviceHarnessContext<'call> {
         &mut self,
         handle: resource::BluetoothDeviceHandle,
         serviceuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
-    ) -> RuntimeResult<
-        HarnessValue<
-            NativeSlice<BluetoothGattCharacteristicDescriptor>,
-            VmSlice<BluetoothGattCharacteristicDescriptorVm>,
-        >,
-    > {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<BluetoothGattCharacteristicDescriptor>, VmSlice<BluetoothGattCharacteristicDescriptorVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
-                let out = device_vm::destack_device_bluetooth_gatt_characteristic_list(
-                    self.call_context,
-                    context,
-                    handle,
-                    serviceuuid,
-                )?;
+                let out = device_vm::destack_device_bluetooth_gatt_characteristic_list(self.call_context, context, handle, serviceuuid)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let serviceuuid = serviceuuid.into_native("serviceuuid")?;
-                let mut out = std::mem::MaybeUninit::<
-                    NativeSlice<BluetoothGattCharacteristicDescriptor>,
-                >::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeSlice<BluetoothGattCharacteristicDescriptor>>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_characteristic_list(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        serviceuuid,
-                    )?;
+                    device_native::destack_device_bluetooth_gatt_characteristic_list(self.call_context, out.as_mut_ptr(), handle, serviceuuid)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -181,43 +123,24 @@ impl<'call> DeviceHarnessContext<'call> {
         handle: resource::BluetoothDeviceHandle,
         serviceuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
         characteristicuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
-    ) -> RuntimeResult<
-        HarnessValue<
-            NativeSlice<BluetoothGattDescriptorDescriptor>,
-            VmSlice<BluetoothGattDescriptorDescriptorVm>,
-        >,
-    > {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<BluetoothGattDescriptorDescriptor>, VmSlice<BluetoothGattDescriptorDescriptorVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
                 let characteristicuuid = characteristicuuid.into_vm("characteristicuuid")?;
-                let out = device_vm::destack_device_bluetooth_gatt_descriptor_list(
-                    self.call_context,
-                    context,
-                    handle,
-                    serviceuuid,
-                    characteristicuuid,
-                )?;
+                let out = device_vm::destack_device_bluetooth_gatt_descriptor_list(self.call_context, context, handle, serviceuuid, characteristicuuid)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let serviceuuid = serviceuuid.into_native("serviceuuid")?;
                 let characteristicuuid = characteristicuuid.into_native("characteristicuuid")?;
-                let mut out =
-                    std::mem::MaybeUninit::<NativeSlice<BluetoothGattDescriptorDescriptor>>::uninit(
-                    );
+                let mut out = std::mem::MaybeUninit::<NativeSlice<BluetoothGattDescriptorDescriptor>>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_descriptor_list(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        serviceuuid,
-                        characteristicuuid,
-                    )?;
+                    device_native::destack_device_bluetooth_gatt_descriptor_list(self.call_context, out.as_mut_ptr(), handle, serviceuuid, characteristicuuid)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -243,25 +166,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<u16> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_bluetooth_gatt_mtu(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_bluetooth_gatt_mtu(self.call_context, context, handle)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<u16>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_mtu(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_bluetooth_gatt_mtu(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -292,14 +207,7 @@ impl<'call> DeviceHarnessContext<'call> {
             Some(context) => {
                 let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
                 let characteristicuuid = characteristicuuid.into_vm("characteristicuuid")?;
-                let out = device_vm::destack_device_bluetooth_gatt_read(
-                    self.call_context,
-                    context,
-                    handle,
-                    serviceuuid,
-                    characteristicuuid,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_bluetooth_gatt_read(self.call_context, context, handle, serviceuuid, characteristicuuid, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
@@ -307,18 +215,11 @@ impl<'call> DeviceHarnessContext<'call> {
                 let characteristicuuid = characteristicuuid.into_native("characteristicuuid")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        serviceuuid,
-                        characteristicuuid,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_bluetooth_gatt_read(self.call_context, out.as_mut_ptr(), handle, serviceuuid, characteristicuuid, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -351,15 +252,7 @@ impl<'call> DeviceHarnessContext<'call> {
                 let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
                 let characteristicuuid = characteristicuuid.into_vm("characteristicuuid")?;
                 let descriptoruuid = descriptoruuid.into_vm("descriptoruuid")?;
-                let out = device_vm::destack_device_bluetooth_gatt_read_descriptor(
-                    self.call_context,
-                    context,
-                    handle,
-                    serviceuuid,
-                    characteristicuuid,
-                    descriptoruuid,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_bluetooth_gatt_read_descriptor(self.call_context, context, handle, serviceuuid, characteristicuuid, descriptoruuid, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
@@ -368,19 +261,11 @@ impl<'call> DeviceHarnessContext<'call> {
                 let descriptoruuid = descriptoruuid.into_native("descriptoruuid")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_read_descriptor(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        serviceuuid,
-                        characteristicuuid,
-                        descriptoruuid,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_bluetooth_gatt_read_descriptor(self.call_context, out.as_mut_ptr(), handle, serviceuuid, characteristicuuid, descriptoruuid, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -407,27 +292,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<BluetoothGattValueEvent, BluetoothGattValueEventVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_bluetooth_gatt_read_event(
-                    self.call_context,
-                    context,
-                    handle,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_bluetooth_gatt_read_event(self.call_context, context, handle, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<BluetoothGattValueEvent>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_read_event(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_bluetooth_gatt_read_event(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -455,29 +330,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<u16> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_bluetooth_gatt_request_mtu(
-                    self.call_context,
-                    context,
-                    handle,
-                    mtu,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_bluetooth_gatt_request_mtu(self.call_context, context, handle, mtu, timeoutns)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<u16>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_request_mtu(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        mtu,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_bluetooth_gatt_request_mtu(self.call_context, out.as_mut_ptr(), handle, mtu, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -500,34 +363,20 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_bluetooth_gatt_service_list(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
-    ) -> RuntimeResult<
-        HarnessValue<
-            NativeSlice<BluetoothGattServiceDescriptor>,
-            VmSlice<BluetoothGattServiceDescriptorVm>,
-        >,
-    > {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<BluetoothGattServiceDescriptor>, VmSlice<BluetoothGattServiceDescriptorVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_bluetooth_gatt_service_list(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_bluetooth_gatt_service_list(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out =
-                    std::mem::MaybeUninit::<NativeSlice<BluetoothGattServiceDescriptor>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeSlice<BluetoothGattServiceDescriptor>>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_service_list(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_bluetooth_gatt_service_list(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -557,32 +406,19 @@ impl<'call> DeviceHarnessContext<'call> {
             Some(context) => {
                 let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
                 let characteristicuuid = characteristicuuid.into_vm("characteristicuuid")?;
-                let out = device_vm::destack_device_bluetooth_gatt_subscribe(
-                    self.call_context,
-                    context,
-                    handle,
-                    serviceuuid,
-                    characteristicuuid,
-                )?;
+                let out = device_vm::destack_device_bluetooth_gatt_subscribe(self.call_context, context, handle, serviceuuid, characteristicuuid)?;
                 Ok(out)
             }
             None => {
                 let serviceuuid = serviceuuid.into_native("serviceuuid")?;
                 let characteristicuuid = characteristicuuid.into_native("characteristicuuid")?;
-                let mut out =
-                    std::mem::MaybeUninit::<resource::BluetoothSubscriptionHandle>::uninit();
+                let mut out = std::mem::MaybeUninit::<resource::BluetoothSubscriptionHandle>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_subscribe(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        serviceuuid,
-                        characteristicuuid,
-                    )?;
+                    device_native::destack_device_bluetooth_gatt_subscribe(self.call_context, out.as_mut_ptr(), handle, serviceuuid, characteristicuuid)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -608,25 +444,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<BluetoothGattValueEvent, BluetoothGattValueEventVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_bluetooth_gatt_try_read_event(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_bluetooth_gatt_try_read_event(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<BluetoothGattValueEvent>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_try_read_event(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_bluetooth_gatt_try_read_event(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -651,11 +479,9 @@ impl<'call> DeviceHarnessContext<'call> {
         handle: resource::BluetoothSubscriptionHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_bluetooth_gatt_unsubscribe(
-                self.call_context,
-                context,
-                handle,
-            ),
+            Some(context) => {
+                device_vm::destack_device_bluetooth_gatt_unsubscribe(self.call_context, context, handle)
+            }
             None => unsafe {
                 device_native::destack_device_bluetooth_gatt_unsubscribe(self.call_context, handle)
             },
@@ -664,7 +490,7 @@ impl<'call> DeviceHarnessContext<'call> {
 
     /// Write one GATT characteristic value.
     ///
-    /// Write one characteristic value on one connected Bluetooth device session.
+    /// Write one characteristic value on one connected Bluetooth device session with one explicit ATT write mode.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -684,7 +510,7 @@ impl<'call> DeviceHarnessContext<'call> {
         serviceuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
         characteristicuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
         argument_value: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
-        withresponse: bool,
+        mode: BluetoothGattWriteMode,
         timeoutns: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
@@ -692,33 +518,14 @@ impl<'call> DeviceHarnessContext<'call> {
                 let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
                 let characteristicuuid = characteristicuuid.into_vm("characteristicuuid")?;
                 let argument_value = argument_value.into_vm("argument_value")?;
-                device_vm::destack_device_bluetooth_gatt_write(
-                    self.call_context,
-                    context,
-                    handle,
-                    serviceuuid,
-                    characteristicuuid,
-                    argument_value,
-                    withresponse,
-                    timeoutns,
-                )
+                device_vm::destack_device_bluetooth_gatt_write(self.call_context, context, handle, serviceuuid, characteristicuuid, argument_value, mode, timeoutns)
             }
-            None => {
+            None => unsafe {
                 let serviceuuid = serviceuuid.into_native("serviceuuid")?;
                 let characteristicuuid = characteristicuuid.into_native("characteristicuuid")?;
                 let argument_value = argument_value.into_native("argument_value")?;
-                unsafe {
-                    device_native::destack_device_bluetooth_gatt_write(
-                        self.call_context,
-                        handle,
-                        serviceuuid,
-                        characteristicuuid,
-                        argument_value,
-                        withresponse,
-                        timeoutns,
-                    )
-                }
-            }
+                device_native::destack_device_bluetooth_gatt_write(self.call_context, handle, serviceuuid, characteristicuuid, argument_value, mode, timeoutns)
+            },
         }
     }
 
@@ -753,34 +560,15 @@ impl<'call> DeviceHarnessContext<'call> {
                 let characteristicuuid = characteristicuuid.into_vm("characteristicuuid")?;
                 let descriptoruuid = descriptoruuid.into_vm("descriptoruuid")?;
                 let argument_value = argument_value.into_vm("argument_value")?;
-                device_vm::destack_device_bluetooth_gatt_write_descriptor(
-                    self.call_context,
-                    context,
-                    handle,
-                    serviceuuid,
-                    characteristicuuid,
-                    descriptoruuid,
-                    argument_value,
-                    timeoutns,
-                )
+                device_vm::destack_device_bluetooth_gatt_write_descriptor(self.call_context, context, handle, serviceuuid, characteristicuuid, descriptoruuid, argument_value, timeoutns)
             }
-            None => {
+            None => unsafe {
                 let serviceuuid = serviceuuid.into_native("serviceuuid")?;
                 let characteristicuuid = characteristicuuid.into_native("characteristicuuid")?;
                 let descriptoruuid = descriptoruuid.into_native("descriptoruuid")?;
                 let argument_value = argument_value.into_native("argument_value")?;
-                unsafe {
-                    device_native::destack_device_bluetooth_gatt_write_descriptor(
-                        self.call_context,
-                        handle,
-                        serviceuuid,
-                        characteristicuuid,
-                        descriptoruuid,
-                        argument_value,
-                        timeoutns,
-                    )
-                }
-            }
+                device_native::destack_device_bluetooth_gatt_write_descriptor(self.call_context, handle, serviceuuid, characteristicuuid, descriptoruuid, argument_value, timeoutns)
+            },
         }
     }
 
@@ -833,18 +621,13 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_bluetooth_scan_open(
         &mut self,
         adapterid: HarnessValue<NativeStringRef, vm::StringHandle>,
-        filter: HarnessValue<BluetoothScanFilter, BluetoothScanFilterVm>,
+        filter: HarnessValue<Option<BluetoothScanFilter>, Option<BluetoothScanFilterVm>>,
     ) -> RuntimeResult<resource::BluetoothScanHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let adapterid = adapterid.into_vm("adapterid")?;
                 let filter = filter.into_vm("filter")?;
-                let out = device_vm::destack_device_bluetooth_scan_open(
-                    self.call_context,
-                    context,
-                    adapterid,
-                    filter,
-                )?;
+                let out = device_vm::destack_device_bluetooth_scan_open(self.call_context, context, adapterid, filter)?;
                 Ok(out)
             }
             None => {
@@ -852,16 +635,11 @@ impl<'call> DeviceHarnessContext<'call> {
                 let filter = filter.into_native("filter")?;
                 let mut out = std::mem::MaybeUninit::<resource::BluetoothScanHandle>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_scan_open(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        adapterid,
-                        filter,
-                    )?;
+                    device_native::destack_device_bluetooth_scan_open(self.call_context, out.as_mut_ptr(), adapterid, filter)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -888,27 +666,54 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<BluetoothDeviceDescriptor, BluetoothDeviceDescriptorVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_bluetooth_scan_read(
-                    self.call_context,
-                    context,
-                    handle,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_bluetooth_scan_read(self.call_context, context, handle, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<BluetoothDeviceDescriptor>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_scan_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_bluetooth_scan_read(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Wait for one Bluetooth scan event.
+    ///
+    /// Wait for one typed scan event from one opened scan session.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host Bluetooth scan event queues.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.scan`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_bluetooth_scan_read_event(
+        &mut self,
+        handle: resource::BluetoothScanHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<BluetoothScanEvent, BluetoothScanEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_bluetooth_scan_read_event(self.call_context, context, handle, timeoutns)?;
+                Ok(HarnessValue::Vm(out))
             }
+            None => {
+                let mut out = std::mem::MaybeUninit::<BluetoothScanEvent>::uninit();
+                unsafe {
+                    device_native::destack_device_bluetooth_scan_read_event(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
         }
     }
 
@@ -934,25 +739,53 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<BluetoothDeviceDescriptor, BluetoothDeviceDescriptorVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_bluetooth_scan_try_read(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_bluetooth_scan_try_read(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<BluetoothDeviceDescriptor>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_scan_try_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_bluetooth_scan_try_read(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Poll one Bluetooth scan event without blocking.
+    ///
+    /// Poll one typed scan event from one opened scan session without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host nonblocking Bluetooth scan event reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.scan`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_bluetooth_scan_try_read_event(
+        &mut self,
+        handle: resource::BluetoothScanHandle,
+    ) -> RuntimeResult<HarnessValue<BluetoothScanEvent, BluetoothScanEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_bluetooth_scan_try_read_event(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
             }
+            None => {
+                let mut out = std::mem::MaybeUninit::<BluetoothScanEvent>::uninit();
+                unsafe {
+                    device_native::destack_device_bluetooth_scan_try_read_event(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
         }
     }
 
@@ -1011,12 +844,7 @@ impl<'call> DeviceHarnessContext<'call> {
             Some(context) => {
                 let adapterid = adapterid.into_vm("adapterid")?;
                 let deviceid = deviceid.into_vm("deviceid")?;
-                let out = device_vm::destack_device_bluetooth_open(
-                    self.call_context,
-                    context,
-                    adapterid,
-                    deviceid,
-                )?;
+                let out = device_vm::destack_device_bluetooth_open(self.call_context, context, adapterid, deviceid)?;
                 Ok(out)
             }
             None => {
@@ -1024,16 +852,11 @@ impl<'call> DeviceHarnessContext<'call> {
                 let deviceid = deviceid.into_native("deviceid")?;
                 let mut out = std::mem::MaybeUninit::<resource::BluetoothDeviceHandle>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_open(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        adapterid,
-                        deviceid,
-                    )?;
+                    device_native::destack_device_bluetooth_open(self.call_context, out.as_mut_ptr(), adapterid, deviceid)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -1059,14 +882,48 @@ impl<'call> DeviceHarnessContext<'call> {
         timeoutns: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_bluetooth_pair(
-                self.call_context,
-                context,
-                handle,
-                timeoutns,
-            ),
+            Some(context) => {
+                device_vm::destack_device_bluetooth_pair(self.call_context, context, handle, timeoutns)
+            }
             None => unsafe {
                 device_native::destack_device_bluetooth_pair(self.call_context, handle, timeoutns)
+            },
+        }
+    }
+
+    /// Wait for one Bluetooth session event.
+    ///
+    /// Wait for one typed session event from one opened Bluetooth device session.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host Bluetooth link-state and pairing event queues where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_bluetooth_session_read_event(
+        &mut self,
+        handle: resource::BluetoothDeviceHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<BluetoothSessionEvent, BluetoothSessionEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_bluetooth_session_read_event(self.call_context, context, handle, timeoutns)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<BluetoothSessionEvent>::uninit();
+                unsafe {
+                    device_native::destack_device_bluetooth_session_read_event(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
             },
         }
     }
@@ -1094,27 +951,53 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<i32> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_bluetooth_read_rssi(
-                    self.call_context,
-                    context,
-                    handle,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_bluetooth_read_rssi(self.call_context, context, handle, timeoutns)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<i32>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_read_rssi(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_bluetooth_read_rssi(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
+            },
+        }
+    }
+
+    /// Poll one Bluetooth session event without blocking.
+    ///
+    /// Poll one typed session event from one opened Bluetooth device session without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host nonblocking Bluetooth session event reads where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_bluetooth_session_try_read_event(
+        &mut self,
+        handle: resource::BluetoothDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<BluetoothSessionEvent, BluetoothSessionEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_bluetooth_session_try_read_event(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
             }
+            None => {
+                let mut out = std::mem::MaybeUninit::<BluetoothSessionEvent>::uninit();
+                unsafe {
+                    device_native::destack_device_bluetooth_session_try_read_event(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
         }
     }
 
@@ -1143,24 +1026,13 @@ impl<'call> DeviceHarnessContext<'call> {
             Some(context) => {
                 let adapterid = adapterid.into_vm("adapterid")?;
                 let deviceid = deviceid.into_vm("deviceid")?;
-                device_vm::destack_device_bluetooth_unpair(
-                    self.call_context,
-                    context,
-                    adapterid,
-                    deviceid,
-                )
+                device_vm::destack_device_bluetooth_unpair(self.call_context, context, adapterid, deviceid)
             }
-            None => {
+            None => unsafe {
                 let adapterid = adapterid.into_native("adapterid")?;
                 let deviceid = deviceid.into_native("deviceid")?;
-                unsafe {
-                    device_native::destack_device_bluetooth_unpair(
-                        self.call_context,
-                        adapterid,
-                        deviceid,
-                    )
-                }
-            }
+                device_native::destack_device_bluetooth_unpair(self.call_context, adapterid, deviceid)
+            },
         }
     }
 
@@ -1212,26 +1084,20 @@ impl<'call> DeviceHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_device_camera_device_list(
         &mut self,
-    ) -> RuntimeResult<
-        HarnessValue<NativeSlice<CameraDeviceDescriptor>, VmSlice<CameraDeviceDescriptorVm>>,
-    > {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<CameraDeviceDescriptor>, VmSlice<CameraDeviceDescriptorVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out = device_vm::destack_device_camera_device_list(self.call_context, context)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out =
-                    std::mem::MaybeUninit::<NativeSlice<CameraDeviceDescriptor>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeSlice<CameraDeviceDescriptor>>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_device_list(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                    )?;
+                    device_native::destack_device_camera_device_list(self.call_context, out.as_mut_ptr())?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -1258,23 +1124,18 @@ impl<'call> DeviceHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let id = id.into_vm("id")?;
-                let out =
-                    device_vm::destack_device_camera_device_open(self.call_context, context, id)?;
+                let out = device_vm::destack_device_camera_device_open(self.call_context, context, id)?;
                 Ok(out)
             }
             None => {
                 let id = id.into_native("id")?;
                 let mut out = std::mem::MaybeUninit::<resource::CameraDeviceHandle>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_device_open(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        id,
-                    )?;
+                    device_native::destack_device_camera_device_open(self.call_context, out.as_mut_ptr(), id)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -1297,31 +1158,20 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_camera_device_stream_capability_list(
         &mut self,
         handle: resource::CameraDeviceHandle,
-    ) -> RuntimeResult<
-        HarnessValue<NativeSlice<CameraStreamCapability>, VmSlice<CameraStreamCapabilityVm>>,
-    > {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<CameraStreamCapability>, VmSlice<CameraStreamCapabilityVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_device_stream_capability_list(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_camera_device_stream_capability_list(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out =
-                    std::mem::MaybeUninit::<NativeSlice<CameraStreamCapability>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeSlice<CameraStreamCapability>>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_device_stream_capability_list(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_camera_device_stream_capability_list(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -1344,29 +1194,20 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_camera_device_stream_config_list(
         &mut self,
         handle: resource::CameraDeviceHandle,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<CameraStreamConfig>, VmSlice<CameraStreamConfigVm>>>
-    {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<CameraStreamConfig>, VmSlice<CameraStreamConfigVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_device_stream_config_list(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_camera_device_stream_config_list(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<NativeSlice<CameraStreamConfig>>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_device_stream_config_list(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_camera_device_stream_config_list(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -1400,13 +1241,85 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one camera control range.
+    /// Read current camera stream configuration.
     ///
-    /// Read one normalized camera control range descriptor for one opened stream.
+    /// Read one active stream-configuration snapshot for one opened camera stream.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend camera control capability query APIs where available.
+    /// Uses backend stream settings and active-format query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.capture`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_config(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraStreamConfig, CameraStreamConfigVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_config(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraStreamConfig>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_config(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Read camera exposure compensation.
+    ///
+    /// Read one exposure-compensation value in EV units from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend exposure-compensation query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_exposure_compensation(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<f64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_exposure_compensation(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<f64>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_exposure_compensation(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read exposure-compensation range.
+    ///
+    /// Read one exposure-compensation range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend exposure-compensation capability query APIs where available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1416,34 +1329,23 @@ impl<'call> DeviceHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_control_range(
+    pub(crate) fn destack_device_camera_stream_exposure_compensation_range(
         &mut self,
         handle: resource::CameraStreamHandle,
-        control: CameraControl,
-    ) -> RuntimeResult<HarnessValue<CameraControlRange, CameraControlRangeVm>> {
+    ) -> RuntimeResult<HarnessValue<CameraExposureCompensationRange, CameraExposureCompensationRangeVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_control_range(
-                    self.call_context,
-                    context,
-                    handle,
-                    control,
-                )?;
+                let out = device_vm::destack_device_camera_stream_exposure_compensation_range(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<CameraControlRange>::uninit();
+                let mut out = std::mem::MaybeUninit::<CameraExposureCompensationRange>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_control_range(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        control,
-                    )?;
+                    device_native::destack_device_camera_stream_exposure_compensation_range(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -1469,35 +1371,27 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<CameraExposureMode> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_exposure_mode(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_camera_stream_exposure_mode(self.call_context, context, handle)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<CameraExposureMode>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_exposure_mode(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_camera_stream_exposure_mode(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
-    /// Read one camera control value.
+    /// Read camera focus distance.
     ///
-    /// Read one normalized camera control value from one running stream.
+    /// Read one focus-distance value in diopters from one opened camera stream.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend camera control query APIs where available.
+    /// Uses backend focus-distance query APIs where available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1507,34 +1401,59 @@ impl<'call> DeviceHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_get_control(
+    pub(crate) fn destack_device_camera_stream_focus_distance_diopters(
         &mut self,
         handle: resource::CameraStreamHandle,
-        control: CameraControl,
     ) -> RuntimeResult<f64> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_get_control(
-                    self.call_context,
-                    context,
-                    handle,
-                    control,
-                )?;
+                let out = device_vm::destack_device_camera_stream_focus_distance_diopters(self.call_context, context, handle)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<f64>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_get_control(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        control,
-                    )?;
+                    device_native::destack_device_camera_stream_focus_distance_diopters(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
+            },
+        }
+    }
+
+    /// Read focus-distance range.
+    ///
+    /// Read one focus-distance range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend focus-distance capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_focus_distance_range(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraFocusDistanceRange, CameraFocusDistanceRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_focus_distance_range(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
             }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraFocusDistanceRange>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_focus_distance_range(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
         }
     }
 
@@ -1562,28 +1481,18 @@ impl<'call> DeviceHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let config = config.into_vm("config")?;
-                let out = device_vm::destack_device_camera_stream_open(
-                    self.call_context,
-                    context,
-                    device,
-                    config,
-                )?;
+                let out = device_vm::destack_device_camera_stream_open(self.call_context, context, device, config)?;
                 Ok(out)
             }
             None => {
                 let config = config.into_native("config")?;
                 let mut out = std::mem::MaybeUninit::<resource::CameraStreamHandle>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_open(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        config,
-                    )?;
+                    device_native::destack_device_camera_stream_open(self.call_context, out.as_mut_ptr(), device, config)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -1610,37 +1519,27 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<CameraFrame, CameraFrameVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_read(
-                    self.call_context,
-                    context,
-                    handle,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_camera_stream_read(self.call_context, context, handle, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<CameraFrame>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_camera_stream_read(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
-    /// Set one camera control value.
+    /// Set camera exposure compensation.
     ///
-    /// Apply one normalized camera control value in one running stream.
+    /// Apply one exposure-compensation value in EV units on one opened camera stream.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend camera control APIs where available.
+    /// Uses backend exposure-compensation control APIs where available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1650,27 +1549,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_camera_stream_set_control(
+    pub(crate) fn destack_device_camera_stream_set_exposure_compensation(
         &mut self,
         handle: resource::CameraStreamHandle,
-        control: CameraControl,
-        argument_value: f64,
+        valueev: f64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_camera_stream_set_control(
-                self.call_context,
-                context,
-                handle,
-                control,
-                argument_value,
-            ),
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_exposure_compensation(self.call_context, context, handle, valueev)
+            }
             None => unsafe {
-                device_native::destack_device_camera_stream_set_control(
-                    self.call_context,
-                    handle,
-                    control,
-                    argument_value,
-                )
+                device_native::destack_device_camera_stream_set_exposure_compensation(self.call_context, handle, valueev)
             },
         }
     }
@@ -1697,18 +1586,42 @@ impl<'call> DeviceHarnessContext<'call> {
         mode: CameraExposureMode,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_camera_stream_set_exposure_mode(
-                self.call_context,
-                context,
-                handle,
-                mode,
-            ),
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_exposure_mode(self.call_context, context, handle, mode)
+            }
             None => unsafe {
-                device_native::destack_device_camera_stream_set_exposure_mode(
-                    self.call_context,
-                    handle,
-                    mode,
-                )
+                device_native::destack_device_camera_stream_set_exposure_mode(self.call_context, handle, mode)
+            },
+        }
+    }
+
+    /// Set camera focus distance.
+    ///
+    /// Apply one focus-distance value in diopters on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend focus-distance control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_focus_distance_diopters(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        diopters: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_focus_distance_diopters(self.call_context, context, handle, diopters)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_focus_distance_diopters(self.call_context, handle, diopters)
             },
         }
     }
@@ -1735,18 +1648,11 @@ impl<'call> DeviceHarnessContext<'call> {
         mode: CameraStabilizationMode,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_camera_stream_set_stabilization_mode(
-                self.call_context,
-                context,
-                handle,
-                mode,
-            ),
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_stabilization_mode(self.call_context, context, handle, mode)
+            }
             None => unsafe {
-                device_native::destack_device_camera_stream_set_stabilization_mode(
-                    self.call_context,
-                    handle,
-                    mode,
-                )
+                device_native::destack_device_camera_stream_set_stabilization_mode(self.call_context, handle, mode)
             },
         }
     }
@@ -1773,18 +1679,73 @@ impl<'call> DeviceHarnessContext<'call> {
         mode: CameraTorchMode,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_camera_stream_set_torch_mode(
-                self.call_context,
-                context,
-                handle,
-                mode,
-            ),
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_torch_mode(self.call_context, context, handle, mode)
+            }
             None => unsafe {
-                device_native::destack_device_camera_stream_set_torch_mode(
-                    self.call_context,
-                    handle,
-                    mode,
-                )
+                device_native::destack_device_camera_stream_set_torch_mode(self.call_context, handle, mode)
+            },
+        }
+    }
+
+    /// Set camera white balance.
+    ///
+    /// Apply one white-balance value in kelvin on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend white-balance control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_white_balance_kelvin(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        kelvin: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_white_balance_kelvin(self.call_context, context, handle, kelvin)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_white_balance_kelvin(self.call_context, handle, kelvin)
+            },
+        }
+    }
+
+    /// Set camera zoom ratio.
+    ///
+    /// Apply one digital zoom ratio on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend zoom control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_zoom_ratio(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        ratio: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_zoom_ratio(self.call_context, context, handle, ratio)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_zoom_ratio(self.call_context, handle, ratio)
             },
         }
     }
@@ -1811,25 +1772,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<CameraStabilizationMode> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_stabilization_mode(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_camera_stream_stabilization_mode(self.call_context, context, handle)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<CameraStabilizationMode>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_stabilization_mode(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_camera_stream_stabilization_mode(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -1915,25 +1868,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<CameraTorchMode> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_torch_mode(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_camera_stream_torch_mode(self.call_context, context, handle)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<CameraTorchMode>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_torch_mode(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_camera_stream_torch_mode(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -1959,25 +1904,161 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<CameraFrame, CameraFrameVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_camera_stream_try_read(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_camera_stream_try_read(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<CameraFrame>::uninit();
                 unsafe {
-                    device_native::destack_device_camera_stream_try_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_camera_stream_try_read(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Read camera white balance.
+    ///
+    /// Read one white-balance value in kelvin from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend white-balance query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_white_balance_kelvin(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<u32> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_white_balance_kelvin(self.call_context, context, handle)?;
+                Ok(out)
             }
+            None => {
+                let mut out = std::mem::MaybeUninit::<u32>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_white_balance_kelvin(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read white-balance range.
+    ///
+    /// Read one white-balance range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend white-balance capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_white_balance_range(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraWhiteBalanceRange, CameraWhiteBalanceRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_white_balance_range(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraWhiteBalanceRange>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_white_balance_range(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Read camera zoom ratio.
+    ///
+    /// Read one digital zoom ratio from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend zoom query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_zoom_ratio(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<f64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_zoom_ratio(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<f64>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_zoom_ratio(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read zoom-ratio range.
+    ///
+    /// Read one zoom-ratio range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend zoom capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_zoom_ratio_range(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraZoomRatioRange, CameraZoomRatioRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_zoom_ratio_range(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraZoomRatioRange>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_zoom_ratio_range(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
         }
     }
 
@@ -2011,6 +2092,42 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
+    /// Read serial endpoint configuration.
+    ///
+    /// Read one line-configuration snapshot for one opened serial endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend serial line-configuration queries.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_serial_config(
+        &mut self,
+        handle: resource::SerialPortHandle,
+    ) -> RuntimeResult<HarnessValue<SerialPortConfig, SerialPortConfigVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_serial_config(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<SerialPortConfig>::uninit();
+                unsafe {
+                    device_native::destack_device_serial_config(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
     /// Reconfigure serial endpoint.
     ///
     /// Apply one serial line configuration on one opened endpoint.
@@ -2035,23 +2152,48 @@ impl<'call> DeviceHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let config = config.into_vm("config")?;
-                device_vm::destack_device_serial_configure(
-                    self.call_context,
-                    context,
-                    handle,
-                    config,
-                )
+                device_vm::destack_device_serial_configure(self.call_context, context, handle, config)
+            }
+            None => unsafe {
+                let config = config.into_native("config")?;
+                device_native::destack_device_serial_configure(self.call_context, handle, config)
+            },
+        }
+    }
+
+    /// Read serial endpoint descriptor.
+    ///
+    /// Read one stable descriptor snapshot for one opened serial endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend descriptor and device-metadata queries.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_serial_descriptor(
+        &mut self,
+        handle: resource::SerialPortHandle,
+    ) -> RuntimeResult<HarnessValue<SerialPortDescriptor, SerialPortDescriptorVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_serial_descriptor(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
             }
             None => {
-                let config = config.into_native("config")?;
+                let mut out = std::mem::MaybeUninit::<SerialPortDescriptor>::uninit();
                 unsafe {
-                    device_native::destack_device_serial_configure(
-                        self.call_context,
-                        handle,
-                        config,
-                    )
+                    device_native::destack_device_serial_descriptor(self.call_context, out.as_mut_ptr(), handle)?;
                 }
-            }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
         }
     }
 
@@ -2115,13 +2257,13 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Flush serial output.
+    /// Drain serial output.
     ///
-    /// Drain queued outbound bytes on one opened serial endpoint.
+    /// Wait until queued outbound bytes drain on one opened serial endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend serial flush operations.
+    /// Uses backend serial drain operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2131,16 +2273,52 @@ impl<'call> DeviceHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_serial_flush(
+    pub(crate) fn destack_device_serial_drain(
         &mut self,
         handle: resource::SerialPortHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                device_vm::destack_device_serial_flush(self.call_context, context, handle)
+                device_vm::destack_device_serial_drain(self.call_context, context, handle)
             }
             None => unsafe {
-                device_native::destack_device_serial_flush(self.call_context, handle)
+                device_native::destack_device_serial_drain(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Read serial input signal state.
+    ///
+    /// Return current serial input signal state for one opened endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend modem-status APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_serial_get_signals(
+        &mut self,
+        handle: resource::SerialPortHandle,
+    ) -> RuntimeResult<HarnessValue<SerialInputSignals, SerialInputSignalsVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_serial_get_signals(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<SerialInputSignals>::uninit();
+                unsafe {
+                    device_native::destack_device_serial_get_signals(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
             },
         }
     }
@@ -2164,9 +2342,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_device_serial_list(
         &mut self,
-    ) -> RuntimeResult<
-        HarnessValue<NativeSlice<SerialPortDescriptor>, VmSlice<SerialPortDescriptorVm>>,
-    > {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<SerialPortDescriptor>, VmSlice<SerialPortDescriptorVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out = device_vm::destack_device_serial_list(self.call_context, context)?;
@@ -2179,13 +2355,13 @@ impl<'call> DeviceHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
     /// Open serial endpoint.
     ///
-    /// Open one serial endpoint with explicit line configuration.
+    /// Open one serial endpoint with explicit line configuration and host open policy.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2202,81 +2378,25 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_serial_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
-        config: HarnessValue<SerialPortConfig, SerialPortConfigVm>,
+        options: HarnessValue<SerialPortOpenOptions, SerialPortOpenOptionsVm>,
     ) -> RuntimeResult<resource::SerialPortHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let id = id.into_vm("id")?;
-                let config = config.into_vm("config")?;
-                let out =
-                    device_vm::destack_device_serial_open(self.call_context, context, id, config)?;
+                let options = options.into_vm("options")?;
+                let out = device_vm::destack_device_serial_open(self.call_context, context, id, options)?;
                 Ok(out)
             }
             None => {
                 let id = id.into_native("id")?;
-                let config = config.into_native("config")?;
+                let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::SerialPortHandle>::uninit();
                 unsafe {
-                    device_native::destack_device_serial_open(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        id,
-                        config,
-                    )?;
+                    device_native::destack_device_serial_open(self.call_context, out.as_mut_ptr(), id, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
-        }
-    }
-
-    /// Read serial bytes.
-    ///
-    /// Read up to `maxBytes` from one opened serial endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend read operations with timeout handling.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_serial_read(
-        &mut self,
-        handle: resource::SerialPortHandle,
-        maxbytes: u32,
-        timeoutns: u64,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_serial_read(
-                    self.call_context,
-                    context,
-                    handle,
-                    maxbytes,
-                    timeoutns,
-                )?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
-                unsafe {
-                    device_native::destack_device_serial_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        maxbytes,
-                        timeoutns,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -2303,67 +2423,64 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<SerialEvent, SerialEventVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_serial_read_event(
-                    self.call_context,
-                    context,
-                    handle,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_serial_read_event(self.call_context, context, handle, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<SerialEvent>::uninit();
                 unsafe {
-                    device_native::destack_device_serial_read_event(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_serial_read_event(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Set serial break state.
-    ///
-    /// Apply break signaling state for one opened serial endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend serial break-control APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_serial_set_break(
-        &mut self,
-        handle: resource::SerialPortHandle,
-        enabled: bool,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_serial_set_break(
-                self.call_context,
-                context,
-                handle,
-                enabled,
-            ),
-            None => unsafe {
-                device_native::destack_device_serial_set_break(self.call_context, handle, enabled)
             },
         }
     }
 
-    /// Set DTR and RTS control lines.
+    /// Read serial bytes.
     ///
-    /// Apply DTR and RTS line state for one opened endpoint.
+    /// Read bytes into caller memory from one opened serial endpoint.
+    /// Partial reads are preserved exactly as reported by the host backend.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend read operations with timeout handling.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_serial_read_into(
+        &mut self,
+        handle: resource::SerialPortHandle,
+        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+        timeoutns: u64,
+    ) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let buffer = buffer.into_vm("buffer")?;
+                let out = device_vm::destack_device_serial_read_into(self.call_context, context, handle, buffer, timeoutns)?;
+                Ok(out)
+            }
+            None => {
+                let buffer = buffer.into_native("buffer")?;
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    device_native::destack_device_serial_read_into(self.call_context, out.as_mut_ptr(), handle, buffer, timeoutns)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Update serial output signal state.
+    ///
+    /// Apply one partial output signal update for one opened endpoint.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2377,72 +2494,20 @@ impl<'call> DeviceHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_serial_set_control_lines(
+    pub(crate) fn destack_device_serial_set_signals(
         &mut self,
         handle: resource::SerialPortHandle,
-        dtr: bool,
-        rts: bool,
+        signals: HarnessValue<SerialOutputSignals, SerialOutputSignalsVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_serial_set_control_lines(
-                self.call_context,
-                context,
-                handle,
-                dtr,
-                rts,
-            ),
-            None => unsafe {
-                device_native::destack_device_serial_set_control_lines(
-                    self.call_context,
-                    handle,
-                    dtr,
-                    rts,
-                )
-            },
-        }
-    }
-
-    /// Read serial signal lines.
-    ///
-    /// Return current serial signal-line bitmask for one opened endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend modem-status APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_serial_signal_bits(
-        &mut self,
-        handle: resource::SerialPortHandle,
-    ) -> RuntimeResult<u32> {
-        match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_serial_signal_bits(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
-                Ok(out)
+                let signals = signals.into_vm("signals")?;
+                device_vm::destack_device_serial_set_signals(self.call_context, context, handle, signals)
             }
-            None => {
-                let mut out = std::mem::MaybeUninit::<u32>::uninit();
-                unsafe {
-                    device_native::destack_device_serial_signal_bits(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
+            None => unsafe {
+                let signals = signals.into_native("signals")?;
+                device_native::destack_device_serial_set_signals(self.call_context, handle, signals)
+            },
         }
     }
 
@@ -2468,28 +2533,24 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<SerialEvent, SerialEventVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out =
-                    device_vm::destack_device_serial_try_event(self.call_context, context, handle)?;
+                let out = device_vm::destack_device_serial_try_event(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<SerialEvent>::uninit();
                 unsafe {
-                    device_native::destack_device_serial_try_event(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_serial_try_event(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
     /// Poll serial bytes without blocking.
     ///
-    /// Read up to `maxBytes` from one opened serial endpoint without waiting.
+    /// Read bytes into caller memory from one opened serial endpoint without waiting.
+    /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2503,34 +2564,26 @@ impl<'call> DeviceHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_device_serial_try_read(
+    pub(crate) fn destack_device_serial_try_read_into(
         &mut self,
         handle: resource::SerialPortHandle,
-        maxbytes: u32,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<u64> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_serial_try_read(
-                    self.call_context,
-                    context,
-                    handle,
-                    maxbytes,
-                )?;
-                Ok(HarnessValue::Vm(out))
+                let buffer = buffer.into_vm("buffer")?;
+                let out = device_vm::destack_device_serial_try_read_into(self.call_context, context, handle, buffer)?;
+                Ok(out)
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                let buffer = buffer.into_native("buffer")?;
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
                 unsafe {
-                    device_native::destack_device_serial_try_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        maxbytes,
-                    )?;
+                    device_native::destack_device_serial_try_read_into(self.call_context, out.as_mut_ptr(), handle, buffer)?;
                 }
                 let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
+                Ok(out)
+            },
         }
     }
 
@@ -2555,40 +2608,64 @@ impl<'call> DeviceHarnessContext<'call> {
         handle: resource::SerialPortHandle,
         data: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
         timeoutns: u64,
-    ) -> RuntimeResult<u32> {
+    ) -> RuntimeResult<u64> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let data = data.into_vm("data")?;
-                let out = device_vm::destack_device_serial_write(
-                    self.call_context,
-                    context,
-                    handle,
-                    data,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_serial_write(self.call_context, context, handle, data, timeoutns)?;
                 Ok(out)
             }
             None => {
                 let data = data.into_native("data")?;
-                let mut out = std::mem::MaybeUninit::<u32>::uninit();
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
                 unsafe {
-                    device_native::destack_device_serial_write(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        data,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_serial_write(self.call_context, out.as_mut_ptr(), handle, data, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
+            },
+        }
+    }
+
+    /// List USB BOS capabilities.
+    ///
+    /// Enumerate BOS capability descriptors for one opened USB device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host BOS or device-capability descriptor query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.enumerate`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_usb_bos_capability_list(
+        &mut self,
+        handle: resource::UsbDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<UsbBosCapabilityDescriptor>, VmSlice<UsbBosCapabilityDescriptorVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_usb_bos_capability_list(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
             }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<UsbBosCapabilityDescriptor>>::uninit();
+                unsafe {
+                    device_native::destack_device_usb_bos_capability_list(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
         }
     }
 
     /// Read bulk endpoint bytes.
     ///
-    /// Read up to `maxBytes` from one bulk IN endpoint.
+    /// Read up to `maxBytes` from one bulk IN endpoint and return transfer status.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2605,43 +2682,31 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_usb_bulk_read(
         &mut self,
         handle: resource::UsbDeviceHandle,
-        endpointaddress: u8,
+        endpoint: HarnessValue<UsbEndpointSelector, UsbEndpointSelectorVm>,
         maxbytes: u32,
         timeoutns: u64,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+    ) -> RuntimeResult<HarnessValue<UsbInTransferResult, UsbInTransferResultVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_usb_bulk_read(
-                    self.call_context,
-                    context,
-                    handle,
-                    endpointaddress,
-                    maxbytes,
-                    timeoutns,
-                )?;
+                let endpoint = endpoint.into_vm("endpoint")?;
+                let out = device_vm::destack_device_usb_bulk_read(self.call_context, context, handle, endpoint, maxbytes, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                let endpoint = endpoint.into_native("endpoint")?;
+                let mut out = std::mem::MaybeUninit::<UsbInTransferResult>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_bulk_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        endpointaddress,
-                        maxbytes,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_usb_bulk_read(self.call_context, out.as_mut_ptr(), handle, endpoint, maxbytes, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
     /// Write bulk endpoint bytes.
     ///
-    /// Write bytes to one bulk OUT endpoint and return transferred byte count.
+    /// Write bytes to one bulk OUT endpoint and return transfer status with transferred byte count.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2658,39 +2723,27 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_usb_bulk_write(
         &mut self,
         handle: resource::UsbDeviceHandle,
-        endpointaddress: u8,
+        endpoint: HarnessValue<UsbEndpointSelector, UsbEndpointSelectorVm>,
         argument_bytes: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
         timeoutns: u64,
-    ) -> RuntimeResult<u32> {
+    ) -> RuntimeResult<HarnessValue<UsbOutTransferResult, UsbOutTransferResultVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
+                let endpoint = endpoint.into_vm("endpoint")?;
                 let argument_bytes = argument_bytes.into_vm("argument_bytes")?;
-                let out = device_vm::destack_device_usb_bulk_write(
-                    self.call_context,
-                    context,
-                    handle,
-                    endpointaddress,
-                    argument_bytes,
-                    timeoutns,
-                )?;
-                Ok(out)
+                let out = device_vm::destack_device_usb_bulk_write(self.call_context, context, handle, endpoint, argument_bytes, timeoutns)?;
+                Ok(HarnessValue::Vm(out))
             }
             None => {
+                let endpoint = endpoint.into_native("endpoint")?;
                 let argument_bytes = argument_bytes.into_native("argument_bytes")?;
-                let mut out = std::mem::MaybeUninit::<u32>::uninit();
+                let mut out = std::mem::MaybeUninit::<UsbOutTransferResult>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_bulk_write(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        endpointaddress,
-                        argument_bytes,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_usb_bulk_write(self.call_context, out.as_mut_ptr(), handle, endpoint, argument_bytes, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
+                Ok(HarnessValue::Native(out))
+            },
         }
     }
 
@@ -2716,18 +2769,11 @@ impl<'call> DeviceHarnessContext<'call> {
         interfacenumber: u8,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_usb_claim_interface(
-                self.call_context,
-                context,
-                handle,
-                interfacenumber,
-            ),
+            Some(context) => {
+                device_vm::destack_device_usb_claim_interface(self.call_context, context, handle, interfacenumber)
+            }
             None => unsafe {
-                device_native::destack_device_usb_claim_interface(
-                    self.call_context,
-                    handle,
-                    interfacenumber,
-                )
+                device_native::destack_device_usb_claim_interface(self.call_context, handle, interfacenumber)
             },
         }
     }
@@ -2751,21 +2797,16 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_usb_clear_halt(
         &mut self,
         handle: resource::UsbDeviceHandle,
-        endpointaddress: u8,
+        endpoint: HarnessValue<UsbEndpointSelector, UsbEndpointSelectorVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_usb_clear_halt(
-                self.call_context,
-                context,
-                handle,
-                endpointaddress,
-            ),
+            Some(context) => {
+                let endpoint = endpoint.into_vm("endpoint")?;
+                device_vm::destack_device_usb_clear_halt(self.call_context, context, handle, endpoint)
+            }
             None => unsafe {
-                device_native::destack_device_usb_clear_halt(
-                    self.call_context,
-                    handle,
-                    endpointaddress,
-                )
+                let endpoint = endpoint.into_native("endpoint")?;
+                device_native::destack_device_usb_clear_halt(self.call_context, handle, endpoint)
             },
         }
     }
@@ -2794,7 +2835,9 @@ impl<'call> DeviceHarnessContext<'call> {
             Some(context) => {
                 device_vm::destack_device_usb_close(self.call_context, context, handle)
             }
-            None => unsafe { device_native::destack_device_usb_close(self.call_context, handle) },
+            None => unsafe {
+                device_native::destack_device_usb_close(self.call_context, handle)
+            },
         }
     }
 
@@ -2820,25 +2863,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<u8> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_usb_configuration_get(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_usb_configuration_get(self.call_context, context, handle)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<u8>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_configuration_get(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_usb_configuration_get(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -2861,34 +2896,20 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_usb_configuration_list(
         &mut self,
         handle: resource::UsbDeviceHandle,
-    ) -> RuntimeResult<
-        HarnessValue<
-            NativeSlice<UsbConfigurationDescriptor>,
-            VmSlice<UsbConfigurationDescriptorVm>,
-        >,
-    > {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<UsbConfigurationDescriptor>, VmSlice<UsbConfigurationDescriptorVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_usb_configuration_list(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_usb_configuration_list(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out =
-                    std::mem::MaybeUninit::<NativeSlice<UsbConfigurationDescriptor>>::uninit();
+                let mut out = std::mem::MaybeUninit::<NativeSlice<UsbConfigurationDescriptor>>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_configuration_list(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_usb_configuration_list(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -2914,25 +2935,18 @@ impl<'call> DeviceHarnessContext<'call> {
         configurationvalue: u8,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_usb_configuration_set(
-                self.call_context,
-                context,
-                handle,
-                configurationvalue,
-            ),
+            Some(context) => {
+                device_vm::destack_device_usb_configuration_set(self.call_context, context, handle, configurationvalue)
+            }
             None => unsafe {
-                device_native::destack_device_usb_configuration_set(
-                    self.call_context,
-                    handle,
-                    configurationvalue,
-                )
+                device_native::destack_device_usb_configuration_set(self.call_context, handle, configurationvalue)
             },
         }
     }
 
     /// Read control-transfer response bytes.
     ///
-    /// Execute one control-transfer read and return response bytes.
+    /// Execute one control-transfer read and return transfer status with response bytes.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -2951,40 +2965,28 @@ impl<'call> DeviceHarnessContext<'call> {
         handle: resource::UsbDeviceHandle,
         setup: HarnessValue<UsbControlSetup, UsbControlSetupVm>,
         timeoutns: u64,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+    ) -> RuntimeResult<HarnessValue<UsbInTransferResult, UsbInTransferResultVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let setup = setup.into_vm("setup")?;
-                let out = device_vm::destack_device_usb_control_read(
-                    self.call_context,
-                    context,
-                    handle,
-                    setup,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_usb_control_read(self.call_context, context, handle, setup, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let setup = setup.into_native("setup")?;
-                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                let mut out = std::mem::MaybeUninit::<UsbInTransferResult>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_control_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        setup,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_usb_control_read(self.call_context, out.as_mut_ptr(), handle, setup, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
     /// Write control-transfer request bytes.
     ///
-    /// Execute one control-transfer write and return transferred byte count.
+    /// Execute one control-transfer write and return transfer status with transferred byte count.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3004,38 +3006,24 @@ impl<'call> DeviceHarnessContext<'call> {
         setup: HarnessValue<UsbControlSetup, UsbControlSetupVm>,
         argument_bytes: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
         timeoutns: u64,
-    ) -> RuntimeResult<u32> {
+    ) -> RuntimeResult<HarnessValue<UsbOutTransferResult, UsbOutTransferResultVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let setup = setup.into_vm("setup")?;
                 let argument_bytes = argument_bytes.into_vm("argument_bytes")?;
-                let out = device_vm::destack_device_usb_control_write(
-                    self.call_context,
-                    context,
-                    handle,
-                    setup,
-                    argument_bytes,
-                    timeoutns,
-                )?;
-                Ok(out)
+                let out = device_vm::destack_device_usb_control_write(self.call_context, context, handle, setup, argument_bytes, timeoutns)?;
+                Ok(HarnessValue::Vm(out))
             }
             None => {
                 let setup = setup.into_native("setup")?;
                 let argument_bytes = argument_bytes.into_native("argument_bytes")?;
-                let mut out = std::mem::MaybeUninit::<u32>::uninit();
+                let mut out = std::mem::MaybeUninit::<UsbOutTransferResult>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_control_write(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        setup,
-                        argument_bytes,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_usb_control_write(self.call_context, out.as_mut_ptr(), handle, setup, argument_bytes, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
+                Ok(HarnessValue::Native(out))
+            },
         }
     }
 
@@ -3061,28 +3049,23 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<UsbDeviceDescriptor, UsbDeviceDescriptorVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out =
-                    device_vm::destack_device_usb_descriptor(self.call_context, context, handle)?;
+                let out = device_vm::destack_device_usb_descriptor(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<UsbDeviceDescriptor>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_descriptor(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_usb_descriptor(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
     /// Read interrupt endpoint bytes.
     ///
-    /// Read up to `maxBytes` from one interrupt IN endpoint.
+    /// Read up to `maxBytes` from one interrupt IN endpoint and return transfer status.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3099,43 +3082,31 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_usb_interrupt_read(
         &mut self,
         handle: resource::UsbDeviceHandle,
-        endpointaddress: u8,
+        endpoint: HarnessValue<UsbEndpointSelector, UsbEndpointSelectorVm>,
         maxbytes: u32,
         timeoutns: u64,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+    ) -> RuntimeResult<HarnessValue<UsbInTransferResult, UsbInTransferResultVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_usb_interrupt_read(
-                    self.call_context,
-                    context,
-                    handle,
-                    endpointaddress,
-                    maxbytes,
-                    timeoutns,
-                )?;
+                let endpoint = endpoint.into_vm("endpoint")?;
+                let out = device_vm::destack_device_usb_interrupt_read(self.call_context, context, handle, endpoint, maxbytes, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                let endpoint = endpoint.into_native("endpoint")?;
+                let mut out = std::mem::MaybeUninit::<UsbInTransferResult>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_interrupt_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        endpointaddress,
-                        maxbytes,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_usb_interrupt_read(self.call_context, out.as_mut_ptr(), handle, endpoint, maxbytes, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
     /// Write interrupt endpoint bytes.
     ///
-    /// Write bytes to one interrupt OUT endpoint and return transferred byte count.
+    /// Write bytes to one interrupt OUT endpoint and return transfer status with transferred byte count.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3152,45 +3123,33 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_usb_interrupt_write(
         &mut self,
         handle: resource::UsbDeviceHandle,
-        endpointaddress: u8,
+        endpoint: HarnessValue<UsbEndpointSelector, UsbEndpointSelectorVm>,
         argument_bytes: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
         timeoutns: u64,
-    ) -> RuntimeResult<u32> {
+    ) -> RuntimeResult<HarnessValue<UsbOutTransferResult, UsbOutTransferResultVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
+                let endpoint = endpoint.into_vm("endpoint")?;
                 let argument_bytes = argument_bytes.into_vm("argument_bytes")?;
-                let out = device_vm::destack_device_usb_interrupt_write(
-                    self.call_context,
-                    context,
-                    handle,
-                    endpointaddress,
-                    argument_bytes,
-                    timeoutns,
-                )?;
-                Ok(out)
+                let out = device_vm::destack_device_usb_interrupt_write(self.call_context, context, handle, endpoint, argument_bytes, timeoutns)?;
+                Ok(HarnessValue::Vm(out))
             }
             None => {
+                let endpoint = endpoint.into_native("endpoint")?;
                 let argument_bytes = argument_bytes.into_native("argument_bytes")?;
-                let mut out = std::mem::MaybeUninit::<u32>::uninit();
+                let mut out = std::mem::MaybeUninit::<UsbOutTransferResult>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_interrupt_write(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        endpointaddress,
-                        argument_bytes,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_usb_interrupt_write(self.call_context, out.as_mut_ptr(), handle, endpoint, argument_bytes, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
-                Ok(out)
-            }
+                Ok(HarnessValue::Native(out))
+            },
         }
     }
 
     /// Read one isochronous transfer.
     ///
-    /// Read one isochronous transfer and return flattened bytes with per-packet status and length metadata.
+    /// Read one isochronous transfer and return flattened bytes with per-packet transfer results.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3207,46 +3166,33 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_usb_isochronous_read(
         &mut self,
         handle: resource::UsbDeviceHandle,
-        endpointaddress: u8,
+        endpoint: HarnessValue<UsbEndpointSelector, UsbEndpointSelectorVm>,
         packetsizes: HarnessValue<NativeSlice<u32>, VmSlice<u32>>,
         timeoutns: u64,
-    ) -> RuntimeResult<HarnessValue<UsbIsochronousTransferResult, UsbIsochronousTransferResultVm>>
-    {
+    ) -> RuntimeResult<HarnessValue<UsbIsochronousTransferResult, UsbIsochronousTransferResultVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
+                let endpoint = endpoint.into_vm("endpoint")?;
                 let packetsizes = packetsizes.into_vm("packetsizes")?;
-                let out = device_vm::destack_device_usb_isochronous_read(
-                    self.call_context,
-                    context,
-                    handle,
-                    endpointaddress,
-                    packetsizes,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_usb_isochronous_read(self.call_context, context, handle, endpoint, packetsizes, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
+                let endpoint = endpoint.into_native("endpoint")?;
                 let packetsizes = packetsizes.into_native("packetsizes")?;
                 let mut out = std::mem::MaybeUninit::<UsbIsochronousTransferResult>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_isochronous_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        endpointaddress,
-                        packetsizes,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_usb_isochronous_read(self.call_context, out.as_mut_ptr(), handle, endpoint, packetsizes, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
     /// Write one isochronous transfer.
     ///
-    /// Write one flattened isochronous transfer and return per-packet status and length metadata.
+    /// Write one flattened isochronous transfer and return per-packet transfer results.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -3263,45 +3209,30 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_usb_isochronous_write(
         &mut self,
         handle: resource::UsbDeviceHandle,
-        endpointaddress: u8,
+        endpoint: HarnessValue<UsbEndpointSelector, UsbEndpointSelectorVm>,
         argument_bytes: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
         packetsizes: HarnessValue<NativeSlice<u32>, VmSlice<u32>>,
         timeoutns: u64,
-    ) -> RuntimeResult<HarnessValue<UsbIsochronousTransferResult, UsbIsochronousTransferResultVm>>
-    {
+    ) -> RuntimeResult<HarnessValue<UsbIsochronousTransferResult, UsbIsochronousTransferResultVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
+                let endpoint = endpoint.into_vm("endpoint")?;
                 let argument_bytes = argument_bytes.into_vm("argument_bytes")?;
                 let packetsizes = packetsizes.into_vm("packetsizes")?;
-                let out = device_vm::destack_device_usb_isochronous_write(
-                    self.call_context,
-                    context,
-                    handle,
-                    endpointaddress,
-                    argument_bytes,
-                    packetsizes,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_usb_isochronous_write(self.call_context, context, handle, endpoint, argument_bytes, packetsizes, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
+                let endpoint = endpoint.into_native("endpoint")?;
                 let argument_bytes = argument_bytes.into_native("argument_bytes")?;
                 let packetsizes = packetsizes.into_native("packetsizes")?;
                 let mut out = std::mem::MaybeUninit::<UsbIsochronousTransferResult>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_isochronous_write(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        endpointaddress,
-                        argument_bytes,
-                        packetsizes,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_usb_isochronous_write(self.call_context, out.as_mut_ptr(), handle, endpoint, argument_bytes, packetsizes, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -3328,27 +3259,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<bool> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_usb_kernel_driver_active(
-                    self.call_context,
-                    context,
-                    handle,
-                    interfacenumber,
-                )?;
+                let out = device_vm::destack_device_usb_kernel_driver_active(self.call_context, context, handle, interfacenumber)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<bool>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_kernel_driver_active(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        interfacenumber,
-                    )?;
+                    device_native::destack_device_usb_kernel_driver_active(self.call_context, out.as_mut_ptr(), handle, interfacenumber)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -3374,18 +3295,11 @@ impl<'call> DeviceHarnessContext<'call> {
         interfacenumber: u8,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_usb_kernel_driver_attach(
-                self.call_context,
-                context,
-                handle,
-                interfacenumber,
-            ),
+            Some(context) => {
+                device_vm::destack_device_usb_kernel_driver_attach(self.call_context, context, handle, interfacenumber)
+            }
             None => unsafe {
-                device_native::destack_device_usb_kernel_driver_attach(
-                    self.call_context,
-                    handle,
-                    interfacenumber,
-                )
+                device_native::destack_device_usb_kernel_driver_attach(self.call_context, handle, interfacenumber)
             },
         }
     }
@@ -3412,18 +3326,11 @@ impl<'call> DeviceHarnessContext<'call> {
         interfacenumber: u8,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_usb_kernel_driver_detach(
-                self.call_context,
-                context,
-                handle,
-                interfacenumber,
-            ),
+            Some(context) => {
+                device_vm::destack_device_usb_kernel_driver_detach(self.call_context, context, handle, interfacenumber)
+            }
             None => unsafe {
-                device_native::destack_device_usb_kernel_driver_detach(
-                    self.call_context,
-                    handle,
-                    interfacenumber,
-                )
+                device_native::destack_device_usb_kernel_driver_detach(self.call_context, handle, interfacenumber)
             },
         }
     }
@@ -3446,8 +3353,7 @@ impl<'call> DeviceHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_device_usb_list(
         &mut self,
-    ) -> RuntimeResult<HarnessValue<NativeSlice<UsbDeviceDescriptor>, VmSlice<UsbDeviceDescriptorVm>>>
-    {
+    ) -> RuntimeResult<HarnessValue<NativeSlice<UsbDeviceDescriptor>, VmSlice<UsbDeviceDescriptorVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out = device_vm::destack_device_usb_list(self.call_context, context)?;
@@ -3460,7 +3366,7 @@ impl<'call> DeviceHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -3494,15 +3400,11 @@ impl<'call> DeviceHarnessContext<'call> {
                 let id = id.into_native("id")?;
                 let mut out = std::mem::MaybeUninit::<resource::UsbDeviceHandle>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_open(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        id,
-                    )?;
+                    device_native::destack_device_usb_open(self.call_context, out.as_mut_ptr(), id)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -3528,18 +3430,11 @@ impl<'call> DeviceHarnessContext<'call> {
         interfacenumber: u8,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_usb_release_interface(
-                self.call_context,
-                context,
-                handle,
-                interfacenumber,
-            ),
+            Some(context) => {
+                device_vm::destack_device_usb_release_interface(self.call_context, context, handle, interfacenumber)
+            }
             None => unsafe {
-                device_native::destack_device_usb_release_interface(
-                    self.call_context,
-                    handle,
-                    interfacenumber,
-                )
+                device_native::destack_device_usb_release_interface(self.call_context, handle, interfacenumber)
             },
         }
     }
@@ -3568,7 +3463,9 @@ impl<'call> DeviceHarnessContext<'call> {
             Some(context) => {
                 device_vm::destack_device_usb_reset(self.call_context, context, handle)
             }
-            None => unsafe { device_native::destack_device_usb_reset(self.call_context, handle) },
+            None => unsafe {
+                device_native::destack_device_usb_reset(self.call_context, handle)
+            },
         }
     }
 
@@ -3595,20 +3492,11 @@ impl<'call> DeviceHarnessContext<'call> {
         alternatesetting: u8,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_usb_set_interface_alternate_setting(
-                self.call_context,
-                context,
-                handle,
-                interfacenumber,
-                alternatesetting,
-            ),
+            Some(context) => {
+                device_vm::destack_device_usb_set_interface_alternate_setting(self.call_context, context, handle, interfacenumber, alternatesetting)
+            }
             None => unsafe {
-                device_native::destack_device_usb_set_interface_alternate_setting(
-                    self.call_context,
-                    handle,
-                    interfacenumber,
-                    alternatesetting,
-                )
+                device_native::destack_device_usb_set_interface_alternate_setting(self.call_context, handle, interfacenumber, alternatesetting)
             },
         }
     }
@@ -3636,27 +3524,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<UsbStringDescriptor, UsbStringDescriptorVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_usb_string_descriptor(
-                    self.call_context,
-                    context,
-                    handle,
-                    languageid,
-                )?;
+                let out = device_vm::destack_device_usb_string_descriptor(self.call_context, context, handle, languageid)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<UsbStringDescriptor>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_string_descriptor(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        languageid,
-                    )?;
+                    device_native::destack_device_usb_string_descriptor(self.call_context, out.as_mut_ptr(), handle, languageid)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -3682,25 +3560,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<u16>, VmSlice<u16>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_usb_string_language_list(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_usb_string_language_list(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<NativeSlice<u16>>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_string_language_list(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_usb_string_language_list(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -3723,21 +3593,16 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_usb_transfer_cancel(
         &mut self,
         handle: resource::UsbDeviceHandle,
-        endpointaddress: u8,
+        endpoint: HarnessValue<UsbEndpointSelector, UsbEndpointSelectorVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_usb_transfer_cancel(
-                self.call_context,
-                context,
-                handle,
-                endpointaddress,
-            ),
+            Some(context) => {
+                let endpoint = endpoint.into_vm("endpoint")?;
+                device_vm::destack_device_usb_transfer_cancel(self.call_context, context, handle, endpoint)
+            }
             None => unsafe {
-                device_native::destack_device_usb_transfer_cancel(
-                    self.call_context,
-                    handle,
-                    endpointaddress,
-                )
+                let endpoint = endpoint.into_native("endpoint")?;
+                device_native::destack_device_usb_transfer_cancel(self.call_context, handle, endpoint)
             },
         }
     }
@@ -3763,11 +3628,9 @@ impl<'call> DeviceHarnessContext<'call> {
         handle: resource::UsbDeviceHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => device_vm::destack_device_usb_transfer_cancel_all(
-                self.call_context,
-                context,
-                handle,
-            ),
+            Some(context) => {
+                device_vm::destack_device_usb_transfer_cancel_all(self.call_context, context, handle)
+            }
             None => unsafe {
                 device_native::destack_device_usb_transfer_cancel_all(self.call_context, handle)
             },
@@ -3831,14 +3694,11 @@ impl<'call> DeviceHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<resource::UsbWatchHandle>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_watch_open(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                    )?;
+                    device_native::destack_device_usb_watch_open(self.call_context, out.as_mut_ptr())?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -3865,27 +3725,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<UsbHotplugEvent, UsbHotplugEventVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_usb_watch_read(
-                    self.call_context,
-                    context,
-                    handle,
-                    timeoutns,
-                )?;
+                let out = device_vm::destack_device_usb_watch_read(self.call_context, context, handle, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<UsbHotplugEvent>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_watch_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        timeoutns,
-                    )?;
+                    device_native::destack_device_usb_watch_read(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -3911,25 +3761,17 @@ impl<'call> DeviceHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<UsbHotplugEvent, UsbHotplugEventVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = device_vm::destack_device_usb_watch_try_read(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = device_vm::destack_device_usb_watch_try_read(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<UsbHotplugEvent>::uninit();
                 unsafe {
-                    device_native::destack_device_usb_watch_try_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    device_native::destack_device_usb_watch_try_read(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 }

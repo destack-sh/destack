@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, fs, fs as platform_fs, net as platform_net, resource,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, fs, fs as platform_fs, net as platform_net, resource,
     resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
@@ -38,6 +38,8 @@ impl VmValueCodec for AcceptFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for AcceptFlags {}
 
 /// Value type for AcceptFlags.
 pub type AcceptFlagsValue = AcceptFlags;
@@ -92,6 +94,8 @@ impl VmValueCodec for NetInterfaceFlags {
     }
 }
 
+impl VmCollectionElement for NetInterfaceFlags {}
+
 /// Value type for NetInterfaceFlags.
 pub type NetInterfaceFlagsValue = NetInterfaceFlags;
 
@@ -144,6 +148,8 @@ impl VmValueCodec for PacketBackendCapabilityFlags {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for PacketBackendCapabilityFlags {}
 
 /// Value type for PacketBackendCapabilityFlags.
 pub type PacketBackendCapabilityFlagsValue = PacketBackendCapabilityFlags;
@@ -206,6 +212,8 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
+
+impl VmCollectionElement for PathBytesAbi<VmAbi> {}
 
 /// Value type for PathBytes.
 #[repr(transparent)]
@@ -282,6 +290,8 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PathUtf16Abi<VmAbi> {}
+
 /// Value type for PathUtf16.
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -348,6 +358,8 @@ impl VmValueCodec for ResolveFlags {
     }
 }
 
+impl VmCollectionElement for ResolveFlags {}
+
 /// Value type for ResolveFlags.
 pub type ResolveFlagsValue = ResolveFlags;
 
@@ -401,6 +413,8 @@ impl VmValueCodec for ResourceId {
     }
 }
 
+impl VmCollectionElement for ResourceId {}
+
 /// Value type for ResourceId.
 pub type ResourceIdValue = ResourceId;
 
@@ -453,6 +467,8 @@ impl VmValueCodec for ReverseLookupFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ReverseLookupFlags {}
 
 /// Value type for ReverseLookupFlags.
 pub type ReverseLookupFlagsValue = ReverseLookupFlags;
@@ -515,6 +531,8 @@ impl VmAggregateCodec for SocketControlBufferAbi<VmAbi> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
+
+impl VmCollectionElement for SocketControlBufferAbi<VmAbi> {}
 
 /// Value type for SocketControlBuffer.
 #[repr(transparent)]
@@ -582,6 +600,8 @@ impl VmValueCodec for SocketHandle {
     }
 }
 
+impl VmCollectionElement for SocketHandle {}
+
 /// Value type for SocketHandle.
 pub type SocketHandleValue = SocketHandle;
 
@@ -634,6 +654,8 @@ impl VmValueCodec for SocketMessageFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for SocketMessageFlags {}
 
 /// Value type for SocketMessageFlags.
 pub type SocketMessageFlagsValue = SocketMessageFlags;
@@ -688,6 +710,8 @@ impl VmValueCodec for SocketOptionLevel {
     }
 }
 
+impl VmCollectionElement for SocketOptionLevel {}
+
 /// Value type for SocketOptionLevel.
 pub type SocketOptionLevelValue = SocketOptionLevel;
 
@@ -740,6 +764,8 @@ impl VmValueCodec for SocketOptionName {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for SocketOptionName {}
 
 /// Value type for SocketOptionName.
 pub type SocketOptionNameValue = SocketOptionName;
@@ -794,6 +820,8 @@ impl VmValueCodec for SocketProtocol {
     }
 }
 
+impl VmCollectionElement for SocketProtocol {}
+
 /// Value type for SocketProtocol.
 pub type SocketProtocolValue = SocketProtocol;
 
@@ -846,6 +874,8 @@ impl VmValueCodec for SocketType {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for SocketType {}
 
 /// Value type for SocketType.
 pub type SocketTypeValue = SocketType;
@@ -900,6 +930,8 @@ impl VmValueCodec for TransferredHandle {
     }
 }
 
+impl VmCollectionElement for TransferredHandle {}
+
 /// Value type for TransferredHandle.
 pub type TransferredHandleValue = TransferredHandle;
 
@@ -952,6 +984,8 @@ impl VmValueCodec for UdpMessageFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for UdpMessageFlags {}
 
 /// Value type for UdpMessageFlags.
 pub type UdpMessageFlagsValue = UdpMessageFlags;
@@ -1027,6 +1061,8 @@ impl VmValueCodec for PacketBackend {
     }
 }
 
+impl VmCollectionElement for PacketBackend {}
+
 /// Value type for PacketBackend.
 pub type PacketBackendValue = PacketBackend;
 
@@ -1091,6 +1127,8 @@ impl VmValueCodec for PacketBackendSelectionPolicy {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for PacketBackendSelectionPolicy {}
 
 /// Value type for PacketBackendSelectionPolicy.
 pub type PacketBackendSelectionPolicyValue = PacketBackendSelectionPolicy;
@@ -1169,6 +1207,8 @@ impl VmValueCodec for PacketFanoutMode {
     }
 }
 
+impl VmCollectionElement for PacketFanoutMode {}
+
 /// Value type for PacketFanoutMode.
 pub type PacketFanoutModeValue = PacketFanoutMode;
 
@@ -1240,6 +1280,8 @@ impl VmValueCodec for PacketTimestampClock {
     }
 }
 
+impl VmCollectionElement for PacketTimestampClock {}
+
 /// Value type for PacketTimestampClock.
 pub type PacketTimestampClockValue = PacketTimestampClock;
 
@@ -1307,6 +1349,8 @@ impl VmValueCodec for PacketTimestampMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for PacketTimestampMode {}
 
 /// Value type for PacketTimestampMode.
 pub type PacketTimestampModeValue = PacketTimestampMode;
@@ -1382,6 +1426,8 @@ impl VmValueCodec for RouteKind {
     }
 }
 
+impl VmCollectionElement for RouteKind {}
+
 /// Value type for RouteKind.
 pub type RouteKindValue = RouteKind;
 
@@ -1449,6 +1495,8 @@ impl VmValueCodec for SocketFamily {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for SocketFamily {}
 
 /// Value type for SocketFamily.
 pub type SocketFamilyValue = SocketFamily;
@@ -1518,6 +1566,8 @@ impl VmValueCodec for SocketShutdown {
     }
 }
 
+impl VmCollectionElement for SocketShutdown {}
+
 /// Value type for SocketShutdown.
 pub type SocketShutdownValue = SocketShutdown;
 
@@ -1585,6 +1635,8 @@ impl VmValueCodec for SocketTimestampingMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for SocketTimestampingMode {}
 
 /// Value type for SocketTimestampingMode.
 pub type SocketTimestampingModeValue = SocketTimestampingMode;
@@ -1714,6 +1766,8 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for OsPathAbi<VmAbi> {}
 
 /// Value type for OsPath.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1894,6 +1948,8 @@ impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UdsAddressAbi<VmAbi> {}
 
 /// Value type for UdsAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2078,6 +2134,8 @@ impl VmAbiCodec for KeepAliveConfig {
     }
 }
 
+impl VmCollectionElement for KeepAliveConfig {}
+
 /// ABI struct for Linger.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -2165,6 +2223,8 @@ impl VmAbiCodec for Linger {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for Linger {}
 
 /// ABI struct for NetInterface.
 #[repr(C)]
@@ -2269,6 +2329,8 @@ impl VmAggregateCodec for NetInterfaceAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for NetInterfaceAbi<VmAbi> {}
 
 /// Value type for NetInterface.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2440,6 +2502,8 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for OsPathBytesAbi<VmAbi> {}
+
 /// Value type for OsPathBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OsPathBytesValue {
@@ -2569,6 +2633,8 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for OsPathUtf16Abi<VmAbi> {}
 
 /// Value type for OsPathUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2720,6 +2786,8 @@ impl VmAggregateCodec for PacketBackendDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PacketBackendDescriptorAbi<VmAbi> {}
 
 /// Value type for PacketBackendDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2918,6 +2986,8 @@ impl VmAbiCodec for PacketCaptureOptions {
     }
 }
 
+impl VmCollectionElement for PacketCaptureOptions {}
+
 /// ABI struct for PacketCaptureRecord.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -3027,6 +3097,8 @@ impl VmAbiCodec for PacketCaptureRecord {
     }
 }
 
+impl VmCollectionElement for PacketCaptureRecord {}
+
 /// ABI struct for PacketCaptureStats.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -3127,6 +3199,8 @@ impl VmAbiCodec for PacketCaptureStats {
     }
 }
 
+impl VmCollectionElement for PacketCaptureStats {}
+
 /// ABI struct for PacketFanoutOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -3221,6 +3295,8 @@ impl VmAbiCodec for PacketFanoutOptions {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for PacketFanoutOptions {}
 
 /// ABI struct for PacketRingOptions.
 #[repr(C)]
@@ -3327,6 +3403,8 @@ impl VmAbiCodec for PacketRingOptions {
     }
 }
 
+impl VmCollectionElement for PacketRingOptions {}
+
 /// ABI struct for ResolveQuery.
 #[repr(C)]
 pub struct ResolveQueryAbi<A: BindingAbi> {
@@ -3422,6 +3500,8 @@ impl VmAggregateCodec for ResolveQueryAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ResolveQueryAbi<VmAbi> {}
 
 /// Value type for ResolveQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3569,6 +3649,8 @@ impl VmAggregateCodec for ReverseLookupNameAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ReverseLookupNameAbi<VmAbi> {}
 
 /// Value type for ReverseLookupName.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3726,6 +3808,8 @@ impl VmAggregateCodec for RouteEntryAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for RouteEntryAbi<VmAbi> {}
 
 /// Value type for RouteEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3893,6 +3977,8 @@ impl VmAggregateCodec for SocketAddressAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for SocketAddressAbi<VmAbi> {}
+
 /// Value type for SocketAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketAddressValue {
@@ -4044,6 +4130,8 @@ impl VmAbiCodec for SocketCredentials {
     }
 }
 
+impl VmCollectionElement for SocketCredentials {}
+
 /// ABI struct for SocketPair.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -4138,6 +4226,8 @@ impl VmAbiCodec for SocketPair {
     }
 }
 
+impl VmCollectionElement for SocketPair {}
+
 /// ABI struct for SocketRecvBatchRequest.
 #[repr(C)]
 pub struct SocketRecvBatchRequestAbi<A: BindingAbi> {
@@ -4219,6 +4309,8 @@ impl VmAggregateCodec for SocketRecvBatchRequestAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SocketRecvBatchRequestAbi<VmAbi> {}
 
 /// Value type for SocketRecvBatchRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4362,6 +4454,8 @@ impl VmAggregateCodec for SocketRecvFromAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SocketRecvFromAbi<VmAbi> {}
 
 /// Value type for SocketRecvFrom.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4556,6 +4650,8 @@ impl VmAggregateCodec for SocketRecvMessageAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SocketRecvMessageAbi<VmAbi> {}
 
 /// Value type for SocketRecvMessage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4759,6 +4855,8 @@ impl VmAggregateCodec for SocketSendBatchEntryAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for SocketSendBatchEntryAbi<VmAbi> {}
+
 /// Value type for SocketSendBatchEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketSendBatchEntryValue {
@@ -4921,6 +5019,8 @@ impl VmAggregateCodec for SocketSendMessageAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SocketSendMessageAbi<VmAbi> {}
 
 /// Value type for SocketSendMessage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5091,6 +5191,8 @@ impl VmAggregateCodec for SocketSendToAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for SocketSendToAbi<VmAbi> {}
+
 /// Value type for SocketSendTo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketSendToValue {
@@ -5225,6 +5327,8 @@ impl VmAggregateCodec for UdpReceiveAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UdpReceiveAbi<VmAbi> {}
 
 /// Value type for UdpReceive.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5372,6 +5476,8 @@ impl VmAggregateCodec for UdpSourceMembershipV4Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UdpSourceMembershipV4Abi<VmAbi> {}
 
 /// Value type for UdpSourceMembershipV4.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5526,6 +5632,8 @@ impl VmAggregateCodec for UdpSourceMembershipV6Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for UdpSourceMembershipV6Abi<VmAbi> {}
+
 /// Value type for UdpSourceMembershipV6.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UdpSourceMembershipV6Value {
@@ -5662,6 +5770,8 @@ impl VmAggregateCodec for UdsAbstractAddressAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for UdsAbstractAddressAbi<VmAbi> {}
+
 /// Value type for UdsAbstractAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UdsAbstractAddressValue {
@@ -5797,6 +5907,8 @@ impl VmAggregateCodec for UdsPathAddressAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for UdsPathAddressAbi<VmAbi> {}
+
 /// Value type for UdsPathAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UdsPathAddressValue {
@@ -5918,6 +6030,8 @@ impl VmAggregateCodec for UdsUnnamedAddressAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UdsUnnamedAddressAbi<VmAbi> {}
 
 /// Value type for UdsUnnamedAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

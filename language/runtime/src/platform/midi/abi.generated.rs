@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, core, core as platform_core, midi as platform_midi,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, core, core as platform_core, midi as platform_midi,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -37,6 +37,8 @@ impl VmValueCodec for MidiBackendCapabilityFlags {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for MidiBackendCapabilityFlags {}
 
 /// Value type for MidiBackendCapabilityFlags.
 pub type MidiBackendCapabilityFlagsValue = MidiBackendCapabilityFlags;
@@ -91,6 +93,8 @@ impl VmValueCodec for MidiDataFormatFlags {
     }
 }
 
+impl VmCollectionElement for MidiDataFormatFlags {}
+
 /// Value type for MidiDataFormatFlags.
 pub type MidiDataFormatFlagsValue = MidiDataFormatFlags;
 
@@ -143,6 +147,8 @@ impl VmValueCodec for MidiEventSubscriptionFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for MidiEventSubscriptionFlags {}
 
 /// Value type for MidiEventSubscriptionFlags.
 pub type MidiEventSubscriptionFlagsValue = MidiEventSubscriptionFlags;
@@ -197,6 +203,8 @@ impl VmValueCodec for MidiPortDirectionFlags {
     }
 }
 
+impl VmCollectionElement for MidiPortDirectionFlags {}
+
 /// Value type for MidiPortDirectionFlags.
 pub type MidiPortDirectionFlagsValue = MidiPortDirectionFlags;
 
@@ -250,6 +258,8 @@ impl VmValueCodec for MidiPortListFlags {
     }
 }
 
+impl VmCollectionElement for MidiPortListFlags {}
+
 /// Value type for MidiPortListFlags.
 pub type MidiPortListFlagsValue = MidiPortListFlags;
 
@@ -302,6 +312,8 @@ impl VmValueCodec for MidiProtocolFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for MidiProtocolFlags {}
 
 /// Value type for MidiProtocolFlags.
 pub type MidiProtocolFlagsValue = MidiProtocolFlags;
@@ -373,6 +385,8 @@ impl VmValueCodec for BackendSupport {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for BackendSupport {}
 
 /// Value type for BackendSupport.
 pub type BackendSupportValue = BackendSupport;
@@ -460,6 +474,8 @@ impl VmValueCodec for MidiBackend {
     }
 }
 
+impl VmCollectionElement for MidiBackend {}
+
 /// Value type for MidiBackend.
 pub type MidiBackendValue = MidiBackend;
 
@@ -525,6 +541,8 @@ impl VmValueCodec for MidiBackendSelectionPolicy {
     }
 }
 
+impl VmCollectionElement for MidiBackendSelectionPolicy {}
+
 /// Value type for MidiBackendSelectionPolicy.
 pub type MidiBackendSelectionPolicyValue = MidiBackendSelectionPolicy;
 
@@ -589,6 +607,8 @@ impl VmValueCodec for MidiDataFormat {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for MidiDataFormat {}
 
 /// Value type for MidiDataFormat.
 pub type MidiDataFormatValue = MidiDataFormat;
@@ -658,6 +678,8 @@ impl VmValueCodec for MidiEventDeliveryMode {
     }
 }
 
+impl VmCollectionElement for MidiEventDeliveryMode {}
+
 /// Value type for MidiEventDeliveryMode.
 pub type MidiEventDeliveryModeValue = MidiEventDeliveryMode;
 
@@ -726,6 +748,8 @@ impl VmValueCodec for MidiEventOverflowPolicy {
     }
 }
 
+impl VmCollectionElement for MidiEventOverflowPolicy {}
+
 /// Value type for MidiEventOverflowPolicy.
 pub type MidiEventOverflowPolicyValue = MidiEventOverflowPolicy;
 
@@ -790,6 +814,8 @@ impl VmValueCodec for MidiEventSource {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for MidiEventSource {}
 
 /// Value type for MidiEventSource.
 pub type MidiEventSourceValue = MidiEventSource;
@@ -856,6 +882,8 @@ impl VmValueCodec for MidiPortDirection {
     }
 }
 
+impl VmCollectionElement for MidiPortDirection {}
+
 /// Value type for MidiPortDirection.
 pub type MidiPortDirectionValue = MidiPortDirection;
 
@@ -920,6 +948,8 @@ impl VmValueCodec for MidiProtocol {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for MidiProtocol {}
 
 /// Value type for MidiProtocol.
 pub type MidiProtocolValue = MidiProtocol;
@@ -991,6 +1021,8 @@ impl VmValueCodec for MidiRecordFraming {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for MidiRecordFraming {}
 
 /// Value type for MidiRecordFraming.
 pub type MidiRecordFramingValue = MidiRecordFraming;
@@ -1159,6 +1191,8 @@ impl VmAggregateCodec for MidiEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for MidiEventAbi<VmAbi> {}
 
 /// Value type for MidiEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1384,6 +1418,8 @@ impl VmAggregateCodec for MidiBackendDescriptorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for MidiBackendDescriptorAbi<VmAbi> {}
+
 /// Value type for MidiBackendDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MidiBackendDescriptorValue {
@@ -1588,6 +1624,8 @@ impl VmAggregateCodec for MidiBackendDisconnectedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for MidiBackendDisconnectedEventAbi<VmAbi> {}
+
 /// Value type for MidiBackendDisconnectedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MidiBackendDisconnectedEventValue {
@@ -1738,6 +1776,8 @@ impl VmAbiCodec for MidiBackendDisconnectedPayload {
     }
 }
 
+impl VmCollectionElement for MidiBackendDisconnectedPayload {}
+
 /// ABI struct for MidiEventMetadata.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -1844,6 +1884,8 @@ impl VmAbiCodec for MidiEventMetadata {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for MidiEventMetadata {}
 
 /// ABI struct for MidiEventSubscriptionOptions.
 #[repr(C)]
@@ -1990,6 +2032,8 @@ impl VmAbiCodec for MidiEventSubscriptionOptions {
     }
 }
 
+impl VmCollectionElement for MidiEventSubscriptionOptions {}
+
 /// ABI struct for MidiInputPortOpenOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -2111,6 +2155,8 @@ impl VmAbiCodec for MidiInputPortOpenOptions {
     }
 }
 
+impl VmCollectionElement for MidiInputPortOpenOptions {}
+
 /// ABI struct for MidiInputRecord.
 #[repr(C)]
 pub struct MidiInputRecordAbi<A: BindingAbi> {
@@ -2222,6 +2268,8 @@ impl VmAggregateCodec for MidiInputRecordAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for MidiInputRecordAbi<VmAbi> {}
 
 /// Value type for MidiInputRecord.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2432,6 +2480,8 @@ impl VmAbiCodec for MidiOutputPortOpenOptions {
     }
 }
 
+impl VmCollectionElement for MidiOutputPortOpenOptions {}
+
 /// ABI struct for MidiOutputRecord.
 #[repr(C)]
 pub struct MidiOutputRecordAbi<A: BindingAbi> {
@@ -2534,6 +2584,8 @@ impl VmAggregateCodec for MidiOutputRecordAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for MidiOutputRecordAbi<VmAbi> {}
 
 /// Value type for MidiOutputRecord.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2700,6 +2752,8 @@ impl VmAggregateCodec for MidiPortAddedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for MidiPortAddedEventAbi<VmAbi> {}
+
 /// Value type for MidiPortAddedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MidiPortAddedEventValue {
@@ -2838,6 +2892,8 @@ impl VmAggregateCodec for MidiPortAddedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for MidiPortAddedPayloadAbi<VmAbi> {}
 
 /// Value type for MidiPortAddedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2988,6 +3044,8 @@ impl VmAggregateCodec for MidiPortChangedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for MidiPortChangedEventAbi<VmAbi> {}
+
 /// Value type for MidiPortChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MidiPortChangedEventValue {
@@ -3128,6 +3186,8 @@ impl VmAggregateCodec for MidiPortChangedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for MidiPortChangedPayloadAbi<VmAbi> {}
 
 /// Value type for MidiPortChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3376,6 +3436,8 @@ impl VmAggregateCodec for MidiPortDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for MidiPortDescriptorAbi<VmAbi> {}
 
 /// Value type for MidiPortDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3700,6 +3762,8 @@ impl VmAbiCodec for MidiPortListOptions {
     }
 }
 
+impl VmCollectionElement for MidiPortListOptions {}
+
 /// ABI struct for MidiPortRemovedEvent.
 #[repr(C)]
 pub struct MidiPortRemovedEventAbi<A: BindingAbi> {
@@ -3787,6 +3851,8 @@ impl VmAggregateCodec for MidiPortRemovedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for MidiPortRemovedEventAbi<VmAbi> {}
 
 /// Value type for MidiPortRemovedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3934,6 +4000,8 @@ impl VmAggregateCodec for MidiPortRemovedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for MidiPortRemovedPayloadAbi<VmAbi> {}
 
 /// Value type for MidiPortRemovedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4136,6 +4204,8 @@ impl VmAggregateCodec for MidiVirtualInputCreateOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for MidiVirtualInputCreateOptionsAbi<VmAbi> {}
 
 /// Value type for MidiVirtualInputCreateOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4388,6 +4458,8 @@ impl VmAggregateCodec for MidiVirtualOutputCreateOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for MidiVirtualOutputCreateOptionsAbi<VmAbi> {}
 
 /// Value type for MidiVirtualOutputCreateOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, random as platform_random,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, random as platform_random,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -37,6 +37,8 @@ impl VmValueCodec for RandomStream {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for RandomStream {}
 
 /// Value type for RandomStream.
 pub type RandomStreamValue = RandomStream;
@@ -102,6 +104,8 @@ impl VmValueCodec for RandomStreamDomain {
         <u8 as VmValueCodec>::encode(self as u8)
     }
 }
+
+impl VmCollectionElement for RandomStreamDomain {}
 
 /// Value type for RandomStreamDomain.
 pub type RandomStreamDomainValue = RandomStreamDomain;
@@ -176,6 +180,8 @@ impl VmValueCodec for SecureRandomSource {
         <u8 as VmValueCodec>::encode(self as u8)
     }
 }
+
+impl VmCollectionElement for SecureRandomSource {}
 
 /// Value type for SecureRandomSource.
 pub type SecureRandomSourceValue = SecureRandomSource;
@@ -287,6 +293,8 @@ impl VmAggregateCodec for RandomStreamStateAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for RandomStreamStateAbi<VmAbi> {}
 
 /// Value type for RandomStreamState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -448,6 +456,8 @@ impl VmAggregateCodec for SecureRandomMetadataAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SecureRandomMetadataAbi<VmAbi> {}
 
 /// Value type for SecureRandomMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

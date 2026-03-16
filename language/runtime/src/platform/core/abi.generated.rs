@@ -10,7 +10,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmValueCodec, core as platform_core,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmCollectionElement, VmValueCodec,
+    core as platform_core,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -53,6 +54,8 @@ impl VmValueCodec for BackendSupport {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for BackendSupport {}
 
 /// Value type for BackendSupport.
 pub type BackendSupportValue = BackendSupport;

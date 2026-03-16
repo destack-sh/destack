@@ -119,7 +119,7 @@ impl AbiRenderer<'_> {
         }
         if has_named_types {
             output.push_str(
-            "use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec};\n",
+            "use crate::platform::{NativeArray, NativeAbiCodec, NativeSlice, NativeStringRef, NativeStringSlice, VmAbiCodec, VmCollectionElement};\n",
         );
             output.push_str("use crate::runtime::BindingCallContext;\n");
         }
@@ -201,6 +201,9 @@ impl AbiRenderer<'_> {
             ));
                 output.push_str("    }\n");
                 output.push_str("}\n\n");
+                output.push_str(&format!(
+                    "impl VmCollectionElement for {name}Abi<VmAbi> {{}}\n\n"
+                ));
 
                 output.push_str(&format!("/// Value type for {name}.\n"));
                 output.push_str("#[repr(transparent)]\n");
@@ -279,6 +282,7 @@ impl AbiRenderer<'_> {
             ));
             output.push_str("    }\n");
             output.push_str("}\n\n");
+            output.push_str(&format!("impl VmCollectionElement for {name} {{}}\n\n"));
 
             output.push_str(&format!("/// Value type for {name}.\n"));
             output.push_str(&format!("pub type {value_name} = {name};\n\n"));
@@ -363,6 +367,7 @@ impl AbiRenderer<'_> {
                 output.push_str("    }\n");
                 output.push_str("}\n\n");
             }
+            output.push_str(&format!("impl VmCollectionElement for {name} {{}}\n\n"));
 
             output.push_str(&format!("/// Value type for {name}.\n"));
             output.push_str(&format!(
@@ -523,6 +528,9 @@ impl AbiRenderer<'_> {
             );
             output.push_str("    }\n");
             output.push_str("}\n\n");
+            output.push_str(&format!(
+                "impl VmCollectionElement for {vm_union_type} {{}}\n\n"
+            ));
 
             if requires_abi {
                 output.push_str(&format!("/// Value type for {union_name}.\n"));
@@ -736,6 +744,9 @@ impl AbiRenderer<'_> {
                 );
                 output.push_str("    }\n");
                 output.push_str("}\n\n");
+                output.push_str(&format!(
+                    "impl VmCollectionElement for {struct_name}Abi<VmAbi> {{}}\n\n"
+                ));
 
                 output.push_str(&format!("/// Value type for {struct_name}.\n"));
                 output.push_str("#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]\n");
@@ -906,6 +917,9 @@ impl AbiRenderer<'_> {
                 output.push_str("        Ok(value)\n");
                 output.push_str("    }\n");
                 output.push_str("}\n\n");
+                output.push_str(&format!(
+                    "impl VmCollectionElement for {struct_name} {{}}\n\n"
+                ));
             }
         }
 

@@ -15,7 +15,8 @@ use crate::platform::io::{
     native as io_native, vm as io_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
 use destack_vm as vm;
 
@@ -234,12 +235,10 @@ impl<'call> IoHarnessContext<'call> {
                 let operation = operation.into_vm("operation")?;
                 io_vm::destack_io_completion_submit(self.call_context, context, handle, operation)
             }
-            None => {
+            None => unsafe {
                 let operation = operation.into_native("operation")?;
-                unsafe {
-                    io_native::destack_io_completion_submit(self.call_context, handle, operation)
-                }
-            }
+                io_native::destack_io_completion_submit(self.call_context, handle, operation)
+            },
         }
     }
 
@@ -1199,12 +1198,10 @@ impl<'call> IoHarnessContext<'call> {
                 let spec = spec.into_vm("spec")?;
                 io_vm::destack_io_timer_fd_set(self.call_context, context, handle, spec, flags)
             }
-            None => {
+            None => unsafe {
                 let spec = spec.into_native("spec")?;
-                unsafe {
-                    io_native::destack_io_timer_fd_set(self.call_context, handle, spec, flags)
-                }
-            }
+                io_native::destack_io_timer_fd_set(self.call_context, handle, spec, flags)
+            },
         }
     }
 
@@ -1354,18 +1351,16 @@ impl<'call> IoHarnessContext<'call> {
                     lengths,
                 )
             }
-            None => {
+            None => unsafe {
                 let addresses = addresses.into_native("addresses")?;
                 let lengths = lengths.into_native("lengths")?;
-                unsafe {
-                    io_native::destack_io_uring_register_buffers(
-                        self.call_context,
-                        handle,
-                        addresses,
-                        lengths,
-                    )
-                }
-            }
+                io_native::destack_io_uring_register_buffers(
+                    self.call_context,
+                    handle,
+                    addresses,
+                    lengths,
+                )
+            },
         }
     }
 
@@ -1396,12 +1391,10 @@ impl<'call> IoHarnessContext<'call> {
                 let files = files.into_vm("files")?;
                 io_vm::destack_io_uring_register_files(self.call_context, context, handle, files)
             }
-            None => {
+            None => unsafe {
                 let files = files.into_native("files")?;
-                unsafe {
-                    io_native::destack_io_uring_register_files(self.call_context, handle, files)
-                }
-            }
+                io_native::destack_io_uring_register_files(self.call_context, handle, files)
+            },
         }
     }
 

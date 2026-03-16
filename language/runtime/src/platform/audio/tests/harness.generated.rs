@@ -48,7 +48,8 @@ use crate::platform::audio::{
     vm as audio_vm,
 };
 use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmSlice, core, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, core, fs, resource,
 };
 use destack_vm as vm;
 
@@ -1170,12 +1171,10 @@ impl<'call> AudioHarnessContext<'call> {
                 let name = name.into_vm("name")?;
                 audio_vm::destack_audio_stream_set_name(self.call_context, context, handle, name)
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
-                unsafe {
-                    audio_native::destack_audio_stream_set_name(self.call_context, handle, name)
-                }
-            }
+                audio_native::destack_audio_stream_set_name(self.call_context, handle, name)
+            },
         }
     }
 

@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, gpu as platform_gpu, resource, resource as platform_resource,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, gpu as platform_gpu, resource, resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -37,6 +37,8 @@ impl VmValueCodec for GpuBindGroupLayoutHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuBindGroupLayoutHandle {}
 
 /// Value type for GpuBindGroupLayoutHandle.
 pub type GpuBindGroupLayoutHandleValue = GpuBindGroupLayoutHandle;
@@ -91,6 +93,8 @@ impl VmValueCodec for GpuBufferHandle {
     }
 }
 
+impl VmCollectionElement for GpuBufferHandle {}
+
 /// Value type for GpuBufferHandle.
 pub type GpuBufferHandleValue = GpuBufferHandle;
 
@@ -143,6 +147,8 @@ impl VmValueCodec for GpuColorWriteMask {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuColorWriteMask {}
 
 /// Value type for GpuColorWriteMask.
 pub type GpuColorWriteMaskValue = GpuColorWriteMask;
@@ -197,6 +203,8 @@ impl VmValueCodec for GpuFeatureId {
     }
 }
 
+impl VmCollectionElement for GpuFeatureId {}
+
 /// Value type for GpuFeatureId.
 pub type GpuFeatureIdValue = GpuFeatureId;
 
@@ -249,6 +257,8 @@ impl VmValueCodec for GpuPipelineLayoutHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuPipelineLayoutHandle {}
 
 /// Value type for GpuPipelineLayoutHandle.
 pub type GpuPipelineLayoutHandleValue = GpuPipelineLayoutHandle;
@@ -303,6 +313,8 @@ impl VmValueCodec for GpuPipelineStatisticsMask {
     }
 }
 
+impl VmCollectionElement for GpuPipelineStatisticsMask {}
+
 /// Value type for GpuPipelineStatisticsMask.
 pub type GpuPipelineStatisticsMaskValue = GpuPipelineStatisticsMask;
 
@@ -355,6 +367,8 @@ impl VmValueCodec for GpuQuerySetHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuQuerySetHandle {}
 
 /// Value type for GpuQuerySetHandle.
 pub type GpuQuerySetHandleValue = GpuQuerySetHandle;
@@ -409,6 +423,8 @@ impl VmValueCodec for GpuSamplerHandle {
     }
 }
 
+impl VmCollectionElement for GpuSamplerHandle {}
+
 /// Value type for GpuSamplerHandle.
 pub type GpuSamplerHandleValue = GpuSamplerHandle;
 
@@ -461,6 +477,8 @@ impl VmValueCodec for GpuShaderHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuShaderHandle {}
 
 /// Value type for GpuShaderHandle.
 pub type GpuShaderHandleValue = GpuShaderHandle;
@@ -515,6 +533,8 @@ impl VmValueCodec for GpuShaderVisibilityMask {
     }
 }
 
+impl VmCollectionElement for GpuShaderVisibilityMask {}
+
 /// Value type for GpuShaderVisibilityMask.
 pub type GpuShaderVisibilityMaskValue = GpuShaderVisibilityMask;
 
@@ -567,6 +587,8 @@ impl VmValueCodec for GpuSurfaceHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuSurfaceHandle {}
 
 /// Value type for GpuSurfaceHandle.
 pub type GpuSurfaceHandleValue = GpuSurfaceHandle;
@@ -621,6 +643,8 @@ impl VmValueCodec for GpuTextureHandle {
     }
 }
 
+impl VmCollectionElement for GpuTextureHandle {}
+
 /// Value type for GpuTextureHandle.
 pub type GpuTextureHandleValue = GpuTextureHandle;
 
@@ -674,6 +698,8 @@ impl VmValueCodec for GpuTextureViewHandle {
     }
 }
 
+impl VmCollectionElement for GpuTextureViewHandle {}
+
 /// Value type for GpuTextureViewHandle.
 pub type GpuTextureViewHandleValue = GpuTextureViewHandle;
 
@@ -726,6 +752,8 @@ impl VmValueCodec for ResourceId {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ResourceId {}
 
 /// Value type for ResourceId.
 pub type ResourceIdValue = ResourceId;
@@ -800,6 +828,8 @@ impl VmValueCodec for GpuAdapterType {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuAdapterType {}
 
 /// Value type for GpuAdapterType.
 pub type GpuAdapterTypeValue = GpuAdapterType;
@@ -883,6 +913,8 @@ impl VmValueCodec for GpuBackend {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuBackend {}
 
 /// Value type for GpuBackend.
 pub type GpuBackendValue = GpuBackend;
@@ -997,6 +1029,8 @@ impl VmValueCodec for GpuBlendFactor {
     }
 }
 
+impl VmCollectionElement for GpuBlendFactor {}
+
 /// Value type for GpuBlendFactor.
 pub type GpuBlendFactorValue = GpuBlendFactor;
 
@@ -1074,6 +1108,8 @@ impl VmValueCodec for GpuBlendOperation {
     }
 }
 
+impl VmCollectionElement for GpuBlendOperation {}
+
 /// Value type for GpuBlendOperation.
 pub type GpuBlendOperationValue = GpuBlendOperation;
 
@@ -1148,6 +1184,8 @@ impl VmValueCodec for GpuBufferBindingType {
     }
 }
 
+impl VmCollectionElement for GpuBufferBindingType {}
+
 /// Value type for GpuBufferBindingType.
 pub type GpuBufferBindingTypeValue = GpuBufferBindingType;
 
@@ -1215,6 +1253,8 @@ impl VmValueCodec for GpuBufferMapState {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuBufferMapState {}
 
 /// Value type for GpuBufferMapState.
 pub type GpuBufferMapStateValue = GpuBufferMapState;
@@ -1302,6 +1342,8 @@ impl VmValueCodec for GpuCompareFunction {
     }
 }
 
+impl VmCollectionElement for GpuCompareFunction {}
+
 /// Value type for GpuCompareFunction.
 pub type GpuCompareFunctionValue = GpuCompareFunction;
 
@@ -1369,6 +1411,8 @@ impl VmValueCodec for GpuCompilationMessageKind {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuCompilationMessageKind {}
 
 /// Value type for GpuCompilationMessageKind.
 pub type GpuCompilationMessageKindValue = GpuCompilationMessageKind;
@@ -1440,6 +1484,8 @@ impl VmValueCodec for GpuCullMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuCullMode {}
 
 /// Value type for GpuCullMode.
 pub type GpuCullModeValue = GpuCullMode;
@@ -1521,6 +1567,8 @@ impl VmValueCodec for GpuDeviceLossReason {
     }
 }
 
+impl VmCollectionElement for GpuDeviceLossReason {}
+
 /// Value type for GpuDeviceLossReason.
 pub type GpuDeviceLossReasonValue = GpuDeviceLossReason;
 
@@ -1589,6 +1637,8 @@ impl VmValueCodec for GpuErrorFilter {
     }
 }
 
+impl VmCollectionElement for GpuErrorFilter {}
+
 /// Value type for GpuErrorFilter.
 pub type GpuErrorFilterValue = GpuErrorFilter;
 
@@ -1653,6 +1703,8 @@ impl VmValueCodec for GpuFenceMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuFenceMode {}
 
 /// Value type for GpuFenceMode.
 pub type GpuFenceModeValue = GpuFenceMode;
@@ -1722,6 +1774,8 @@ impl VmValueCodec for GpuFrontFace {
     }
 }
 
+impl VmCollectionElement for GpuFrontFace {}
+
 /// Value type for GpuFrontFace.
 pub type GpuFrontFaceValue = GpuFrontFace;
 
@@ -1789,6 +1843,8 @@ impl VmValueCodec for GpuIndexFormat {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuIndexFormat {}
 
 /// Value type for GpuIndexFormat.
 pub type GpuIndexFormatValue = GpuIndexFormat;
@@ -1858,6 +1914,8 @@ impl VmValueCodec for GpuLoadOp {
     }
 }
 
+impl VmCollectionElement for GpuLoadOp {}
+
 /// Value type for GpuLoadOp.
 pub type GpuLoadOpValue = GpuLoadOp;
 
@@ -1922,6 +1980,8 @@ impl VmValueCodec for GpuMapMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuMapMode {}
 
 /// Value type for GpuMapMode.
 pub type GpuMapModeValue = GpuMapMode;
@@ -1997,6 +2057,8 @@ impl VmValueCodec for GpuPipelineStatisticsFlag {
     }
 }
 
+impl VmCollectionElement for GpuPipelineStatisticsFlag {}
+
 /// Value type for GpuPipelineStatisticsFlag.
 pub type GpuPipelineStatisticsFlagValue = GpuPipelineStatisticsFlag;
 
@@ -2064,6 +2126,8 @@ impl VmValueCodec for GpuPowerPreference {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuPowerPreference {}
 
 /// Value type for GpuPowerPreference.
 pub type GpuPowerPreferenceValue = GpuPowerPreference;
@@ -2142,6 +2206,8 @@ impl VmValueCodec for GpuPresentMode {
     }
 }
 
+impl VmCollectionElement for GpuPresentMode {}
+
 /// Value type for GpuPresentMode.
 pub type GpuPresentModeValue = GpuPresentMode;
 
@@ -2219,6 +2285,8 @@ impl VmValueCodec for GpuPrimitiveTopology {
     }
 }
 
+impl VmCollectionElement for GpuPrimitiveTopology {}
+
 /// Value type for GpuPrimitiveTopology.
 pub type GpuPrimitiveTopologyValue = GpuPrimitiveTopology;
 
@@ -2289,6 +2357,8 @@ impl VmValueCodec for GpuQueryType {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuQueryType {}
 
 /// Value type for GpuQueryType.
 pub type GpuQueryTypeValue = GpuQueryType;
@@ -2364,6 +2434,8 @@ impl VmValueCodec for GpuSamplerBindingType {
     }
 }
 
+impl VmCollectionElement for GpuSamplerBindingType {}
+
 /// Value type for GpuSamplerBindingType.
 pub type GpuSamplerBindingTypeValue = GpuSamplerBindingType;
 
@@ -2438,6 +2510,8 @@ impl VmValueCodec for GpuShaderFormat {
     }
 }
 
+impl VmCollectionElement for GpuShaderFormat {}
+
 /// Value type for GpuShaderFormat.
 pub type GpuShaderFormatValue = GpuShaderFormat;
 
@@ -2508,6 +2582,8 @@ impl VmValueCodec for GpuShaderVisibilityFlag {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuShaderVisibilityFlag {}
 
 /// Value type for GpuShaderVisibilityFlag.
 pub type GpuShaderVisibilityFlagValue = GpuShaderVisibilityFlag;
@@ -2595,6 +2671,8 @@ impl VmValueCodec for GpuStencilOperation {
     }
 }
 
+impl VmCollectionElement for GpuStencilOperation {}
+
 /// Value type for GpuStencilOperation.
 pub type GpuStencilOperationValue = GpuStencilOperation;
 
@@ -2669,6 +2747,8 @@ impl VmValueCodec for GpuStorageTextureAccess {
     }
 }
 
+impl VmCollectionElement for GpuStorageTextureAccess {}
+
 /// Value type for GpuStorageTextureAccess.
 pub type GpuStorageTextureAccessValue = GpuStorageTextureAccess;
 
@@ -2736,6 +2816,8 @@ impl VmValueCodec for GpuStoreOp {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuStoreOp {}
 
 /// Value type for GpuStoreOp.
 pub type GpuStoreOpValue = GpuStoreOp;
@@ -2814,6 +2896,8 @@ impl VmValueCodec for GpuSurfaceAcquireStatus {
     }
 }
 
+impl VmCollectionElement for GpuSurfaceAcquireStatus {}
+
 /// Value type for GpuSurfaceAcquireStatus.
 pub type GpuSurfaceAcquireStatusValue = GpuSurfaceAcquireStatus;
 
@@ -2888,6 +2972,8 @@ impl VmValueCodec for GpuSurfaceAlphaMode {
     }
 }
 
+impl VmCollectionElement for GpuSurfaceAlphaMode {}
+
 /// Value type for GpuSurfaceAlphaMode.
 pub type GpuSurfaceAlphaModeValue = GpuSurfaceAlphaMode;
 
@@ -2955,6 +3041,8 @@ impl VmValueCodec for GpuTextureDimension {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuTextureDimension {}
 
 /// Value type for GpuTextureDimension.
 pub type GpuTextureDimensionValue = GpuTextureDimension;
@@ -3036,6 +3124,8 @@ impl VmValueCodec for GpuTextureSampleType {
     }
 }
 
+impl VmCollectionElement for GpuTextureSampleType {}
+
 /// Value type for GpuTextureSampleType.
 pub type GpuTextureSampleTypeValue = GpuTextureSampleType;
 
@@ -3116,6 +3206,8 @@ impl VmValueCodec for GpuTextureViewDimension {
     }
 }
 
+impl VmCollectionElement for GpuTextureViewDimension {}
+
 /// Value type for GpuTextureViewDimension.
 pub type GpuTextureViewDimensionValue = GpuTextureViewDimension;
 
@@ -3180,6 +3272,8 @@ impl VmValueCodec for GpuVertexStepMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for GpuVertexStepMode {}
 
 /// Value type for GpuVertexStepMode.
 pub type GpuVertexStepModeValue = GpuVertexStepMode;
@@ -3328,6 +3422,8 @@ impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuBindGroupLayoutResourceAbi<VmAbi> {}
 
 /// Value type for GpuBindGroupLayoutResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3599,6 +3695,8 @@ impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for GpuBindGroupResourceAbi<VmAbi> {}
+
 /// Value type for GpuBindGroupResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GpuBindGroupResourceValue {
@@ -3816,6 +3914,8 @@ impl VmAbiCodec for GpuAdapterFormatCapabilities {
     }
 }
 
+impl VmCollectionElement for GpuAdapterFormatCapabilities {}
+
 /// ABI struct for GpuAdapterInfo.
 #[repr(C)]
 pub struct GpuAdapterInfoAbi<A: BindingAbi> {
@@ -3970,6 +4070,8 @@ impl VmAggregateCodec for GpuAdapterInfoAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuAdapterInfoAbi<VmAbi> {}
 
 /// Value type for GpuAdapterInfo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4461,6 +4563,8 @@ impl VmAbiCodec for GpuAdapterLimits {
     }
 }
 
+impl VmCollectionElement for GpuAdapterLimits {}
+
 /// ABI struct for GpuAdapterRequest.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -4577,6 +4681,8 @@ impl VmAbiCodec for GpuAdapterRequest {
     }
 }
 
+impl VmCollectionElement for GpuAdapterRequest {}
+
 /// ABI struct for GpuBindGroupBufferResource.
 #[repr(C)]
 pub struct GpuBindGroupBufferResourceAbi<A: BindingAbi> {
@@ -4669,6 +4775,8 @@ impl VmAggregateCodec for GpuBindGroupBufferResourceAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuBindGroupBufferResourceAbi<VmAbi> {}
 
 /// Value type for GpuBindGroupBufferResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4824,6 +4932,8 @@ impl VmAggregateCodec for GpuBindGroupEntryAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuBindGroupEntryAbi<VmAbi> {}
 
 /// Value type for GpuBindGroupEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4988,6 +5098,8 @@ impl VmAggregateCodec for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {}
 
 /// Value type for GpuBindGroupLayoutBufferResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5170,6 +5282,8 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuBindGroupLayoutEntryAbi<VmAbi> {}
 
 /// Value type for GpuBindGroupLayoutEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5366,6 +5480,8 @@ impl VmAggregateCodec for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {}
+
 /// Value type for GpuBindGroupLayoutSampledTextureResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuBindGroupLayoutSampledTextureResourceValue {
@@ -5535,6 +5651,8 @@ impl VmAggregateCodec for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {}
+
 /// Value type for GpuBindGroupLayoutSamplerResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuBindGroupLayoutSamplerResourceValue {
@@ -5695,6 +5813,8 @@ impl VmAggregateCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {}
 
 /// Value type for GpuBindGroupLayoutStorageTextureResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5879,6 +5999,8 @@ impl VmAggregateCodec for GpuBindGroupSamplerResourceAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for GpuBindGroupSamplerResourceAbi<VmAbi> {}
+
 /// Value type for GpuBindGroupSamplerResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuBindGroupSamplerResourceValue {
@@ -6021,6 +6143,8 @@ impl VmAggregateCodec for GpuBindGroupTextureResourceAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuBindGroupTextureResourceAbi<VmAbi> {}
 
 /// Value type for GpuBindGroupTextureResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6181,6 +6305,8 @@ impl VmAbiCodec for GpuBlendComponent {
     }
 }
 
+impl VmCollectionElement for GpuBlendComponent {}
+
 /// ABI struct for GpuBlendState.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -6271,6 +6397,8 @@ impl VmAbiCodec for GpuBlendState {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for GpuBlendState {}
 
 /// ABI struct for GpuBufferCopy.
 #[repr(C)]
@@ -6366,6 +6494,8 @@ impl VmAbiCodec for GpuBufferCopy {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for GpuBufferCopy {}
 
 /// ABI struct for GpuBufferCopyLayout.
 #[repr(C)]
@@ -6463,6 +6593,8 @@ impl VmAbiCodec for GpuBufferCopyLayout {
     }
 }
 
+impl VmCollectionElement for GpuBufferCopyLayout {}
+
 /// ABI struct for GpuBufferInfo.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -6557,6 +6689,8 @@ impl VmAbiCodec for GpuBufferInfo {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for GpuBufferInfo {}
 
 /// ABI struct for GpuBufferOptions.
 #[repr(C)]
@@ -6658,6 +6792,8 @@ impl VmAbiCodec for GpuBufferOptions {
     }
 }
 
+impl VmCollectionElement for GpuBufferOptions {}
+
 /// ABI struct for GpuCapturedError.
 #[repr(C)]
 pub struct GpuCapturedErrorAbi<A: BindingAbi> {
@@ -6739,6 +6875,8 @@ impl VmAggregateCodec for GpuCapturedErrorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuCapturedErrorAbi<VmAbi> {}
 
 /// Value type for GpuCapturedError.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6896,6 +7034,8 @@ impl VmAbiCodec for GpuColorTargetState {
     }
 }
 
+impl VmCollectionElement for GpuColorTargetState {}
+
 /// ABI struct for GpuCommandEncoderOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -6978,6 +7118,8 @@ impl VmAbiCodec for GpuCommandEncoderOptions {
     }
 }
 
+impl VmCollectionElement for GpuCommandEncoderOptions {}
+
 /// ABI struct for GpuCompilationInfo.
 #[repr(C)]
 pub struct GpuCompilationInfoAbi<A: BindingAbi> {
@@ -7055,6 +7197,8 @@ impl VmAggregateCodec for GpuCompilationInfoAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuCompilationInfoAbi<VmAbi> {}
 
 /// Value type for GpuCompilationInfo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7213,6 +7357,8 @@ impl VmAggregateCodec for GpuCompilationMessageAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuCompilationMessageAbi<VmAbi> {}
 
 /// Value type for GpuCompilationMessage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7384,6 +7530,8 @@ impl VmAbiCodec for GpuComputePassOptions {
     }
 }
 
+impl VmCollectionElement for GpuComputePassOptions {}
+
 /// ABI struct for GpuComputePipelineOptions.
 #[repr(C)]
 pub struct GpuComputePipelineOptionsAbi<A: BindingAbi> {
@@ -7481,6 +7629,8 @@ impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuComputePipelineOptionsAbi<VmAbi> {}
 
 /// Value type for GpuComputePipelineOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7655,6 +7805,8 @@ impl VmAggregateCodec for GpuComputeStateAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuComputeStateAbi<VmAbi> {}
 
 /// Value type for GpuComputeState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7875,6 +8027,8 @@ impl VmAbiCodec for GpuDepthStencilState {
     }
 }
 
+impl VmCollectionElement for GpuDepthStencilState {}
+
 /// ABI struct for GpuDeviceInfo.
 #[repr(C)]
 pub struct GpuDeviceInfoAbi<A: BindingAbi> {
@@ -7988,6 +8142,8 @@ impl VmAggregateCodec for GpuDeviceInfoAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuDeviceInfoAbi<VmAbi> {}
 
 /// Value type for GpuDeviceInfo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8212,6 +8368,8 @@ impl VmAggregateCodec for GpuDeviceOptionsAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for GpuDeviceOptionsAbi<VmAbi> {}
+
 /// Value type for GpuDeviceOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuDeviceOptionsValue {
@@ -8389,6 +8547,8 @@ impl VmAggregateCodec for GpuDeviceStatusAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for GpuDeviceStatusAbi<VmAbi> {}
+
 /// Value type for GpuDeviceStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuDeviceStatusValue {
@@ -8558,6 +8718,8 @@ impl VmAbiCodec for GpuExtent3D {
     }
 }
 
+impl VmCollectionElement for GpuExtent3D {}
+
 /// ABI struct for GpuFenceOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -8653,6 +8815,8 @@ impl VmAbiCodec for GpuFenceOptions {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for GpuFenceOptions {}
 
 /// ABI struct for GpuFragmentState.
 #[repr(C)]
@@ -8760,6 +8924,8 @@ impl VmAggregateCodec for GpuFragmentStateAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuFragmentStateAbi<VmAbi> {}
 
 /// Value type for GpuFragmentState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8945,6 +9111,8 @@ impl VmAbiCodec for GpuMappedBufferRange {
     }
 }
 
+impl VmCollectionElement for GpuMappedBufferRange {}
+
 /// ABI struct for GpuMultisampleState.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -9042,6 +9210,8 @@ impl VmAbiCodec for GpuMultisampleState {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for GpuMultisampleState {}
 
 /// ABI struct for GpuPassTimestampWrites.
 #[repr(C)]
@@ -9148,6 +9318,8 @@ impl VmAbiCodec for GpuPassTimestampWrites {
     }
 }
 
+impl VmCollectionElement for GpuPassTimestampWrites {}
+
 /// ABI struct for GpuPipelineConstant.
 #[repr(C)]
 pub struct GpuPipelineConstantAbi<A: BindingAbi> {
@@ -9225,6 +9397,8 @@ impl VmAggregateCodec for GpuPipelineConstantAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuPipelineConstantAbi<VmAbi> {}
 
 /// Value type for GpuPipelineConstant.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9365,6 +9539,8 @@ impl VmAggregateCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuPipelineLayoutOptionsAbi<VmAbi> {}
 
 /// Value type for GpuPipelineLayoutOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9510,6 +9686,8 @@ impl VmAggregateCodec for GpuPipelineMetadataAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for GpuPipelineMetadataAbi<VmAbi> {}
+
 /// Value type for GpuPipelineMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuPipelineMetadataValue {
@@ -9644,6 +9822,8 @@ impl VmAbiCodec for GpuPresentOptions {
     }
 }
 
+impl VmCollectionElement for GpuPresentOptions {}
+
 /// ABI struct for GpuPrimitiveState.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -9756,6 +9936,8 @@ impl VmAbiCodec for GpuPrimitiveState {
     }
 }
 
+impl VmCollectionElement for GpuPrimitiveState {}
+
 /// ABI struct for GpuQuerySetInfo.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -9857,6 +10039,8 @@ impl VmAbiCodec for GpuQuerySetInfo {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for GpuQuerySetInfo {}
 
 /// ABI struct for GpuQuerySetOptions.
 #[repr(C)]
@@ -9965,6 +10149,8 @@ impl VmAbiCodec for GpuQuerySetOptions {
     }
 }
 
+impl VmCollectionElement for GpuQuerySetOptions {}
+
 /// ABI struct for GpuRenderBundleEncoderOptions.
 #[repr(C)]
 pub struct GpuRenderBundleEncoderOptionsAbi<A: BindingAbi> {
@@ -10053,6 +10239,8 @@ impl VmAggregateCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuRenderBundleEncoderOptionsAbi<VmAbi> {}
 
 /// Value type for GpuRenderBundleEncoderOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10268,6 +10456,8 @@ impl VmAbiCodec for GpuRenderPassColorAttachment {
     }
 }
 
+impl VmCollectionElement for GpuRenderPassColorAttachment {}
+
 /// ABI struct for GpuRenderPassDepthStencilAttachment.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -10403,6 +10593,8 @@ impl VmAbiCodec for GpuRenderPassDepthStencilAttachment {
     }
 }
 
+impl VmCollectionElement for GpuRenderPassDepthStencilAttachment {}
+
 /// ABI struct for GpuRenderPassOptions.
 #[repr(C)]
 pub struct GpuRenderPassOptionsAbi<A: BindingAbi> {
@@ -10498,6 +10690,8 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuRenderPassOptionsAbi<VmAbi> {}
 
 /// Value type for GpuRenderPassOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10739,6 +10933,8 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for GpuRenderPipelineOptionsAbi<VmAbi> {}
+
 /// Value type for GpuRenderPipelineOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuRenderPipelineOptionsValue {
@@ -10959,6 +11155,8 @@ impl VmAbiCodec for GpuRenderState {
     }
 }
 
+impl VmCollectionElement for GpuRenderState {}
+
 /// ABI struct for GpuSamplerOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -11096,6 +11294,8 @@ impl VmAbiCodec for GpuSamplerOptions {
     }
 }
 
+impl VmCollectionElement for GpuSamplerOptions {}
+
 /// ABI struct for GpuShaderOptions.
 #[repr(C)]
 pub struct GpuShaderOptionsAbi<A: BindingAbi> {
@@ -11179,6 +11379,8 @@ impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuShaderOptionsAbi<VmAbi> {}
 
 /// Value type for GpuShaderOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11343,6 +11545,8 @@ impl VmAbiCodec for GpuStencilFaceState {
     }
 }
 
+impl VmCollectionElement for GpuStencilFaceState {}
+
 /// ABI struct for GpuSubmitOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -11431,6 +11635,8 @@ impl VmAbiCodec for GpuSubmitOptions {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for GpuSubmitOptions {}
 
 /// ABI struct for GpuSurfaceCapabilities.
 #[repr(C)]
@@ -11529,6 +11735,8 @@ impl VmAggregateCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuSurfaceCapabilitiesAbi<VmAbi> {}
 
 /// Value type for GpuSurfaceCapabilities.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11720,6 +11928,8 @@ impl VmAbiCodec for GpuSurfaceFrame {
     }
 }
 
+impl VmCollectionElement for GpuSurfaceFrame {}
+
 /// ABI struct for GpuSurfaceOptions.
 #[repr(C)]
 pub struct GpuSurfaceOptionsAbi<A: BindingAbi> {
@@ -11841,6 +12051,8 @@ impl VmAggregateCodec for GpuSurfaceOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuSurfaceOptionsAbi<VmAbi> {}
 
 /// Value type for GpuSurfaceOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12075,6 +12287,8 @@ impl VmAbiCodec for GpuTextureCopy {
     }
 }
 
+impl VmCollectionElement for GpuTextureCopy {}
+
 /// ABI struct for GpuTextureInfo.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -12199,6 +12413,8 @@ impl VmAbiCodec for GpuTextureInfo {
     }
 }
 
+impl VmCollectionElement for GpuTextureInfo {}
+
 /// ABI struct for GpuTextureOptions.
 #[repr(C)]
 pub struct GpuTextureOptionsAbi<A: BindingAbi> {
@@ -12321,6 +12537,8 @@ impl VmAggregateCodec for GpuTextureOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuTextureOptionsAbi<VmAbi> {}
 
 /// Value type for GpuTextureOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12554,6 +12772,8 @@ impl VmAbiCodec for GpuTextureViewOptions {
     }
 }
 
+impl VmCollectionElement for GpuTextureViewOptions {}
+
 /// ABI struct for GpuVertexAttribute.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -12649,6 +12869,8 @@ impl VmAbiCodec for GpuVertexAttribute {
     }
 }
 
+impl VmCollectionElement for GpuVertexAttribute {}
+
 /// ABI struct for GpuVertexBufferLayout.
 #[repr(C)]
 pub struct GpuVertexBufferLayoutAbi<A: BindingAbi> {
@@ -12742,6 +12964,8 @@ impl VmAggregateCodec for GpuVertexBufferLayoutAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuVertexBufferLayoutAbi<VmAbi> {}
 
 /// Value type for GpuVertexBufferLayout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12925,6 +13149,8 @@ impl VmAggregateCodec for GpuVertexStateAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for GpuVertexStateAbi<VmAbi> {}
 
 /// Value type for GpuVertexState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -34,13 +34,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
 
     /// Report whether one binding type is one byte buffer.
     fn is_byte_buffer_type(binding_type: &BindingType) -> bool {
-        match binding_type {
-            BindingType::Slice(inner) | BindingType::Array(inner) => {
-                matches!(**inner, BindingType::UInt(8))
-            }
-            BindingType::Optional(inner) => Self::is_byte_buffer_type(inner),
-            _ => false,
-        }
+        binding_type.is_byte_collection()
     }
 
     /// Locate one random stream parameter name.

@@ -6,56 +6,8 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::gpu::tests::GpuHarnessContext;
-use crate::platform::gpu::{
-    GpuAdapterFormatCapabilities, GpuAdapterFormatCapabilitiesVm, GpuAdapterInfo, GpuAdapterInfoVm,
-    GpuAdapterLimits, GpuAdapterLimitsVm, GpuAdapterRequest, GpuAdapterRequestVm, GpuAdapterType,
-    GpuBackend, GpuBindGroupBufferResource, GpuBindGroupBufferResourceVm, GpuBindGroupEntry,
-    GpuBindGroupEntryVm, GpuBindGroupLayoutBufferResource, GpuBindGroupLayoutBufferResourceVm,
-    GpuBindGroupLayoutEntry, GpuBindGroupLayoutEntryVm, GpuBindGroupLayoutResource,
-    GpuBindGroupLayoutResourceVm, GpuBindGroupLayoutSampledTextureResource,
-    GpuBindGroupLayoutSampledTextureResourceVm, GpuBindGroupLayoutSamplerResource,
-    GpuBindGroupLayoutSamplerResourceVm, GpuBindGroupLayoutStorageTextureResource,
-    GpuBindGroupLayoutStorageTextureResourceVm, GpuBindGroupResource, GpuBindGroupResourceVm,
-    GpuBindGroupSamplerResource, GpuBindGroupSamplerResourceVm, GpuBindGroupTextureResource,
-    GpuBindGroupTextureResourceVm, GpuBlendComponent, GpuBlendComponentVm, GpuBlendFactor,
-    GpuBlendOperation, GpuBlendState, GpuBlendStateVm, GpuBufferBindingType, GpuBufferCopy,
-    GpuBufferCopyLayout, GpuBufferCopyLayoutVm, GpuBufferCopyVm, GpuBufferInfo, GpuBufferInfoVm,
-    GpuBufferMapState, GpuBufferOptions, GpuBufferOptionsVm, GpuCapturedError, GpuCapturedErrorVm,
-    GpuColorTargetState, GpuColorTargetStateVm, GpuColorWriteMask, GpuCommandEncoderOptions,
-    GpuCommandEncoderOptionsVm, GpuCompareFunction, GpuCompilationInfo, GpuCompilationInfoVm,
-    GpuCompilationMessage, GpuCompilationMessageKind, GpuCompilationMessageVm,
-    GpuComputePassOptions, GpuComputePassOptionsVm, GpuComputePipelineOptions,
-    GpuComputePipelineOptionsVm, GpuComputeState, GpuComputeStateVm, GpuCullMode,
-    GpuDepthStencilState, GpuDepthStencilStateVm, GpuDeviceInfo, GpuDeviceInfoVm,
-    GpuDeviceLossReason, GpuDeviceOptions, GpuDeviceOptionsVm, GpuDeviceStatus, GpuDeviceStatusVm,
-    GpuErrorFilter, GpuExtent3D, GpuExtent3DVm, GpuFeatureId, GpuFenceMode, GpuFenceOptions,
-    GpuFenceOptionsVm, GpuFragmentState, GpuFragmentStateVm, GpuFrontFace, GpuIndexFormat,
-    GpuLoadOp, GpuMapMode, GpuMappedBufferRange, GpuMappedBufferRangeVm, GpuMultisampleState,
-    GpuMultisampleStateVm, GpuPassTimestampWrites, GpuPassTimestampWritesVm, GpuPipelineConstant,
-    GpuPipelineConstantVm, GpuPipelineLayoutOptions, GpuPipelineLayoutOptionsVm,
-    GpuPipelineMetadata, GpuPipelineMetadataVm, GpuPipelineStatisticsMask, GpuPowerPreference,
-    GpuPresentMode, GpuPresentOptions, GpuPresentOptionsVm, GpuPrimitiveState, GpuPrimitiveStateVm,
-    GpuPrimitiveTopology, GpuQuerySetInfo, GpuQuerySetInfoVm, GpuQuerySetOptions,
-    GpuQuerySetOptionsVm, GpuQueryType, GpuRenderBundleEncoderOptions,
-    GpuRenderBundleEncoderOptionsVm, GpuRenderPassColorAttachment, GpuRenderPassColorAttachmentVm,
-    GpuRenderPassDepthStencilAttachment, GpuRenderPassDepthStencilAttachmentVm,
-    GpuRenderPassOptions, GpuRenderPassOptionsVm, GpuRenderPipelineOptions,
-    GpuRenderPipelineOptionsVm, GpuRenderState, GpuRenderStateVm, GpuSamplerBindingType,
-    GpuSamplerOptions, GpuSamplerOptionsVm, GpuShaderFormat, GpuShaderOptions, GpuShaderOptionsVm,
-    GpuShaderVisibilityMask, GpuStencilFaceState, GpuStencilFaceStateVm, GpuStencilOperation,
-    GpuStorageTextureAccess, GpuStoreOp, GpuSubmitOptions, GpuSubmitOptionsVm,
-    GpuSurfaceAcquireStatus, GpuSurfaceAlphaMode, GpuSurfaceCapabilities, GpuSurfaceCapabilitiesVm,
-    GpuSurfaceFrame, GpuSurfaceFrameVm, GpuSurfaceOptions, GpuSurfaceOptionsVm, GpuTextureCopy,
-    GpuTextureCopyVm, GpuTextureDimension, GpuTextureInfo, GpuTextureInfoVm, GpuTextureOptions,
-    GpuTextureOptionsVm, GpuTextureSampleType, GpuTextureViewDimension, GpuTextureViewOptions,
-    GpuTextureViewOptionsVm, GpuVertexAttribute, GpuVertexAttributeVm, GpuVertexBufferLayout,
-    GpuVertexBufferLayoutVm, GpuVertexState, GpuVertexStateVm, GpuVertexStepMode,
-    native as gpu_native, vm as gpu_vm,
-};
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, resource,
-};
+use crate::platform::gpu::{GpuAdapterFormatCapabilities, GpuAdapterFormatCapabilitiesVm, GpuAdapterInfo, GpuAdapterInfoVm, GpuAdapterLimits, GpuAdapterLimitsVm, GpuAdapterRequest, GpuAdapterRequestVm, GpuAdapterType, GpuBackend, GpuBindGroupBufferResource, GpuBindGroupBufferResourceVm, GpuBindGroupEntry, GpuBindGroupEntryVm, GpuBindGroupLayoutBufferResource, GpuBindGroupLayoutBufferResourceVm, GpuBindGroupLayoutEntry, GpuBindGroupLayoutEntryVm, GpuBindGroupLayoutResource, GpuBindGroupLayoutResourceVm, GpuBindGroupLayoutSampledTextureResource, GpuBindGroupLayoutSampledTextureResourceVm, GpuBindGroupLayoutSamplerResource, GpuBindGroupLayoutSamplerResourceVm, GpuBindGroupLayoutStorageTextureResource, GpuBindGroupLayoutStorageTextureResourceVm, GpuBindGroupResource, GpuBindGroupResourceVm, GpuBindGroupSamplerResource, GpuBindGroupSamplerResourceVm, GpuBindGroupTextureResource, GpuBindGroupTextureResourceVm, GpuBlendComponent, GpuBlendComponentVm, GpuBlendFactor, GpuBlendOperation, GpuBlendState, GpuBlendStateVm, GpuBufferBindingType, GpuBufferCopy, GpuBufferCopyLayout, GpuBufferCopyLayoutVm, GpuBufferCopyVm, GpuBufferInfo, GpuBufferInfoVm, GpuBufferMapState, GpuBufferOptions, GpuBufferOptionsVm, GpuCapturedError, GpuCapturedErrorVm, GpuColorTargetState, GpuColorTargetStateVm, GpuColorWriteMask, GpuCommandEncoderOptions, GpuCommandEncoderOptionsVm, GpuCompareFunction, GpuCompilationInfo, GpuCompilationInfoVm, GpuCompilationMessage, GpuCompilationMessageKind, GpuCompilationMessageVm, GpuComputePassOptions, GpuComputePassOptionsVm, GpuComputePipelineOptions, GpuComputePipelineOptionsVm, GpuComputeState, GpuComputeStateVm, GpuCullMode, GpuDepthStencilState, GpuDepthStencilStateVm, GpuDeviceInfo, GpuDeviceInfoVm, GpuDeviceLossReason, GpuDeviceOptions, GpuDeviceOptionsVm, GpuDeviceStatus, GpuDeviceStatusVm, GpuErrorFilter, GpuExtent3D, GpuExtent3DVm, GpuFeatureId, GpuFenceMode, GpuFenceOptions, GpuFenceOptionsVm, GpuFragmentState, GpuFragmentStateVm, GpuFrontFace, GpuIndexFormat, GpuLoadOp, GpuMapMode, GpuMappedBufferRange, GpuMappedBufferRangeVm, GpuMultisampleState, GpuMultisampleStateVm, GpuPassTimestampWrites, GpuPassTimestampWritesVm, GpuPipelineConstant, GpuPipelineConstantVm, GpuPipelineLayoutOptions, GpuPipelineLayoutOptionsVm, GpuPipelineMetadata, GpuPipelineMetadataVm, GpuPipelineStatisticsMask, GpuPowerPreference, GpuPresentMode, GpuPresentOptions, GpuPresentOptionsVm, GpuPrimitiveState, GpuPrimitiveStateVm, GpuPrimitiveTopology, GpuQuerySetInfo, GpuQuerySetInfoVm, GpuQuerySetOptions, GpuQuerySetOptionsVm, GpuQueryType, GpuRenderBundleEncoderOptions, GpuRenderBundleEncoderOptionsVm, GpuRenderPassColorAttachment, GpuRenderPassColorAttachmentVm, GpuRenderPassDepthStencilAttachment, GpuRenderPassDepthStencilAttachmentVm, GpuRenderPassOptions, GpuRenderPassOptionsVm, GpuRenderPipelineOptions, GpuRenderPipelineOptionsVm, GpuRenderState, GpuRenderStateVm, GpuSamplerBindingType, GpuSamplerOptions, GpuSamplerOptionsVm, GpuShaderFormat, GpuShaderOptions, GpuShaderOptionsVm, GpuShaderVisibilityMask, GpuStencilFaceState, GpuStencilFaceStateVm, GpuStencilOperation, GpuStorageTextureAccess, GpuStoreOp, GpuSubmitOptions, GpuSubmitOptionsVm, GpuSurfaceAcquireStatus, GpuSurfaceAlphaMode, GpuSurfaceCapabilities, GpuSurfaceCapabilitiesVm, GpuSurfaceFrame, GpuSurfaceFrameVm, GpuSurfaceOptions, GpuSurfaceOptionsVm, GpuTextureCopy, GpuTextureCopyVm, GpuTextureDimension, GpuTextureInfo, GpuTextureInfoVm, GpuTextureOptions, GpuTextureOptionsVm, GpuTextureSampleType, GpuTextureViewDimension, GpuTextureViewOptions, GpuTextureViewOptionsVm, GpuVertexAttribute, GpuVertexAttributeVm, GpuVertexBufferLayout, GpuVertexBufferLayoutVm, GpuVertexState, GpuVertexStateVm, GpuVertexStepMode, native as gpu_native, vm as gpu_vm};
+use crate::platform::{NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
 use destack_vm as vm;
 
 impl<'call> GpuHarnessContext<'call> {
@@ -98,8 +50,12 @@ impl<'call> GpuHarnessContext<'call> {
         handle: resource::GpuAdapterHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_adapter_close(self.call_context, context, handle),
-            None => unsafe { gpu_native::destack_gpu_adapter_close(self.call_context, handle) },
+            Some(context) => {
+                gpu_vm::destack_gpu_adapter_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_adapter_close(self.call_context, handle)
+            },
         }
     }
 
@@ -132,15 +88,11 @@ impl<'call> GpuHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<NativeSlice<GpuFeatureId>>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_adapter_features(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    gpu_native::destack_gpu_adapter_features(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -165,31 +117,20 @@ impl<'call> GpuHarnessContext<'call> {
         &mut self,
         handle: resource::GpuAdapterHandle,
         format: u32,
-    ) -> RuntimeResult<HarnessValue<GpuAdapterFormatCapabilities, GpuAdapterFormatCapabilitiesVm>>
-    {
+    ) -> RuntimeResult<HarnessValue<GpuAdapterFormatCapabilities, GpuAdapterFormatCapabilitiesVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_adapter_format_capabilities(
-                    self.call_context,
-                    context,
-                    handle,
-                    format,
-                )?;
+                let out = gpu_vm::destack_gpu_adapter_format_capabilities(self.call_context, context, handle, format)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuAdapterFormatCapabilities>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_adapter_format_capabilities(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        format,
-                    )?;
+                    gpu_native::destack_gpu_adapter_format_capabilities(self.call_context, out.as_mut_ptr(), handle, format)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -217,27 +158,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<bool> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_adapter_has_feature(
-                    self.call_context,
-                    context,
-                    handle,
-                    feature,
-                )?;
+                let out = gpu_vm::destack_gpu_adapter_has_feature(self.call_context, context, handle, feature)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<bool>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_adapter_has_feature(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        feature,
-                    )?;
+                    gpu_native::destack_gpu_adapter_has_feature(self.call_context, out.as_mut_ptr(), handle, feature)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -270,15 +201,11 @@ impl<'call> GpuHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuAdapterInfo>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_adapter_info(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    gpu_native::destack_gpu_adapter_info(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -311,15 +238,11 @@ impl<'call> GpuHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuAdapterLimits>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_adapter_limits(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    gpu_native::destack_gpu_adapter_limits(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -354,15 +277,11 @@ impl<'call> GpuHarnessContext<'call> {
                 let request = request.into_native("request")?;
                 let mut out = std::mem::MaybeUninit::<NativeArray<GpuAdapterInfo>>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_adapter_list(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        request,
-                    )?;
+                    gpu_native::destack_gpu_adapter_list(self.call_context, out.as_mut_ptr(), request)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -401,7 +320,7 @@ impl<'call> GpuHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -432,32 +351,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let entries = entries.into_vm("entries")?;
-                let out = gpu_vm::destack_gpu_bind_group_create(
-                    self.call_context,
-                    context,
-                    device,
-                    layout,
-                    entries,
-                    flags,
-                )?;
+                let out = gpu_vm::destack_gpu_bind_group_create(self.call_context, context, device, layout, entries, flags)?;
                 Ok(out)
             }
             None => {
                 let entries = entries.into_native("entries")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuBindGroupHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_bind_group_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        layout,
-                        entries,
-                        flags,
-                    )?;
+                    gpu_native::destack_gpu_bind_group_create(self.call_context, out.as_mut_ptr(), device, layout, entries, flags)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -512,39 +417,24 @@ impl<'call> GpuHarnessContext<'call> {
     pub(crate) fn destack_gpu_bind_group_layout_create(
         &mut self,
         device: resource::GpuDeviceHandle,
-        entries: HarnessValue<
-            NativeSlice<GpuBindGroupLayoutEntry>,
-            VmSlice<GpuBindGroupLayoutEntryVm>,
-        >,
+        entries: HarnessValue<NativeSlice<GpuBindGroupLayoutEntry>, VmSlice<GpuBindGroupLayoutEntryVm>>,
         flags: u32,
     ) -> RuntimeResult<resource::GpuBindGroupLayoutHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let entries = entries.into_vm("entries")?;
-                let out = gpu_vm::destack_gpu_bind_group_layout_create(
-                    self.call_context,
-                    context,
-                    device,
-                    entries,
-                    flags,
-                )?;
+                let out = gpu_vm::destack_gpu_bind_group_layout_create(self.call_context, context, device, entries, flags)?;
                 Ok(out)
             }
             None => {
                 let entries = entries.into_native("entries")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuBindGroupLayoutHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_bind_group_layout_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        entries,
-                        flags,
-                    )?;
+                    gpu_native::destack_gpu_bind_group_layout_create(self.call_context, out.as_mut_ptr(), device, entries, flags)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -604,28 +494,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out = gpu_vm::destack_gpu_pipeline_layout_create(
-                    self.call_context,
-                    context,
-                    device,
-                    options,
-                )?;
+                let out = gpu_vm::destack_gpu_pipeline_layout_create(self.call_context, context, device, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuPipelineLayoutHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_pipeline_layout_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_pipeline_layout_create(self.call_context, out.as_mut_ptr(), device, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -683,18 +563,11 @@ impl<'call> GpuHarnessContext<'call> {
         pipeline: resource::GpuPipelineHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_bind_compute_pipeline(
-                self.call_context,
-                context,
-                handle,
-                pipeline,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_bind_compute_pipeline(self.call_context, context, handle, pipeline)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_bind_compute_pipeline(
-                    self.call_context,
-                    handle,
-                    pipeline,
-                )
+                gpu_native::destack_gpu_command_bind_compute_pipeline(self.call_context, handle, pipeline)
             },
         }
     }
@@ -722,18 +595,11 @@ impl<'call> GpuHarnessContext<'call> {
         pipeline: resource::GpuPipelineHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_bind_render_pipeline(
-                self.call_context,
-                context,
-                handle,
-                pipeline,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_bind_render_pipeline(self.call_context, context, handle, pipeline)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_bind_render_pipeline(
-                    self.call_context,
-                    handle,
-                    pipeline,
-                )
+                gpu_native::destack_gpu_command_bind_render_pipeline(self.call_context, handle, pipeline)
             },
         }
     }
@@ -763,22 +629,11 @@ impl<'call> GpuHarnessContext<'call> {
         size: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_clear_buffer(
-                self.call_context,
-                context,
-                handle,
-                buffer,
-                offset,
-                size,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_clear_buffer(self.call_context, context, handle, buffer, offset, size)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_clear_buffer(
-                    self.call_context,
-                    handle,
-                    buffer,
-                    offset,
-                    size,
-                )
+                gpu_native::destack_gpu_command_clear_buffer(self.call_context, handle, buffer, offset, size)
             },
         }
     }
@@ -809,28 +664,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out = gpu_vm::destack_gpu_command_compute_pass_begin(
-                    self.call_context,
-                    context,
-                    handle,
-                    options,
-                )?;
+                let out = gpu_vm::destack_gpu_command_compute_pass_begin(self.call_context, context, handle, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuComputePassHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_command_compute_pass_begin(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_command_compute_pass_begin(self.call_context, out.as_mut_ptr(), handle, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -890,23 +735,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let marker = marker.into_vm("marker")?;
-                gpu_vm::destack_gpu_command_compute_pass_insert_debug_marker(
-                    self.call_context,
-                    context,
-                    handle,
-                    marker,
-                )
+                gpu_vm::destack_gpu_command_compute_pass_insert_debug_marker(self.call_context, context, handle, marker)
             }
-            None => {
+            None => unsafe {
                 let marker = marker.into_native("marker")?;
-                unsafe {
-                    gpu_native::destack_gpu_command_compute_pass_insert_debug_marker(
-                        self.call_context,
-                        handle,
-                        marker,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_command_compute_pass_insert_debug_marker(self.call_context, handle, marker)
+            },
         }
     }
 
@@ -932,16 +766,11 @@ impl<'call> GpuHarnessContext<'call> {
         handle: resource::GpuComputePassHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_compute_pass_pop_debug_group(
-                self.call_context,
-                context,
-                handle,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_compute_pass_pop_debug_group(self.call_context, context, handle)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_compute_pass_pop_debug_group(
-                    self.call_context,
-                    handle,
-                )
+                gpu_native::destack_gpu_command_compute_pass_pop_debug_group(self.call_context, handle)
             },
         }
     }
@@ -971,23 +800,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let label = label.into_vm("label")?;
-                gpu_vm::destack_gpu_command_compute_pass_push_debug_group(
-                    self.call_context,
-                    context,
-                    handle,
-                    label,
-                )
+                gpu_vm::destack_gpu_command_compute_pass_push_debug_group(self.call_context, context, handle, label)
             }
-            None => {
+            None => unsafe {
                 let label = label.into_native("label")?;
-                unsafe {
-                    gpu_native::destack_gpu_command_compute_pass_push_debug_group(
-                        self.call_context,
-                        handle,
-                        label,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_command_compute_pass_push_debug_group(self.call_context, handle, label)
+            },
         }
     }
 
@@ -1018,26 +836,11 @@ impl<'call> GpuHarnessContext<'call> {
         argument_bytes: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_copy_buffer(
-                self.call_context,
-                context,
-                handle,
-                src,
-                srcoffset,
-                dst,
-                dstoffset,
-                argument_bytes,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_copy_buffer(self.call_context, context, handle, src, srcoffset, dst, dstoffset, argument_bytes)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_copy_buffer(
-                    self.call_context,
-                    handle,
-                    src,
-                    srcoffset,
-                    dst,
-                    dstoffset,
-                    argument_bytes,
-                )
+                gpu_native::destack_gpu_command_copy_buffer(self.call_context, handle, src, srcoffset, dst, dstoffset, argument_bytes)
             },
         }
     }
@@ -1071,29 +874,14 @@ impl<'call> GpuHarnessContext<'call> {
                 let source = source.into_vm("source")?;
                 let destination = destination.into_vm("destination")?;
                 let size = size.into_vm("size")?;
-                gpu_vm::destack_gpu_command_copy_buffer_to_texture(
-                    self.call_context,
-                    context,
-                    handle,
-                    source,
-                    destination,
-                    size,
-                )
+                gpu_vm::destack_gpu_command_copy_buffer_to_texture(self.call_context, context, handle, source, destination, size)
             }
-            None => {
+            None => unsafe {
                 let source = source.into_native("source")?;
                 let destination = destination.into_native("destination")?;
                 let size = size.into_native("size")?;
-                unsafe {
-                    gpu_native::destack_gpu_command_copy_buffer_to_texture(
-                        self.call_context,
-                        handle,
-                        source,
-                        destination,
-                        size,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_command_copy_buffer_to_texture(self.call_context, handle, source, destination, size)
+            },
         }
     }
 
@@ -1126,29 +914,14 @@ impl<'call> GpuHarnessContext<'call> {
                 let source = source.into_vm("source")?;
                 let destination = destination.into_vm("destination")?;
                 let size = size.into_vm("size")?;
-                gpu_vm::destack_gpu_command_copy_texture_to_buffer(
-                    self.call_context,
-                    context,
-                    handle,
-                    source,
-                    destination,
-                    size,
-                )
+                gpu_vm::destack_gpu_command_copy_texture_to_buffer(self.call_context, context, handle, source, destination, size)
             }
-            None => {
+            None => unsafe {
                 let source = source.into_native("source")?;
                 let destination = destination.into_native("destination")?;
                 let size = size.into_native("size")?;
-                unsafe {
-                    gpu_native::destack_gpu_command_copy_texture_to_buffer(
-                        self.call_context,
-                        handle,
-                        source,
-                        destination,
-                        size,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_command_copy_texture_to_buffer(self.call_context, handle, source, destination, size)
+            },
         }
     }
 
@@ -1181,29 +954,14 @@ impl<'call> GpuHarnessContext<'call> {
                 let source = source.into_vm("source")?;
                 let destination = destination.into_vm("destination")?;
                 let size = size.into_vm("size")?;
-                gpu_vm::destack_gpu_command_copy_texture_to_texture(
-                    self.call_context,
-                    context,
-                    handle,
-                    source,
-                    destination,
-                    size,
-                )
+                gpu_vm::destack_gpu_command_copy_texture_to_texture(self.call_context, context, handle, source, destination, size)
             }
-            None => {
+            None => unsafe {
                 let source = source.into_native("source")?;
                 let destination = destination.into_native("destination")?;
                 let size = size.into_native("size")?;
-                unsafe {
-                    gpu_native::destack_gpu_command_copy_texture_to_texture(
-                        self.call_context,
-                        handle,
-                        source,
-                        destination,
-                        size,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_command_copy_texture_to_texture(self.call_context, handle, source, destination, size)
+            },
         }
     }
 
@@ -1232,22 +990,11 @@ impl<'call> GpuHarnessContext<'call> {
         groupz: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_dispatch(
-                self.call_context,
-                context,
-                handle,
-                groupx,
-                groupy,
-                groupz,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_dispatch(self.call_context, context, handle, groupx, groupy, groupz)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_dispatch(
-                    self.call_context,
-                    handle,
-                    groupx,
-                    groupy,
-                    groupz,
-                )
+                gpu_native::destack_gpu_command_dispatch(self.call_context, handle, groupx, groupy, groupz)
             },
         }
     }
@@ -1276,20 +1023,11 @@ impl<'call> GpuHarnessContext<'call> {
         offset: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_dispatch_indirect(
-                self.call_context,
-                context,
-                handle,
-                buffer,
-                offset,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_dispatch_indirect(self.call_context, context, handle, buffer, offset)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_dispatch_indirect(
-                    self.call_context,
-                    handle,
-                    buffer,
-                    offset,
-                )
+                gpu_native::destack_gpu_command_dispatch_indirect(self.call_context, handle, buffer, offset)
             },
         }
     }
@@ -1320,24 +1058,11 @@ impl<'call> GpuHarnessContext<'call> {
         firstinstance: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_draw(
-                self.call_context,
-                context,
-                handle,
-                vertexcount,
-                instancecount,
-                firstvertex,
-                firstinstance,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_draw(self.call_context, context, handle, vertexcount, instancecount, firstvertex, firstinstance)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_draw(
-                    self.call_context,
-                    handle,
-                    vertexcount,
-                    instancecount,
-                    firstvertex,
-                    firstinstance,
-                )
+                gpu_native::destack_gpu_command_draw(self.call_context, handle, vertexcount, instancecount, firstvertex, firstinstance)
             },
         }
     }
@@ -1369,26 +1094,11 @@ impl<'call> GpuHarnessContext<'call> {
         firstinstance: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_draw_indexed(
-                self.call_context,
-                context,
-                handle,
-                indexcount,
-                instancecount,
-                firstindex,
-                basevertex,
-                firstinstance,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_draw_indexed(self.call_context, context, handle, indexcount, instancecount, firstindex, basevertex, firstinstance)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_draw_indexed(
-                    self.call_context,
-                    handle,
-                    indexcount,
-                    instancecount,
-                    firstindex,
-                    basevertex,
-                    firstinstance,
-                )
+                gpu_native::destack_gpu_command_draw_indexed(self.call_context, handle, indexcount, instancecount, firstindex, basevertex, firstinstance)
             },
         }
     }
@@ -1419,24 +1129,11 @@ impl<'call> GpuHarnessContext<'call> {
         stride: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_draw_indexed_indirect(
-                self.call_context,
-                context,
-                handle,
-                buffer,
-                offset,
-                drawcount,
-                stride,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_draw_indexed_indirect(self.call_context, context, handle, buffer, offset, drawcount, stride)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_draw_indexed_indirect(
-                    self.call_context,
-                    handle,
-                    buffer,
-                    offset,
-                    drawcount,
-                    stride,
-                )
+                gpu_native::destack_gpu_command_draw_indexed_indirect(self.call_context, handle, buffer, offset, drawcount, stride)
             },
         }
     }
@@ -1467,24 +1164,11 @@ impl<'call> GpuHarnessContext<'call> {
         stride: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_draw_indirect(
-                self.call_context,
-                context,
-                handle,
-                buffer,
-                offset,
-                drawcount,
-                stride,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_draw_indirect(self.call_context, context, handle, buffer, offset, drawcount, stride)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_draw_indirect(
-                    self.call_context,
-                    handle,
-                    buffer,
-                    offset,
-                    drawcount,
-                    stride,
-                )
+                gpu_native::destack_gpu_command_draw_indirect(self.call_context, handle, buffer, offset, drawcount, stride)
             },
         }
     }
@@ -1576,28 +1260,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out = gpu_vm::destack_gpu_command_encoder_open(
-                    self.call_context,
-                    context,
-                    device,
-                    options,
-                )?;
+                let out = gpu_vm::destack_gpu_command_encoder_open(self.call_context, context, device, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuCommandListHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_command_encoder_open(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_command_encoder_open(self.call_context, out.as_mut_ptr(), device, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -1621,31 +1295,17 @@ impl<'call> GpuHarnessContext<'call> {
     pub(crate) fn destack_gpu_command_execute_bundles(
         &mut self,
         handle: resource::GpuRenderPassHandle,
-        bundles: HarnessValue<
-            NativeSlice<resource::GpuRenderBundleHandle>,
-            VmSlice<resource::GpuRenderBundleHandle>,
-        >,
+        bundles: HarnessValue<NativeSlice<resource::GpuRenderBundleHandle>, VmSlice<resource::GpuRenderBundleHandle>>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let bundles = bundles.into_vm("bundles")?;
-                gpu_vm::destack_gpu_command_execute_bundles(
-                    self.call_context,
-                    context,
-                    handle,
-                    bundles,
-                )
+                gpu_vm::destack_gpu_command_execute_bundles(self.call_context, context, handle, bundles)
             }
-            None => {
+            None => unsafe {
                 let bundles = bundles.into_native("bundles")?;
-                unsafe {
-                    gpu_native::destack_gpu_command_execute_bundles(
-                        self.call_context,
-                        handle,
-                        bundles,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_command_execute_bundles(self.call_context, handle, bundles)
+            },
         }
     }
 
@@ -1674,23 +1334,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let marker = marker.into_vm("marker")?;
-                gpu_vm::destack_gpu_command_insert_debug_marker(
-                    self.call_context,
-                    context,
-                    handle,
-                    marker,
-                )
+                gpu_vm::destack_gpu_command_insert_debug_marker(self.call_context, context, handle, marker)
             }
-            None => {
+            None => unsafe {
                 let marker = marker.into_native("marker")?;
-                unsafe {
-                    gpu_native::destack_gpu_command_insert_debug_marker(
-                        self.call_context,
-                        handle,
-                        marker,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_command_insert_debug_marker(self.call_context, handle, marker)
+            },
         }
     }
 
@@ -1721,24 +1370,11 @@ impl<'call> GpuHarnessContext<'call> {
         stride: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_multi_draw_indexed_indirect(
-                self.call_context,
-                context,
-                handle,
-                buffer,
-                offset,
-                drawcount,
-                stride,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_multi_draw_indexed_indirect(self.call_context, context, handle, buffer, offset, drawcount, stride)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_multi_draw_indexed_indirect(
-                    self.call_context,
-                    handle,
-                    buffer,
-                    offset,
-                    drawcount,
-                    stride,
-                )
+                gpu_native::destack_gpu_command_multi_draw_indexed_indirect(self.call_context, handle, buffer, offset, drawcount, stride)
             },
         }
     }
@@ -1771,28 +1407,11 @@ impl<'call> GpuHarnessContext<'call> {
         stride: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_multi_draw_indexed_indirect_count(
-                self.call_context,
-                context,
-                handle,
-                buffer,
-                offset,
-                countbuffer,
-                countoffset,
-                maxdrawcount,
-                stride,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_multi_draw_indexed_indirect_count(self.call_context, context, handle, buffer, offset, countbuffer, countoffset, maxdrawcount, stride)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_multi_draw_indexed_indirect_count(
-                    self.call_context,
-                    handle,
-                    buffer,
-                    offset,
-                    countbuffer,
-                    countoffset,
-                    maxdrawcount,
-                    stride,
-                )
+                gpu_native::destack_gpu_command_multi_draw_indexed_indirect_count(self.call_context, handle, buffer, offset, countbuffer, countoffset, maxdrawcount, stride)
             },
         }
     }
@@ -1824,24 +1443,11 @@ impl<'call> GpuHarnessContext<'call> {
         stride: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_multi_draw_indirect(
-                self.call_context,
-                context,
-                handle,
-                buffer,
-                offset,
-                drawcount,
-                stride,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_multi_draw_indirect(self.call_context, context, handle, buffer, offset, drawcount, stride)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_multi_draw_indirect(
-                    self.call_context,
-                    handle,
-                    buffer,
-                    offset,
-                    drawcount,
-                    stride,
-                )
+                gpu_native::destack_gpu_command_multi_draw_indirect(self.call_context, handle, buffer, offset, drawcount, stride)
             },
         }
     }
@@ -1874,28 +1480,11 @@ impl<'call> GpuHarnessContext<'call> {
         stride: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_multi_draw_indirect_count(
-                self.call_context,
-                context,
-                handle,
-                buffer,
-                offset,
-                countbuffer,
-                countoffset,
-                maxdrawcount,
-                stride,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_multi_draw_indirect_count(self.call_context, context, handle, buffer, offset, countbuffer, countoffset, maxdrawcount, stride)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_multi_draw_indirect_count(
-                    self.call_context,
-                    handle,
-                    buffer,
-                    offset,
-                    countbuffer,
-                    countoffset,
-                    maxdrawcount,
-                    stride,
-                )
+                gpu_native::destack_gpu_command_multi_draw_indirect_count(self.call_context, handle, buffer, offset, countbuffer, countoffset, maxdrawcount, stride)
             },
         }
     }
@@ -1956,23 +1545,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let label = label.into_vm("label")?;
-                gpu_vm::destack_gpu_command_push_debug_group(
-                    self.call_context,
-                    context,
-                    handle,
-                    label,
-                )
+                gpu_vm::destack_gpu_command_push_debug_group(self.call_context, context, handle, label)
             }
-            None => {
+            None => unsafe {
                 let label = label.into_native("label")?;
-                unsafe {
-                    gpu_native::destack_gpu_command_push_debug_group(
-                        self.call_context,
-                        handle,
-                        label,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_command_push_debug_group(self.call_context, handle, label)
+            },
         }
     }
 
@@ -1996,36 +1574,20 @@ impl<'call> GpuHarnessContext<'call> {
     pub(crate) fn destack_gpu_queue_submit(
         &mut self,
         queue: resource::GpuQueueHandle,
-        commandlists: HarnessValue<
-            NativeSlice<resource::GpuCommandListHandle>,
-            VmSlice<resource::GpuCommandListHandle>,
-        >,
+        commandlists: HarnessValue<NativeSlice<resource::GpuCommandListHandle>, VmSlice<resource::GpuCommandListHandle>>,
         options: HarnessValue<GpuSubmitOptions, GpuSubmitOptionsVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let commandlists = commandlists.into_vm("commandlists")?;
                 let options = options.into_vm("options")?;
-                gpu_vm::destack_gpu_queue_submit(
-                    self.call_context,
-                    context,
-                    queue,
-                    commandlists,
-                    options,
-                )
+                gpu_vm::destack_gpu_queue_submit(self.call_context, context, queue, commandlists, options)
             }
-            None => {
+            None => unsafe {
                 let commandlists = commandlists.into_native("commandlists")?;
                 let options = options.into_native("options")?;
-                unsafe {
-                    gpu_native::destack_gpu_queue_submit(
-                        self.call_context,
-                        queue,
-                        commandlists,
-                        options,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_queue_submit(self.call_context, queue, commandlists, options)
+            },
         }
     }
 
@@ -2090,31 +1652,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let data = data.into_vm("data")?;
-                gpu_vm::destack_gpu_queue_write_buffer(
-                    self.call_context,
-                    context,
-                    queue,
-                    buffer,
-                    bufferoffset,
-                    data,
-                    dataoffset,
-                    size,
-                )
+                gpu_vm::destack_gpu_queue_write_buffer(self.call_context, context, queue, buffer, bufferoffset, data, dataoffset, size)
             }
-            None => {
+            None => unsafe {
                 let data = data.into_native("data")?;
-                unsafe {
-                    gpu_native::destack_gpu_queue_write_buffer(
-                        self.call_context,
-                        queue,
-                        buffer,
-                        bufferoffset,
-                        data,
-                        dataoffset,
-                        size,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_queue_write_buffer(self.call_context, queue, buffer, bufferoffset, data, dataoffset, size)
+            },
         }
     }
 
@@ -2149,32 +1692,15 @@ impl<'call> GpuHarnessContext<'call> {
                 let data = data.into_vm("data")?;
                 let layout = layout.into_vm("layout")?;
                 let size = size.into_vm("size")?;
-                gpu_vm::destack_gpu_queue_write_texture(
-                    self.call_context,
-                    context,
-                    queue,
-                    destination,
-                    data,
-                    layout,
-                    size,
-                )
+                gpu_vm::destack_gpu_queue_write_texture(self.call_context, context, queue, destination, data, layout, size)
             }
-            None => {
+            None => unsafe {
                 let destination = destination.into_native("destination")?;
                 let data = data.into_native("data")?;
                 let layout = layout.into_native("layout")?;
                 let size = size.into_native("size")?;
-                unsafe {
-                    gpu_native::destack_gpu_queue_write_texture(
-                        self.call_context,
-                        queue,
-                        destination,
-                        data,
-                        layout,
-                        size,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_queue_write_texture(self.call_context, queue, destination, data, layout, size)
+            },
         }
     }
 
@@ -2235,24 +1761,11 @@ impl<'call> GpuHarnessContext<'call> {
         firstinstance: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_render_bundle_draw(
-                self.call_context,
-                context,
-                handle,
-                vertexcount,
-                instancecount,
-                firstvertex,
-                firstinstance,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_render_bundle_draw(self.call_context, context, handle, vertexcount, instancecount, firstvertex, firstinstance)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_render_bundle_draw(
-                    self.call_context,
-                    handle,
-                    vertexcount,
-                    instancecount,
-                    firstvertex,
-                    firstinstance,
-                )
+                gpu_native::destack_gpu_render_bundle_draw(self.call_context, handle, vertexcount, instancecount, firstvertex, firstinstance)
             },
         }
     }
@@ -2284,26 +1797,11 @@ impl<'call> GpuHarnessContext<'call> {
         firstinstance: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_render_bundle_draw_indexed(
-                self.call_context,
-                context,
-                handle,
-                indexcount,
-                instancecount,
-                firstindex,
-                basevertex,
-                firstinstance,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_render_bundle_draw_indexed(self.call_context, context, handle, indexcount, instancecount, firstindex, basevertex, firstinstance)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_render_bundle_draw_indexed(
-                    self.call_context,
-                    handle,
-                    indexcount,
-                    instancecount,
-                    firstindex,
-                    basevertex,
-                    firstinstance,
-                )
+                gpu_native::destack_gpu_render_bundle_draw_indexed(self.call_context, handle, indexcount, instancecount, firstindex, basevertex, firstinstance)
             },
         }
     }
@@ -2334,24 +1832,11 @@ impl<'call> GpuHarnessContext<'call> {
         stride: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_render_bundle_draw_indexed_indirect(
-                self.call_context,
-                context,
-                handle,
-                buffer,
-                offset,
-                drawcount,
-                stride,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_render_bundle_draw_indexed_indirect(self.call_context, context, handle, buffer, offset, drawcount, stride)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_render_bundle_draw_indexed_indirect(
-                    self.call_context,
-                    handle,
-                    buffer,
-                    offset,
-                    drawcount,
-                    stride,
-                )
+                gpu_native::destack_gpu_render_bundle_draw_indexed_indirect(self.call_context, handle, buffer, offset, drawcount, stride)
             },
         }
     }
@@ -2382,24 +1867,11 @@ impl<'call> GpuHarnessContext<'call> {
         stride: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_render_bundle_draw_indirect(
-                self.call_context,
-                context,
-                handle,
-                buffer,
-                offset,
-                drawcount,
-                stride,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_render_bundle_draw_indirect(self.call_context, context, handle, buffer, offset, drawcount, stride)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_render_bundle_draw_indirect(
-                    self.call_context,
-                    handle,
-                    buffer,
-                    offset,
-                    drawcount,
-                    stride,
-                )
+                gpu_native::destack_gpu_render_bundle_draw_indirect(self.call_context, handle, buffer, offset, drawcount, stride)
             },
         }
     }
@@ -2458,25 +1930,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<resource::GpuRenderBundleHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_render_bundle_encoder_finish(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
+                let out = gpu_vm::destack_gpu_render_bundle_encoder_finish(self.call_context, context, handle)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<resource::GpuRenderBundleHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_render_bundle_encoder_finish(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    gpu_native::destack_gpu_render_bundle_encoder_finish(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -2505,29 +1969,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out = gpu_vm::destack_gpu_render_bundle_encoder_open(
-                    self.call_context,
-                    context,
-                    device,
-                    options,
-                )?;
+                let out = gpu_vm::destack_gpu_render_bundle_encoder_open(self.call_context, context, device, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
-                let mut out =
-                    std::mem::MaybeUninit::<resource::GpuRenderBundleEncoderHandle>::uninit();
+                let mut out = std::mem::MaybeUninit::<resource::GpuRenderBundleEncoderHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_render_bundle_encoder_open(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_render_bundle_encoder_open(self.call_context, out.as_mut_ptr(), device, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -2556,23 +2009,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let marker = marker.into_vm("marker")?;
-                gpu_vm::destack_gpu_render_bundle_insert_debug_marker(
-                    self.call_context,
-                    context,
-                    handle,
-                    marker,
-                )
+                gpu_vm::destack_gpu_render_bundle_insert_debug_marker(self.call_context, context, handle, marker)
             }
-            None => {
+            None => unsafe {
                 let marker = marker.into_native("marker")?;
-                unsafe {
-                    gpu_native::destack_gpu_render_bundle_insert_debug_marker(
-                        self.call_context,
-                        handle,
-                        marker,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_render_bundle_insert_debug_marker(self.call_context, handle, marker)
+            },
         }
     }
 
@@ -2598,11 +2040,9 @@ impl<'call> GpuHarnessContext<'call> {
         handle: resource::GpuRenderBundleEncoderHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_render_bundle_pop_debug_group(
-                self.call_context,
-                context,
-                handle,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_render_bundle_pop_debug_group(self.call_context, context, handle)
+            }
             None => unsafe {
                 gpu_native::destack_gpu_render_bundle_pop_debug_group(self.call_context, handle)
             },
@@ -2634,23 +2074,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let label = label.into_vm("label")?;
-                gpu_vm::destack_gpu_render_bundle_push_debug_group(
-                    self.call_context,
-                    context,
-                    handle,
-                    label,
-                )
+                gpu_vm::destack_gpu_render_bundle_push_debug_group(self.call_context, context, handle, label)
             }
-            None => {
+            None => unsafe {
                 let label = label.into_native("label")?;
-                unsafe {
-                    gpu_native::destack_gpu_render_bundle_push_debug_group(
-                        self.call_context,
-                        handle,
-                        label,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_render_bundle_push_debug_group(self.call_context, handle, label)
+            },
         }
     }
 
@@ -2681,27 +2110,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let dynamicoffsets = dynamicoffsets.into_vm("dynamicoffsets")?;
-                gpu_vm::destack_gpu_render_bundle_set_bind_group(
-                    self.call_context,
-                    context,
-                    handle,
-                    index,
-                    bindgroup,
-                    dynamicoffsets,
-                )
+                gpu_vm::destack_gpu_render_bundle_set_bind_group(self.call_context, context, handle, index, bindgroup, dynamicoffsets)
             }
-            None => {
+            None => unsafe {
                 let dynamicoffsets = dynamicoffsets.into_native("dynamicoffsets")?;
-                unsafe {
-                    gpu_native::destack_gpu_render_bundle_set_bind_group(
-                        self.call_context,
-                        handle,
-                        index,
-                        bindgroup,
-                        dynamicoffsets,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_render_bundle_set_bind_group(self.call_context, handle, index, bindgroup, dynamicoffsets)
+            },
         }
     }
 
@@ -2731,24 +2145,11 @@ impl<'call> GpuHarnessContext<'call> {
         size: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_render_bundle_set_index_buffer(
-                self.call_context,
-                context,
-                handle,
-                buffer,
-                format,
-                offset,
-                size,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_render_bundle_set_index_buffer(self.call_context, context, handle, buffer, format, offset, size)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_render_bundle_set_index_buffer(
-                    self.call_context,
-                    handle,
-                    buffer,
-                    format,
-                    offset,
-                    size,
-                )
+                gpu_native::destack_gpu_render_bundle_set_index_buffer(self.call_context, handle, buffer, format, offset, size)
             },
         }
     }
@@ -2776,18 +2177,11 @@ impl<'call> GpuHarnessContext<'call> {
         pipeline: resource::GpuPipelineHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_render_bundle_set_pipeline(
-                self.call_context,
-                context,
-                handle,
-                pipeline,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_render_bundle_set_pipeline(self.call_context, context, handle, pipeline)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_render_bundle_set_pipeline(
-                    self.call_context,
-                    handle,
-                    pipeline,
-                )
+                gpu_native::destack_gpu_render_bundle_set_pipeline(self.call_context, handle, pipeline)
             },
         }
     }
@@ -2818,24 +2212,11 @@ impl<'call> GpuHarnessContext<'call> {
         size: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_render_bundle_set_vertex_buffer(
-                self.call_context,
-                context,
-                handle,
-                slot,
-                buffer,
-                offset,
-                size,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_render_bundle_set_vertex_buffer(self.call_context, context, handle, slot, buffer, offset, size)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_render_bundle_set_vertex_buffer(
-                    self.call_context,
-                    handle,
-                    slot,
-                    buffer,
-                    offset,
-                    size,
-                )
+                gpu_native::destack_gpu_render_bundle_set_vertex_buffer(self.call_context, handle, slot, buffer, offset, size)
             },
         }
     }
@@ -2866,28 +2247,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out = gpu_vm::destack_gpu_command_render_pass_begin(
-                    self.call_context,
-                    context,
-                    handle,
-                    options,
-                )?;
+                let out = gpu_vm::destack_gpu_command_render_pass_begin(self.call_context, context, handle, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuRenderPassHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_command_render_pass_begin(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_command_render_pass_begin(self.call_context, out.as_mut_ptr(), handle, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -2947,23 +2318,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let marker = marker.into_vm("marker")?;
-                gpu_vm::destack_gpu_command_render_pass_insert_debug_marker(
-                    self.call_context,
-                    context,
-                    handle,
-                    marker,
-                )
+                gpu_vm::destack_gpu_command_render_pass_insert_debug_marker(self.call_context, context, handle, marker)
             }
-            None => {
+            None => unsafe {
                 let marker = marker.into_native("marker")?;
-                unsafe {
-                    gpu_native::destack_gpu_command_render_pass_insert_debug_marker(
-                        self.call_context,
-                        handle,
-                        marker,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_command_render_pass_insert_debug_marker(self.call_context, handle, marker)
+            },
         }
     }
 
@@ -2989,16 +2349,11 @@ impl<'call> GpuHarnessContext<'call> {
         handle: resource::GpuRenderPassHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_render_pass_pop_debug_group(
-                self.call_context,
-                context,
-                handle,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_render_pass_pop_debug_group(self.call_context, context, handle)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_render_pass_pop_debug_group(
-                    self.call_context,
-                    handle,
-                )
+                gpu_native::destack_gpu_command_render_pass_pop_debug_group(self.call_context, handle)
             },
         }
     }
@@ -3028,23 +2383,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let label = label.into_vm("label")?;
-                gpu_vm::destack_gpu_command_render_pass_push_debug_group(
-                    self.call_context,
-                    context,
-                    handle,
-                    label,
-                )
+                gpu_vm::destack_gpu_command_render_pass_push_debug_group(self.call_context, context, handle, label)
             }
-            None => {
+            None => unsafe {
                 let label = label.into_native("label")?;
-                unsafe {
-                    gpu_native::destack_gpu_command_render_pass_push_debug_group(
-                        self.call_context,
-                        handle,
-                        label,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_command_render_pass_push_debug_group(self.call_context, handle, label)
+            },
         }
     }
 
@@ -3074,24 +2418,11 @@ impl<'call> GpuHarnessContext<'call> {
         a: f64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_set_blend_constant(
-                self.call_context,
-                context,
-                handle,
-                r,
-                g,
-                b,
-                a,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_set_blend_constant(self.call_context, context, handle, r, g, b, a)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_set_blend_constant(
-                    self.call_context,
-                    handle,
-                    r,
-                    g,
-                    b,
-                    a,
-                )
+                gpu_native::destack_gpu_command_set_blend_constant(self.call_context, handle, r, g, b, a)
             },
         }
     }
@@ -3123,27 +2454,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let dynamicoffsets = dynamicoffsets.into_vm("dynamicoffsets")?;
-                gpu_vm::destack_gpu_command_set_compute_bind_group(
-                    self.call_context,
-                    context,
-                    handle,
-                    index,
-                    bindgroup,
-                    dynamicoffsets,
-                )
+                gpu_vm::destack_gpu_command_set_compute_bind_group(self.call_context, context, handle, index, bindgroup, dynamicoffsets)
             }
-            None => {
+            None => unsafe {
                 let dynamicoffsets = dynamicoffsets.into_native("dynamicoffsets")?;
-                unsafe {
-                    gpu_native::destack_gpu_command_set_compute_bind_group(
-                        self.call_context,
-                        handle,
-                        index,
-                        bindgroup,
-                        dynamicoffsets,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_command_set_compute_bind_group(self.call_context, handle, index, bindgroup, dynamicoffsets)
+            },
         }
     }
 
@@ -3173,24 +2489,11 @@ impl<'call> GpuHarnessContext<'call> {
         size: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_set_index_buffer(
-                self.call_context,
-                context,
-                handle,
-                buffer,
-                format,
-                offset,
-                size,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_set_index_buffer(self.call_context, context, handle, buffer, format, offset, size)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_set_index_buffer(
-                    self.call_context,
-                    handle,
-                    buffer,
-                    format,
-                    offset,
-                    size,
-                )
+                gpu_native::destack_gpu_command_set_index_buffer(self.call_context, handle, buffer, format, offset, size)
             },
         }
     }
@@ -3222,27 +2525,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let dynamicoffsets = dynamicoffsets.into_vm("dynamicoffsets")?;
-                gpu_vm::destack_gpu_command_set_render_bind_group(
-                    self.call_context,
-                    context,
-                    handle,
-                    index,
-                    bindgroup,
-                    dynamicoffsets,
-                )
+                gpu_vm::destack_gpu_command_set_render_bind_group(self.call_context, context, handle, index, bindgroup, dynamicoffsets)
             }
-            None => {
+            None => unsafe {
                 let dynamicoffsets = dynamicoffsets.into_native("dynamicoffsets")?;
-                unsafe {
-                    gpu_native::destack_gpu_command_set_render_bind_group(
-                        self.call_context,
-                        handle,
-                        index,
-                        bindgroup,
-                        dynamicoffsets,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_command_set_render_bind_group(self.call_context, handle, index, bindgroup, dynamicoffsets)
+            },
         }
     }
 
@@ -3272,24 +2560,11 @@ impl<'call> GpuHarnessContext<'call> {
         height: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_set_scissor(
-                self.call_context,
-                context,
-                handle,
-                x,
-                y,
-                width,
-                height,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_set_scissor(self.call_context, context, handle, x, y, width, height)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_set_scissor(
-                    self.call_context,
-                    handle,
-                    x,
-                    y,
-                    width,
-                    height,
-                )
+                gpu_native::destack_gpu_command_set_scissor(self.call_context, handle, x, y, width, height)
             },
         }
     }
@@ -3317,18 +2592,11 @@ impl<'call> GpuHarnessContext<'call> {
         reference: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_set_stencil_reference(
-                self.call_context,
-                context,
-                handle,
-                reference,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_set_stencil_reference(self.call_context, context, handle, reference)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_set_stencil_reference(
-                    self.call_context,
-                    handle,
-                    reference,
-                )
+                gpu_native::destack_gpu_command_set_stencil_reference(self.call_context, handle, reference)
             },
         }
     }
@@ -3359,24 +2627,11 @@ impl<'call> GpuHarnessContext<'call> {
         size: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_set_vertex_buffer(
-                self.call_context,
-                context,
-                handle,
-                slot,
-                buffer,
-                offset,
-                size,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_set_vertex_buffer(self.call_context, context, handle, slot, buffer, offset, size)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_set_vertex_buffer(
-                    self.call_context,
-                    handle,
-                    slot,
-                    buffer,
-                    offset,
-                    size,
-                )
+                gpu_native::destack_gpu_command_set_vertex_buffer(self.call_context, handle, slot, buffer, offset, size)
             },
         }
     }
@@ -3409,28 +2664,11 @@ impl<'call> GpuHarnessContext<'call> {
         maxdepth: f64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_set_viewport(
-                self.call_context,
-                context,
-                handle,
-                x,
-                y,
-                width,
-                height,
-                mindepth,
-                maxdepth,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_set_viewport(self.call_context, context, handle, x, y, width, height, mindepth, maxdepth)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_set_viewport(
-                    self.call_context,
-                    handle,
-                    x,
-                    y,
-                    width,
-                    height,
-                    mindepth,
-                    maxdepth,
-                )
+                gpu_native::destack_gpu_command_set_viewport(self.call_context, handle, x, y, width, height, mindepth, maxdepth)
             },
         }
     }
@@ -3462,10 +2700,10 @@ impl<'call> GpuHarnessContext<'call> {
                 let label = label.into_vm("label")?;
                 gpu_vm::destack_gpu_set_label(self.call_context, context, handle, label)
             }
-            None => {
+            None => unsafe {
                 let label = label.into_native("label")?;
-                unsafe { gpu_native::destack_gpu_set_label(self.call_context, handle, label) }
-            }
+                gpu_native::destack_gpu_set_label(self.call_context, handle, label)
+            },
         }
     }
 
@@ -3491,8 +2729,12 @@ impl<'call> GpuHarnessContext<'call> {
         handle: resource::GpuDeviceHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_device_close(self.call_context, context, handle),
-            None => unsafe { gpu_native::destack_gpu_device_close(self.call_context, handle) },
+            Some(context) => {
+                gpu_vm::destack_gpu_device_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_device_close(self.call_context, handle)
+            },
         }
     }
 
@@ -3525,15 +2767,11 @@ impl<'call> GpuHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<NativeSlice<GpuFeatureId>>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_device_features(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                    )?;
+                    gpu_native::destack_gpu_device_features(self.call_context, out.as_mut_ptr(), device)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -3561,27 +2799,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<bool> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_device_has_feature(
-                    self.call_context,
-                    context,
-                    device,
-                    feature,
-                )?;
+                let out = gpu_vm::destack_gpu_device_has_feature(self.call_context, context, device, feature)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<bool>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_device_has_feature(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        feature,
-                    )?;
+                    gpu_native::destack_gpu_device_has_feature(self.call_context, out.as_mut_ptr(), device, feature)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -3614,15 +2842,11 @@ impl<'call> GpuHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuDeviceInfo>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_device_info(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                    )?;
+                    gpu_native::destack_gpu_device_info(self.call_context, out.as_mut_ptr(), device)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -3655,15 +2879,11 @@ impl<'call> GpuHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuAdapterLimits>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_device_limits(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                    )?;
+                    gpu_native::destack_gpu_device_limits(self.call_context, out.as_mut_ptr(), device)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -3692,24 +2912,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out =
-                    gpu_vm::destack_gpu_device_open(self.call_context, context, adapter, options)?;
+                let out = gpu_vm::destack_gpu_device_open(self.call_context, context, adapter, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuDeviceHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_device_open(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        adapter,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_device_open(self.call_context, out.as_mut_ptr(), adapter, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -3738,29 +2952,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<u32> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_device_poll(
-                    self.call_context,
-                    context,
-                    device,
-                    wait,
-                    timeoutns,
-                )?;
+                let out = gpu_vm::destack_gpu_device_poll(self.call_context, context, device, wait, timeoutns)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<u32>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_device_poll(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        wait,
-                        timeoutns,
-                    )?;
+                    gpu_native::destack_gpu_device_poll(self.call_context, out.as_mut_ptr(), device, wait, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -3788,27 +2990,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<GpuCapturedError, GpuCapturedErrorVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_device_pop_error_scope(
-                    self.call_context,
-                    context,
-                    device,
-                    timeoutns,
-                )?;
+                let out = gpu_vm::destack_gpu_device_pop_error_scope(self.call_context, context, device, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuCapturedError>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_device_pop_error_scope(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        timeoutns,
-                    )?;
+                    gpu_native::destack_gpu_device_pop_error_scope(self.call_context, out.as_mut_ptr(), device, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -3835,12 +3027,9 @@ impl<'call> GpuHarnessContext<'call> {
         filter: GpuErrorFilter,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_device_push_error_scope(
-                self.call_context,
-                context,
-                device,
-                filter,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_device_push_error_scope(self.call_context, context, device, filter)
+            }
             None => unsafe {
                 gpu_native::destack_gpu_device_push_error_scope(self.call_context, device, filter)
             },
@@ -3876,15 +3065,11 @@ impl<'call> GpuHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<resource::GpuQueueHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_device_queue(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                    )?;
+                    gpu_native::destack_gpu_device_queue(self.call_context, out.as_mut_ptr(), device)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -3917,15 +3102,11 @@ impl<'call> GpuHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuDeviceStatus>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_device_status(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                    )?;
+                    gpu_native::destack_gpu_device_status(self.call_context, out.as_mut_ptr(), device)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -3953,27 +3134,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<resource::GpuBindGroupLayoutHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_pipeline_bind_group_layout(
-                    self.call_context,
-                    context,
-                    pipeline,
-                    groupindex,
-                )?;
+                let out = gpu_vm::destack_gpu_pipeline_bind_group_layout(self.call_context, context, pipeline, groupindex)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<resource::GpuBindGroupLayoutHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_pipeline_bind_group_layout(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        pipeline,
-                        groupindex,
-                    )?;
+                    gpu_native::destack_gpu_pipeline_bind_group_layout(self.call_context, out.as_mut_ptr(), pipeline, groupindex)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -4002,28 +3173,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out = gpu_vm::destack_gpu_compute_pipeline_create(
-                    self.call_context,
-                    context,
-                    device,
-                    options,
-                )?;
+                let out = gpu_vm::destack_gpu_compute_pipeline_create(self.call_context, context, device, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuPipelineHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_compute_pipeline_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_compute_pipeline_create(self.call_context, out.as_mut_ptr(), device, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -4052,7 +3213,9 @@ impl<'call> GpuHarnessContext<'call> {
             Some(context) => {
                 gpu_vm::destack_gpu_pipeline_destroy(self.call_context, context, handle)
             }
-            None => unsafe { gpu_native::destack_gpu_pipeline_destroy(self.call_context, handle) },
+            None => unsafe {
+                gpu_native::destack_gpu_pipeline_destroy(self.call_context, handle)
+            },
         }
     }
 
@@ -4081,28 +3244,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out = gpu_vm::destack_gpu_render_pipeline_create(
-                    self.call_context,
-                    context,
-                    device,
-                    options,
-                )?;
+                let out = gpu_vm::destack_gpu_render_pipeline_create(self.call_context, context, device, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuPipelineHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_render_pipeline_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_render_pipeline_create(self.call_context, out.as_mut_ptr(), device, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -4130,27 +3283,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<GpuCompilationInfo, GpuCompilationInfoVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_shader_compilation_info(
-                    self.call_context,
-                    context,
-                    handle,
-                    timeoutns,
-                )?;
+                let out = gpu_vm::destack_gpu_shader_compilation_info(self.call_context, context, handle, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuCompilationInfo>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_shader_compilation_info(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        timeoutns,
-                    )?;
+                    gpu_native::destack_gpu_shader_compilation_info(self.call_context, out.as_mut_ptr(), handle, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -4181,13 +3324,7 @@ impl<'call> GpuHarnessContext<'call> {
             Some(context) => {
                 let options = options.into_vm("options")?;
                 let argument_bytes = argument_bytes.into_vm("argument_bytes")?;
-                let out = gpu_vm::destack_gpu_shader_create(
-                    self.call_context,
-                    context,
-                    device,
-                    options,
-                    argument_bytes,
-                )?;
+                let out = gpu_vm::destack_gpu_shader_create(self.call_context, context, device, options, argument_bytes)?;
                 Ok(out)
             }
             None => {
@@ -4195,17 +3332,11 @@ impl<'call> GpuHarnessContext<'call> {
                 let argument_bytes = argument_bytes.into_native("argument_bytes")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuShaderHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_shader_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        options,
-                        argument_bytes,
-                    )?;
+                    gpu_native::destack_gpu_shader_create(self.call_context, out.as_mut_ptr(), device, options, argument_bytes)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -4231,8 +3362,12 @@ impl<'call> GpuHarnessContext<'call> {
         handle: resource::GpuShaderHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_shader_destroy(self.call_context, context, handle),
-            None => unsafe { gpu_native::destack_gpu_shader_destroy(self.call_context, handle) },
+            Some(context) => {
+                gpu_vm::destack_gpu_shader_destroy(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_shader_destroy(self.call_context, handle)
+            },
         }
     }
 
@@ -4261,27 +3396,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<GpuSurfaceFrame, GpuSurfaceFrameVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_surface_acquire(
-                    self.call_context,
-                    context,
-                    surface,
-                    timeoutns,
-                )?;
+                let out = gpu_vm::destack_gpu_surface_acquire(self.call_context, context, surface, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuSurfaceFrame>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_surface_acquire(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        surface,
-                        timeoutns,
-                    )?;
+                    gpu_native::destack_gpu_surface_acquire(self.call_context, out.as_mut_ptr(), surface, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -4309,27 +3434,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<GpuSurfaceCapabilities, GpuSurfaceCapabilitiesVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_surface_capabilities(
-                    self.call_context,
-                    context,
-                    surface,
-                    adapter,
-                )?;
+                let out = gpu_vm::destack_gpu_surface_capabilities(self.call_context, context, surface, adapter)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuSurfaceCapabilities>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_surface_capabilities(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        surface,
-                        adapter,
-                    )?;
+                    gpu_native::destack_gpu_surface_capabilities(self.call_context, out.as_mut_ptr(), surface, adapter)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -4355,8 +3470,12 @@ impl<'call> GpuHarnessContext<'call> {
         surface: resource::GpuSurfaceHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_surface_close(self.call_context, context, surface),
-            None => unsafe { gpu_native::destack_gpu_surface_close(self.call_context, surface) },
+            Some(context) => {
+                gpu_vm::destack_gpu_surface_close(self.call_context, context, surface)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_surface_close(self.call_context, surface)
+            },
         }
     }
 
@@ -4387,25 +3506,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                gpu_vm::destack_gpu_surface_configure(
-                    self.call_context,
-                    context,
-                    device,
-                    surface,
-                    options,
-                )
+                gpu_vm::destack_gpu_surface_configure(self.call_context, context, device, surface, options)
             }
-            None => {
+            None => unsafe {
                 let options = options.into_native("options")?;
-                unsafe {
-                    gpu_native::destack_gpu_surface_configure(
-                        self.call_context,
-                        device,
-                        surface,
-                        options,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_surface_configure(self.call_context, device, surface, options)
+            },
         }
     }
 
@@ -4438,15 +3544,11 @@ impl<'call> GpuHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<resource::GpuSurfaceHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_surface_open(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        window,
-                    )?;
+                    gpu_native::destack_gpu_surface_open(self.call_context, out.as_mut_ptr(), window)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -4479,12 +3581,10 @@ impl<'call> GpuHarnessContext<'call> {
                 let options = options.into_vm("options")?;
                 gpu_vm::destack_gpu_surface_present(self.call_context, context, surface, options)
             }
-            None => {
+            None => unsafe {
                 let options = options.into_native("options")?;
-                unsafe {
-                    gpu_native::destack_gpu_surface_present(self.call_context, surface, options)
-                }
-            }
+                gpu_native::destack_gpu_surface_present(self.call_context, surface, options)
+            },
         }
     }
 
@@ -4544,24 +3644,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out =
-                    gpu_vm::destack_gpu_buffer_create(self.call_context, context, device, options)?;
+                let out = gpu_vm::destack_gpu_buffer_create(self.call_context, context, device, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuBufferHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_buffer_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_buffer_create(self.call_context, out.as_mut_ptr(), device, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -4587,8 +3681,12 @@ impl<'call> GpuHarnessContext<'call> {
         handle: resource::GpuBufferHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_buffer_destroy(self.call_context, context, handle),
-            None => unsafe { gpu_native::destack_gpu_buffer_destroy(self.call_context, handle) },
+            Some(context) => {
+                gpu_vm::destack_gpu_buffer_destroy(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_buffer_destroy(self.call_context, handle)
+            },
         }
     }
 
@@ -4621,15 +3719,11 @@ impl<'call> GpuHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuBufferInfo>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_buffer_info(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    gpu_native::destack_gpu_buffer_info(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -4659,31 +3753,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<GpuMappedBufferRange, GpuMappedBufferRangeVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_buffer_map(
-                    self.call_context,
-                    context,
-                    handle,
-                    offset,
-                    length,
-                    mode,
-                )?;
+                let out = gpu_vm::destack_gpu_buffer_map(self.call_context, context, handle, offset, length, mode)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuMappedBufferRange>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_buffer_map(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        offset,
-                        length,
-                        mode,
-                    )?;
+                    gpu_native::destack_gpu_buffer_map(self.call_context, out.as_mut_ptr(), handle, offset, length, mode)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -4712,29 +3792,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = gpu_vm::destack_gpu_buffer_read(
-                    self.call_context,
-                    context,
-                    handle,
-                    offset,
-                    length,
-                )?;
+                let out = gpu_vm::destack_gpu_buffer_read(self.call_context, context, handle, offset, length)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_buffer_read(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        offset,
-                        length,
-                    )?;
+                    gpu_native::destack_gpu_buffer_read(self.call_context, out.as_mut_ptr(), handle, offset, length)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -4760,8 +3828,12 @@ impl<'call> GpuHarnessContext<'call> {
         handle: resource::GpuBufferHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_buffer_unmap(self.call_context, context, handle),
-            None => unsafe { gpu_native::destack_gpu_buffer_unmap(self.call_context, handle) },
+            Some(context) => {
+                gpu_vm::destack_gpu_buffer_unmap(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_buffer_unmap(self.call_context, handle)
+            },
         }
     }
 
@@ -4791,25 +3863,12 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let argument_bytes = argument_bytes.into_vm("argument_bytes")?;
-                gpu_vm::destack_gpu_buffer_write(
-                    self.call_context,
-                    context,
-                    handle,
-                    offset,
-                    argument_bytes,
-                )
+                gpu_vm::destack_gpu_buffer_write(self.call_context, context, handle, offset, argument_bytes)
             }
-            None => {
+            None => unsafe {
                 let argument_bytes = argument_bytes.into_native("argument_bytes")?;
-                unsafe {
-                    gpu_native::destack_gpu_buffer_write(
-                        self.call_context,
-                        handle,
-                        offset,
-                        argument_bytes,
-                    )
-                }
-            }
+                gpu_native::destack_gpu_buffer_write(self.call_context, handle, offset, argument_bytes)
+            },
         }
     }
 
@@ -4838,28 +3897,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out = gpu_vm::destack_gpu_sampler_create(
-                    self.call_context,
-                    context,
-                    device,
-                    options,
-                )?;
+                let out = gpu_vm::destack_gpu_sampler_create(self.call_context, context, device, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuSamplerHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_sampler_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_sampler_create(self.call_context, out.as_mut_ptr(), device, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -4888,7 +3937,9 @@ impl<'call> GpuHarnessContext<'call> {
             Some(context) => {
                 gpu_vm::destack_gpu_sampler_destroy(self.call_context, context, handle)
             }
-            None => unsafe { gpu_native::destack_gpu_sampler_destroy(self.call_context, handle) },
+            None => unsafe {
+                gpu_native::destack_gpu_sampler_destroy(self.call_context, handle)
+            },
         }
     }
 
@@ -4917,28 +3968,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out = gpu_vm::destack_gpu_texture_create(
-                    self.call_context,
-                    context,
-                    device,
-                    options,
-                )?;
+                let out = gpu_vm::destack_gpu_texture_create(self.call_context, context, device, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuTextureHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_texture_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_texture_create(self.call_context, out.as_mut_ptr(), device, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -4967,7 +4008,9 @@ impl<'call> GpuHarnessContext<'call> {
             Some(context) => {
                 gpu_vm::destack_gpu_texture_destroy(self.call_context, context, handle)
             }
-            None => unsafe { gpu_native::destack_gpu_texture_destroy(self.call_context, handle) },
+            None => unsafe {
+                gpu_native::destack_gpu_texture_destroy(self.call_context, handle)
+            },
         }
     }
 
@@ -5000,15 +4043,11 @@ impl<'call> GpuHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuTextureInfo>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_texture_info(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    gpu_native::destack_gpu_texture_info(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -5037,28 +4076,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out = gpu_vm::destack_gpu_texture_view_create(
-                    self.call_context,
-                    context,
-                    texture,
-                    options,
-                )?;
+                let out = gpu_vm::destack_gpu_texture_view_create(self.call_context, context, texture, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuTextureViewHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_texture_view_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        texture,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_texture_view_create(self.call_context, out.as_mut_ptr(), texture, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -5117,20 +4146,11 @@ impl<'call> GpuHarnessContext<'call> {
         queryindex: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(
-                self.call_context,
-                context,
-                computepass,
-                queryset,
-                queryindex,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_begin_compute_pipeline_statistics_query(self.call_context, context, computepass, queryset, queryindex)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_begin_compute_pipeline_statistics_query(
-                    self.call_context,
-                    computepass,
-                    queryset,
-                    queryindex,
-                )
+                gpu_native::destack_gpu_command_begin_compute_pipeline_statistics_query(self.call_context, computepass, queryset, queryindex)
             },
         }
     }
@@ -5159,20 +4179,11 @@ impl<'call> GpuHarnessContext<'call> {
         queryindex: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_begin_occlusion_query(
-                self.call_context,
-                context,
-                renderpass,
-                queryset,
-                queryindex,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_begin_occlusion_query(self.call_context, context, renderpass, queryset, queryindex)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_begin_occlusion_query(
-                    self.call_context,
-                    renderpass,
-                    queryset,
-                    queryindex,
-                )
+                gpu_native::destack_gpu_command_begin_occlusion_query(self.call_context, renderpass, queryset, queryindex)
             },
         }
     }
@@ -5201,20 +4212,11 @@ impl<'call> GpuHarnessContext<'call> {
         queryindex: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_begin_render_pipeline_statistics_query(
-                self.call_context,
-                context,
-                renderpass,
-                queryset,
-                queryindex,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_begin_render_pipeline_statistics_query(self.call_context, context, renderpass, queryset, queryindex)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_begin_render_pipeline_statistics_query(
-                    self.call_context,
-                    renderpass,
-                    queryset,
-                    queryindex,
-                )
+                gpu_native::destack_gpu_command_begin_render_pipeline_statistics_query(self.call_context, renderpass, queryset, queryindex)
             },
         }
     }
@@ -5241,16 +4243,11 @@ impl<'call> GpuHarnessContext<'call> {
         computepass: resource::GpuComputePassHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_end_compute_pipeline_statistics_query(
-                self.call_context,
-                context,
-                computepass,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_end_compute_pipeline_statistics_query(self.call_context, context, computepass)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_end_compute_pipeline_statistics_query(
-                    self.call_context,
-                    computepass,
-                )
+                gpu_native::destack_gpu_command_end_compute_pipeline_statistics_query(self.call_context, computepass)
             },
         }
     }
@@ -5277,11 +4274,9 @@ impl<'call> GpuHarnessContext<'call> {
         renderpass: resource::GpuRenderPassHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_end_occlusion_query(
-                self.call_context,
-                context,
-                renderpass,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_end_occlusion_query(self.call_context, context, renderpass)
+            }
             None => unsafe {
                 gpu_native::destack_gpu_command_end_occlusion_query(self.call_context, renderpass)
             },
@@ -5310,16 +4305,11 @@ impl<'call> GpuHarnessContext<'call> {
         renderpass: resource::GpuRenderPassHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_end_render_pipeline_statistics_query(
-                self.call_context,
-                context,
-                renderpass,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_end_render_pipeline_statistics_query(self.call_context, context, renderpass)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_end_render_pipeline_statistics_query(
-                    self.call_context,
-                    renderpass,
-                )
+                gpu_native::destack_gpu_command_end_render_pipeline_statistics_query(self.call_context, renderpass)
             },
         }
     }
@@ -5351,26 +4341,11 @@ impl<'call> GpuHarnessContext<'call> {
         destinationoffset: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_resolve_queries(
-                self.call_context,
-                context,
-                commandlist,
-                queryset,
-                firstquery,
-                querycount,
-                destination,
-                destinationoffset,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_resolve_queries(self.call_context, context, commandlist, queryset, firstquery, querycount, destination, destinationoffset)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_resolve_queries(
-                    self.call_context,
-                    commandlist,
-                    queryset,
-                    firstquery,
-                    querycount,
-                    destination,
-                    destinationoffset,
-                )
+                gpu_native::destack_gpu_command_resolve_queries(self.call_context, commandlist, queryset, firstquery, querycount, destination, destinationoffset)
             },
         }
     }
@@ -5399,20 +4374,11 @@ impl<'call> GpuHarnessContext<'call> {
         queryindex: u32,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_command_write_timestamp(
-                self.call_context,
-                context,
-                commandlist,
-                queryset,
-                queryindex,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_command_write_timestamp(self.call_context, context, commandlist, queryset, queryindex)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_command_write_timestamp(
-                    self.call_context,
-                    commandlist,
-                    queryset,
-                    queryindex,
-                )
+                gpu_native::destack_gpu_command_write_timestamp(self.call_context, commandlist, queryset, queryindex)
             },
         }
     }
@@ -5442,24 +4408,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out =
-                    gpu_vm::destack_gpu_fence_create(self.call_context, context, device, options)?;
+                let out = gpu_vm::destack_gpu_fence_create(self.call_context, context, device, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuFenceHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_fence_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_fence_create(self.call_context, out.as_mut_ptr(), device, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -5485,8 +4445,12 @@ impl<'call> GpuHarnessContext<'call> {
         handle: resource::GpuFenceHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_fence_destroy(self.call_context, context, handle),
-            None => unsafe { gpu_native::destack_gpu_fence_destroy(self.call_context, handle) },
+            Some(context) => {
+                gpu_vm::destack_gpu_fence_destroy(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_fence_destroy(self.call_context, handle)
+            },
         }
     }
 
@@ -5516,28 +4480,18 @@ impl<'call> GpuHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out = gpu_vm::destack_gpu_query_set_create(
-                    self.call_context,
-                    context,
-                    device,
-                    options,
-                )?;
+                let out = gpu_vm::destack_gpu_query_set_create(self.call_context, context, device, options)?;
                 Ok(out)
             }
             None => {
                 let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::GpuQuerySetHandle>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_query_set_create(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        device,
-                        options,
-                    )?;
+                    gpu_native::destack_gpu_query_set_create(self.call_context, out.as_mut_ptr(), device, options)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -5566,7 +4520,9 @@ impl<'call> GpuHarnessContext<'call> {
             Some(context) => {
                 gpu_vm::destack_gpu_query_set_destroy(self.call_context, context, handle)
             }
-            None => unsafe { gpu_native::destack_gpu_query_set_destroy(self.call_context, handle) },
+            None => unsafe {
+                gpu_native::destack_gpu_query_set_destroy(self.call_context, handle)
+            },
         }
     }
 
@@ -5599,15 +4555,11 @@ impl<'call> GpuHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<GpuQuerySetInfo>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_query_set_info(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
+                    gpu_native::destack_gpu_query_set_info(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -5635,20 +4587,11 @@ impl<'call> GpuHarnessContext<'call> {
         argument_value: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_queue_signal(
-                self.call_context,
-                context,
-                queue,
-                fence,
-                argument_value,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_queue_signal(self.call_context, context, queue, fence, argument_value)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_queue_signal(
-                    self.call_context,
-                    queue,
-                    fence,
-                    argument_value,
-                )
+                gpu_native::destack_gpu_queue_signal(self.call_context, queue, fence, argument_value)
             },
         }
     }
@@ -5676,22 +4619,17 @@ impl<'call> GpuHarnessContext<'call> {
     ) -> RuntimeResult<f64> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out =
-                    gpu_vm::destack_gpu_queue_timestamp_period(self.call_context, context, queue)?;
+                let out = gpu_vm::destack_gpu_queue_timestamp_period(self.call_context, context, queue)?;
                 Ok(out)
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<f64>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_queue_timestamp_period(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        queue,
-                    )?;
+                    gpu_native::destack_gpu_queue_timestamp_period(self.call_context, out.as_mut_ptr(), queue)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -5720,22 +4658,11 @@ impl<'call> GpuHarnessContext<'call> {
         timeoutns: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_queue_wait(
-                self.call_context,
-                context,
-                queue,
-                fence,
-                argument_value,
-                timeoutns,
-            ),
+            Some(context) => {
+                gpu_vm::destack_gpu_queue_wait(self.call_context, context, queue, fence, argument_value, timeoutns)
+            }
             None => unsafe {
-                gpu_native::destack_gpu_queue_wait(
-                    self.call_context,
-                    queue,
-                    fence,
-                    argument_value,
-                    timeoutns,
-                )
+                gpu_native::destack_gpu_queue_wait(self.call_context, queue, fence, argument_value, timeoutns)
             },
         }
     }

@@ -26,8 +26,8 @@ use crate::platform::net::{
     UdsPathAddressVm, UdsUnnamedAddress, UdsUnnamedAddressVm, native as net_native, vm as net_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, fs, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
 use destack_vm as vm;
 
@@ -321,10 +321,10 @@ impl<'call> NetHarnessContext<'call> {
                 let address = address.into_vm("address")?;
                 net_vm::destack_net_bind(self.call_context, context, handle, address)
             }
-            None => {
+            None => unsafe {
                 let address = address.into_native("address")?;
-                unsafe { net_native::destack_net_bind(self.call_context, handle, address) }
-            }
+                net_native::destack_net_bind(self.call_context, handle, address)
+            },
         }
     }
 
@@ -957,10 +957,10 @@ impl<'call> NetHarnessContext<'call> {
                 let linger = linger.into_vm("linger")?;
                 net_vm::destack_net_set_linger(self.call_context, context, handle, linger)
             }
-            None => {
+            None => unsafe {
                 let linger = linger.into_native("linger")?;
-                unsafe { net_native::destack_net_set_linger(self.call_context, handle, linger) }
-            }
+                net_native::destack_net_set_linger(self.call_context, handle, linger)
+            },
         }
     }
 
@@ -1160,18 +1160,16 @@ impl<'call> NetHarnessContext<'call> {
                     argument_value,
                 )
             }
-            None => {
+            None => unsafe {
                 let argument_value = argument_value.into_native("argument_value")?;
-                unsafe {
-                    net_native::destack_net_set_sock_opt_raw(
-                        self.call_context,
-                        handle,
-                        level,
-                        name,
-                        argument_value,
-                    )
-                }
-            }
+                net_native::destack_net_set_sock_opt_raw(
+                    self.call_context,
+                    handle,
+                    level,
+                    name,
+                    argument_value,
+                )
+            },
         }
     }
 
@@ -1618,12 +1616,10 @@ impl<'call> NetHarnessContext<'call> {
                 let options = options.into_vm("options")?;
                 net_vm::destack_net_packet_set_fanout(self.call_context, context, handle, options)
             }
-            None => {
+            None => unsafe {
                 let options = options.into_native("options")?;
-                unsafe {
-                    net_native::destack_net_packet_set_fanout(self.call_context, handle, options)
-                }
-            }
+                net_native::destack_net_packet_set_fanout(self.call_context, handle, options)
+            },
         }
     }
 
@@ -1662,16 +1658,10 @@ impl<'call> NetHarnessContext<'call> {
                     filterprogram,
                 )
             }
-            None => {
+            None => unsafe {
                 let filterprogram = filterprogram.into_native("filterprogram")?;
-                unsafe {
-                    net_native::destack_net_packet_set_filter(
-                        self.call_context,
-                        handle,
-                        filterprogram,
-                    )
-                }
-            }
+                net_native::destack_net_packet_set_filter(self.call_context, handle, filterprogram)
+            },
         }
     }
 
@@ -1704,12 +1694,10 @@ impl<'call> NetHarnessContext<'call> {
                 let options = options.into_vm("options")?;
                 net_vm::destack_net_packet_set_rx_ring(self.call_context, context, handle, options)
             }
-            None => {
+            None => unsafe {
                 let options = options.into_native("options")?;
-                unsafe {
-                    net_native::destack_net_packet_set_rx_ring(self.call_context, handle, options)
-                }
-            }
+                net_native::destack_net_packet_set_rx_ring(self.call_context, handle, options)
+            },
         }
     }
 
@@ -1780,12 +1768,10 @@ impl<'call> NetHarnessContext<'call> {
                 let options = options.into_vm("options")?;
                 net_vm::destack_net_packet_set_tx_ring(self.call_context, context, handle, options)
             }
-            None => {
+            None => unsafe {
                 let options = options.into_native("options")?;
-                unsafe {
-                    net_native::destack_net_packet_set_tx_ring(self.call_context, handle, options)
-                }
-            }
+                net_native::destack_net_packet_set_tx_ring(self.call_context, handle, options)
+            },
         }
     }
 
@@ -2172,10 +2158,10 @@ impl<'call> NetHarnessContext<'call> {
                 let route = route.into_vm("route")?;
                 net_vm::destack_net_route_add(self.call_context, context, route)
             }
-            None => {
+            None => unsafe {
                 let route = route.into_native("route")?;
-                unsafe { net_native::destack_net_route_add(self.call_context, route) }
-            }
+                net_native::destack_net_route_add(self.call_context, route)
+            },
         }
     }
 
@@ -2207,10 +2193,10 @@ impl<'call> NetHarnessContext<'call> {
                 let route = route.into_vm("route")?;
                 net_vm::destack_net_route_delete(self.call_context, context, route)
             }
-            None => {
+            None => unsafe {
                 let route = route.into_native("route")?;
-                unsafe { net_native::destack_net_route_delete(self.call_context, route) }
-            }
+                net_native::destack_net_route_delete(self.call_context, route)
+            },
         }
     }
 
@@ -2311,10 +2297,10 @@ impl<'call> NetHarnessContext<'call> {
                 let address = address.into_vm("address")?;
                 net_vm::destack_net_connect(self.call_context, context, handle, address)
             }
-            None => {
+            None => unsafe {
                 let address = address.into_native("address")?;
-                unsafe { net_native::destack_net_connect(self.call_context, handle, address) }
-            }
+                net_native::destack_net_connect(self.call_context, handle, address)
+            },
         }
     }
 
@@ -2372,11 +2358,12 @@ impl<'call> NetHarnessContext<'call> {
     /// Create a connected socket pair.
     ///
     /// Allocate two already-connected peer sockets for local full-duplex communication.
+    /// `SocketFamily.Unspecified` creates one local AF_UNIX pair where supported, while `SocketFamily.IPv4` and `SocketFamily.IPv6` use one loopback transport pair.
     /// Pair creation semantics and descriptor inheritance follow host kernel behavior.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses socketpair(2) on Unix and loopback-pair emulation on Windows.
+    /// Uses socketpair(2) for `SocketFamily.Unspecified` and loopback-pair emulation for IP families.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
@@ -3103,10 +3090,10 @@ impl<'call> NetHarnessContext<'call> {
                 let config = config.into_vm("config")?;
                 net_vm::destack_net_set_keep_alive(self.call_context, context, handle, config)
             }
-            None => {
+            None => unsafe {
                 let config = config.into_native("config")?;
-                unsafe { net_native::destack_net_set_keep_alive(self.call_context, handle, config) }
-            }
+                net_native::destack_net_set_keep_alive(self.call_context, handle, config)
+            },
         }
     }
 
@@ -3169,10 +3156,10 @@ impl<'call> NetHarnessContext<'call> {
                 let address = address.into_vm("address")?;
                 net_vm::destack_net_udp_bind(self.call_context, context, handle, address)
             }
-            None => {
+            None => unsafe {
                 let address = address.into_native("address")?;
-                unsafe { net_native::destack_net_udp_bind(self.call_context, handle, address) }
-            }
+                net_native::destack_net_udp_bind(self.call_context, handle, address)
+            },
         }
     }
 
@@ -3203,10 +3190,10 @@ impl<'call> NetHarnessContext<'call> {
                 let address = address.into_vm("address")?;
                 net_vm::destack_net_udp_connect(self.call_context, context, handle, address)
             }
-            None => {
+            None => unsafe {
                 let address = address.into_native("address")?;
-                unsafe { net_native::destack_net_udp_connect(self.call_context, handle, address) }
-            }
+                net_native::destack_net_udp_connect(self.call_context, handle, address)
+            },
         }
     }
 
@@ -3416,16 +3403,14 @@ impl<'call> NetHarnessContext<'call> {
                     membership,
                 )
             }
-            None => {
+            None => unsafe {
                 let membership = membership.into_native("membership")?;
-                unsafe {
-                    net_native::destack_net_join_multicast_source_v4(
-                        self.call_context,
-                        handle,
-                        membership,
-                    )
-                }
-            }
+                net_native::destack_net_join_multicast_source_v4(
+                    self.call_context,
+                    handle,
+                    membership,
+                )
+            },
         }
     }
 
@@ -3461,16 +3446,14 @@ impl<'call> NetHarnessContext<'call> {
                     membership,
                 )
             }
-            None => {
+            None => unsafe {
                 let membership = membership.into_native("membership")?;
-                unsafe {
-                    net_native::destack_net_join_multicast_source_v6(
-                        self.call_context,
-                        handle,
-                        membership,
-                    )
-                }
-            }
+                net_native::destack_net_join_multicast_source_v6(
+                    self.call_context,
+                    handle,
+                    membership,
+                )
+            },
         }
     }
 
@@ -3509,18 +3492,16 @@ impl<'call> NetHarnessContext<'call> {
                     interfaceaddress,
                 )
             }
-            None => {
+            None => unsafe {
                 let group = group.into_native("group")?;
                 let interfaceaddress = interfaceaddress.into_native("interfaceaddress")?;
-                unsafe {
-                    net_native::destack_net_join_multicast_v4(
-                        self.call_context,
-                        handle,
-                        group,
-                        interfaceaddress,
-                    )
-                }
-            }
+                net_native::destack_net_join_multicast_v4(
+                    self.call_context,
+                    handle,
+                    group,
+                    interfaceaddress,
+                )
+            },
         }
     }
 
@@ -3558,17 +3539,15 @@ impl<'call> NetHarnessContext<'call> {
                     interfaceindex,
                 )
             }
-            None => {
+            None => unsafe {
                 let group = group.into_native("group")?;
-                unsafe {
-                    net_native::destack_net_join_multicast_v6(
-                        self.call_context,
-                        handle,
-                        group,
-                        interfaceindex,
-                    )
-                }
-            }
+                net_native::destack_net_join_multicast_v6(
+                    self.call_context,
+                    handle,
+                    group,
+                    interfaceindex,
+                )
+            },
         }
     }
 
@@ -3604,16 +3583,14 @@ impl<'call> NetHarnessContext<'call> {
                     membership,
                 )
             }
-            None => {
+            None => unsafe {
                 let membership = membership.into_native("membership")?;
-                unsafe {
-                    net_native::destack_net_leave_multicast_source_v4(
-                        self.call_context,
-                        handle,
-                        membership,
-                    )
-                }
-            }
+                net_native::destack_net_leave_multicast_source_v4(
+                    self.call_context,
+                    handle,
+                    membership,
+                )
+            },
         }
     }
 
@@ -3649,16 +3626,14 @@ impl<'call> NetHarnessContext<'call> {
                     membership,
                 )
             }
-            None => {
+            None => unsafe {
                 let membership = membership.into_native("membership")?;
-                unsafe {
-                    net_native::destack_net_leave_multicast_source_v6(
-                        self.call_context,
-                        handle,
-                        membership,
-                    )
-                }
-            }
+                net_native::destack_net_leave_multicast_source_v6(
+                    self.call_context,
+                    handle,
+                    membership,
+                )
+            },
         }
     }
 
@@ -3697,18 +3672,16 @@ impl<'call> NetHarnessContext<'call> {
                     interfaceaddress,
                 )
             }
-            None => {
+            None => unsafe {
                 let group = group.into_native("group")?;
                 let interfaceaddress = interfaceaddress.into_native("interfaceaddress")?;
-                unsafe {
-                    net_native::destack_net_leave_multicast_v4(
-                        self.call_context,
-                        handle,
-                        group,
-                        interfaceaddress,
-                    )
-                }
-            }
+                net_native::destack_net_leave_multicast_v4(
+                    self.call_context,
+                    handle,
+                    group,
+                    interfaceaddress,
+                )
+            },
         }
     }
 
@@ -3746,17 +3719,15 @@ impl<'call> NetHarnessContext<'call> {
                     interfaceindex,
                 )
             }
-            None => {
+            None => unsafe {
                 let group = group.into_native("group")?;
-                unsafe {
-                    net_native::destack_net_leave_multicast_v6(
-                        self.call_context,
-                        handle,
-                        group,
-                        interfaceindex,
-                    )
-                }
-            }
+                net_native::destack_net_leave_multicast_v6(
+                    self.call_context,
+                    handle,
+                    group,
+                    interfaceindex,
+                )
+            },
         }
     }
 
@@ -3903,16 +3874,14 @@ impl<'call> NetHarnessContext<'call> {
                     interfaceaddress,
                 )
             }
-            None => {
+            None => unsafe {
                 let interfaceaddress = interfaceaddress.into_native("interfaceaddress")?;
-                unsafe {
-                    net_native::destack_net_set_multicast_interface_v4(
-                        self.call_context,
-                        handle,
-                        interfaceaddress,
-                    )
-                }
-            }
+                net_native::destack_net_set_multicast_interface_v4(
+                    self.call_context,
+                    handle,
+                    interfaceaddress,
+                )
+            },
         }
     }
 

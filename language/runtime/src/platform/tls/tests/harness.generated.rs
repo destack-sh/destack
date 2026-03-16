@@ -12,8 +12,8 @@ use crate::platform::tls::{
     vm as tls_vm,
 };
 use crate::platform::{
-    NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError,
-    VmSlice, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
 use destack_vm as vm;
 
@@ -37,12 +37,12 @@ impl<'call> TlsHarnessContext<'call> {
 
     /// Close one tls context object.
     ///
-    /// Release one backend-backed tls context and associated host resources.
-    /// Existing sessions created from this context remain backend-defined.
+    /// Release one backend-backed tls context and associated runtime resources.
+    /// Existing sessions created from this context keep their current runtime state.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses provider-specific context teardown semantics.
+    /// Uses runtime tls context teardown semantics.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -64,12 +64,12 @@ impl<'call> TlsHarnessContext<'call> {
 
     /// Open one tls context object.
     ///
-    /// Create one backend-backed tls context with explicit role and version bounds.
-    /// Cipher suite policy and backend defaults follow host tls backend semantics.
+    /// Create one rustls-backed tls context with explicit role and version bounds.
+    /// Cipher suite, group, signature, and resumption policy are runtime-owned rather than delegated to host provider state.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host tls provider context APIs.
+    /// Uses the runtime tls engine over host sockets.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -108,11 +108,12 @@ impl<'call> TlsHarnessContext<'call> {
     /// Set allowed tls cipher suites for one context.
     ///
     /// Apply one ordered list of cipher-suite names to one context policy.
-    /// Name parsing and provider-specific filtering follow backend rules.
+    /// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls cipher-suite names.
+    /// Unsupported names fail immediately, even when other entries are valid.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses SSL_CTX_set_ciphersuites style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
+    /// Uses runtime tls policy filtering.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -137,27 +138,22 @@ impl<'call> TlsHarnessContext<'call> {
                     suites,
                 )
             }
-            None => {
+            None => unsafe {
                 let suites = suites.into_native("suites")?;
-                unsafe {
-                    tls_native::destack_tls_context_set_cipher_suites(
-                        self.call_context,
-                        handle,
-                        suites,
-                    )
-                }
-            }
+                tls_native::destack_tls_context_set_cipher_suites(self.call_context, handle, suites)
+            },
         }
     }
 
     /// Set allowed tls key exchange groups for one context.
     ///
     /// Apply one ordered list of key exchange groups to one context policy.
-    /// Group parsing and provider-specific filtering follow backend rules.
+    /// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls key-exchange group names.
+    /// Unsupported names fail immediately, even when other entries are valid.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses SSL_CTX_set1_groups_list style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
+    /// Uses runtime tls policy filtering.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -177,12 +173,10 @@ impl<'call> TlsHarnessContext<'call> {
                 let groups = groups.into_vm("groups")?;
                 tls_vm::destack_tls_context_set_groups(self.call_context, context, handle, groups)
             }
-            None => {
+            None => unsafe {
                 let groups = groups.into_native("groups")?;
-                unsafe {
-                    tls_native::destack_tls_context_set_groups(self.call_context, handle, groups)
-                }
-            }
+                tls_native::destack_tls_context_set_groups(self.call_context, handle, groups)
+            },
         }
     }
 
@@ -190,10 +184,11 @@ impl<'call> TlsHarnessContext<'call> {
     ///
     /// Configure hostname verification behavior for sessions created by this context.
     /// Verification defaults match strict hostname checks unless explicitly overridden.
+    /// This setting applies to client contexts, and server contexts ignore it.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses X509_VERIFY_PARAM_set_hostflags style APIs in OpenSSL or BoringSSL and equivalent provider verification controls in Schannel or SecureTransport.
+    /// Uses runtime tls verification policy.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -228,7 +223,7 @@ impl<'call> TlsHarnessContext<'call> {
     /// Set one local certificate chain and private key on a tls context.
     ///
     /// Install one PEM-encoded certificate chain and one PEM-encoded private key for local endpoint authentication.
-    /// Key parsing and supported key formats follow host provider behavior.
+    /// PEM parsing is strict and malformed inputs fail immediately.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -260,29 +255,27 @@ impl<'call> TlsHarnessContext<'call> {
                     privatekeypem,
                 )
             }
-            None => {
+            None => unsafe {
                 let certificatechainpem = certificatechainpem.into_native("certificatechainpem")?;
                 let privatekeypem = privatekeypem.into_native("privatekeypem")?;
-                unsafe {
-                    tls_native::destack_tls_context_set_identity_pem(
-                        self.call_context,
-                        handle,
-                        certificatechainpem,
-                        privatekeypem,
-                    )
-                }
-            }
+                tls_native::destack_tls_context_set_identity_pem(
+                    self.call_context,
+                    handle,
+                    certificatechainpem,
+                    privatekeypem,
+                )
+            },
         }
     }
 
     /// Set session resumption policy for one context.
     ///
     /// Configure whether sessions use stateful cache, stateless tickets, or both.
-    /// Cache size, lifetime, and ticket semantics follow backend policy.
+    /// Cache size, lifetime, and ticket semantics follow bounded runtime policy.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses SSL_CTX_set_session_cache_mode and SSL_CTX_set_options style APIs in OpenSSL or BoringSSL and equivalent provider controls in Schannel or SecureTransport.
+    /// Uses runtime tls resumption controls.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -317,11 +310,12 @@ impl<'call> TlsHarnessContext<'call> {
     /// Set allowed tls signature algorithms for one context.
     ///
     /// Apply one ordered list of signature algorithms to one context policy.
-    /// Algorithm parsing and provider-specific filtering follow backend rules.
+    /// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls signature-scheme names.
+    /// Unsupported names and schemes outside the active runtime tls policy fail immediately.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses SSL_CTX_set1_sigalgs_list style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
+    /// Uses runtime tls policy filtering.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -346,23 +340,21 @@ impl<'call> TlsHarnessContext<'call> {
                     algorithms,
                 )
             }
-            None => {
+            None => unsafe {
                 let algorithms = algorithms.into_native("algorithms")?;
-                unsafe {
-                    tls_native::destack_tls_context_set_signature_algorithms(
-                        self.call_context,
-                        handle,
-                        algorithms,
-                    )
-                }
-            }
+                tls_native::destack_tls_context_set_signature_algorithms(
+                    self.call_context,
+                    handle,
+                    algorithms,
+                )
+            },
         }
     }
 
     /// Set trust anchors on a tls context from one PEM bundle.
     ///
     /// Install one PEM-encoded trust-anchor bundle used for peer certificate validation.
-    /// Bundle parse rules and chain-building behavior follow host provider semantics.
+    /// Bundle parsing is strict and malformed trust anchors fail immediately.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -391,27 +383,25 @@ impl<'call> TlsHarnessContext<'call> {
                     trustanchorspem,
                 )
             }
-            None => {
+            None => unsafe {
                 let trustanchorspem = trustanchorspem.into_native("trustanchorspem")?;
-                unsafe {
-                    tls_native::destack_tls_context_set_trust_anchors_pem(
-                        self.call_context,
-                        handle,
-                        trustanchorspem,
-                    )
-                }
-            }
+                tls_native::destack_tls_context_set_trust_anchors_pem(
+                    self.call_context,
+                    handle,
+                    trustanchorspem,
+                )
+            },
         }
     }
 
     /// Close one tls session object.
     ///
-    /// Release one session object and provider-specific state.
+    /// Release one session object and runtime tls state.
     /// Socket ownership remains with the caller and is not implicitly closed by this operation.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host tls provider session teardown APIs.
+    /// Uses runtime tls session teardown.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -433,12 +423,13 @@ impl<'call> TlsHarnessContext<'call> {
 
     /// Export keying material bytes for one tls session.
     ///
-    /// Derive exporter keying material for one label and optional context value.
-    /// Exporter derivation follows RFC 5705 and RFC 8446 provider rules.
+    /// Derive exporter keying material for one label and one explicit context value.
+    /// Empty context bytes remain distinct input and are not treated as absence.
+    /// Exporter derivation follows RFC 5705 and RFC 8446 runtime tls rules.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host tls provider exporter APIs.
+    /// Uses runtime tls exporter support.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -492,11 +483,11 @@ impl<'call> TlsHarnessContext<'call> {
     /// Advance one tls handshake state machine.
     ///
     /// Drive one handshake step for one session and return readiness requirements for continuation.
-    /// Handshake transitions follow host provider semantics and selected protocol version.
+    /// Handshake transitions follow rustls state-machine semantics for the selected protocol version.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host tls handshake step APIs.
+    /// Uses runtime tls handshake state.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -534,11 +525,11 @@ impl<'call> TlsHarnessContext<'call> {
     /// Return negotiated alpn protocol bytes.
     ///
     /// Read one negotiated application protocol value selected during handshake.
-    /// Empty bytes indicate no protocol was negotiated by the peer and provider.
+    /// Empty bytes indicate no protocol was negotiated by the peer and runtime.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host tls provider negotiated-protocol query APIs.
+    /// Uses runtime tls negotiated-protocol state.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -580,10 +571,11 @@ impl<'call> TlsHarnessContext<'call> {
     ///
     /// Bind one tls session object to one connected socket using one tls context.
     /// Transport ownership remains with the caller, and tls uses the socket for encrypted record I/O.
+    /// `serverName` is required for client contexts and ignored for server contexts.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host tls provider session APIs over socket transports.
+    /// Uses the runtime tls engine over host sockets.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -632,11 +624,11 @@ impl<'call> TlsHarnessContext<'call> {
     /// Return the peer certificate chain bytes in pem encoding.
     ///
     /// Read one peer certificate chain as normalized PEM bytes for verification and inspection.
-    /// Chain ordering and included intermediates follow host provider behavior.
+    /// Chain ordering and included intermediates follow peer presentation order.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host tls provider peer-certificate query APIs.
+    /// Uses runtime tls peer-certificate state.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -677,11 +669,11 @@ impl<'call> TlsHarnessContext<'call> {
     /// Read decrypted application bytes from one tls session.
     ///
     /// Read plaintext bytes into one caller-provided buffer after record decryption.
-    /// Decrypt and read semantics follow provider buffering behavior and transport readiness.
+    /// Decrypt and read semantics follow runtime buffering behavior and transport readiness.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host tls provider read APIs.
+    /// Uses runtime tls record processing over host sockets.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -722,12 +714,12 @@ impl<'call> TlsHarnessContext<'call> {
 
     /// Return whether one session resumed from cached state or ticket.
     ///
-    /// Report resumption state as observed by the backend after handshake completion.
-    /// State semantics follow backend cache and ticket policy behavior.
+    /// Report resumption state as observed by the runtime after handshake completion.
+    /// State semantics follow runtime cache and ticket policy behavior.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host tls provider session-state query APIs.
+    /// Uses runtime tls session-state inspection.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -768,11 +760,11 @@ impl<'call> TlsHarnessContext<'call> {
     /// Shutdown one tls session.
     ///
     /// Emit closure alerts and transition one session to closed state.
-    /// Half-close behavior and alert sequencing follow host provider semantics.
+    /// Half-close behavior and alert sequencing follow rustls close-notify semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host tls provider shutdown APIs.
+    /// Uses runtime tls shutdown state.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -797,11 +789,11 @@ impl<'call> TlsHarnessContext<'call> {
     /// Write plaintext application bytes to one tls session.
     ///
     /// Encrypt and write plaintext bytes from one caller-provided buffer into tls records.
-    /// Record emission and flush behavior follow provider buffering and transport readiness.
+    /// Record emission and flush behavior follow runtime buffering and transport readiness.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host tls provider write APIs.
+    /// Uses runtime tls record processing over host sockets.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.

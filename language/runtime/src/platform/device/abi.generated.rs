@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, device as platform_device, fs, fs as platform_fs,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, device as platform_device, fs, fs as platform_fs,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -46,6 +46,8 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
+
+impl VmCollectionElement for PathBytesAbi<VmAbi> {}
 
 /// Value type for PathBytes.
 #[repr(transparent)]
@@ -121,6 +123,8 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
         <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
+
+impl VmCollectionElement for PathUtf16Abi<VmAbi> {}
 
 /// Value type for PathUtf16.
 #[repr(transparent)]
@@ -200,6 +204,8 @@ impl VmValueCodec for BluetoothGattWriteMode {
     }
 }
 
+impl VmCollectionElement for BluetoothGattWriteMode {}
+
 /// Value type for BluetoothGattWriteMode.
 pub type BluetoothGattWriteModeValue = BluetoothGattWriteMode;
 
@@ -270,6 +276,8 @@ impl VmValueCodec for BluetoothPairState {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for BluetoothPairState {}
 
 /// Value type for BluetoothPairState.
 pub type BluetoothPairStateValue = BluetoothPairState;
@@ -342,6 +350,8 @@ impl VmValueCodec for BluetoothPhy {
     }
 }
 
+impl VmCollectionElement for BluetoothPhy {}
+
 /// Value type for BluetoothPhy.
 pub type BluetoothPhyValue = BluetoothPhy;
 
@@ -406,6 +416,8 @@ impl VmValueCodec for BluetoothScanMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for BluetoothScanMode {}
 
 /// Value type for BluetoothScanMode.
 pub type BluetoothScanModeValue = BluetoothScanMode;
@@ -474,6 +486,8 @@ impl VmValueCodec for BluetoothTransport {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for BluetoothTransport {}
 
 /// Value type for BluetoothTransport.
 pub type BluetoothTransportValue = BluetoothTransport;
@@ -549,6 +563,8 @@ impl VmValueCodec for CameraColorSpace {
     }
 }
 
+impl VmCollectionElement for CameraColorSpace {}
+
 /// Value type for CameraColorSpace.
 pub type CameraColorSpaceValue = CameraColorSpace;
 
@@ -617,6 +633,8 @@ impl VmValueCodec for CameraDynamicRange {
     }
 }
 
+impl VmCollectionElement for CameraDynamicRange {}
+
 /// Value type for CameraDynamicRange.
 pub type CameraDynamicRangeValue = CameraDynamicRange;
 
@@ -684,6 +702,8 @@ impl VmValueCodec for CameraExposureMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CameraExposureMode {}
 
 /// Value type for CameraExposureMode.
 pub type CameraExposureModeValue = CameraExposureMode;
@@ -762,6 +782,8 @@ impl VmValueCodec for CameraFacingMode {
     }
 }
 
+impl VmCollectionElement for CameraFacingMode {}
+
 /// Value type for CameraFacingMode.
 pub type CameraFacingModeValue = CameraFacingMode;
 
@@ -833,6 +855,8 @@ impl VmValueCodec for CameraPixelFormat {
     }
 }
 
+impl VmCollectionElement for CameraPixelFormat {}
+
 /// Value type for CameraPixelFormat.
 pub type CameraPixelFormatValue = CameraPixelFormat;
 
@@ -900,6 +924,8 @@ impl VmValueCodec for CameraPixelFormatFamily {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CameraPixelFormatFamily {}
 
 /// Value type for CameraPixelFormatFamily.
 pub type CameraPixelFormatFamilyValue = CameraPixelFormatFamily;
@@ -969,6 +995,8 @@ impl VmValueCodec for CameraStabilizationMode {
     }
 }
 
+impl VmCollectionElement for CameraStabilizationMode {}
+
 /// Value type for CameraStabilizationMode.
 pub type CameraStabilizationModeValue = CameraStabilizationMode;
 
@@ -1036,6 +1064,8 @@ impl VmValueCodec for CameraTorchMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CameraTorchMode {}
 
 /// Value type for CameraTorchMode.
 pub type CameraTorchModeValue = CameraTorchMode;
@@ -1107,6 +1137,8 @@ impl VmValueCodec for SerialDataBits {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for SerialDataBits {}
 
 /// Value type for SerialDataBits.
 pub type SerialDataBitsValue = SerialDataBits;
@@ -1185,6 +1217,8 @@ impl VmValueCodec for SerialErrorKind {
     }
 }
 
+impl VmCollectionElement for SerialErrorKind {}
+
 /// Value type for SerialErrorKind.
 pub type SerialErrorKindValue = SerialErrorKind;
 
@@ -1259,6 +1293,8 @@ impl VmValueCodec for SerialParity {
     }
 }
 
+impl VmCollectionElement for SerialParity {}
+
 /// Value type for SerialParity.
 pub type SerialParityValue = SerialParity;
 
@@ -1330,6 +1366,8 @@ impl VmValueCodec for SerialPortTransport {
     }
 }
 
+impl VmCollectionElement for SerialPortTransport {}
+
 /// Value type for SerialPortTransport.
 pub type SerialPortTransportValue = SerialPortTransport;
 
@@ -1397,6 +1435,8 @@ impl VmValueCodec for SerialStopBits {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for SerialStopBits {}
 
 /// Value type for SerialStopBits.
 pub type SerialStopBitsValue = SerialStopBits;
@@ -1481,6 +1521,8 @@ impl VmValueCodec for UsbBosCapabilityKind {
     }
 }
 
+impl VmCollectionElement for UsbBosCapabilityKind {}
+
 /// Value type for UsbBosCapabilityKind.
 pub type UsbBosCapabilityKindValue = UsbBosCapabilityKind;
 
@@ -1549,6 +1591,8 @@ impl VmValueCodec for UsbControlTransferType {
     }
 }
 
+impl VmCollectionElement for UsbControlTransferType {}
+
 /// Value type for UsbControlTransferType.
 pub type UsbControlTransferTypeValue = UsbControlTransferType;
 
@@ -1613,6 +1657,8 @@ impl VmValueCodec for UsbEndpointDirection {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for UsbEndpointDirection {}
 
 /// Value type for UsbEndpointDirection.
 pub type UsbEndpointDirectionValue = UsbEndpointDirection;
@@ -1682,6 +1728,8 @@ impl VmValueCodec for UsbEndpointTransferType {
     }
 }
 
+impl VmCollectionElement for UsbEndpointTransferType {}
+
 /// Value type for UsbEndpointTransferType.
 pub type UsbEndpointTransferTypeValue = UsbEndpointTransferType;
 
@@ -1749,6 +1797,8 @@ impl VmValueCodec for UsbTransferStatus {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for UsbTransferStatus {}
 
 /// Value type for UsbTransferStatus.
 pub type UsbTransferStatusValue = UsbTransferStatus;
@@ -1903,6 +1953,8 @@ impl VmAggregateCodec for BluetoothScanEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BluetoothScanEventAbi<VmAbi> {}
 
 /// Value type for BluetoothScanEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2111,6 +2163,8 @@ impl VmAggregateCodec for BluetoothSessionEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for BluetoothSessionEventAbi<VmAbi> {}
+
 /// Value type for BluetoothSessionEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BluetoothSessionEventValue {
@@ -2303,6 +2357,8 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for OsPathAbi<VmAbi> {}
 
 /// Value type for OsPath.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2521,6 +2577,8 @@ impl VmAggregateCodec for SerialEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SerialEventAbi<VmAbi> {}
 
 /// Value type for SerialEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2782,6 +2840,8 @@ impl VmAggregateCodec for UsbControlTargetAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for UsbControlTargetAbi<VmAbi> {}
+
 /// Value type for UsbControlTarget.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum UsbControlTargetValue {
@@ -3006,6 +3066,8 @@ impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for UsbHotplugEventAbi<VmAbi> {}
+
 /// Value type for UsbHotplugEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum UsbHotplugEventValue {
@@ -3191,6 +3253,8 @@ impl VmAbiCodec for BluetoothAdapterCapabilities {
     }
 }
 
+impl VmCollectionElement for BluetoothAdapterCapabilities {}
+
 /// ABI struct for BluetoothAdapterDescriptor.
 #[repr(C)]
 pub struct BluetoothAdapterDescriptorAbi<A: BindingAbi> {
@@ -3297,6 +3361,8 @@ impl VmAggregateCodec for BluetoothAdapterDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BluetoothAdapterDescriptorAbi<VmAbi> {}
 
 /// Value type for BluetoothAdapterDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3482,6 +3548,8 @@ impl VmAggregateCodec for BluetoothAdvertisementDataAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BluetoothAdvertisementDataAbi<VmAbi> {}
 
 /// Value type for BluetoothAdvertisementData.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3683,6 +3751,8 @@ impl VmAggregateCodec for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {}
+
 /// Value type for BluetoothAdvertisementManufacturerData.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothAdvertisementManufacturerDataValue {
@@ -3814,6 +3884,8 @@ impl VmAggregateCodec for BluetoothAdvertisementServiceDataAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BluetoothAdvertisementServiceDataAbi<VmAbi> {}
 
 /// Value type for BluetoothAdvertisementServiceData.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4011,6 +4083,8 @@ impl VmAggregateCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BluetoothDeviceDescriptorAbi<VmAbi> {}
 
 /// Value type for BluetoothDeviceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4232,6 +4306,8 @@ impl VmAggregateCodec for BluetoothGattCharacteristicDescriptorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for BluetoothGattCharacteristicDescriptorAbi<VmAbi> {}
+
 /// Value type for BluetoothGattCharacteristicDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothGattCharacteristicDescriptorValue {
@@ -4441,6 +4517,8 @@ impl VmAbiCodec for BluetoothGattCharacteristicProperties {
     }
 }
 
+impl VmCollectionElement for BluetoothGattCharacteristicProperties {}
+
 /// ABI struct for BluetoothGattDescriptorDescriptor.
 #[repr(C)]
 pub struct BluetoothGattDescriptorDescriptorAbi<A: BindingAbi> {
@@ -4531,6 +4609,8 @@ impl VmAggregateCodec for BluetoothGattDescriptorDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BluetoothGattDescriptorDescriptorAbi<VmAbi> {}
 
 /// Value type for BluetoothGattDescriptorDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4686,6 +4766,8 @@ impl VmAggregateCodec for BluetoothGattServiceDescriptorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for BluetoothGattServiceDescriptorAbi<VmAbi> {}
+
 /// Value type for BluetoothGattServiceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothGattServiceDescriptorValue {
@@ -4832,6 +4914,8 @@ impl VmAggregateCodec for BluetoothGattValueEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BluetoothGattValueEventAbi<VmAbi> {}
 
 /// Value type for BluetoothGattValueEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4999,6 +5083,8 @@ impl VmAggregateCodec for BluetoothScanDiscoveredEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for BluetoothScanDiscoveredEventAbi<VmAbi> {}
+
 /// Value type for BluetoothScanDiscoveredEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothScanDiscoveredEventValue {
@@ -5147,6 +5233,8 @@ impl VmAggregateCodec for BluetoothScanEventMetadataAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BluetoothScanEventMetadataAbi<VmAbi> {}
 
 /// Value type for BluetoothScanEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5347,6 +5435,8 @@ impl VmAggregateCodec for BluetoothScanFilterAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BluetoothScanFilterAbi<VmAbi> {}
 
 /// Value type for BluetoothScanFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5589,6 +5679,8 @@ impl VmAggregateCodec for BluetoothScanLostEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for BluetoothScanLostEventAbi<VmAbi> {}
+
 /// Value type for BluetoothScanLostEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothScanLostEventValue {
@@ -5734,6 +5826,8 @@ impl VmAggregateCodec for BluetoothScanUpdatedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BluetoothScanUpdatedEventAbi<VmAbi> {}
 
 /// Value type for BluetoothScanUpdatedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5892,6 +5986,8 @@ impl VmAggregateCodec for BluetoothSessionDisconnectedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for BluetoothSessionDisconnectedEventAbi<VmAbi> {}
+
 /// Value type for BluetoothSessionDisconnectedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothSessionDisconnectedEventValue {
@@ -6047,6 +6143,8 @@ impl VmAbiCodec for BluetoothSessionDisconnectedPayload {
     }
 }
 
+impl VmCollectionElement for BluetoothSessionDisconnectedPayload {}
+
 /// ABI struct for BluetoothSessionEventMetadata.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -6135,6 +6233,8 @@ impl VmAbiCodec for BluetoothSessionEventMetadata {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for BluetoothSessionEventMetadata {}
 
 /// ABI struct for BluetoothSessionPairStateChangedEvent.
 #[repr(C)]
@@ -6231,6 +6331,8 @@ impl VmAggregateCodec for BluetoothSessionPairStateChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BluetoothSessionPairStateChangedEventAbi<VmAbi> {}
 
 /// Value type for BluetoothSessionPairStateChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6401,6 +6503,8 @@ impl VmAbiCodec for BluetoothSessionPairStateChangedPayload {
     }
 }
 
+impl VmCollectionElement for BluetoothSessionPairStateChangedPayload {}
+
 /// ABI struct for CameraDeviceDescriptor.
 #[repr(C)]
 pub struct CameraDeviceDescriptorAbi<A: BindingAbi> {
@@ -6509,6 +6613,8 @@ impl VmAggregateCodec for CameraDeviceDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CameraDeviceDescriptorAbi<VmAbi> {}
 
 /// Value type for CameraDeviceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6714,6 +6820,8 @@ impl VmAbiCodec for CameraExposureCompensationRange {
     }
 }
 
+impl VmCollectionElement for CameraExposureCompensationRange {}
+
 /// ABI struct for CameraFocusDistanceRange.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -6822,6 +6930,8 @@ impl VmAbiCodec for CameraFocusDistanceRange {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for CameraFocusDistanceRange {}
 
 /// ABI struct for CameraFrame.
 #[repr(C)]
@@ -6952,6 +7062,8 @@ impl VmAggregateCodec for CameraFrameAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CameraFrameAbi<VmAbi> {}
 
 /// Value type for CameraFrame.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7188,6 +7300,8 @@ impl VmAbiCodec for CameraFrameMetadata {
     }
 }
 
+impl VmCollectionElement for CameraFrameMetadata {}
+
 /// ABI struct for CameraPixelFormatDescriptor.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -7286,6 +7400,8 @@ impl VmAbiCodec for CameraPixelFormatDescriptor {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for CameraPixelFormatDescriptor {}
 
 /// ABI struct for CameraPlaneLayout.
 #[repr(C)]
@@ -7387,6 +7503,8 @@ impl VmAbiCodec for CameraPlaneLayout {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for CameraPlaneLayout {}
 
 /// ABI struct for CameraStreamCapability.
 #[repr(C)]
@@ -7500,6 +7618,8 @@ impl VmAggregateCodec for CameraStreamCapabilityAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CameraStreamCapabilityAbi<VmAbi> {}
 
 /// Value type for CameraStreamCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7725,6 +7845,8 @@ impl VmAbiCodec for CameraStreamConfig {
     }
 }
 
+impl VmCollectionElement for CameraStreamConfig {}
+
 /// ABI struct for CameraWhiteBalanceRange.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -7833,6 +7955,8 @@ impl VmAbiCodec for CameraWhiteBalanceRange {
     }
 }
 
+impl VmCollectionElement for CameraWhiteBalanceRange {}
+
 /// ABI struct for CameraZoomRatioRange.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -7935,6 +8059,8 @@ impl VmAbiCodec for CameraZoomRatioRange {
     }
 }
 
+impl VmCollectionElement for CameraZoomRatioRange {}
+
 /// ABI struct for OsPathBytes.
 #[repr(C)]
 pub struct OsPathBytesAbi<A: BindingAbi> {
@@ -8013,6 +8139,8 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for OsPathBytesAbi<VmAbi> {}
 
 /// Value type for OsPathBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8143,6 +8271,8 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for OsPathUtf16Abi<VmAbi> {}
 
 /// Value type for OsPathUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8286,6 +8416,8 @@ impl VmAggregateCodec for SerialDisconnectedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SerialDisconnectedEventAbi<VmAbi> {}
 
 /// Value type for SerialDisconnectedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8433,6 +8565,8 @@ impl VmAbiCodec for SerialDisconnectedPayload {
     }
 }
 
+impl VmCollectionElement for SerialDisconnectedPayload {}
+
 /// ABI struct for SerialErrorEvent.
 #[repr(C)]
 pub struct SerialErrorEventAbi<A: BindingAbi> {
@@ -8520,6 +8654,8 @@ impl VmAggregateCodec for SerialErrorEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SerialErrorEventAbi<VmAbi> {}
 
 /// Value type for SerialErrorEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8677,6 +8813,8 @@ impl VmAbiCodec for SerialErrorPayload {
     }
 }
 
+impl VmCollectionElement for SerialErrorPayload {}
+
 /// ABI struct for SerialEventMetadata.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -8765,6 +8903,8 @@ impl VmAbiCodec for SerialEventMetadata {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for SerialEventMetadata {}
 
 /// ABI struct for SerialFlowControl.
 #[repr(C)]
@@ -8870,6 +9010,8 @@ impl VmAbiCodec for SerialFlowControl {
     }
 }
 
+impl VmCollectionElement for SerialFlowControl {}
+
 /// ABI struct for SerialInputSignals.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -8973,6 +9115,8 @@ impl VmAbiCodec for SerialInputSignals {
     }
 }
 
+impl VmCollectionElement for SerialInputSignals {}
+
 /// ABI struct for SerialModemStatusChangedEvent.
 #[repr(C)]
 pub struct SerialModemStatusChangedEventAbi<A: BindingAbi> {
@@ -9064,6 +9208,8 @@ impl VmAggregateCodec for SerialModemStatusChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SerialModemStatusChangedEventAbi<VmAbi> {}
 
 /// Value type for SerialModemStatusChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9217,6 +9363,8 @@ impl VmAbiCodec for SerialModemStatusPayload {
     }
 }
 
+impl VmCollectionElement for SerialModemStatusPayload {}
+
 /// ABI struct for SerialOutputSignals.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -9319,6 +9467,8 @@ impl VmAbiCodec for SerialOutputSignals {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for SerialOutputSignals {}
 
 /// ABI struct for SerialPortConfig.
 #[repr(C)]
@@ -9430,6 +9580,8 @@ impl VmAbiCodec for SerialPortConfig {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for SerialPortConfig {}
 
 /// ABI struct for SerialPortDescriptor.
 #[repr(C)]
@@ -9572,6 +9724,8 @@ impl VmAggregateCodec for SerialPortDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SerialPortDescriptorAbi<VmAbi> {}
 
 /// Value type for SerialPortDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9833,6 +9987,8 @@ impl VmAbiCodec for SerialPortOpenOptions {
     }
 }
 
+impl VmCollectionElement for SerialPortOpenOptions {}
+
 /// ABI struct for SerialReadReadyEvent.
 #[repr(C)]
 pub struct SerialReadReadyEventAbi<A: BindingAbi> {
@@ -9923,6 +10079,8 @@ impl VmAggregateCodec for SerialReadReadyEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SerialReadReadyEventAbi<VmAbi> {}
 
 /// Value type for SerialReadReadyEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10071,6 +10229,8 @@ impl VmAbiCodec for SerialReadReadyPayload {
     }
 }
 
+impl VmCollectionElement for SerialReadReadyPayload {}
+
 /// ABI struct for SerialWriteDrainedEvent.
 #[repr(C)]
 pub struct SerialWriteDrainedEventAbi<A: BindingAbi> {
@@ -10162,6 +10322,8 @@ impl VmAggregateCodec for SerialWriteDrainedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SerialWriteDrainedEventAbi<VmAbi> {}
 
 /// Value type for SerialWriteDrainedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10309,6 +10471,8 @@ impl VmAbiCodec for SerialWriteDrainedPayload {
     }
 }
 
+impl VmCollectionElement for SerialWriteDrainedPayload {}
+
 /// ABI struct for UsbBosCapabilityDescriptor.
 #[repr(C)]
 pub struct UsbBosCapabilityDescriptorAbi<A: BindingAbi> {
@@ -10402,6 +10566,8 @@ impl VmAggregateCodec for UsbBosCapabilityDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UsbBosCapabilityDescriptorAbi<VmAbi> {}
 
 /// Value type for UsbBosCapabilityDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10586,6 +10752,8 @@ impl VmAggregateCodec for UsbConfigurationDescriptorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for UsbConfigurationDescriptorAbi<VmAbi> {}
+
 /// Value type for UsbConfigurationDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbConfigurationDescriptorValue {
@@ -10756,6 +10924,8 @@ impl VmAggregateCodec for UsbControlDeviceTargetAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for UsbControlDeviceTargetAbi<VmAbi> {}
+
 /// Value type for UsbControlDeviceTarget.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbControlDeviceTargetValue {
@@ -10882,6 +11052,8 @@ impl VmAggregateCodec for UsbControlEndpointTargetAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UsbControlEndpointTargetAbi<VmAbi> {}
 
 /// Value type for UsbControlEndpointTarget.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11015,6 +11187,8 @@ impl VmAggregateCodec for UsbControlInterfaceTargetAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for UsbControlInterfaceTargetAbi<VmAbi> {}
+
 /// Value type for UsbControlInterfaceTarget.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbControlInterfaceTargetValue {
@@ -11143,6 +11317,8 @@ impl VmAggregateCodec for UsbControlOtherTargetAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UsbControlOtherTargetAbi<VmAbi> {}
 
 /// Value type for UsbControlOtherTarget.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11291,6 +11467,8 @@ impl VmAggregateCodec for UsbControlSetupAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UsbControlSetupAbi<VmAbi> {}
 
 /// Value type for UsbControlSetup.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11496,6 +11674,8 @@ impl VmAggregateCodec for UsbDeviceDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UsbDeviceDescriptorAbi<VmAbi> {}
 
 /// Value type for UsbDeviceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11731,6 +11911,8 @@ impl VmAbiCodec for UsbEndpointDescriptor {
     }
 }
 
+impl VmCollectionElement for UsbEndpointDescriptor {}
+
 /// ABI struct for UsbEndpointSelector.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -11824,6 +12006,8 @@ impl VmAbiCodec for UsbEndpointSelector {
     }
 }
 
+impl VmCollectionElement for UsbEndpointSelector {}
+
 /// ABI struct for UsbHotplugAttachedEvent.
 #[repr(C)]
 pub struct UsbHotplugAttachedEventAbi<A: BindingAbi> {
@@ -11906,6 +12090,8 @@ impl VmAggregateCodec for UsbHotplugAttachedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UsbHotplugAttachedEventAbi<VmAbi> {}
 
 /// Value type for UsbHotplugAttachedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12052,6 +12238,8 @@ impl VmAggregateCodec for UsbHotplugDetachedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for UsbHotplugDetachedEventAbi<VmAbi> {}
+
 /// Value type for UsbHotplugDetachedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbHotplugDetachedEventValue {
@@ -12197,6 +12385,8 @@ impl VmAggregateCodec for UsbHotplugEventMetadataAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for UsbHotplugEventMetadataAbi<VmAbi> {}
+
 /// Value type for UsbHotplugEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbHotplugEventMetadataValue {
@@ -12332,6 +12522,8 @@ impl VmAggregateCodec for UsbInTransferResultAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UsbInTransferResultAbi<VmAbi> {}
 
 /// Value type for UsbInTransferResult.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12495,6 +12687,8 @@ impl VmAggregateCodec for UsbInterfaceDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UsbInterfaceDescriptorAbi<VmAbi> {}
 
 /// Value type for UsbInterfaceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12681,6 +12875,8 @@ impl VmAbiCodec for UsbIsochronousPacketResult {
     }
 }
 
+impl VmCollectionElement for UsbIsochronousPacketResult {}
+
 /// ABI struct for UsbIsochronousTransferResult.
 #[repr(C)]
 pub struct UsbIsochronousTransferResultAbi<A: BindingAbi> {
@@ -12764,6 +12960,8 @@ impl VmAggregateCodec for UsbIsochronousTransferResultAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UsbIsochronousTransferResultAbi<VmAbi> {}
 
 /// Value type for UsbIsochronousTransferResult.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12920,6 +13118,8 @@ impl VmAbiCodec for UsbOutTransferResult {
     }
 }
 
+impl VmCollectionElement for UsbOutTransferResult {}
+
 /// ABI struct for UsbStringDescriptor.
 #[repr(C)]
 pub struct UsbStringDescriptorAbi<A: BindingAbi> {
@@ -13018,6 +13218,8 @@ impl VmAggregateCodec for UsbStringDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UsbStringDescriptorAbi<VmAbi> {}
 
 /// Value type for UsbStringDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

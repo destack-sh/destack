@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, input as platform_input, resource, resource as platform_resource,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, input as platform_input, resource, resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -37,6 +37,8 @@ impl VmValueCodec for ResourceId {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ResourceId {}
 
 /// Value type for ResourceId.
 pub type ResourceIdValue = ResourceId;
@@ -90,6 +92,8 @@ impl VmValueCodec for WindowHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for WindowHandle {}
 
 /// Value type for WindowHandle.
 pub type WindowHandleValue = WindowHandle;
@@ -158,6 +162,8 @@ impl VmValueCodec for InputCapabilityMetadataFidelity {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for InputCapabilityMetadataFidelity {}
 
 /// Value type for InputCapabilityMetadataFidelity.
 pub type InputCapabilityMetadataFidelityValue = InputCapabilityMetadataFidelity;
@@ -229,6 +235,8 @@ impl VmValueCodec for InputCapabilityMetadataOrigin {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for InputCapabilityMetadataOrigin {}
 
 /// Value type for InputCapabilityMetadataOrigin.
 pub type InputCapabilityMetadataOriginValue = InputCapabilityMetadataOrigin;
@@ -313,6 +321,8 @@ impl VmValueCodec for InputDeviceCapabilityKind {
     }
 }
 
+impl VmCollectionElement for InputDeviceCapabilityKind {}
+
 /// Value type for InputDeviceCapabilityKind.
 pub type InputDeviceCapabilityKindValue = InputDeviceCapabilityKind;
 
@@ -389,6 +399,8 @@ impl VmValueCodec for InputDeviceKind {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for InputDeviceKind {}
 
 /// Value type for InputDeviceKind.
 pub type InputDeviceKindValue = InputDeviceKind;
@@ -491,6 +503,8 @@ impl VmValueCodec for InputEventAction {
     }
 }
 
+impl VmCollectionElement for InputEventAction {}
+
 /// Value type for InputEventAction.
 pub type InputEventActionValue = InputEventAction;
 
@@ -565,6 +579,8 @@ impl VmValueCodec for InputGamepadBatteryState {
     }
 }
 
+impl VmCollectionElement for InputGamepadBatteryState {}
+
 /// Value type for InputGamepadBatteryState.
 pub type InputGamepadBatteryStateValue = InputGamepadBatteryState;
 
@@ -636,6 +652,8 @@ impl VmValueCodec for InputGamepadConnectionType {
     }
 }
 
+impl VmCollectionElement for InputGamepadConnectionType {}
+
 /// Value type for InputGamepadConnectionType.
 pub type InputGamepadConnectionTypeValue = InputGamepadConnectionType;
 
@@ -704,6 +722,8 @@ impl VmValueCodec for InputGamepadMappingType {
     }
 }
 
+impl VmCollectionElement for InputGamepadMappingType {}
+
 /// Value type for InputGamepadMappingType.
 pub type InputGamepadMappingTypeValue = InputGamepadMappingType;
 
@@ -769,6 +789,8 @@ impl VmValueCodec for InputHapticEffectType {
     }
 }
 
+impl VmCollectionElement for InputHapticEffectType {}
+
 /// Value type for InputHapticEffectType.
 pub type InputHapticEffectTypeValue = InputHapticEffectType;
 
@@ -833,6 +855,8 @@ impl VmValueCodec for InputHapticsResult {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for InputHapticsResult {}
 
 /// Value type for InputHapticsResult.
 pub type InputHapticsResultValue = InputHapticsResult;
@@ -902,6 +926,8 @@ impl VmValueCodec for InputPointerGrabMode {
     }
 }
 
+impl VmCollectionElement for InputPointerGrabMode {}
+
 /// Value type for InputPointerGrabMode.
 pub type InputPointerGrabModeValue = InputPointerGrabMode;
 
@@ -966,6 +992,8 @@ impl VmValueCodec for InputReadMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for InputReadMode {}
 
 /// Value type for InputReadMode.
 pub type InputReadModeValue = InputReadMode;
@@ -1056,6 +1084,8 @@ impl VmValueCodec for InputSensorKind {
     }
 }
 
+impl VmCollectionElement for InputSensorKind {}
+
 /// Value type for InputSensorKind.
 pub type InputSensorKindValue = InputSensorKind;
 
@@ -1133,6 +1163,8 @@ impl VmValueCodec for InputTextInputType {
     }
 }
 
+impl VmCollectionElement for InputTextInputType {}
+
 /// Value type for InputTextInputType.
 pub type InputTextInputTypeValue = InputTextInputType;
 
@@ -1203,6 +1235,8 @@ impl VmValueCodec for InputTouchContactPhase {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for InputTouchContactPhase {}
 
 /// Value type for InputTouchContactPhase.
 pub type InputTouchContactPhaseValue = InputTouchContactPhase;
@@ -1441,6 +1475,8 @@ impl VmAggregateCodec for InputEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputEventAbi<VmAbi> {}
 
 /// Value type for InputEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1748,6 +1784,8 @@ impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for InputMonitorEventAbi<VmAbi> {}
+
 /// Value type for InputMonitorEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InputMonitorEventValue {
@@ -1964,6 +2002,8 @@ impl VmAbiCodec for InputAxisMetadata {
     }
 }
 
+impl VmCollectionElement for InputAxisMetadata {}
+
 /// ABI struct for InputButtonMetadata.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -2052,6 +2092,8 @@ impl VmAbiCodec for InputButtonMetadata {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for InputButtonMetadata {}
 
 /// ABI struct for InputCompositionEvent.
 #[repr(C)]
@@ -2145,6 +2187,8 @@ impl VmAggregateCodec for InputCompositionEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputCompositionEventAbi<VmAbi> {}
 
 /// Value type for InputCompositionEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2304,6 +2348,8 @@ impl VmAggregateCodec for InputCompositionEventPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputCompositionEventPayloadAbi<VmAbi> {}
 
 /// Value type for InputCompositionEventPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2581,6 +2627,8 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputDeviceCapabilitiesAbi<VmAbi> {}
 
 /// Value type for InputDeviceCapabilities.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3102,6 +3150,8 @@ impl VmAggregateCodec for InputDeviceDescriptorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for InputDeviceDescriptorAbi<VmAbi> {}
+
 /// Value type for InputDeviceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputDeviceDescriptorValue {
@@ -3389,6 +3439,8 @@ impl VmAggregateCodec for InputDeviceEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for InputDeviceEventAbi<VmAbi> {}
+
 /// Value type for InputDeviceEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputDeviceEventValue {
@@ -3547,6 +3599,8 @@ impl VmAbiCodec for InputDeviceEventPayload {
     }
 }
 
+impl VmCollectionElement for InputDeviceEventPayload {}
+
 /// ABI struct for InputEventMetadata.
 #[repr(C)]
 pub struct InputEventMetadataAbi<A: BindingAbi> {
@@ -3629,6 +3683,8 @@ impl VmAggregateCodec for InputEventMetadataAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputEventMetadataAbi<VmAbi> {}
 
 /// Value type for InputEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3779,6 +3835,8 @@ impl VmAbiCodec for InputGamepadBatteryStatus {
     }
 }
 
+impl VmCollectionElement for InputGamepadBatteryStatus {}
+
 /// ABI struct for InputGamepadButtonState.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -3873,6 +3931,8 @@ impl VmAbiCodec for InputGamepadButtonState {
     }
 }
 
+impl VmCollectionElement for InputGamepadButtonState {}
+
 /// ABI struct for InputGamepadEvent.
 #[repr(C)]
 pub struct InputGamepadEventAbi<A: BindingAbi> {
@@ -3964,6 +4024,8 @@ impl VmAggregateCodec for InputGamepadEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputGamepadEventAbi<VmAbi> {}
 
 /// Value type for InputGamepadEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4126,6 +4188,8 @@ impl VmAbiCodec for InputGamepadEventPayload {
     }
 }
 
+impl VmCollectionElement for InputGamepadEventPayload {}
+
 /// ABI struct for InputGamepadState.
 #[repr(C)]
 pub struct InputGamepadStateAbi<A: BindingAbi> {
@@ -4277,6 +4341,8 @@ impl VmAggregateCodec for InputGamepadStateAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputGamepadStateAbi<VmAbi> {}
 
 /// Value type for InputGamepadState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4547,6 +4613,8 @@ impl VmAbiCodec for InputGamepadTouchState {
     }
 }
 
+impl VmCollectionElement for InputGamepadTouchState {}
+
 /// ABI struct for InputHapticEffectParameters.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -4660,6 +4728,8 @@ impl VmAbiCodec for InputHapticEffectParameters {
     }
 }
 
+impl VmCollectionElement for InputHapticEffectParameters {}
+
 /// ABI struct for InputKeyEvent.
 #[repr(C)]
 pub struct InputKeyEventAbi<A: BindingAbi> {
@@ -4750,6 +4820,8 @@ impl VmAggregateCodec for InputKeyEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputKeyEventAbi<VmAbi> {}
 
 /// Value type for InputKeyEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4920,6 +4992,8 @@ impl VmAbiCodec for InputKeyEventPayload {
     }
 }
 
+impl VmCollectionElement for InputKeyEventPayload {}
+
 /// ABI struct for InputKeyboardState.
 #[repr(C)]
 pub struct InputKeyboardStateAbi<A: BindingAbi> {
@@ -5022,6 +5096,8 @@ impl VmAggregateCodec for InputKeyboardStateAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputKeyboardStateAbi<VmAbi> {}
 
 /// Value type for InputKeyboardState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5198,6 +5274,8 @@ impl VmAggregateCodec for InputMonitorChangeEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for InputMonitorChangeEventAbi<VmAbi> {}
+
 /// Value type for InputMonitorChangeEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputMonitorChangeEventValue {
@@ -5344,6 +5422,8 @@ impl VmAggregateCodec for InputMonitorConnectEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for InputMonitorConnectEventAbi<VmAbi> {}
+
 /// Value type for InputMonitorConnectEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputMonitorConnectEventValue {
@@ -5489,6 +5569,8 @@ impl VmAggregateCodec for InputMonitorDisconnectEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputMonitorDisconnectEventAbi<VmAbi> {}
 
 /// Value type for InputMonitorDisconnectEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5645,6 +5727,8 @@ impl VmAggregateCodec for InputMonitorEventMetadataAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputMonitorEventMetadataAbi<VmAbi> {}
 
 /// Value type for InputMonitorEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5835,6 +5919,8 @@ impl VmAbiCodec for InputPenState {
     }
 }
 
+impl VmCollectionElement for InputPenState {}
+
 /// ABI struct for InputPointerButtonEvent.
 #[repr(C)]
 pub struct InputPointerButtonEventAbi<A: BindingAbi> {
@@ -5927,6 +6013,8 @@ impl VmAggregateCodec for InputPointerButtonEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputPointerButtonEventAbi<VmAbi> {}
 
 /// Value type for InputPointerButtonEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6107,6 +6195,8 @@ impl VmAbiCodec for InputPointerButtonEventPayload {
     }
 }
 
+impl VmCollectionElement for InputPointerButtonEventPayload {}
+
 /// ABI struct for InputPointerMotionEvent.
 #[repr(C)]
 pub struct InputPointerMotionEventAbi<A: BindingAbi> {
@@ -6199,6 +6289,8 @@ impl VmAggregateCodec for InputPointerMotionEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputPointerMotionEventAbi<VmAbi> {}
 
 /// Value type for InputPointerMotionEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6367,6 +6459,8 @@ impl VmAbiCodec for InputPointerMotionEventPayload {
     }
 }
 
+impl VmCollectionElement for InputPointerMotionEventPayload {}
+
 /// ABI struct for InputPointerState.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -6472,6 +6566,8 @@ impl VmAbiCodec for InputPointerState {
     }
 }
 
+impl VmCollectionElement for InputPointerState {}
+
 /// ABI struct for InputRawHidReport.
 #[repr(C)]
 pub struct InputRawHidReportAbi<A: BindingAbi> {
@@ -6558,6 +6654,8 @@ impl VmAggregateCodec for InputRawHidReportAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputRawHidReportAbi<VmAbi> {}
 
 /// Value type for InputRawHidReport.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6713,6 +6811,8 @@ impl VmAggregateCodec for InputScrollEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputScrollEventAbi<VmAbi> {}
 
 /// Value type for InputScrollEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6880,6 +6980,8 @@ impl VmAbiCodec for InputScrollEventPayload {
     }
 }
 
+impl VmCollectionElement for InputScrollEventPayload {}
+
 /// ABI struct for InputSensorConfig.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -6980,6 +7082,8 @@ impl VmAbiCodec for InputSensorConfig {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for InputSensorConfig {}
 
 /// ABI struct for InputSensorDescriptor.
 #[repr(C)]
@@ -7089,6 +7193,8 @@ impl VmAbiCodec for InputSensorDescriptor {
     }
 }
 
+impl VmCollectionElement for InputSensorDescriptor {}
+
 /// ABI struct for InputSensorEffectiveConfig.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -7190,6 +7296,8 @@ impl VmAbiCodec for InputSensorEffectiveConfig {
     }
 }
 
+impl VmCollectionElement for InputSensorEffectiveConfig {}
+
 /// ABI struct for InputSensorEvent.
 #[repr(C)]
 pub struct InputSensorEventAbi<A: BindingAbi> {
@@ -7281,6 +7389,8 @@ impl VmAggregateCodec for InputSensorEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputSensorEventAbi<VmAbi> {}
 
 /// Value type for InputSensorEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7455,6 +7565,8 @@ impl VmAbiCodec for InputSensorEventPayload {
     }
 }
 
+impl VmCollectionElement for InputSensorEventPayload {}
+
 /// ABI struct for InputSensorSample.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -7570,6 +7682,8 @@ impl VmAbiCodec for InputSensorSample {
     }
 }
 
+impl VmCollectionElement for InputSensorSample {}
+
 /// ABI struct for InputTextEvent.
 #[repr(C)]
 pub struct InputTextEventAbi<A: BindingAbi> {
@@ -7660,6 +7774,8 @@ impl VmAggregateCodec for InputTextEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputTextEventAbi<VmAbi> {}
 
 /// Value type for InputTextEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7790,6 +7906,8 @@ impl VmAggregateCodec for InputTextEventPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputTextEventPayloadAbi<VmAbi> {}
 
 /// Value type for InputTextEventPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7940,6 +8058,8 @@ impl VmAbiCodec for InputTextInputArea {
     }
 }
 
+impl VmCollectionElement for InputTextInputArea {}
+
 /// ABI struct for InputTouchContactState.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -8065,6 +8185,8 @@ impl VmAbiCodec for InputTouchContactState {
     }
 }
 
+impl VmCollectionElement for InputTouchContactState {}
+
 /// ABI struct for InputTouchEvent.
 #[repr(C)]
 pub struct InputTouchEventAbi<A: BindingAbi> {
@@ -8155,6 +8277,8 @@ impl VmAggregateCodec for InputTouchEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputTouchEventAbi<VmAbi> {}
 
 /// Value type for InputTouchEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8320,6 +8444,8 @@ impl VmAbiCodec for InputTouchEventPayload {
     }
 }
 
+impl VmCollectionElement for InputTouchEventPayload {}
+
 /// ABI struct for InputTouchState.
 #[repr(C)]
 pub struct InputTouchStateAbi<A: BindingAbi> {
@@ -8413,6 +8539,8 @@ impl VmAggregateCodec for InputTouchStateAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InputTouchStateAbi<VmAbi> {}
 
 /// Value type for InputTouchState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8578,6 +8706,8 @@ impl VmAbiCodec for InputWindowTarget {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for InputWindowTarget {}
 
 /// Replay struct for InputCompositionEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

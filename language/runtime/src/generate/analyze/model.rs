@@ -264,6 +264,22 @@ pub(crate) enum BindingType {
     },
 }
 
+impl BindingType {
+    /// Report whether this binding type is one raw byte.
+    pub(crate) fn is_byte_element(&self) -> bool {
+        matches!(self, Self::UInt(8))
+    }
+
+    /// Report whether this binding type is a byte collection.
+    pub(crate) fn is_byte_collection(&self) -> bool {
+        match self {
+            Self::Slice(inner) | Self::Array(inner) => inner.is_byte_element(),
+            Self::Optional(inner) => inner.is_byte_collection(),
+            _ => false,
+        }
+    }
+}
+
 /// Constant declaration metadata extracted from builtin sources.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ConstantEntry {

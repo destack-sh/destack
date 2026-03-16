@@ -22,8 +22,8 @@ use crate::platform::fs::{
     vm as fs_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
 use destack_vm as vm;
 
@@ -72,10 +72,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_access(self.call_context, context, path, mode)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_access(self.call_context, path, mode) }
-            }
+                fs_native::destack_fs_access(self.call_context, path, mode)
+            },
         }
     }
 
@@ -108,10 +108,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_accessat(self.call_context, context, dir, path, mode, flags)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_accessat(self.call_context, dir, path, mode, flags) }
-            }
+                fs_native::destack_fs_accessat(self.call_context, dir, path, mode, flags)
+            },
         }
     }
 
@@ -142,10 +142,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_chmod(self.call_context, context, path, mode)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_chmod(self.call_context, path, mode) }
-            }
+                fs_native::destack_fs_chmod(self.call_context, path, mode)
+            },
         }
     }
 
@@ -177,10 +177,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_chown(self.call_context, context, path, uid, gid)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_chown(self.call_context, path, uid, gid) }
-            }
+                fs_native::destack_fs_chown(self.call_context, path, uid, gid)
+            },
         }
     }
 
@@ -241,10 +241,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_fchmodat(self.call_context, context, dir, path, mode, flags)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_fchmodat(self.call_context, dir, path, mode, flags) }
-            }
+                fs_native::destack_fs_fchmodat(self.call_context, dir, path, mode, flags)
+            },
         }
     }
 
@@ -307,12 +307,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_fchownat(self.call_context, context, dir, path, uid, gid, flags)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe {
-                    fs_native::destack_fs_fchownat(self.call_context, dir, path, uid, gid, flags)
-                }
-            }
+                fs_native::destack_fs_fchownat(self.call_context, dir, path, uid, gid, flags)
+            },
         }
     }
 
@@ -377,10 +375,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_lutimes(self.call_context, context, path, atimens, mtimens)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_lutimes(self.call_context, path, atimens, mtimens) }
-            }
+                fs_native::destack_fs_lutimes(self.call_context, path, atimens, mtimens)
+            },
         }
     }
 
@@ -422,19 +420,17 @@ impl<'call> FsHarnessContext<'call> {
                     flags,
                 )
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe {
-                    fs_native::destack_fs_utimensat(
-                        self.call_context,
-                        dir,
-                        path,
-                        atimens,
-                        mtimens,
-                        flags,
-                    )
-                }
-            }
+                fs_native::destack_fs_utimensat(
+                    self.call_context,
+                    dir,
+                    path,
+                    atimens,
+                    mtimens,
+                    flags,
+                )
+            },
         }
     }
 
@@ -466,10 +462,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_utimes(self.call_context, context, path, atimens, mtimens)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_utimes(self.call_context, path, atimens, mtimens) }
-            }
+                fs_native::destack_fs_utimes(self.call_context, path, atimens, mtimens)
+            },
         }
     }
 
@@ -564,10 +560,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_mkdir(self.call_context, context, path, mode)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_mkdir(self.call_context, path, mode) }
-            }
+                fs_native::destack_fs_mkdir(self.call_context, path, mode)
+            },
         }
     }
 
@@ -599,21 +595,22 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_mkdirat(self.call_context, context, dir, path, mode)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_mkdirat(self.call_context, dir, path, mode) }
-            }
+                fs_native::destack_fs_mkdirat(self.call_context, dir, path, mode)
+            },
         }
     }
 
     /// Create a temporary directory.
     ///
-    /// Create a unique temporary directory from the template in the platform temp directory.
+    /// Create a unique temporary directory by replacing the trailing `XXXXXX` suffix in `template`.
+    /// The resulting directory is created at the caller-supplied path, not in an implicit host temp root.
     /// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses mkdtemp(3) on Unix and GetTempPathW plus CreateDirectoryW on Windows.
+    /// Uses mkdtemp(3) on Unix and a CreateDirectoryW-based template loop on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -815,10 +812,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_rmdir(self.call_context, context, path)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_rmdir(self.call_context, path) }
-            }
+                fs_native::destack_fs_rmdir(self.call_context, path)
+            },
         }
     }
 
@@ -1889,7 +1886,7 @@ impl<'call> FsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses sendfile(2) on Unix variants and TransmitFile or copy fallback on Windows.
+    /// Uses sendfile(2) on Unix variants and TransmitFile with userspace fallback on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -2212,10 +2209,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_truncate(self.call_context, context, path, size)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_truncate(self.call_context, path, size) }
-            }
+                fs_native::destack_fs_truncate(self.call_context, path, size)
+            },
         }
     }
 
@@ -2384,10 +2381,10 @@ impl<'call> FsHarnessContext<'call> {
                 let mapping = mapping.into_vm("mapping")?;
                 fs_vm::destack_fs_madvise(self.call_context, context, mapping, advice)
             }
-            None => {
+            None => unsafe {
                 let mapping = mapping.into_native("mapping")?;
-                unsafe { fs_native::destack_fs_madvise(self.call_context, mapping, advice) }
-            }
+                fs_native::destack_fs_madvise(self.call_context, mapping, advice)
+            },
         }
     }
 
@@ -2526,10 +2523,10 @@ impl<'call> FsHarnessContext<'call> {
                 let mapping = mapping.into_vm("mapping")?;
                 fs_vm::destack_fs_mprotect(self.call_context, context, mapping, prot)
             }
-            None => {
+            None => unsafe {
                 let mapping = mapping.into_native("mapping")?;
-                unsafe { fs_native::destack_fs_mprotect(self.call_context, mapping, prot) }
-            }
+                fs_native::destack_fs_mprotect(self.call_context, mapping, prot)
+            },
         }
     }
 
@@ -2560,10 +2557,10 @@ impl<'call> FsHarnessContext<'call> {
                 let mapping = mapping.into_vm("mapping")?;
                 fs_vm::destack_fs_msync(self.call_context, context, mapping, flags)
             }
-            None => {
+            None => unsafe {
                 let mapping = mapping.into_native("mapping")?;
-                unsafe { fs_native::destack_fs_msync(self.call_context, mapping, flags) }
-            }
+                fs_native::destack_fs_msync(self.call_context, mapping, flags)
+            },
         }
     }
 
@@ -2593,21 +2590,21 @@ impl<'call> FsHarnessContext<'call> {
                 let mapping = mapping.into_vm("mapping")?;
                 fs_vm::destack_fs_munmap(self.call_context, context, mapping)
             }
-            None => {
+            None => unsafe {
                 let mapping = mapping.into_native("mapping")?;
-                unsafe { fs_native::destack_fs_munmap(self.call_context, mapping) }
-            }
+                fs_native::destack_fs_munmap(self.call_context, mapping)
+            },
         }
     }
 
     /// Copy a file.
     ///
-    /// Copy file contents and requested metadata behavior from source path to destination path.
-    /// Copy flags control overwrite behavior and host fast-copy strategies.
+    /// Copy file contents from source path to destination path.
+    /// Copy flags control overwrite behavior, and the destination mode follows host copy semantics.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-    /// Uses copy_file_range/copy fallback on Unix and CopyFileW/CopyFile2 on Windows.
+    /// Uses copy_file_range/copy fallback on Unix and CopyFileW on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -2629,11 +2626,11 @@ impl<'call> FsHarnessContext<'call> {
                 let to = to.into_vm("to")?;
                 fs_vm::destack_fs_copyfile(self.call_context, context, from, to, flags)
             }
-            None => {
+            None => unsafe {
                 let from = from.into_native("from")?;
                 let to = to.into_native("to")?;
-                unsafe { fs_native::destack_fs_copyfile(self.call_context, from, to, flags) }
-            }
+                fs_native::destack_fs_copyfile(self.call_context, from, to, flags)
+            },
         }
     }
 
@@ -2665,11 +2662,11 @@ impl<'call> FsHarnessContext<'call> {
                 let newpath = newpath.into_vm("newpath")?;
                 fs_vm::destack_fs_link(self.call_context, context, existingpath, newpath)
             }
-            None => {
+            None => unsafe {
                 let existingpath = existingpath.into_native("existingpath")?;
                 let newpath = newpath.into_native("newpath")?;
-                unsafe { fs_native::destack_fs_link(self.call_context, existingpath, newpath) }
-            }
+                fs_native::destack_fs_link(self.call_context, existingpath, newpath)
+            },
         }
     }
 
@@ -2712,20 +2709,18 @@ impl<'call> FsHarnessContext<'call> {
                     flags,
                 )
             }
-            None => {
+            None => unsafe {
                 let existingpath = existingpath.into_native("existingpath")?;
                 let newpath = newpath.into_native("newpath")?;
-                unsafe {
-                    fs_native::destack_fs_linkat(
-                        self.call_context,
-                        existingdir,
-                        existingpath,
-                        newdir,
-                        newpath,
-                        flags,
-                    )
-                }
-            }
+                fs_native::destack_fs_linkat(
+                    self.call_context,
+                    existingdir,
+                    existingpath,
+                    newdir,
+                    newpath,
+                    flags,
+                )
+            },
         }
     }
 
@@ -2756,10 +2751,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_mkfifo(self.call_context, context, path, mode)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_mkfifo(self.call_context, path, mode) }
-            }
+                fs_native::destack_fs_mkfifo(self.call_context, path, mode)
+            },
         }
     }
 
@@ -2791,10 +2786,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_mkfifoat(self.call_context, context, dir, path, mode)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_mkfifoat(self.call_context, dir, path, mode) }
-            }
+                fs_native::destack_fs_mkfifoat(self.call_context, dir, path, mode)
+            },
         }
     }
 
@@ -2826,10 +2821,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_mknod(self.call_context, context, path, mode, device)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_mknod(self.call_context, path, mode, device) }
-            }
+                fs_native::destack_fs_mknod(self.call_context, path, mode, device)
+            },
         }
     }
 
@@ -2862,10 +2857,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_mknodat(self.call_context, context, dir, path, mode, device)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_mknodat(self.call_context, dir, path, mode, device) }
-            }
+                fs_native::destack_fs_mknodat(self.call_context, dir, path, mode, device)
+            },
         }
     }
 
@@ -3020,11 +3015,11 @@ impl<'call> FsHarnessContext<'call> {
                 let to = to.into_vm("to")?;
                 fs_vm::destack_fs_rename(self.call_context, context, from, to)
             }
-            None => {
+            None => unsafe {
                 let from = from.into_native("from")?;
                 let to = to.into_native("to")?;
-                unsafe { fs_native::destack_fs_rename(self.call_context, from, to) }
-            }
+                fs_native::destack_fs_rename(self.call_context, from, to)
+            },
         }
     }
 
@@ -3058,13 +3053,11 @@ impl<'call> FsHarnessContext<'call> {
                 let to = to.into_vm("to")?;
                 fs_vm::destack_fs_renameat(self.call_context, context, fromdir, from, todir, to)
             }
-            None => {
+            None => unsafe {
                 let from = from.into_native("from")?;
                 let to = to.into_native("to")?;
-                unsafe {
-                    fs_native::destack_fs_renameat(self.call_context, fromdir, from, todir, to)
-                }
-            }
+                fs_native::destack_fs_renameat(self.call_context, fromdir, from, todir, to)
+            },
         }
     }
 
@@ -3107,20 +3100,11 @@ impl<'call> FsHarnessContext<'call> {
                     flags,
                 )
             }
-            None => {
+            None => unsafe {
                 let from = from.into_native("from")?;
                 let to = to.into_native("to")?;
-                unsafe {
-                    fs_native::destack_fs_renameat2(
-                        self.call_context,
-                        fromdir,
-                        from,
-                        todir,
-                        to,
-                        flags,
-                    )
-                }
-            }
+                fs_native::destack_fs_renameat2(self.call_context, fromdir, from, todir, to, flags)
+            },
         }
     }
 
@@ -3153,11 +3137,11 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_symlink(self.call_context, context, target, path, kind)
             }
-            None => {
+            None => unsafe {
                 let target = target.into_native("target")?;
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_symlink(self.call_context, target, path, kind) }
-            }
+                fs_native::destack_fs_symlink(self.call_context, target, path, kind)
+            },
         }
     }
 
@@ -3191,13 +3175,11 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_symlinkat(self.call_context, context, target, dir, path, kind)
             }
-            None => {
+            None => unsafe {
                 let target = target.into_native("target")?;
                 let path = path.into_native("path")?;
-                unsafe {
-                    fs_native::destack_fs_symlinkat(self.call_context, target, dir, path, kind)
-                }
-            }
+                fs_native::destack_fs_symlinkat(self.call_context, target, dir, path, kind)
+            },
         }
     }
 
@@ -3227,10 +3209,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_unlink(self.call_context, context, path)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_unlink(self.call_context, path) }
-            }
+                fs_native::destack_fs_unlink(self.call_context, path)
+            },
         }
     }
 
@@ -3262,10 +3244,10 @@ impl<'call> FsHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 fs_vm::destack_fs_unlinkat(self.call_context, context, dir, path, flags)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { fs_native::destack_fs_unlinkat(self.call_context, dir, path, flags) }
-            }
+                fs_native::destack_fs_unlinkat(self.call_context, dir, path, flags)
+            },
         }
     }
 
@@ -3919,10 +3901,10 @@ impl<'call> FsHarnessContext<'call> {
                 let name = name.into_vm("name")?;
                 fs_vm::destack_fs_fremovexattr(self.call_context, context, handle, name)
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
-                unsafe { fs_native::destack_fs_fremovexattr(self.call_context, handle, name) }
-            }
+                fs_native::destack_fs_fremovexattr(self.call_context, handle, name)
+            },
         }
     }
 
@@ -3953,10 +3935,10 @@ impl<'call> FsHarnessContext<'call> {
                 let name = name.into_vm("name")?;
                 fs_vm::destack_fs_fremovexattr_bytes(self.call_context, context, handle, name)
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
-                unsafe { fs_native::destack_fs_fremovexattr_bytes(self.call_context, handle, name) }
-            }
+                fs_native::destack_fs_fremovexattr_bytes(self.call_context, handle, name)
+            },
         }
     }
 
@@ -3997,19 +3979,17 @@ impl<'call> FsHarnessContext<'call> {
                     flags,
                 )
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
                 let argument_value = argument_value.into_native("argument_value")?;
-                unsafe {
-                    fs_native::destack_fs_fsetxattr(
-                        self.call_context,
-                        handle,
-                        name,
-                        argument_value,
-                        flags,
-                    )
-                }
-            }
+                fs_native::destack_fs_fsetxattr(
+                    self.call_context,
+                    handle,
+                    name,
+                    argument_value,
+                    flags,
+                )
+            },
         }
     }
 
@@ -4050,19 +4030,17 @@ impl<'call> FsHarnessContext<'call> {
                     flags,
                 )
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
                 let argument_value = argument_value.into_native("argument_value")?;
-                unsafe {
-                    fs_native::destack_fs_fsetxattr_bytes(
-                        self.call_context,
-                        handle,
-                        name,
-                        argument_value,
-                        flags,
-                    )
-                }
-            }
+                fs_native::destack_fs_fsetxattr_bytes(
+                    self.call_context,
+                    handle,
+                    name,
+                    argument_value,
+                    flags,
+                )
+            },
         }
     }
 
@@ -4447,11 +4425,11 @@ impl<'call> FsHarnessContext<'call> {
                 let name = name.into_vm("name")?;
                 fs_vm::destack_fs_lremovexattr(self.call_context, context, path, name)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
                 let name = name.into_native("name")?;
-                unsafe { fs_native::destack_fs_lremovexattr(self.call_context, path, name) }
-            }
+                fs_native::destack_fs_lremovexattr(self.call_context, path, name)
+            },
         }
     }
 
@@ -4483,11 +4461,11 @@ impl<'call> FsHarnessContext<'call> {
                 let name = name.into_vm("name")?;
                 fs_vm::destack_fs_lremovexattr_bytes(self.call_context, context, path, name)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
                 let name = name.into_native("name")?;
-                unsafe { fs_native::destack_fs_lremovexattr_bytes(self.call_context, path, name) }
-            }
+                fs_native::destack_fs_lremovexattr_bytes(self.call_context, path, name)
+            },
         }
     }
 
@@ -4529,20 +4507,18 @@ impl<'call> FsHarnessContext<'call> {
                     flags,
                 )
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
                 let name = name.into_native("name")?;
                 let argument_value = argument_value.into_native("argument_value")?;
-                unsafe {
-                    fs_native::destack_fs_lsetxattr(
-                        self.call_context,
-                        path,
-                        name,
-                        argument_value,
-                        flags,
-                    )
-                }
-            }
+                fs_native::destack_fs_lsetxattr(
+                    self.call_context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
+                )
+            },
         }
     }
 
@@ -4584,20 +4560,18 @@ impl<'call> FsHarnessContext<'call> {
                     flags,
                 )
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
                 let name = name.into_native("name")?;
                 let argument_value = argument_value.into_native("argument_value")?;
-                unsafe {
-                    fs_native::destack_fs_lsetxattr_bytes(
-                        self.call_context,
-                        path,
-                        name,
-                        argument_value,
-                        flags,
-                    )
-                }
-            }
+                fs_native::destack_fs_lsetxattr_bytes(
+                    self.call_context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
+                )
+            },
         }
     }
 
@@ -4629,11 +4603,11 @@ impl<'call> FsHarnessContext<'call> {
                 let name = name.into_vm("name")?;
                 fs_vm::destack_fs_removexattr(self.call_context, context, path, name)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
                 let name = name.into_native("name")?;
-                unsafe { fs_native::destack_fs_removexattr(self.call_context, path, name) }
-            }
+                fs_native::destack_fs_removexattr(self.call_context, path, name)
+            },
         }
     }
 
@@ -4665,11 +4639,11 @@ impl<'call> FsHarnessContext<'call> {
                 let name = name.into_vm("name")?;
                 fs_vm::destack_fs_removexattr_bytes(self.call_context, context, path, name)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
                 let name = name.into_native("name")?;
-                unsafe { fs_native::destack_fs_removexattr_bytes(self.call_context, path, name) }
-            }
+                fs_native::destack_fs_removexattr_bytes(self.call_context, path, name)
+            },
         }
     }
 
@@ -4711,20 +4685,12 @@ impl<'call> FsHarnessContext<'call> {
                     flags,
                 )
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
                 let name = name.into_native("name")?;
                 let argument_value = argument_value.into_native("argument_value")?;
-                unsafe {
-                    fs_native::destack_fs_setxattr(
-                        self.call_context,
-                        path,
-                        name,
-                        argument_value,
-                        flags,
-                    )
-                }
-            }
+                fs_native::destack_fs_setxattr(self.call_context, path, name, argument_value, flags)
+            },
         }
     }
 
@@ -4766,20 +4732,18 @@ impl<'call> FsHarnessContext<'call> {
                     flags,
                 )
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
                 let name = name.into_native("name")?;
                 let argument_value = argument_value.into_native("argument_value")?;
-                unsafe {
-                    fs_native::destack_fs_setxattr_bytes(
-                        self.call_context,
-                        path,
-                        name,
-                        argument_value,
-                        flags,
-                    )
-                }
-            }
+                fs_native::destack_fs_setxattr_bytes(
+                    self.call_context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
+                )
+            },
         }
     }
 }

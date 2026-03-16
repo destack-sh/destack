@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, security as platform_security,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, security as platform_security,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -52,6 +52,8 @@ impl VmValueCodec for SecurityPolicyMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for SecurityPolicyMode {}
 
 /// Value type for SecurityPolicyMode.
 pub type SecurityPolicyModeValue = SecurityPolicyMode;
@@ -164,6 +166,8 @@ impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for SecurityPolicyRuleAbi<VmAbi> {}
 
 /// Value type for SecurityPolicyRule.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

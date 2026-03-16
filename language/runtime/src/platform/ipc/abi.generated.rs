@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, ipc as platform_ipc, resource, resource as platform_resource,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, ipc as platform_ipc, resource, resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -37,6 +37,8 @@ impl VmValueCodec for PipeHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for PipeHandle {}
 
 /// Value type for PipeHandle.
 pub type PipeHandleValue = PipeHandle;
@@ -91,6 +93,8 @@ impl VmValueCodec for ResourceId {
     }
 }
 
+impl VmCollectionElement for ResourceId {}
+
 /// Value type for ResourceId.
 pub type ResourceIdValue = ResourceId;
 
@@ -143,6 +147,8 @@ impl VmValueCodec for TransferredHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for TransferredHandle {}
 
 /// Value type for TransferredHandle.
 pub type TransferredHandleValue = TransferredHandle;
@@ -266,6 +272,8 @@ impl VmAbiCodec for MessageQueueReceive {
     }
 }
 
+impl VmCollectionElement for MessageQueueReceive {}
+
 /// ABI struct for PipePair.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -356,6 +364,8 @@ impl VmAbiCodec for PipePair {
     }
 }
 
+impl VmCollectionElement for PipePair {}
+
 /// ABI struct for SharedMemoryMapping.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -444,6 +454,8 @@ impl VmAbiCodec for SharedMemoryMapping {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for SharedMemoryMapping {}
 
 /// ABI struct for UnixPeerCredentials.
 #[repr(C)]
@@ -539,6 +551,8 @@ impl VmAbiCodec for UnixPeerCredentials {
     }
 }
 
+impl VmCollectionElement for UnixPeerCredentials {}
+
 /// ABI struct for UnixReceiveAncillary.
 #[repr(C)]
 pub struct UnixReceiveAncillaryAbi<A: BindingAbi> {
@@ -632,6 +646,8 @@ impl VmAggregateCodec for UnixReceiveAncillaryAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for UnixReceiveAncillaryAbi<VmAbi> {}
 
 /// Value type for UnixReceiveAncillary.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

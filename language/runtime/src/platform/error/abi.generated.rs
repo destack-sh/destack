@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, error as platform_error,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, error as platform_error,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -331,6 +331,8 @@ impl VmValueCodec for PlatformErrorCode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for PlatformErrorCode {}
 
 /// Value type for PlatformErrorCode.
 pub type PlatformErrorCodeValue = PlatformErrorCode;
@@ -677,6 +679,8 @@ impl VmAggregateCodec for PlatformErrorContextAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PlatformErrorContextAbi<VmAbi> {}
 
 /// Value type for PlatformErrorContext.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1154,6 +1158,8 @@ impl VmAggregateCodec for PlatformPathPayloadAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformPathPayloadAbi<VmAbi> {}
+
 /// Value type for PlatformPathPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PlatformPathPayloadValue {
@@ -1407,6 +1413,8 @@ impl VmAggregateCodec for PlatformSystemSourceAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PlatformSystemSourceAbi<VmAbi> {}
 
 /// Value type for PlatformSystemSource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1691,6 +1699,8 @@ impl VmAggregateCodec for PlatformErrorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformErrorAbi<VmAbi> {}
+
 /// Value type for PlatformError.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorValue {
@@ -1878,6 +1888,8 @@ impl VmAggregateCodec for PlatformErrorContextAudioAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformErrorContextAudioAbi<VmAbi> {}
+
 /// Value type for PlatformErrorContextAudio.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextAudioValue {
@@ -2053,6 +2065,8 @@ impl VmAggregateCodec for PlatformErrorContextDeviceAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PlatformErrorContextDeviceAbi<VmAbi> {}
 
 /// Value type for PlatformErrorContextDevice.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2237,6 +2251,8 @@ impl VmAggregateCodec for PlatformErrorContextDisplayAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformErrorContextDisplayAbi<VmAbi> {}
+
 /// Value type for PlatformErrorContextDisplay.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextDisplayValue {
@@ -2403,6 +2419,8 @@ impl VmAggregateCodec for PlatformErrorContextFfiAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PlatformErrorContextFfiAbi<VmAbi> {}
 
 /// Value type for PlatformErrorContextFfi.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2588,6 +2606,8 @@ impl VmAggregateCodec for PlatformErrorContextGenericAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformErrorContextGenericAbi<VmAbi> {}
+
 /// Value type for PlatformErrorContextGeneric.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextGenericValue {
@@ -2770,6 +2790,8 @@ impl VmAggregateCodec for PlatformErrorContextGpuAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PlatformErrorContextGpuAbi<VmAbi> {}
 
 /// Value type for PlatformErrorContextGpu.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2960,6 +2982,8 @@ impl VmAggregateCodec for PlatformErrorContextIoAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PlatformErrorContextIoAbi<VmAbi> {}
 
 /// Value type for PlatformErrorContextIo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3169,6 +3193,8 @@ impl VmAggregateCodec for PlatformErrorContextIoDriverAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformErrorContextIoDriverAbi<VmAbi> {}
+
 /// Value type for PlatformErrorContextIoDriver.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextIoDriverValue {
@@ -3346,6 +3372,8 @@ impl VmAggregateCodec for PlatformErrorContextIpcAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PlatformErrorContextIpcAbi<VmAbi> {}
 
 /// Value type for PlatformErrorContextIpc.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3539,6 +3567,8 @@ impl VmAggregateCodec for PlatformErrorContextNetAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformErrorContextNetAbi<VmAbi> {}
+
 /// Value type for PlatformErrorContextNet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextNetValue {
@@ -3728,6 +3758,8 @@ impl VmAggregateCodec for PlatformErrorContextProcessAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformErrorContextProcessAbi<VmAbi> {}
+
 /// Value type for PlatformErrorContextProcess.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextProcessValue {
@@ -3900,6 +3932,8 @@ impl VmAggregateCodec for PlatformErrorContextResourceAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PlatformErrorContextResourceAbi<VmAbi> {}
 
 /// Value type for PlatformErrorContextResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4080,6 +4114,8 @@ impl VmAggregateCodec for PlatformErrorContextSecurityAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformErrorContextSecurityAbi<VmAbi> {}
+
 /// Value type for PlatformErrorContextSecurity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextSecurityValue {
@@ -4249,6 +4285,8 @@ impl VmAggregateCodec for PlatformErrorContextThreadAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformErrorContextThreadAbi<VmAbi> {}
+
 /// Value type for PlatformErrorContextThread.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextThreadValue {
@@ -4405,6 +4443,8 @@ impl VmAggregateCodec for PlatformErrorContextTimerAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformErrorContextTimerAbi<VmAbi> {}
+
 /// Value type for PlatformErrorContextTimer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextTimerValue {
@@ -4552,6 +4592,8 @@ impl VmAggregateCodec for PlatformPathPayloadBytesAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformPathPayloadBytesAbi<VmAbi> {}
+
 /// Value type for PlatformPathPayloadBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformPathPayloadBytesValue {
@@ -4681,6 +4723,8 @@ impl VmAggregateCodec for PlatformPathPayloadUtf16Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PlatformPathPayloadUtf16Abi<VmAbi> {}
 
 /// Value type for PlatformPathPayloadUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4818,6 +4862,8 @@ impl VmAggregateCodec for PlatformSystemSourceEaiAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PlatformSystemSourceEaiAbi<VmAbi> {}
 
 /// Value type for PlatformSystemSourceEai.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4962,6 +5008,8 @@ impl VmAggregateCodec for PlatformSystemSourceErrnoAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformSystemSourceErrnoAbi<VmAbi> {}
+
 /// Value type for PlatformSystemSourceErrno.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformSystemSourceErrnoValue {
@@ -5104,6 +5152,8 @@ impl VmAggregateCodec for PlatformSystemSourceHResultAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PlatformSystemSourceHResultAbi<VmAbi> {}
 
 /// Value type for PlatformSystemSourceHResult.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5248,6 +5298,8 @@ impl VmAggregateCodec for PlatformSystemSourceOtherAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformSystemSourceOtherAbi<VmAbi> {}
+
 /// Value type for PlatformSystemSourceOther.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformSystemSourceOtherValue {
@@ -5391,6 +5443,8 @@ impl VmAggregateCodec for PlatformSystemSourceSignalAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PlatformSystemSourceSignalAbi<VmAbi> {}
+
 /// Value type for PlatformSystemSourceSignal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformSystemSourceSignalValue {
@@ -5533,6 +5587,8 @@ impl VmAggregateCodec for PlatformSystemSourceWinsockAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for PlatformSystemSourceWinsockAbi<VmAbi> {}
 
 /// Value type for PlatformSystemSourceWinsock.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

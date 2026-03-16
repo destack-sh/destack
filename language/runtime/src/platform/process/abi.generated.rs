@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, fs, fs as platform_fs, process as platform_process, resource,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, fs, fs as platform_fs, process as platform_process, resource,
     resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
@@ -38,6 +38,8 @@ impl VmValueCodec for ExecAtFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ExecAtFlags {}
 
 /// Value type for ExecAtFlags.
 pub type ExecAtFlagsValue = ExecAtFlags;
@@ -92,6 +94,8 @@ impl VmValueCodec for FileHandle {
     }
 }
 
+impl VmCollectionElement for FileHandle {}
+
 /// Value type for FileHandle.
 pub type FileHandleValue = FileHandle;
 
@@ -144,6 +148,8 @@ impl VmValueCodec for FileMode {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for FileMode {}
 
 /// Value type for FileMode.
 pub type FileModeValue = FileMode;
@@ -198,6 +204,8 @@ impl VmValueCodec for GroupId {
     }
 }
 
+impl VmCollectionElement for GroupId {}
+
 /// Value type for GroupId.
 pub type GroupIdValue = GroupId;
 
@@ -250,6 +258,8 @@ impl VmValueCodec for OpenFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for OpenFlags {}
 
 /// Value type for OpenFlags.
 pub type OpenFlagsValue = OpenFlags;
@@ -312,6 +322,8 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
+
+impl VmCollectionElement for PathBytesAbi<VmAbi> {}
 
 /// Value type for PathBytes.
 #[repr(transparent)]
@@ -388,6 +400,8 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PathUtf16Abi<VmAbi> {}
+
 /// Value type for PathUtf16.
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -454,6 +468,8 @@ impl VmValueCodec for PipeHandle {
     }
 }
 
+impl VmCollectionElement for PipeHandle {}
+
 /// Value type for PipeHandle.
 pub type PipeHandleValue = PipeHandle;
 
@@ -506,6 +522,8 @@ impl VmValueCodec for ProcessFdFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ProcessFdFlags {}
 
 /// Value type for ProcessFdFlags.
 pub type ProcessFdFlagsValue = ProcessFdFlags;
@@ -560,6 +578,8 @@ impl VmValueCodec for ProcessFdSignalFlags {
     }
 }
 
+impl VmCollectionElement for ProcessFdSignalFlags {}
+
 /// Value type for ProcessFdSignalFlags.
 pub type ProcessFdSignalFlagsValue = ProcessFdSignalFlags;
 
@@ -612,6 +632,8 @@ impl VmValueCodec for ProcessId {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ProcessId {}
 
 /// Value type for ProcessId.
 pub type ProcessIdValue = ProcessId;
@@ -666,6 +688,8 @@ impl VmValueCodec for ProcessLimitResource {
     }
 }
 
+impl VmCollectionElement for ProcessLimitResource {}
+
 /// Value type for ProcessLimitResource.
 pub type ProcessLimitResourceValue = ProcessLimitResource;
 
@@ -718,6 +742,8 @@ impl VmValueCodec for ProcessUnshareFlags {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ProcessUnshareFlags {}
 
 /// Value type for ProcessUnshareFlags.
 pub type ProcessUnshareFlagsValue = ProcessUnshareFlags;
@@ -772,6 +798,8 @@ impl VmValueCodec for ProcessWaitFlags {
     }
 }
 
+impl VmCollectionElement for ProcessWaitFlags {}
+
 /// Value type for ProcessWaitFlags.
 pub type ProcessWaitFlagsValue = ProcessWaitFlags;
 
@@ -824,6 +852,8 @@ impl VmValueCodec for ResourceId {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ResourceId {}
 
 /// Value type for ResourceId.
 pub type ResourceIdValue = ResourceId;
@@ -878,6 +908,8 @@ impl VmValueCodec for Signal {
     }
 }
 
+impl VmCollectionElement for Signal {}
+
 /// Value type for Signal.
 pub type SignalValue = Signal;
 
@@ -930,6 +962,8 @@ impl VmValueCodec for SignalFdFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for SignalFdFlags {}
 
 /// Value type for SignalFdFlags.
 pub type SignalFdFlagsValue = SignalFdFlags;
@@ -984,6 +1018,8 @@ impl VmValueCodec for SyscallFilterFlags {
     }
 }
 
+impl VmCollectionElement for SyscallFilterFlags {}
+
 /// Value type for SyscallFilterFlags.
 pub type SyscallFilterFlagsValue = SyscallFilterFlags;
 
@@ -1036,6 +1072,8 @@ impl VmValueCodec for UserId {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for UserId {}
 
 /// Value type for UserId.
 pub type UserIdValue = UserId;
@@ -1120,6 +1158,8 @@ impl VmValueCodec for ProcessNamespaceKind {
     }
 }
 
+impl VmCollectionElement for ProcessNamespaceKind {}
+
 /// Value type for ProcessNamespaceKind.
 pub type ProcessNamespaceKindValue = ProcessNamespaceKind;
 
@@ -1197,6 +1237,8 @@ impl VmValueCodec for ProcessSchedulerPolicy {
     }
 }
 
+impl VmCollectionElement for ProcessSchedulerPolicy {}
+
 /// Value type for ProcessSchedulerPolicy.
 pub type ProcessSchedulerPolicyValue = ProcessSchedulerPolicy;
 
@@ -1264,6 +1306,8 @@ impl VmValueCodec for SignalMaskHow {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for SignalMaskHow {}
 
 /// Value type for SignalMaskHow.
 pub type SignalMaskHowValue = SignalMaskHow;
@@ -1393,6 +1437,8 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for OsPathAbi<VmAbi> {}
 
 /// Value type for OsPath.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1583,6 +1629,8 @@ impl VmAggregateCodec for ProcessFdActionAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ProcessFdActionAbi<VmAbi> {}
 
 /// Value type for ProcessFdAction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1809,6 +1857,8 @@ impl VmAggregateCodec for ProcessStdioAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ProcessStdioAbi<VmAbi> {}
 
 /// Value type for ProcessStdio.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2076,6 +2126,8 @@ impl VmAggregateCodec for ProcessWaitStatusAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for ProcessWaitStatusAbi<VmAbi> {}
+
 /// Value type for ProcessWaitStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ProcessWaitStatusValue {
@@ -2306,6 +2358,8 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for OsPathBytesAbi<VmAbi> {}
+
 /// Value type for OsPathBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OsPathBytesValue {
@@ -2436,6 +2490,8 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for OsPathUtf16Abi<VmAbi> {}
+
 /// Value type for OsPathUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OsPathUtf16Value {
@@ -2564,6 +2620,8 @@ impl VmAggregateCodec for ProcessFdActionCloseAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ProcessFdActionCloseAbi<VmAbi> {}
 
 /// Value type for ProcessFdActionClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2698,6 +2756,8 @@ impl VmAggregateCodec for ProcessFdActionDup2Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ProcessFdActionDup2Abi<VmAbi> {}
 
 /// Value type for ProcessFdActionDup2.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2851,6 +2911,8 @@ impl VmAggregateCodec for ProcessFdActionOpenAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ProcessFdActionOpenAbi<VmAbi> {}
 
 /// Value type for ProcessFdActionOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3016,6 +3078,8 @@ impl VmAbiCodec for ProcessGroupIds {
     }
 }
 
+impl VmCollectionElement for ProcessGroupIds {}
+
 /// ABI struct for ProcessLimit.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -3104,6 +3168,8 @@ impl VmAbiCodec for ProcessLimit {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for ProcessLimit {}
 
 /// ABI struct for ProcessSchedulerConfig.
 #[repr(C)]
@@ -3203,6 +3269,8 @@ impl VmAbiCodec for ProcessSchedulerConfig {
     }
 }
 
+impl VmCollectionElement for ProcessSchedulerConfig {}
+
 /// ABI struct for ProcessSpawnOptions.
 #[repr(C)]
 pub struct ProcessSpawnOptionsAbi<A: BindingAbi> {
@@ -3291,6 +3359,8 @@ impl VmAggregateCodec for ProcessSpawnOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ProcessSpawnOptionsAbi<VmAbi> {}
 
 /// Value type for ProcessSpawnOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3438,6 +3508,8 @@ impl VmAggregateCodec for ProcessStdioDescriptorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for ProcessStdioDescriptorAbi<VmAbi> {}
+
 /// Value type for ProcessStdioDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessStdioDescriptorValue {
@@ -3568,6 +3640,8 @@ impl VmAggregateCodec for ProcessStdioFileAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for ProcessStdioFileAbi<VmAbi> {}
+
 /// Value type for ProcessStdioFile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessStdioFileValue {
@@ -3690,6 +3764,8 @@ impl VmAggregateCodec for ProcessStdioInheritAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for ProcessStdioInheritAbi<VmAbi> {}
+
 /// Value type for ProcessStdioInherit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessStdioInheritValue {
@@ -3805,6 +3881,8 @@ impl VmAggregateCodec for ProcessStdioNullAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ProcessStdioNullAbi<VmAbi> {}
 
 /// Value type for ProcessStdioNull.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3929,6 +4007,8 @@ impl VmAggregateCodec for ProcessStdioPipeAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ProcessStdioPipeAbi<VmAbi> {}
 
 /// Value type for ProcessStdioPipe.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4075,6 +4155,8 @@ impl VmAbiCodec for ProcessUserIds {
     }
 }
 
+impl VmCollectionElement for ProcessUserIds {}
+
 /// ABI struct for ProcessWaitContinuedStatus.
 #[repr(C)]
 pub struct ProcessWaitContinuedStatusAbi<A: BindingAbi> {
@@ -4152,6 +4234,8 @@ impl VmAggregateCodec for ProcessWaitContinuedStatusAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ProcessWaitContinuedStatusAbi<VmAbi> {}
 
 /// Value type for ProcessWaitContinuedStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4287,6 +4371,8 @@ impl VmAggregateCodec for ProcessWaitExitedStatusAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for ProcessWaitExitedStatusAbi<VmAbi> {}
+
 /// Value type for ProcessWaitExitedStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessWaitExitedStatusValue {
@@ -4421,6 +4507,8 @@ impl VmAggregateCodec for ProcessWaitRunningStatusAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ProcessWaitRunningStatusAbi<VmAbi> {}
 
 /// Value type for ProcessWaitRunningStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4560,6 +4648,8 @@ impl VmAggregateCodec for ProcessWaitSignaledStatusAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ProcessWaitSignaledStatusAbi<VmAbi> {}
 
 /// Value type for ProcessWaitSignaledStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4707,6 +4797,8 @@ impl VmAggregateCodec for ProcessWaitStoppedStatusAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for ProcessWaitStoppedStatusAbi<VmAbi> {}
+
 /// Value type for ProcessWaitStoppedStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessWaitStoppedStatusValue {
@@ -4852,6 +4944,8 @@ impl VmAbiCodec for SignalEvent {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for SignalEvent {}
 
 /// Replay struct for OsPathBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

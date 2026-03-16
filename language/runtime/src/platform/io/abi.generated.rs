@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, io as platform_io, resource, resource as platform_resource,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, io as platform_io, resource, resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -37,6 +37,8 @@ impl VmValueCodec for DescriptorControlCommand {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for DescriptorControlCommand {}
 
 /// Value type for DescriptorControlCommand.
 pub type DescriptorControlCommandValue = DescriptorControlCommand;
@@ -91,6 +93,8 @@ impl VmValueCodec for DescriptorControlFlags {
     }
 }
 
+impl VmCollectionElement for DescriptorControlFlags {}
+
 /// Value type for DescriptorControlFlags.
 pub type DescriptorControlFlagsValue = DescriptorControlFlags;
 
@@ -143,6 +147,8 @@ impl VmValueCodec for EventToken {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for EventToken {}
 
 /// Value type for EventToken.
 pub type EventTokenValue = EventToken;
@@ -197,6 +203,8 @@ impl VmValueCodec for PollInterest {
     }
 }
 
+impl VmCollectionElement for PollInterest {}
+
 /// Value type for PollInterest.
 pub type PollInterestValue = PollInterest;
 
@@ -249,6 +257,8 @@ impl VmValueCodec for ResourceId {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ResourceId {}
 
 /// Value type for ResourceId.
 pub type ResourceIdValue = ResourceId;
@@ -303,6 +313,8 @@ impl VmValueCodec for TimerFdFlags {
     }
 }
 
+impl VmCollectionElement for TimerFdFlags {}
+
 /// Value type for TimerFdFlags.
 pub type TimerFdFlagsValue = TimerFdFlags;
 
@@ -355,6 +367,8 @@ impl VmValueCodec for TimerFdSetFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for TimerFdSetFlags {}
 
 /// Value type for TimerFdSetFlags.
 pub type TimerFdSetFlagsValue = TimerFdSetFlags;
@@ -439,6 +453,8 @@ impl VmValueCodec for CompletionOperationKind {
     }
 }
 
+impl VmCollectionElement for CompletionOperationKind {}
+
 /// Value type for CompletionOperationKind.
 pub type CompletionOperationKindValue = CompletionOperationKind;
 
@@ -510,6 +526,8 @@ impl VmValueCodec for PollBackend {
     }
 }
 
+impl VmCollectionElement for PollBackend {}
+
 /// Value type for PollBackend.
 pub type PollBackendValue = PollBackend;
 
@@ -577,6 +595,8 @@ impl VmValueCodec for TimerFdClock {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for TimerFdClock {}
 
 /// Value type for TimerFdClock.
 pub type TimerFdClockValue = TimerFdClock;
@@ -705,6 +725,8 @@ impl VmAbiCodec for CompletionEvent {
     }
 }
 
+impl VmCollectionElement for CompletionEvent {}
+
 /// ABI struct for CompletionOperation.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -826,6 +848,8 @@ impl VmAbiCodec for CompletionOperation {
     }
 }
 
+impl VmCollectionElement for CompletionOperation {}
+
 /// ABI struct for DescriptorRequest.
 #[repr(C)]
 pub struct DescriptorRequestAbi<A: BindingAbi> {
@@ -913,6 +937,8 @@ impl VmAggregateCodec for DescriptorRequestAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DescriptorRequestAbi<VmAbi> {}
 
 /// Value type for DescriptorRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1054,6 +1080,8 @@ impl VmAggregateCodec for DescriptorResultAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DescriptorResultAbi<VmAbi> {}
 
 /// Value type for DescriptorResult.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1201,6 +1229,8 @@ impl VmAbiCodec for PollEvent {
     }
 }
 
+impl VmCollectionElement for PollEvent {}
+
 /// ABI struct for TimerFdSpec.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -1289,6 +1319,8 @@ impl VmAbiCodec for TimerFdSpec {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for TimerFdSpec {}
 
 /// ABI struct for UringFeatures.
 #[repr(C)]
@@ -1398,6 +1430,8 @@ impl VmAbiCodec for UringFeatures {
     }
 }
 
+impl VmCollectionElement for UringFeatures {}
+
 /// ABI struct for UringParameters.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -1492,6 +1526,8 @@ impl VmAbiCodec for UringParameters {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for UringParameters {}
 
 /// Replay struct for DescriptorRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -5,12 +5,15 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError as HarnessPlatformError;
 use crate::platform::memory::tests::MemoryHarnessContext;
 use crate::platform::memory::{
     MemoryAdvice, MemoryProtection, MemoryRange, MemoryRangeVm, MemoryRemapFlags,
     MemoryReserveFlags, ProtectedMemoryRange, ProtectedMemoryRangeVm, native as memory_native,
     vm as memory_vm,
+};
+use crate::platform::{
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
 use destack_vm as vm;
 
@@ -157,6 +160,60 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
+    /// Allocate one mapped range.
+    ///
+    /// Reserve and commit one virtual memory range in a single host operation.
+    /// Allocation-time policy flags such as large pages are applied here when supported.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses mmap allocation paths on Unix and VirtualAlloc reserve-plus-commit on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `memory.map`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_memory_allocate(
+        &mut self,
+        length: u64,
+        addresshint: u64,
+        protection: MemoryProtection,
+        flags: MemoryReserveFlags,
+    ) -> RuntimeResult<HarnessValue<ProtectedMemoryRange, ProtectedMemoryRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = memory_vm::destack_memory_allocate(
+                    self.call_context,
+                    context,
+                    length,
+                    addresshint,
+                    protection,
+                    flags,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<ProtectedMemoryRange>::uninit();
+                unsafe {
+                    memory_native::destack_memory_allocate(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        length,
+                        addresshint,
+                        protection,
+                        flags,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Commit one reserved range.
     ///
     /// Commit physical backing for one reserved address range.
@@ -230,6 +287,7 @@ impl<'call> MemoryHarnessContext<'call> {
     ///
     /// Release one virtual memory reservation back to the host allocator.
     /// Released ranges become invalid for future access by caller code.
+    /// On Windows the length must cover the full reserved allocation span.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -262,6 +320,7 @@ impl<'call> MemoryHarnessContext<'call> {
     ///
     /// Reserve one address range without committing physical backing.
     /// A zero address hint lets the host choose placement.
+    /// Explicit address hints follow host allocation-granularity alignment rules.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -300,60 +359,6 @@ impl<'call> MemoryHarnessContext<'call> {
                         out.as_mut_ptr(),
                         length,
                         addresshint,
-                        flags,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Allocate one mapped range.
-    ///
-    /// Reserve and commit one virtual memory range in a single host operation.
-    /// Allocation-time policy flags such as large pages are applied here when supported.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses mmap allocation paths on Unix and VirtualAlloc reserve-plus-commit on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.map`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_memory_allocate(
-        &mut self,
-        length: u64,
-        addresshint: u64,
-        protection: MemoryProtection,
-        flags: MemoryReserveFlags,
-    ) -> RuntimeResult<HarnessValue<ProtectedMemoryRange, ProtectedMemoryRangeVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = memory_vm::destack_memory_allocate(
-                    self.call_context,
-                    context,
-                    length,
-                    addresshint,
-                    protection,
-                    flags,
-                )?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<ProtectedMemoryRange>::uninit();
-                unsafe {
-                    memory_native::destack_memory_allocate(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        length,
-                        addresshint,
-                        protection,
                         flags,
                     )?;
                 }
