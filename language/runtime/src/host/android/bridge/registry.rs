@@ -79,7 +79,7 @@ pub(crate) fn resolve_android_bindings(runtime_id: u64) -> Result<AndroidHostBin
 mod tests {
     use super::ANDROID_BINDINGS_REGISTRY;
     use crate::host::abi::HostStatus;
-    use crate::host::android::bindings::AndroidHostBindings;
+    use crate::host::android::bridge::bindings::AndroidHostBindings;
     use crate::host::android::tests::{
         callback_test_lock, register_android_bindings, register_android_runtime,
     };

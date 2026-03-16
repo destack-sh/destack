@@ -1,12 +1,14 @@
 use crate::host::android::abi::{HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_OK};
+use crate::host::android::bridge::midi::ffi::{
+    destack_host_android_midi_input_port_close, destack_host_android_midi_input_read,
+    destack_host_android_midi_output_port_close, destack_host_android_midi_output_write,
+};
 use crate::host::android::bridge::midi::tests::core::{
     TEST_INPUT_SESSION_ID, TEST_OUTPUT_SESSION_ID, TEST_SOURCE_ID, lock_test_callbacks,
     recorded_test_state, register_test_callbacks,
 };
-use crate::host::android::bridge::midi::{
+use crate::host::android::bridge::midi::types::{
     AndroidHostMidiInputRecordHeader, AndroidHostMidiOutputRecordHeader,
-    destack_host_android_midi_input_port_close, destack_host_android_midi_input_read,
-    destack_host_android_midi_output_port_close, destack_host_android_midi_output_write,
 };
 use crate::runtime::NativeSlice;
 

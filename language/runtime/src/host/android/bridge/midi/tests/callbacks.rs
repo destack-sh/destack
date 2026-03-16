@@ -9,7 +9,7 @@ use crate::host::android::bridge::midi::tests::core::{
     TEST_MODEL, TEST_OUTPUT_SESSION_ID, TEST_PROTOCOLS, TEST_SOURCE_ID, TEST_VERSION,
     append_string, decode_native_string, test_state,
 };
-use crate::host::android::bridge::midi::{
+use crate::host::android::bridge::midi::types::{
     AndroidHostMidiCallbacks, AndroidHostMidiEventHeader, AndroidHostMidiInputRecordHeader,
     AndroidHostMidiOpenedPortHeader, AndroidHostMidiOutputRecordHeader,
     AndroidHostMidiPortDescriptorHeader,

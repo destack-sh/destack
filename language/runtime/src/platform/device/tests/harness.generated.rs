@@ -6,7 +6,7 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::device::tests::DeviceHarnessContext;
-use crate::platform::device::{BluetoothAdapterCapabilities, BluetoothAdapterCapabilitiesVm, BluetoothAdapterDescriptor, BluetoothAdapterDescriptorVm, BluetoothAdvertisementData, BluetoothAdvertisementDataVm, BluetoothAdvertisementManufacturerData, BluetoothAdvertisementManufacturerDataVm, BluetoothAdvertisementServiceData, BluetoothAdvertisementServiceDataVm, BluetoothDeviceDescriptor, BluetoothDeviceDescriptorVm, BluetoothGattCharacteristicDescriptor, BluetoothGattCharacteristicDescriptorVm, BluetoothGattCharacteristicProperties, BluetoothGattCharacteristicPropertiesVm, BluetoothGattDescriptorDescriptor, BluetoothGattDescriptorDescriptorVm, BluetoothGattServiceDescriptor, BluetoothGattServiceDescriptorVm, BluetoothGattValueEvent, BluetoothGattValueEventVm, BluetoothGattWriteMode, BluetoothPairState, BluetoothPhy, BluetoothScanDiscoveredEvent, BluetoothScanDiscoveredEventVm, BluetoothScanEvent, BluetoothScanEventMetadata, BluetoothScanEventMetadataVm, BluetoothScanEventVm, BluetoothScanFilter, BluetoothScanFilterVm, BluetoothScanLostEvent, BluetoothScanLostEventVm, BluetoothScanMode, BluetoothScanUpdatedEvent, BluetoothScanUpdatedEventVm, BluetoothSessionDisconnectedEvent, BluetoothSessionDisconnectedEventVm, BluetoothSessionDisconnectedPayload, BluetoothSessionDisconnectedPayloadVm, BluetoothSessionEvent, BluetoothSessionEventMetadata, BluetoothSessionEventMetadataVm, BluetoothSessionEventVm, BluetoothSessionPairStateChangedEvent, BluetoothSessionPairStateChangedEventVm, BluetoothSessionPairStateChangedPayload, BluetoothSessionPairStateChangedPayloadVm, BluetoothTransport, CameraColorSpace, CameraDeviceDescriptor, CameraDeviceDescriptorVm, CameraDynamicRange, CameraExposureCompensationRange, CameraExposureCompensationRangeVm, CameraExposureMode, CameraFacingMode, CameraFocusDistanceRange, CameraFocusDistanceRangeVm, CameraFrame, CameraFrameMetadata, CameraFrameMetadataVm, CameraFrameVm, CameraPixelFormat, CameraPixelFormatDescriptor, CameraPixelFormatDescriptorVm, CameraPixelFormatFamily, CameraPlaneLayout, CameraPlaneLayoutVm, CameraStabilizationMode, CameraStreamCapability, CameraStreamCapabilityVm, CameraStreamConfig, CameraStreamConfigVm, CameraTorchMode, CameraWhiteBalanceRange, CameraWhiteBalanceRangeVm, CameraZoomRatioRange, CameraZoomRatioRangeVm, SerialDataBits, SerialDisconnectedEvent, SerialDisconnectedEventVm, SerialDisconnectedPayload, SerialDisconnectedPayloadVm, SerialErrorEvent, SerialErrorEventVm, SerialErrorKind, SerialErrorPayload, SerialErrorPayloadVm, SerialEvent, SerialEventMetadata, SerialEventMetadataVm, SerialEventVm, SerialFlowControl, SerialFlowControlVm, SerialInputSignals, SerialInputSignalsVm, SerialModemStatusChangedEvent, SerialModemStatusChangedEventVm, SerialModemStatusPayload, SerialModemStatusPayloadVm, SerialOutputSignals, SerialOutputSignalsVm, SerialParity, SerialPortConfig, SerialPortConfigVm, SerialPortDescriptor, SerialPortDescriptorVm, SerialPortOpenOptions, SerialPortOpenOptionsVm, SerialPortTransport, SerialReadReadyEvent, SerialReadReadyEventVm, SerialReadReadyPayload, SerialReadReadyPayloadVm, SerialStopBits, SerialWriteDrainedEvent, SerialWriteDrainedEventVm, SerialWriteDrainedPayload, SerialWriteDrainedPayloadVm, UsbBosCapabilityDescriptor, UsbBosCapabilityDescriptorVm, UsbBosCapabilityKind, UsbConfigurationDescriptor, UsbConfigurationDescriptorVm, UsbControlDeviceTarget, UsbControlDeviceTargetVm, UsbControlEndpointTarget, UsbControlEndpointTargetVm, UsbControlInterfaceTarget, UsbControlInterfaceTargetVm, UsbControlOtherTarget, UsbControlOtherTargetVm, UsbControlSetup, UsbControlSetupVm, UsbControlTarget, UsbControlTargetVm, UsbControlTransferType, UsbDeviceDescriptor, UsbDeviceDescriptorVm, UsbEndpointDescriptor, UsbEndpointDescriptorVm, UsbEndpointDirection, UsbEndpointSelector, UsbEndpointSelectorVm, UsbEndpointTransferType, UsbHotplugAttachedEvent, UsbHotplugAttachedEventVm, UsbHotplugDetachedEvent, UsbHotplugDetachedEventVm, UsbHotplugEvent, UsbHotplugEventMetadata, UsbHotplugEventMetadataVm, UsbHotplugEventVm, UsbInTransferResult, UsbInTransferResultVm, UsbInterfaceDescriptor, UsbInterfaceDescriptorVm, UsbIsochronousPacketResult, UsbIsochronousPacketResultVm, UsbIsochronousTransferResult, UsbIsochronousTransferResultVm, UsbOutTransferResult, UsbOutTransferResultVm, UsbStringDescriptor, UsbStringDescriptorVm, UsbTransferStatus, native as device_native, vm as device_vm};
+use crate::platform::device::{BluetoothAdapterCapabilities, BluetoothAdapterCapabilitiesVm, BluetoothAdapterDescriptor, BluetoothAdapterDescriptorVm, BluetoothAdvertisementData, BluetoothAdvertisementDataVm, BluetoothAdvertisementManufacturerData, BluetoothAdvertisementManufacturerDataVm, BluetoothAdvertisementServiceData, BluetoothAdvertisementServiceDataVm, BluetoothDataFilter, BluetoothDataFilterVm, BluetoothDeviceDescriptor, BluetoothDeviceDescriptorVm, BluetoothGattCharacteristicDescriptor, BluetoothGattCharacteristicDescriptorVm, BluetoothGattCharacteristicProperties, BluetoothGattCharacteristicPropertiesVm, BluetoothGattDescriptorDescriptor, BluetoothGattDescriptorDescriptorVm, BluetoothGattServiceDescriptor, BluetoothGattServiceDescriptorVm, BluetoothGattValueEvent, BluetoothGattValueEventVm, BluetoothGattWriteMode, BluetoothManufacturerDataFilter, BluetoothManufacturerDataFilterVm, BluetoothPairState, BluetoothPhy, BluetoothScanDiscoveredEvent, BluetoothScanDiscoveredEventVm, BluetoothScanEvent, BluetoothScanEventMetadata, BluetoothScanEventMetadataVm, BluetoothScanEventVm, BluetoothScanFilter, BluetoothScanFilterVm, BluetoothScanLostEvent, BluetoothScanLostEventVm, BluetoothScanMode, BluetoothScanUpdatedEvent, BluetoothScanUpdatedEventVm, BluetoothServiceDataFilter, BluetoothServiceDataFilterVm, BluetoothSessionDisconnectedEvent, BluetoothSessionDisconnectedEventVm, BluetoothSessionDisconnectedPayload, BluetoothSessionDisconnectedPayloadVm, BluetoothSessionEvent, BluetoothSessionEventMetadata, BluetoothSessionEventMetadataVm, BluetoothSessionEventVm, BluetoothSessionGattDatabaseChangedEvent, BluetoothSessionGattDatabaseChangedEventVm, BluetoothSessionGattDatabaseChangedPayload, BluetoothSessionGattDatabaseChangedPayloadVm, BluetoothSessionPairStateChangedEvent, BluetoothSessionPairStateChangedEventVm, BluetoothSessionPairStateChangedPayload, BluetoothSessionPairStateChangedPayloadVm, BluetoothTransport, CameraColorSpace, CameraDeviceDescriptor, CameraDeviceDescriptorVm, CameraDynamicRange, CameraExposureCompensationRange, CameraExposureCompensationRangeVm, CameraExposureMode, CameraExposureTimeRange, CameraExposureTimeRangeVm, CameraFacingMode, CameraFloatControlRange, CameraFloatControlRangeVm, CameraFocusDistanceRange, CameraFocusDistanceRangeVm, CameraFocusMode, CameraFrame, CameraFrameMetadata, CameraFrameMetadataVm, CameraFrameVm, CameraPanAngleRange, CameraPanAngleRangeVm, CameraPixelFormat, CameraPixelFormatDescriptor, CameraPixelFormatDescriptorVm, CameraPixelFormatFamily, CameraPlaneLayout, CameraPlaneLayoutVm, CameraSensorIsoRange, CameraSensorIsoRangeVm, CameraStabilizationMode, CameraStreamCapability, CameraStreamCapabilityVm, CameraStreamConfig, CameraStreamConfigVm, CameraTiltAngleRange, CameraTiltAngleRangeVm, CameraTorchMode, CameraWhiteBalanceMode, CameraWhiteBalanceRange, CameraWhiteBalanceRangeVm, CameraZoomRatioRange, CameraZoomRatioRangeVm, SerialDataBits, SerialDisconnectedEvent, SerialDisconnectedEventVm, SerialDisconnectedPayload, SerialDisconnectedPayloadVm, SerialErrorEvent, SerialErrorEventVm, SerialErrorKind, SerialErrorPayload, SerialErrorPayloadVm, SerialEvent, SerialEventMetadata, SerialEventMetadataVm, SerialEventVm, SerialFlowControl, SerialFlowControlVm, SerialInputSignals, SerialInputSignalsVm, SerialModemStatusChangedEvent, SerialModemStatusChangedEventVm, SerialModemStatusPayload, SerialModemStatusPayloadVm, SerialOutputSignals, SerialOutputSignalsVm, SerialParity, SerialPortConfig, SerialPortConfigVm, SerialPortDescriptor, SerialPortDescriptorVm, SerialPortOpenOptions, SerialPortOpenOptionsVm, SerialPortTransport, SerialReadReadyEvent, SerialReadReadyEventVm, SerialReadReadyPayload, SerialReadReadyPayloadVm, SerialStopBits, UsbBosCapabilityDescriptor, UsbBosCapabilityDescriptorVm, UsbBosCapabilityKind, UsbConfigurationDescriptor, UsbConfigurationDescriptorVm, UsbControlDeviceTarget, UsbControlDeviceTargetVm, UsbControlEndpointTarget, UsbControlEndpointTargetVm, UsbControlInterfaceTarget, UsbControlInterfaceTargetVm, UsbControlOtherTarget, UsbControlOtherTargetVm, UsbControlSetup, UsbControlSetupVm, UsbControlTarget, UsbControlTargetVm, UsbControlTransferType, UsbDeviceDescriptor, UsbDeviceDescriptorVm, UsbEndpointDescriptor, UsbEndpointDescriptorVm, UsbEndpointDirection, UsbEndpointSelector, UsbEndpointSelectorVm, UsbEndpointTransferType, UsbHotplugAttachedEvent, UsbHotplugAttachedEventVm, UsbHotplugDetachedEvent, UsbHotplugDetachedEventVm, UsbHotplugEvent, UsbHotplugEventMetadata, UsbHotplugEventMetadataVm, UsbHotplugEventVm, UsbInTransferResult, UsbInTransferResultVm, UsbInterfaceDescriptor, UsbInterfaceDescriptorVm, UsbIsochronousPacketResult, UsbIsochronousPacketResultVm, UsbIsochronousTransferResult, UsbIsochronousTransferResultVm, UsbOutTransferResult, UsbOutTransferResultVm, UsbStringDescriptor, UsbStringDescriptorVm, UsbTransferStatus, native as device_native, vm as device_vm};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
 use destack_vm as vm;
 
@@ -82,19 +82,19 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_bluetooth_gatt_characteristic_list(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
-        serviceuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
+        serviceid: HarnessValue<NativeStringRef, vm::StringHandle>,
     ) -> RuntimeResult<HarnessValue<NativeSlice<BluetoothGattCharacteristicDescriptor>, VmSlice<BluetoothGattCharacteristicDescriptorVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
-                let out = device_vm::destack_device_bluetooth_gatt_characteristic_list(self.call_context, context, handle, serviceuuid)?;
+                let serviceid = serviceid.into_vm("serviceid")?;
+                let out = device_vm::destack_device_bluetooth_gatt_characteristic_list(self.call_context, context, handle, serviceid)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let serviceuuid = serviceuuid.into_native("serviceuuid")?;
+                let serviceid = serviceid.into_native("serviceid")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<BluetoothGattCharacteristicDescriptor>>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_characteristic_list(self.call_context, out.as_mut_ptr(), handle, serviceuuid)?;
+                    device_native::destack_device_bluetooth_gatt_characteristic_list(self.call_context, out.as_mut_ptr(), handle, serviceid)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -121,22 +121,19 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_bluetooth_gatt_descriptor_list(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
-        serviceuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
-        characteristicuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
+        characteristicid: HarnessValue<NativeStringRef, vm::StringHandle>,
     ) -> RuntimeResult<HarnessValue<NativeSlice<BluetoothGattDescriptorDescriptor>, VmSlice<BluetoothGattDescriptorDescriptorVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
-                let characteristicuuid = characteristicuuid.into_vm("characteristicuuid")?;
-                let out = device_vm::destack_device_bluetooth_gatt_descriptor_list(self.call_context, context, handle, serviceuuid, characteristicuuid)?;
+                let characteristicid = characteristicid.into_vm("characteristicid")?;
+                let out = device_vm::destack_device_bluetooth_gatt_descriptor_list(self.call_context, context, handle, characteristicid)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let serviceuuid = serviceuuid.into_native("serviceuuid")?;
-                let characteristicuuid = characteristicuuid.into_native("characteristicuuid")?;
+                let characteristicid = characteristicid.into_native("characteristicid")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<BluetoothGattDescriptorDescriptor>>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_descriptor_list(self.call_context, out.as_mut_ptr(), handle, serviceuuid, characteristicuuid)?;
+                    device_native::destack_device_bluetooth_gatt_descriptor_list(self.call_context, out.as_mut_ptr(), handle, characteristicid)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -199,23 +196,20 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_bluetooth_gatt_read(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
-        serviceuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
-        characteristicuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
+        characteristicid: HarnessValue<NativeStringRef, vm::StringHandle>,
         timeoutns: u64,
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
-                let characteristicuuid = characteristicuuid.into_vm("characteristicuuid")?;
-                let out = device_vm::destack_device_bluetooth_gatt_read(self.call_context, context, handle, serviceuuid, characteristicuuid, timeoutns)?;
+                let characteristicid = characteristicid.into_vm("characteristicid")?;
+                let out = device_vm::destack_device_bluetooth_gatt_read(self.call_context, context, handle, characteristicid, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let serviceuuid = serviceuuid.into_native("serviceuuid")?;
-                let characteristicuuid = characteristicuuid.into_native("characteristicuuid")?;
+                let characteristicid = characteristicid.into_native("characteristicid")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_read(self.call_context, out.as_mut_ptr(), handle, serviceuuid, characteristicuuid, timeoutns)?;
+                    device_native::destack_device_bluetooth_gatt_read(self.call_context, out.as_mut_ptr(), handle, characteristicid, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -242,26 +236,20 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_bluetooth_gatt_read_descriptor(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
-        serviceuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
-        characteristicuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
-        descriptoruuid: HarnessValue<NativeStringRef, vm::StringHandle>,
+        descriptorid: HarnessValue<NativeStringRef, vm::StringHandle>,
         timeoutns: u64,
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
-                let characteristicuuid = characteristicuuid.into_vm("characteristicuuid")?;
-                let descriptoruuid = descriptoruuid.into_vm("descriptoruuid")?;
-                let out = device_vm::destack_device_bluetooth_gatt_read_descriptor(self.call_context, context, handle, serviceuuid, characteristicuuid, descriptoruuid, timeoutns)?;
+                let descriptorid = descriptorid.into_vm("descriptorid")?;
+                let out = device_vm::destack_device_bluetooth_gatt_read_descriptor(self.call_context, context, handle, descriptorid, timeoutns)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let serviceuuid = serviceuuid.into_native("serviceuuid")?;
-                let characteristicuuid = characteristicuuid.into_native("characteristicuuid")?;
-                let descriptoruuid = descriptoruuid.into_native("descriptoruuid")?;
+                let descriptorid = descriptorid.into_native("descriptorid")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_read_descriptor(self.call_context, out.as_mut_ptr(), handle, serviceuuid, characteristicuuid, descriptoruuid, timeoutns)?;
+                    device_native::destack_device_bluetooth_gatt_read_descriptor(self.call_context, out.as_mut_ptr(), handle, descriptorid, timeoutns)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -302,44 +290,6 @@ impl<'call> DeviceHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            },
-        }
-    }
-
-    /// Request one target ATT MTU.
-    ///
-    /// Request ATT MTU negotiation and return negotiated MTU for one connected device session.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host GATT MTU negotiation APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_device_bluetooth_gatt_request_mtu(
-        &mut self,
-        handle: resource::BluetoothDeviceHandle,
-        mtu: u16,
-        timeoutns: u64,
-    ) -> RuntimeResult<u16> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = device_vm::destack_device_bluetooth_gatt_request_mtu(self.call_context, context, handle, mtu, timeoutns)?;
-                Ok(out)
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<u16>::uninit();
-                unsafe {
-                    device_native::destack_device_bluetooth_gatt_request_mtu(self.call_context, out.as_mut_ptr(), handle, mtu, timeoutns)?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(out)
             },
         }
     }
@@ -399,22 +349,19 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_bluetooth_gatt_subscribe(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
-        serviceuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
-        characteristicuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
+        characteristicid: HarnessValue<NativeStringRef, vm::StringHandle>,
     ) -> RuntimeResult<resource::BluetoothSubscriptionHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
-                let characteristicuuid = characteristicuuid.into_vm("characteristicuuid")?;
-                let out = device_vm::destack_device_bluetooth_gatt_subscribe(self.call_context, context, handle, serviceuuid, characteristicuuid)?;
+                let characteristicid = characteristicid.into_vm("characteristicid")?;
+                let out = device_vm::destack_device_bluetooth_gatt_subscribe(self.call_context, context, handle, characteristicid)?;
                 Ok(out)
             }
             None => {
-                let serviceuuid = serviceuuid.into_native("serviceuuid")?;
-                let characteristicuuid = characteristicuuid.into_native("characteristicuuid")?;
+                let characteristicid = characteristicid.into_native("characteristicid")?;
                 let mut out = std::mem::MaybeUninit::<resource::BluetoothSubscriptionHandle>::uninit();
                 unsafe {
-                    device_native::destack_device_bluetooth_gatt_subscribe(self.call_context, out.as_mut_ptr(), handle, serviceuuid, characteristicuuid)?;
+                    device_native::destack_device_bluetooth_gatt_subscribe(self.call_context, out.as_mut_ptr(), handle, characteristicid)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
@@ -507,24 +454,21 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_bluetooth_gatt_write(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
-        serviceuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
-        characteristicuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
+        characteristicid: HarnessValue<NativeStringRef, vm::StringHandle>,
         argument_value: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
         mode: BluetoothGattWriteMode,
         timeoutns: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
-                let characteristicuuid = characteristicuuid.into_vm("characteristicuuid")?;
+                let characteristicid = characteristicid.into_vm("characteristicid")?;
                 let argument_value = argument_value.into_vm("argument_value")?;
-                device_vm::destack_device_bluetooth_gatt_write(self.call_context, context, handle, serviceuuid, characteristicuuid, argument_value, mode, timeoutns)
+                device_vm::destack_device_bluetooth_gatt_write(self.call_context, context, handle, characteristicid, argument_value, mode, timeoutns)
             }
             None => unsafe {
-                let serviceuuid = serviceuuid.into_native("serviceuuid")?;
-                let characteristicuuid = characteristicuuid.into_native("characteristicuuid")?;
+                let characteristicid = characteristicid.into_native("characteristicid")?;
                 let argument_value = argument_value.into_native("argument_value")?;
-                device_native::destack_device_bluetooth_gatt_write(self.call_context, handle, serviceuuid, characteristicuuid, argument_value, mode, timeoutns)
+                device_native::destack_device_bluetooth_gatt_write(self.call_context, handle, characteristicid, argument_value, mode, timeoutns)
             },
         }
     }
@@ -548,26 +492,20 @@ impl<'call> DeviceHarnessContext<'call> {
     pub(crate) fn destack_device_bluetooth_gatt_write_descriptor(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
-        serviceuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
-        characteristicuuid: HarnessValue<NativeStringRef, vm::StringHandle>,
-        descriptoruuid: HarnessValue<NativeStringRef, vm::StringHandle>,
+        descriptorid: HarnessValue<NativeStringRef, vm::StringHandle>,
         argument_value: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
         timeoutns: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let serviceuuid = serviceuuid.into_vm("serviceuuid")?;
-                let characteristicuuid = characteristicuuid.into_vm("characteristicuuid")?;
-                let descriptoruuid = descriptoruuid.into_vm("descriptoruuid")?;
+                let descriptorid = descriptorid.into_vm("descriptorid")?;
                 let argument_value = argument_value.into_vm("argument_value")?;
-                device_vm::destack_device_bluetooth_gatt_write_descriptor(self.call_context, context, handle, serviceuuid, characteristicuuid, descriptoruuid, argument_value, timeoutns)
+                device_vm::destack_device_bluetooth_gatt_write_descriptor(self.call_context, context, handle, descriptorid, argument_value, timeoutns)
             }
             None => unsafe {
-                let serviceuuid = serviceuuid.into_native("serviceuuid")?;
-                let characteristicuuid = characteristicuuid.into_native("characteristicuuid")?;
-                let descriptoruuid = descriptoruuid.into_native("descriptoruuid")?;
+                let descriptorid = descriptorid.into_native("descriptorid")?;
                 let argument_value = argument_value.into_native("argument_value")?;
-                device_native::destack_device_bluetooth_gatt_write_descriptor(self.call_context, handle, serviceuuid, characteristicuuid, descriptoruuid, argument_value, timeoutns)
+                device_native::destack_device_bluetooth_gatt_write_descriptor(self.call_context, handle, descriptorid, argument_value, timeoutns)
             },
         }
     }
@@ -1211,6 +1149,78 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
+    /// Read camera brightness.
+    ///
+    /// Read one brightness adjustment from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend brightness query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_brightness(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<f64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_brightness(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<f64>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_brightness(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read brightness range.
+    ///
+    /// Read one brightness range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend brightness capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_brightness_range(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraFloatControlRange, CameraFloatControlRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_brightness_range(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraFloatControlRange>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_brightness_range(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
     /// Close camera stream.
     ///
     /// Close one opened camera stream and release host resources.
@@ -1270,6 +1280,78 @@ impl<'call> DeviceHarnessContext<'call> {
                 let mut out = std::mem::MaybeUninit::<CameraStreamConfig>::uninit();
                 unsafe {
                     device_native::destack_device_camera_stream_config(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Read camera contrast.
+    ///
+    /// Read one contrast adjustment from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend contrast query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_contrast(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<f64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_contrast(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<f64>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_contrast(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read contrast range.
+    ///
+    /// Read one contrast range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend contrast capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_contrast_range(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraFloatControlRange, CameraFloatControlRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_contrast_range(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraFloatControlRange>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_contrast_range(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -1385,6 +1467,78 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
+    /// Read camera exposure time.
+    ///
+    /// Read one exposure time in nanoseconds from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend exposure-duration query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_exposure_time_ns(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_exposure_time_ns(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_exposure_time_ns(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read exposure-time range.
+    ///
+    /// Read one exposure-time range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend exposure-duration capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_exposure_time_range(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraExposureTimeRange, CameraExposureTimeRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_exposure_time_range(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraExposureTimeRange>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_exposure_time_range(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
     /// Read camera focus distance.
     ///
     /// Read one focus-distance value in diopters from one opened camera stream.
@@ -1457,6 +1611,42 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
+    /// Read camera focus mode.
+    ///
+    /// Read one focus mode from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend focus mode query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_focus_mode(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<CameraFocusMode> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_focus_mode(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraFocusMode>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_focus_mode(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
     /// Open camera stream.
     ///
     /// Open one camera stream with explicit stream configuration.
@@ -1496,6 +1686,78 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
+    /// Read camera pan angle.
+    ///
+    /// Read one pan angle in degrees from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend pan query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_pan_degrees(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<f64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_pan_degrees(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<f64>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_pan_degrees(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read pan-angle range.
+    ///
+    /// Read one pan-angle range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend pan capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_pan_range(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraPanAngleRange, CameraPanAngleRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_pan_range(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraPanAngleRange>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_pan_range(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
     /// Read camera frame.
     ///
     /// Wait for one camera frame from one running stream.
@@ -1529,6 +1791,212 @@ impl<'call> DeviceHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Read camera saturation.
+    ///
+    /// Read one saturation adjustment from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend saturation query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_saturation(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<f64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_saturation(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<f64>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_saturation(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read saturation range.
+    ///
+    /// Read one saturation range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend saturation capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_saturation_range(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraFloatControlRange, CameraFloatControlRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_saturation_range(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraFloatControlRange>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_saturation_range(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Read camera sensor ISO.
+    ///
+    /// Read one sensor ISO value from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend ISO query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_sensor_iso(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<u32> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_sensor_iso(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<u32>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_sensor_iso(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read sensor-ISO range.
+    ///
+    /// Read one sensor-ISO range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend ISO capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_sensor_iso_range(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraSensorIsoRange, CameraSensorIsoRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_sensor_iso_range(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraSensorIsoRange>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_sensor_iso_range(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            },
+        }
+    }
+
+    /// Set camera brightness.
+    ///
+    /// Apply one brightness adjustment on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend brightness control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_brightness(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        argument_value: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_brightness(self.call_context, context, handle, argument_value)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_brightness(self.call_context, handle, argument_value)
+            },
+        }
+    }
+
+    /// Set camera contrast.
+    ///
+    /// Apply one contrast adjustment on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend contrast control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_contrast(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        argument_value: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_contrast(self.call_context, context, handle, argument_value)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_contrast(self.call_context, handle, argument_value)
             },
         }
     }
@@ -1595,6 +2063,37 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
+    /// Set camera exposure time.
+    ///
+    /// Apply one exposure time in nanoseconds on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend exposure-duration control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_exposure_time_ns(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        valuens: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_exposure_time_ns(self.call_context, context, handle, valuens)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_exposure_time_ns(self.call_context, handle, valuens)
+            },
+        }
+    }
+
     /// Set camera focus distance.
     ///
     /// Apply one focus-distance value in diopters on one opened camera stream.
@@ -1626,6 +2125,161 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
+    /// Set camera focus mode.
+    ///
+    /// Apply one focus mode on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend focus mode APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_focus_mode(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        mode: CameraFocusMode,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_focus_mode(self.call_context, context, handle, mode)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_focus_mode(self.call_context, handle, mode)
+            },
+        }
+    }
+
+    /// Set camera pan angle.
+    ///
+    /// Apply one pan angle in degrees on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend pan control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_pan_degrees(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        degrees: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_pan_degrees(self.call_context, context, handle, degrees)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_pan_degrees(self.call_context, handle, degrees)
+            },
+        }
+    }
+
+    /// Set camera saturation.
+    ///
+    /// Apply one saturation adjustment on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend saturation control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_saturation(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        argument_value: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_saturation(self.call_context, context, handle, argument_value)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_saturation(self.call_context, handle, argument_value)
+            },
+        }
+    }
+
+    /// Set camera sensor ISO.
+    ///
+    /// Apply one sensor ISO value on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend ISO control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_sensor_iso(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        iso: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_sensor_iso(self.call_context, context, handle, iso)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_sensor_iso(self.call_context, handle, iso)
+            },
+        }
+    }
+
+    /// Set camera sharpness.
+    ///
+    /// Apply one sharpness adjustment on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend sharpness control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_sharpness(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        argument_value: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_sharpness(self.call_context, context, handle, argument_value)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_sharpness(self.call_context, handle, argument_value)
+            },
+        }
+    }
+
     /// Set camera stabilization mode.
     ///
     /// Apply one stabilization mode on one opened camera stream.
@@ -1653,6 +2307,37 @@ impl<'call> DeviceHarnessContext<'call> {
             }
             None => unsafe {
                 device_native::destack_device_camera_stream_set_stabilization_mode(self.call_context, handle, mode)
+            },
+        }
+    }
+
+    /// Set camera tilt angle.
+    ///
+    /// Apply one tilt angle in degrees on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend tilt control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_tilt_degrees(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        degrees: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_tilt_degrees(self.call_context, context, handle, degrees)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_tilt_degrees(self.call_context, handle, degrees)
             },
         }
     }
@@ -1719,6 +2404,37 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
+    /// Set camera white-balance mode.
+    ///
+    /// Apply one white-balance mode on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend white-balance mode APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_set_white_balance_mode(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+        mode: CameraWhiteBalanceMode,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                device_vm::destack_device_camera_stream_set_white_balance_mode(self.call_context, context, handle, mode)
+            }
+            None => unsafe {
+                device_native::destack_device_camera_stream_set_white_balance_mode(self.call_context, handle, mode)
+            },
+        }
+    }
+
     /// Set camera zoom ratio.
     ///
     /// Apply one digital zoom ratio on one opened camera stream.
@@ -1746,6 +2462,78 @@ impl<'call> DeviceHarnessContext<'call> {
             }
             None => unsafe {
                 device_native::destack_device_camera_stream_set_zoom_ratio(self.call_context, handle, ratio)
+            },
+        }
+    }
+
+    /// Read camera sharpness.
+    ///
+    /// Read one sharpness adjustment from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend sharpness query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_sharpness(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<f64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_sharpness(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<f64>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_sharpness(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read sharpness range.
+    ///
+    /// Read one sharpness range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend sharpness capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_sharpness_range(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraFloatControlRange, CameraFloatControlRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_sharpness_range(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraFloatControlRange>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_sharpness_range(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
             },
         }
     }
@@ -1842,6 +2630,78 @@ impl<'call> DeviceHarnessContext<'call> {
             }
             None => unsafe {
                 device_native::destack_device_camera_stream_stop(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Read camera tilt angle.
+    ///
+    /// Read one tilt angle in degrees from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend tilt query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_tilt_degrees(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<f64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_tilt_degrees(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<f64>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_tilt_degrees(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read tilt-angle range.
+    ///
+    /// Read one tilt-angle range descriptor for one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend tilt capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_tilt_range(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<HarnessValue<CameraTiltAngleRange, CameraTiltAngleRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_tilt_range(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraTiltAngleRange>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_tilt_range(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
             },
         }
     }
@@ -1947,6 +2807,42 @@ impl<'call> DeviceHarnessContext<'call> {
                 let mut out = std::mem::MaybeUninit::<u32>::uninit();
                 unsafe {
                     device_native::destack_device_camera_stream_white_balance_kelvin(self.call_context, out.as_mut_ptr(), handle)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            },
+        }
+    }
+
+    /// Read camera white-balance mode.
+    ///
+    /// Read one white-balance mode from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend white-balance mode query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_device_camera_stream_white_balance_mode(
+        &mut self,
+        handle: resource::CameraStreamHandle,
+    ) -> RuntimeResult<CameraWhiteBalanceMode> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = device_vm::destack_device_camera_stream_white_balance_mode(self.call_context, context, handle)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CameraWhiteBalanceMode>::uninit();
+                unsafe {
+                    device_native::destack_device_camera_stream_white_balance_mode(self.call_context, out.as_mut_ptr(), handle)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)

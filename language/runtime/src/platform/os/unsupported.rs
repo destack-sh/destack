@@ -987,7 +987,7 @@ pub(crate) unsafe fn destack_os_document_flush(_binding: &BindingCallContext, ha
 
 /// Open one document URI.
 ///
-/// Open one host document-provider URI with one selected access mode.
+/// Open one host document-provider URI from one prior picker result with one selected access mode.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1019,7 +1019,7 @@ pub(crate) unsafe fn destack_os_document_open(_binding: &BindingCallContext, out
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SAF or system picker APIs on Android, UIDocumentPicker on Apple platforms, and host file-picker bridges on desktop hosts.
+/// Uses SAF or system picker APIs on Android, UIDocumentPicker on Apple platforms, common file dialogs on Windows, and desktop file-picker bridges or portals on Unix desktop hosts.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1132,7 +1132,7 @@ pub(crate) unsafe fn destack_os_document_write(_binding: &BindingCallContext, ou
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses uname and hostname APIs on Unix and version and hostname APIs on Windows.
+/// Uses uname and hostname APIs on Unix and host identity APIs on Windows.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1276,13 +1276,13 @@ pub(crate) unsafe fn destack_os_uptime_ns(_binding: &BindingCallContext, out: *m
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses `canOpenURL` or `resolveActivity` style APIs where available.
+/// Uses host routing queries where the current target exposes them and launcher discovery elsewhere.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `os.intent.read`.
+/// Requires `os.intent.write`.
 ///
 /// # Replay
 /// External, recordable.
@@ -1304,7 +1304,7 @@ pub(crate) unsafe fn destack_os_intent_can_open_url(_binding: &BindingCallContex
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend-specific intent callback unregistration.
+/// Uses runtime host intent bridge unregistration where the active host exposes one inbound stream.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1329,13 +1329,13 @@ pub(crate) unsafe fn destack_os_intent_close(_binding: &BindingCallContext, hand
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses shell activation hooks on desktop platforms and runtime host intent bridges on mobile-like hosts.
+/// Uses runtime host intent bridges where the active host integrates activation or share ingress.
 ///
 /// # Errors
 /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `os.intent.read`.
+/// Requires `os.intent.write`.
 ///
 /// # Replay
 /// External, recordable.
@@ -1357,7 +1357,7 @@ pub(crate) unsafe fn destack_os_intent_open(_binding: &BindingCallContext, out: 
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses shell open-file APIs and host launcher integration.
+/// Uses host default path routing where the current target exposes it.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1382,7 +1382,7 @@ pub(crate) unsafe fn destack_os_intent_open_path(_binding: &BindingCallContext, 
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses shell open-url APIs on desktop platforms and intent launch APIs on mobile-like hosts.
+/// Uses host default URL routing where the current target exposes it.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1407,7 +1407,7 @@ pub(crate) unsafe fn destack_os_intent_open_url(_binding: &BindingCallContext, u
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend intent event queues or callback bridges.
+/// Uses runtime host intent queues where the active host delivers activation or share ingress.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -1435,7 +1435,7 @@ pub(crate) unsafe fn destack_os_intent_read(_binding: &BindingCallContext, out: 
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses platform share APIs and shell handoff integration.
+/// Uses host share routing where the current target exposes it.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1460,7 +1460,7 @@ pub(crate) unsafe fn destack_os_intent_share_paths(_binding: &BindingCallContext
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses platform share APIs where available.
+/// Uses host share routing where the current target exposes it.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1485,7 +1485,7 @@ pub(crate) unsafe fn destack_os_intent_share_text(_binding: &BindingCallContext,
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend nonblocking intent queue reads.
+/// Uses runtime host intent queues where the active host delivers activation or share ingress.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1924,7 +1924,7 @@ pub(crate) unsafe fn destack_os_media_read(_binding: &BindingCallContext, out: *
 /// Enumerate mount table entries.
 ///
 /// Return one snapshot of the current host mount table.
-/// Entry shape is normalized but field availability is host-dependent.
+/// Entry shape is normalized but field availability and flag bit layout are host-dependent.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1949,13 +1949,14 @@ pub(crate) unsafe fn destack_os_mount_list(_binding: &BindingCallContext, out: *
     ))
     .boxed())
 }
+
 /// Read host network state.
 ///
 /// Read one point-in-time host network state snapshot.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses Network.framework path monitoring on Apple platforms, ConnectivityManager on Android, and NetworkInformation APIs on Windows.
+/// Uses host network state facilities.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -1983,7 +1984,7 @@ pub(crate) unsafe fn destack_os_network_state(_binding: &BindingCallContext, out
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host network callback unsubscription APIs.
+/// Uses runtime watch state cleanup.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2008,7 +2009,7 @@ pub(crate) unsafe fn destack_os_network_watch_close(_binding: &BindingCallContex
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host network callback subscription APIs.
+/// Uses host network state facilities and runtime watch state.
 ///
 /// # Errors
 /// Returns ioWouldBlock, notSupported.
@@ -2036,7 +2037,7 @@ pub(crate) unsafe fn destack_os_network_watch_open(_binding: &BindingCallContext
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host network event queues.
+/// Uses runtime network watch state.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -2064,7 +2065,7 @@ pub(crate) unsafe fn destack_os_network_watch_read(_binding: &BindingCallContext
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host nonblocking network event queue reads.
+/// Uses runtime network watch state.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -2629,7 +2630,8 @@ pub(crate) unsafe fn destack_os_permission_state_many(_binding: &BindingCallCont
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host power management APIs such as sysfs and IOKit on Unix-like systems and GetSystemPowerStatus on Windows.
+/// Uses host power-management APIs where supported by the active backend.
+/// Unsupported Unix hosts may return `notSupported` until a host integration exists.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -2659,6 +2661,9 @@ pub(crate) unsafe fn destack_os_power_state(_binding: &BindingCallContext, out: 
 /// # Platform
 /// Unix and Windows.
 /// Uses host power-management APIs where supported.
+/// macOS and Windows desktop hosts support suspend.
+/// Linux hosts may support suspend through the kernel power-state interface when available.
+/// Android and other Unix hosts may return `notSupported` where no suspend integration exists.
 ///
 /// # Errors
 /// Returns ioPermissionDenied, ioWouldBlock, notSupported.

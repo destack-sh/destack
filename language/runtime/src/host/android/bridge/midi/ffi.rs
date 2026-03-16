@@ -1,3 +1,5 @@
+#![allow(unreachable_pub)]
+
 use crate::host::android::abi::HOST_STATUS_INVALID_ARGUMENT;
 use crate::host::android::bridge::bindings::invoke_android_binding_callback;
 use crate::host::android::bridge::midi::types::{

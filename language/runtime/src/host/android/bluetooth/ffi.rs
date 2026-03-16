@@ -7,7 +7,7 @@ use super::types::{
     AndroidHostBluetoothScanEventHeader, AndroidHostBluetoothSessionEventHeader,
 };
 use crate::host::abi::HostStatus;
-use crate::host::android::bindings::invoke_android_binding_callback;
+use crate::host::android::bridge::bindings::invoke_android_binding_callback;
 use crate::runtime::{NativeSlice, NativeStringRef};
 
 /// Resolve and invoke one Android host bluetooth callback.

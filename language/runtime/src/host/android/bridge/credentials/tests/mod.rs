@@ -1,1 +1,2 @@
 mod callbacks;
+mod tests;

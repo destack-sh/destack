@@ -2,22 +2,23 @@
 
 use crate::host::abi::HostStatus;
 use crate::host::android::bluetooth::types::AndroidHostBluetoothCallbacks;
-use crate::host::android::camera::types::AndroidHostCameraCallbacks;
 use crate::host::android::bridge::credentials::AndroidHostCredentialsCallbacks;
 use crate::host::android::bridge::crypto::AndroidHostCryptoCallbacks;
-use crate::host::android::bridge::midi::AndroidHostMidiCallbacks;
-use crate::host::android::bridge::registry::{
-    register_android_bindings, resolve_android_bindings,
-};
+use crate::host::android::bridge::midi::types::AndroidHostMidiCallbacks;
+use crate::host::android::bridge::registry::{register_android_bindings, resolve_android_bindings};
+use crate::host::android::camera::types::AndroidHostCameraCallbacks;
+use crate::host::android::request::AndroidHostIntentCallbacks;
 
 /// Android host bindings container for callback-backed lanes.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct AndroidHostBindings {
+pub(crate) struct AndroidHostBindings {
     /// Bluetooth host callbacks.
     pub bluetooth: AndroidHostBluetoothCallbacks,
     /// Camera host callbacks.
     pub camera: AndroidHostCameraCallbacks,
+    /// Intent host callbacks.
+    pub intent: AndroidHostIntentCallbacks,
     /// Credentials host callbacks.
     pub credentials: AndroidHostCredentialsCallbacks,
     /// Crypto host callbacks.
@@ -28,7 +29,7 @@ pub struct AndroidHostBindings {
 
 /// Register one callback table for Android host interop through one C ABI entrypoint.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_host_android_register_bindings(
+pub(crate) unsafe extern "C" fn destack_host_android_register_bindings(
     runtime_id: u64,
     bindings: AndroidHostBindings,
 ) -> u32 {
