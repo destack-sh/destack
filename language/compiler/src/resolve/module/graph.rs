@@ -14,7 +14,7 @@ impl Compiler {
     ) -> ResolveResult<()> {
         // collect module dependency targets from imports and namespace exports
         let mut targets = Vec::new();
-        for targets_for_kind in dir.imported_modules.read().values() {
+        for targets_for_kind in dir.imported_modules.values() {
             if let Some(target) = targets_for_kind.value {
                 targets.push(target);
             }
@@ -22,7 +22,7 @@ impl Compiler {
                 targets.push(target);
             }
         }
-        for export in dir.namespace_exports.read().iter() {
+        for export in dir.namespace_exports.iter() {
             targets.push(export.module_id);
         }
 

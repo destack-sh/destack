@@ -281,7 +281,7 @@ fn test_build_global_symbol_table_key_uses_profile_target_without_default() {
 
     let package_id = {
         let module = test.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         module.package_id
     };
     let js_target = TargetId::new(package_id, "js");
@@ -307,7 +307,7 @@ fn test_build_global_symbol_table_key_errors_on_ambiguous_profile_targets() {
 
     let package_id = {
         let module = test.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         module.package_id
     };
     let js_target = TargetId::new(package_id, "js");
@@ -354,7 +354,7 @@ fn test_build_global_symbol_table_key_prefers_default_target_with_ambiguous_prof
 
     let package_id = {
         let module = test.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         module.package_id
     };
     let js_target = TargetId::new(package_id, "js");
@@ -397,7 +397,7 @@ fn test_build_global_symbol_table_key_errors_when_default_target_mismatches_prof
 
     let package_id = {
         let module = test.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         module.package_id
     };
     let js_target = TargetId::new(package_id, "js");
@@ -444,7 +444,7 @@ fn test_build_global_symbol_table_key_errors_when_default_target_is_missing() {
 
     let package_id = {
         let module = test.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         module.package_id
     };
     let js_target = TargetId::new(package_id, "js");

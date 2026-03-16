@@ -6,7 +6,10 @@ use destack_dir::{
     TypeLiteral, TypeTable, walk_any,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ImportMeta, OutputFormat, Platform, ProfileEnv, ProfileId, Runtime};
+use destack_workspace::{
+    ImportMeta, ModuleDir, OutputFormat, Platform, ProfileEnv, ProfileId, Runtime,
+};
+use std::sync::Arc;
 
 use crate::{Compiler, ResolveError, ResolveResult, evaluate_binary_scalar, evaluate_unary_scalar};
 
@@ -77,7 +80,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-        dir: &mut destack_workspace::ModuleDir,
+        dir: &mut ModuleDir,
     ) -> ResolveResult<()> {
         // exit early when import meta is missing
         let Some(import_meta) = dir.import_meta.as_ref() else {
@@ -85,12 +88,19 @@ impl Compiler {
         };
 
         // acquire the tree, symbols, and types for this dir
-        let mut tree = dir.tree.write();
-        let mut symbols = dir.symbols.write();
-        let types = dir.types.read();
+        let ModuleDir {
+            tree,
+            symbols,
+            types,
+            roots,
+            ..
+        } = dir;
+        let tree = Arc::make_mut(tree);
+        let symbols = Arc::make_mut(symbols);
+        let types = types.as_ref();
 
         // validate decorator placement before applying filters
-        self.validate_static_if_placement(module_id, profile_id, &tree)?;
+        self.validate_static_if_placement(module_id, profile_id, tree)?;
 
         // collect static if targets
         let if_name = self.program.strings.intern("if");
@@ -158,7 +168,7 @@ impl Compiler {
 
             // deactivate declarations that are gated out
             if matches!(condition, Some(false)) {
-                self.deactivate_declaration(&mut tree, &mut symbols, &types, declaration_id);
+                self.deactivate_declaration(tree, symbols, &types, declaration_id);
                 continue;
             }
 
@@ -166,8 +176,8 @@ impl Compiler {
             self.filter_declaration_members(
                 module_id,
                 profile_id,
-                &mut tree,
-                &mut symbols,
+                tree,
+                symbols,
                 &types,
                 declaration_id,
                 import_meta,
@@ -178,7 +188,7 @@ impl Compiler {
         let mut allowed_expressions = HashSet::new();
 
         // include module root expressions
-        for root_id in dir.roots.iter().copied() {
+        for root_id in roots.iter().copied() {
             allowed_expressions.insert(root_id.id);
         }
 
@@ -231,20 +241,20 @@ impl Compiler {
                 };
 
                 // mark the expression node as inactive
-                self.mark_inactive_subtree(&mut tree, &types, expression_id.into_any());
+                self.mark_inactive_subtree(tree, &types, expression_id.into_any());
 
                 removed_expressions.insert(expression_id.id);
 
                 // deactivate declarations gated out at the expression level
                 if let Some(declaration_id) = declaration_id {
-                    self.deactivate_declaration(&mut tree, &mut symbols, &types, declaration_id);
+                    self.deactivate_declaration(tree, symbols, &types, declaration_id);
                 }
             }
         }
 
         // filter module roots by gating and declaration activity
-        let mut kept_roots = Vec::with_capacity(dir.roots.len());
-        for root_id in dir.roots.iter().copied() {
+        let mut kept_roots = Vec::with_capacity(roots.len());
+        for root_id in roots.iter().copied() {
             // drop expressions gated out explicitly
             if removed_expressions.contains(&root_id.id) {
                 continue;
@@ -262,7 +272,7 @@ impl Compiler {
 
             kept_roots.push(root_id);
         }
-        dir.roots = kept_roots;
+        *Arc::make_mut(roots) = kept_roots;
 
         // filter block expressions by gating and declaration activity
         let block_ids: Vec<_> = tree.iter_node_ids_of_type::<Block>();
@@ -292,7 +302,7 @@ impl Compiler {
         }
 
         // skip resolving static if annotations in later passes
-        self.mark_static_if_annotations_inactive(&mut tree, &types);
+        self.mark_static_if_annotations_inactive(tree, &types);
 
         Ok(())
     }

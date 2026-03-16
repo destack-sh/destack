@@ -33,7 +33,7 @@ use proc_macro::TokenStream;
 /// The `message` attribute supports format strings with automatic type conversion:
 /// - `{field}` with `StringId` → `program.strings.get(*field)`
 /// - `{field}` with `StaticKey` → `field.debug_string(&program.strings)`
-/// - `{field}` with `ModuleId` → `program.modules.get(*field).read().uri`
+/// - `{field}` with `ModuleId` → `program.modules.get(*field).uri`
 /// - `{field}` with `GlobalNodeIdAny` → `field.local_id.ty.name()`
 /// - Other types use their Display impl
 ///

@@ -9,11 +9,8 @@ use destack_workspace::{
 };
 use indexmap::IndexMap;
 
-use crate::analyze::DirReadBoundary;
 use crate::timing::tags;
-use crate::{
-    BuildRequirementCollector, Compiler, ResolveError, ResolveModuleContext, ResolveResult,
-};
+use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -237,14 +234,10 @@ impl Compiler {
             for &module_id in lib_modules {
                 // load the module
                 let module = self.program.modules.get(module_id);
-                let module = module.read();
-                let module = ResolveModuleContext::from_module(&module);
                 let dir = self
-                    .require_artifact_dir_for_boundary(
-                        module_id,
-                        profile_id,
-                        DirReadBoundary::Declared,
-                    )
+                    .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                        module_id, profile_id,
+                    ))
                     .map_err(ResolveError::from)
                     .unwrap_or_else(|_| unreachable!());
                 let symbols = &dir.symbols;

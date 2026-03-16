@@ -5,9 +5,10 @@ use destack_dir::{
     StaticExpression, SymbolKind, SymbolSpace, SymbolType, Type, TypeLiteral, TypeTable,
     WellKnownSymbol,
 };
-use destack_workspace::ProfileId;
+use destack_source::ModuleId;
+use destack_workspace::{ArtifactKey, ProfileId};
 
-use crate::analyze::common::{DirReadBoundary, ModuleSymbolView, TypeContext};
+use crate::analyze::common::{ModuleSymbolView, TypeContext};
 use crate::{BuildRequirementError, Compiler};
 
 /// Control how canonical symbol resolution treats aliases.
@@ -21,6 +22,42 @@ pub(crate) enum CanonicalSymbolMode {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve one merged namespace symbol into the type space using one symbol table.
+    fn merged_type_symbol_in_table(
+        &self,
+        module_id: ModuleId,
+        symbols: &destack_dir::SymbolTable,
+        symbol: GlobalSymbolId,
+    ) -> GlobalSymbolId {
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+
+        // stop when the symbol is not a namespace
+        if symbol_entry.kind != SymbolKind::Namespace {
+            return symbol;
+        }
+
+        // stop when the namespace has no merge group
+        let Some(group_id) = symbol_entry.merge_group else {
+            return symbol;
+        };
+
+        // select a merged type or type value symbol when available
+        symbols
+            .merge_group_symbols(group_id)
+            .iter()
+            .copied()
+            .find(|group_symbol| {
+                let merged_symbol = symbols.get_symbol(*group_symbol);
+                merged_symbol.kind != SymbolKind::Namespace
+                    && matches!(
+                        merged_symbol.space,
+                        SymbolSpace::Type | SymbolSpace::TypeValue
+                    )
+            })
+            .map(|candidate| candidate.into_global(module_id))
+            .unwrap_or(symbol)
+    }
+
     /// Resolve the canonical symbol from committed declared artifact state.
     pub fn canonical_declared_artifact_symbol(
         &self,
@@ -82,13 +119,13 @@ impl Compiler {
         }
     }
 
-    /// Resolve the canonical symbol for a reference with an explicit boundary contract.
-    pub(crate) fn canonical_symbol_id_at_boundary(
+    /// Resolve the canonical symbol for a reference with one exact DIR artifact family.
+    pub(crate) fn canonical_symbol_id_for_artifact(
         &self,
         view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
         mode: CanonicalSymbolMode,
-        boundary: DirReadBoundary,
+        artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
     ) -> Result<GlobalSymbolId, BuildRequirementError> {
         let mut current_symbol = symbol;
         let mut visited = Vec::new();
@@ -101,12 +138,12 @@ impl Compiler {
             visited.push(current_symbol);
 
             let (symbol_ty, canonical_symbol, target_symbol) = self
-                .with_module_symbols_or_local_at_boundary(
+                .with_module_symbols_or_local_for_artifact(
                     view.module,
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    boundary,
+                    artifact_key,
                     |_, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         (
@@ -139,18 +176,18 @@ impl Compiler {
         }
     }
 
-    /// Resolve a symbol to the declaration owner symbol with an explicit boundary contract.
-    pub(crate) fn declaration_symbol_id_at_boundary(
+    /// Resolve a symbol to the declaration owner symbol with one exact DIR artifact family.
+    pub(crate) fn declaration_symbol_id_for_artifact(
         &self,
         view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
-        boundary: DirReadBoundary,
+        artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
     ) -> Result<Option<GlobalSymbolId>, BuildRequirementError> {
-        let mut current_symbol = self.canonical_symbol_id_at_boundary(
+        let mut current_symbol = self.canonical_symbol_id_for_artifact(
             view,
             symbol,
             CanonicalSymbolMode::FollowAliases,
-            boundary,
+            artifact_key,
         )?;
         let mut visited_symbols = HashSet::new();
 
@@ -160,12 +197,12 @@ impl Compiler {
             }
 
             let (normalized_symbol, is_declaration, target_symbol, canonical_symbol) = self
-                .with_module_symbols_or_local_at_boundary(
+                .with_module_symbols_or_local_for_artifact(
                     view.module,
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    boundary,
+                    artifact_key,
                     |owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         let normalized_symbol = GlobalSymbolId::new(
@@ -193,11 +230,11 @@ impl Compiler {
             let Some(next_symbol) = target_symbol.or(canonical_symbol) else {
                 return Ok(None);
             };
-            current_symbol = self.canonical_symbol_id_at_boundary(
+            current_symbol = self.canonical_symbol_id_for_artifact(
                 view,
                 next_symbol,
                 CanonicalSymbolMode::FollowAliases,
-                boundary,
+                artifact_key,
             )?;
         }
     }
@@ -220,12 +257,12 @@ impl Compiler {
             visited.push(current_symbol);
 
             let Some((symbol_ty, canonical_symbol, target_symbol)) = self
-                .with_module_symbols_or_local_at_boundary(
+                .with_module_symbols_or_local_for_artifact(
                     view.module,
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    DirReadBoundary::Declared,
+                    destack_workspace::ArtifactKey::dir_declared,
                     |_, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         (
@@ -278,12 +315,12 @@ impl Compiler {
             }
 
             let (normalized_symbol, is_declaration, target_symbol, canonical_symbol) = self
-                .with_module_symbols_or_local_at_boundary(
+                .with_module_symbols_or_local_for_artifact(
                     view.module,
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    DirReadBoundary::Declared,
+                    destack_workspace::ArtifactKey::dir_declared,
                     |owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         let normalized_symbol = GlobalSymbolId::new(
@@ -339,76 +376,31 @@ impl Compiler {
         view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
     ) -> GlobalSymbolId {
+        self.merged_type_symbol_id_for_artifact(
+            view,
+            symbol,
+            destack_workspace::ArtifactKey::dir_declared,
+        )
+    }
+
+    /// Resolve merged namespace symbols into the type space from one exact DIR artifact family.
+    pub(crate) fn merged_type_symbol_id_for_artifact(
+        &self,
+        view: ModuleSymbolView<'_>,
+        symbol: GlobalSymbolId,
+        artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
+    ) -> GlobalSymbolId {
         // reuse local symbol table when possible
         if symbol.module_id == view.module.id {
-            let symbol_entry = view.symbols.get_symbol(symbol.local_id);
-            // stop when the symbol is not a namespace
-            if symbol_entry.kind != SymbolKind::Namespace {
-                return symbol;
-            }
-
-            // stop when the namespace has no merge group
-            let Some(group_id) = symbol_entry.merge_group else {
-                return symbol;
-            };
-
-            // select a merged type or type value symbol when available
-            let candidate = view
-                .symbols
-                .merge_group_symbols(group_id)
-                .iter()
-                .copied()
-                .find(|group_symbol| {
-                    let merged_symbol = view.symbols.get_symbol(*group_symbol);
-                    merged_symbol.kind != SymbolKind::Namespace
-                        && matches!(
-                            merged_symbol.space,
-                            SymbolSpace::Type | SymbolSpace::TypeValue
-                        )
-                });
-
-            return candidate
-                .map(|candidate| candidate.into_global(view.module.id))
-                .unwrap_or(symbol);
+            return self.merged_type_symbol_in_table(view.module.id, view.symbols, symbol);
         }
 
-        self.with_module_symbols_at_boundary(
-            view.module,
-            view.profile,
-            symbol.module_id,
-            DirReadBoundary::Declared,
-            |owner_module, owner_symbols| {
-                let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
-                // stop when the symbol is not a namespace
-                if symbol_entry.kind != SymbolKind::Namespace {
-                    return symbol;
-                }
+        let key = artifact_key(symbol.module_id, view.profile);
+        let Ok(owner_dir) = self.require_artifact_dir(key) else {
+            return symbol;
+        };
 
-                // stop when the namespace has no merge group
-                let Some(group_id) = symbol_entry.merge_group else {
-                    return symbol;
-                };
-
-                // select a merged type or type value symbol when available
-                let candidate = owner_symbols
-                    .merge_group_symbols(group_id)
-                    .iter()
-                    .copied()
-                    .find(|group_symbol| {
-                        let merged_symbol = owner_symbols.get_symbol(*group_symbol);
-                        merged_symbol.kind != SymbolKind::Namespace
-                            && matches!(
-                                merged_symbol.space,
-                                SymbolSpace::Type | SymbolSpace::TypeValue
-                            )
-                    });
-
-                candidate
-                    .map(|candidate| candidate.into_global(owner_module.id))
-                    .unwrap_or(symbol)
-            },
-        )
-        .unwrap_or(symbol)
+        self.merged_type_symbol_in_table(symbol.module_id, &owner_dir.symbols, symbol)
     }
 
     /// Normalize well-known type references into structural types when possible.

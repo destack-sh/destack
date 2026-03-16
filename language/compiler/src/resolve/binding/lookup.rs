@@ -1,10 +1,12 @@
 use crate::resolve::binding::cache::ResolveScopeIndexCache;
-use crate::{Compiler, ResolveModuleContext};
 use destack_dir::{
     BindingCategory, Declaration, Expression, LocalNodeId, LocalScopeId, LocalScopeMark,
     LocalSymbolId, Name, NodeTree, NodeType, Scope, StaticKey, SymbolSpace, SymbolSpaceOrder,
     SymbolTable, SymbolType,
 };
+use destack_workspace::Module;
+
+use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -144,7 +146,7 @@ impl Compiler {
     /// This models JS/TS hoisting for `var` and function declarations.
     pub(super) fn find_hoisted_symbol_in_scope(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         scope: &Scope,
         key: StaticKey,
         space_order: SymbolSpaceOrder,
@@ -204,7 +206,7 @@ impl Compiler {
     /// Return true when unresolved same-scope references should consider forward bindings.
     pub(super) fn allow_forward_binding_lookup(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         space_order: SymbolSpaceOrder,
     ) -> bool {
         // JS/TS bind lexical names for the whole scope, with TDZ at runtime

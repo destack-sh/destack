@@ -1,12 +1,11 @@
-use destack_ast::StringId;
-use destack_dir::{DependencyKind, DependencySource, ModuleResolution, ModuleTarget};
-use destack_source::ModuleId;
-use destack_workspace::{ImportEdgeKind, Module, ModuleDir, ModuleDirData, ProfileId, Runtime};
-
 use crate::{
     Compiler, ImportResolveContext, ResolveError, ResolveMode, ResolveResult, ResolveWarning,
     typescript_commonjs_default_interop_is_enabled,
 };
+use destack_ast::StringId;
+use destack_dir::{DependencyKind, DependencySource, ModuleResolution, ModuleTarget};
+use destack_source::ModuleId;
+use destack_workspace::{ImportEdgeKind, Module, ModuleDir, ProfileId, Runtime};
 
 /// The uncached result of resolving one import edge.
 struct ImportResolutionResult {
@@ -249,7 +248,7 @@ impl Compiler {
         source: DependencySource,
     ) -> ImportEdgeKind {
         let is_typescript_commonjs =
-            module.module_format.is_commonjs() && module.language_type.is_typescript();
+            module.module_format().is_commonjs() && module.language_type.is_typescript();
 
         Self::import_edge_kind_for_dependency(source, is_typescript_commonjs)
     }
@@ -267,7 +266,7 @@ impl Compiler {
         if let Some(dir) = dir {
             let source_module = Some(module_id);
             let cache_key = (source_module, target, edge_kind, loader_override);
-            return dir.imported_modules.read().get(&cache_key).copied();
+            return dir.imported_modules.get(&cache_key).copied();
         }
 
         let source_module = Some(module_id);
@@ -302,7 +301,7 @@ impl Compiler {
     pub(crate) fn resolve_import_maybe(
         &self,
         module: &Module,
-        dir: &ModuleDir,
+        dir: &mut ModuleDir,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
         source: DependencySource,
@@ -338,7 +337,7 @@ impl Compiler {
     pub(crate) fn resolve_import_maybe_from_artifact(
         &self,
         module: &Module,
-        dir: &ModuleDirData,
+        dir: &ModuleDir,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
         source: DependencySource,
@@ -374,7 +373,7 @@ impl Compiler {
     pub(crate) fn resolve_import(
         &self,
         module: &Module,
-        dir: &ModuleDir,
+        dir: &mut ModuleDir,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
         source: DependencySource,
@@ -388,7 +387,7 @@ impl Compiler {
     pub(crate) fn resolve_import_from_artifact(
         &self,
         module: &Module,
-        dir: &ModuleDirData,
+        dir: &ModuleDir,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
         source: DependencySource,
@@ -404,7 +403,7 @@ impl Compiler {
     pub(crate) fn resolve_import_with_loader(
         &self,
         module: &Module,
-        dir: &ModuleDir,
+        dir: &mut ModuleDir,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
         source: DependencySource,
@@ -417,7 +416,7 @@ impl Compiler {
         let cache_key = (source_module, target, edge_kind, loader_override);
 
         // check if already resolved locally
-        if let Some(targets) = dir.imported_modules.read().get(&cache_key)
+        if let Some(targets) = dir.imported_modules.get(&cache_key)
             && let Some(remote_target) = self.select_import_target_for_kind(module, *targets, kind)
         {
             return Ok(remote_target);
@@ -432,9 +431,7 @@ impl Compiler {
             kind,
             loader_override,
         )?;
-        dir.imported_modules
-            .write()
-            .insert(cache_key, resolved.cache);
+        dir.imported_modules_mut().insert(cache_key, resolved.cache);
 
         Ok(resolved.target)
     }
@@ -443,7 +440,7 @@ impl Compiler {
     pub(crate) fn resolve_import_with_loader_from_artifact(
         &self,
         module: &Module,
-        dir: &ModuleDirData,
+        dir: &ModuleDir,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
         source: DependencySource,

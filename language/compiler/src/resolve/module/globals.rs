@@ -7,12 +7,11 @@ use destack_dir::{
 };
 use destack_source::ModuleId;
 use destack_workspace::{
-    GlobalSymbolGroupKey, GlobalSymbolTable, GlobalSymbolTableKey, Module, ModuleDir,
-    ModuleDirData, ProfileId,
+    GlobalSymbolGroupKey, GlobalSymbolTable, GlobalSymbolTableKey, Module, ModuleDir, ProfileId,
 };
 
 use crate::resolve::binding::cache::ResolveScopeIndexCache;
-use crate::{BuildRequirementError, Compiler, ResolveError, ResolveModuleContext, ResolveResult};
+use crate::{BuildRequirementError, Compiler, ResolveError, ResolveResult};
 
 /// Track dependency targets while scanning module trees.
 #[derive(Debug, Clone, Copy)]
@@ -59,8 +58,7 @@ impl Compiler {
     /// Resolve a path against the global symbol table.
     pub(crate) fn resolve_global_path(
         &self,
-        module: &ResolveModuleContext,
-        dir: &ModuleDir,
+        module: &Module,
         expression_id: LocalNodeId<Expression>,
         node: GlobalNodeIdAny,
         profile_id: ProfileId,
@@ -110,7 +108,6 @@ impl Compiler {
             Some(target_symbol) => Some(target_symbol),
             None => self.resolve_selected_lib_symbol(
                 module,
-                dir,
                 profile_id,
                 node,
                 symbol_key,
@@ -144,9 +141,7 @@ impl Compiler {
         }
 
         // load the target module symbols for namespace resolution
-        let target_module = self.program.modules.get(target_symbol.module_id);
-        let target_module = target_module.read();
-        let target_context = ResolveModuleContext::from_module(&target_module);
+        let target_context = self.program.modules.get(target_symbol.module_id);
         let target_dir = self
             .require_artifact_dir_prepared(target_symbol.module_id, profile_id)
             .map_err(ResolveError::from)?;
@@ -182,7 +177,7 @@ impl Compiler {
                     if remaining.segments.len() == remaining_path.segments.len()
                         && let Some((export_symbol, export_remaining)) = self
                             .resolve_global_namespace_member_via_exports(
-                                &target_module,
+                                &target_context,
                                 profile_id,
                                 &remaining_path,
                                 space_order,
@@ -233,7 +228,7 @@ impl Compiler {
                 Err(error @ ResolveError::MissingSymbol { .. }) => {
                     if let Some((resolved_id, remaining)) = self
                         .resolve_global_namespace_member_via_exports(
-                            &target_module,
+                            &target_context,
                             profile_id,
                             &remaining_path,
                             space_order,
@@ -348,10 +343,13 @@ impl Compiler {
             // load the module tree and symbols
             self.require_dir_base(module_id)?;
             self.require_dir_prepared(module_id, profile_id)?;
-            let (module, dir) = self.prepared_module_artifact(module_id, profile_id)?;
+            let module = self.program.modules.get(module_id);
+            let dir = self
+                .require_artifact_dir_prepared(module_id, profile_id)
+                .map_err(ResolveError::from)?;
             let tree = &dir.tree;
             let symbols = &dir.symbols;
-            cache.module_versions.insert(module_id, module.version);
+            cache.module_versions.insert(module_id, dir.version);
 
             // collect global declarations from this module
             self.collect_global_augmentation_symbols(&module, &dir, symbols, &mut cache);
@@ -415,10 +413,13 @@ impl Compiler {
             }
 
             // load the module tree and symbols
-            let (module, dir) = self.prepared_module_artifact(module_id, profile_id)?;
+            let module = self.program.modules.get(module_id);
+            let dir = self
+                .require_artifact_dir_prepared(module_id, profile_id)
+                .map_err(ResolveError::from)?;
             let tree = &dir.tree;
             let symbols = &dir.symbols;
-            cache.module_versions.insert(module_id, module.version);
+            cache.module_versions.insert(module_id, dir.version);
 
             // collect global declarations from this module
             self.collect_global_augmentation_symbols(&module, &dir, symbols, &mut cache);
@@ -467,7 +468,7 @@ impl Compiler {
     }
 
     /// Return true when a module's namespace scope contributes global symbols.
-    fn module_exposes_namespace_scope_globals(&self, module: &ResolveModuleContext) -> bool {
+    fn module_exposes_namespace_scope_globals(&self, module: &Module) -> bool {
         // ambient libs always contribute top-level global declarations
         if let Some(builtins) = self.program.builtins.as_ref()
             && let Some(lib_name) = builtins.lib_name_for_module(module.id)
@@ -478,7 +479,7 @@ impl Compiler {
         }
 
         // declaration scripts also contribute top-level global declarations
-        module.language_type.is_declaration() && module.source_type.is_script()
+        module.language_type.is_declaration() && module.source_type().is_script()
     }
 
     /// Resolve one dependency target for global symbol table traversal.
@@ -507,12 +508,12 @@ impl Compiler {
         let target =
             self.resolve_target_for_dependency_source(dependency.source, dependency.target);
         let source_module = self.program.modules.get(module_id);
-        let source_module = source_module.read();
+        let source_module = source_module.as_ref();
         let target =
             self.canonical_import_specifier(&source_module, profile_id, dependency.node, target)?;
 
         // match direct resolve import edge semantics
-        let is_typescript_commonjs = source_module.module_format.is_commonjs()
+        let is_typescript_commonjs = source_module.module_format().is_commonjs()
             && source_module.language_type.is_typescript();
         let edge_kind =
             Self::import_edge_kind_for_dependency(dependency.source, is_typescript_commonjs);
@@ -565,8 +566,8 @@ impl Compiler {
     /// Symbols inside `declare global { }` blocks are bound into this scope by the binder.
     fn collect_global_augmentation_symbols(
         &self,
-        module: &ResolveModuleContext,
-        dir: &ModuleDirData,
+        module: &Module,
+        dir: &ModuleDir,
         symbols: &SymbolTable,
         cache: &mut GlobalSymbolTable,
     ) {
@@ -581,7 +582,7 @@ impl Compiler {
     /// Only call this for declaration modules (`.d.ts`).
     fn collect_export_namespace_globals(
         &self,
-        module: &ResolveModuleContext,
+        module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         cache: &mut GlobalSymbolTable,
@@ -606,8 +607,8 @@ impl Compiler {
     /// Intended only for ambient/global script modules where top-level symbols are globals.
     fn collect_namespace_scope_globals(
         &self,
-        module: &ResolveModuleContext,
-        dir: &ModuleDirData,
+        module: &Module,
+        dir: &ModuleDir,
         symbols: &SymbolTable,
         cache: &mut GlobalSymbolTable,
     ) {

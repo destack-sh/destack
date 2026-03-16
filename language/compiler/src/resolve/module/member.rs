@@ -40,17 +40,18 @@ impl Compiler {
 
         // otherwise switch to the canonical target module snapshot
         let target_module = self.program.modules.get(target_symbol.module_id);
-        let target_module = target_module.read();
+        let target_module = target_module.as_ref();
         let snapshot = self
             .program
             .artifacts
-            .dir_snapshot(target_symbol.module_id, profile)
+            .dir_resolved(target_symbol.module_id, profile)
             .unwrap_or_else(|| {
                 panic!(
-                    "missing committed dir artifact for {:?}",
+                    "missing committed resolved dir artifact for {:?}",
                     target_symbol.module_id
                 )
             });
+
         self.query_static_member_symbol_inner(
             &target_module,
             profile,
@@ -335,17 +336,18 @@ impl Compiler {
                 }
             } else {
                 let remote_module = self.program.modules.get(canonical_symbol.module_id);
-                let remote_module = remote_module.read();
+                let remote_module = remote_module.as_ref();
                 let snapshot = self
                     .program
                     .artifacts
-                    .dir_snapshot(canonical_symbol.module_id, profile)
+                    .dir_resolved(canonical_symbol.module_id, profile)
                     .unwrap_or_else(|| {
                         panic!(
-                            "missing committed dir artifact for {:?}",
+                            "missing committed resolved dir artifact for {:?}",
                             canonical_symbol.module_id
                         )
                     });
+
                 if let Some(symbol) = self.query_static_member_symbol_inner(
                     &remote_module,
                     profile,
@@ -395,9 +397,12 @@ impl Compiler {
             let snapshot = self
                 .program
                 .artifacts
-                .dir_snapshot(symbol.module_id, profile)
+                .dir_prepared(symbol.module_id, profile)
                 .unwrap_or_else(|| {
-                    panic!("missing committed dir artifact for {:?}", symbol.module_id)
+                    panic!(
+                        "missing committed prepared dir artifact for {:?}",
+                        symbol.module_id
+                    )
                 });
             let symbol_entry = snapshot.symbols.get_symbol(symbol.local_id);
             (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
@@ -465,14 +470,14 @@ impl Compiler {
 
         // load the target module tables for member lookup
         let target_module = self.program.modules.get(target_symbol.module_id);
-        let target_module = target_module.read();
+        let target_module = target_module.as_ref();
         let snapshot = self
             .program
             .artifacts
-            .dir_snapshot(target_symbol.module_id, profile)
+            .dir_resolved(target_symbol.module_id, profile)
             .unwrap_or_else(|| {
                 panic!(
-                    "missing committed dir artifact for {:?}",
+                    "missing committed resolved dir artifact for {:?}",
                     target_symbol.module_id
                 )
             });

@@ -12,9 +12,9 @@ use destack_source::ModuleId;
 use destack_workspace::Module;
 
 use super::{
-    CanonicalSymbolMode, DirReadBoundary, InferContext, ModuleSymbolView, ModuleTypeView,
-    NormalizationMode, RelationMode, SymbolTypeView, TreeSymbolView, TypeContext, TypeView,
-    TypeWalkContext, TypeWalkKey,
+    CanonicalSymbolMode, InferContext, ModuleSymbolView, ModuleTypeView, NormalizationMode,
+    RelationMode, SymbolTypeView, TreeSymbolView, TypeContext, TypeView, TypeWalkContext,
+    TypeWalkKey,
 };
 use crate::{
     AnalyzeError, AnalyzeResult, Compiler, ElaborateError, ElaborateResult, InferState,
@@ -1169,12 +1169,12 @@ impl Compiler {
 
         // rely on the declared parameter metadata
         let Some(symbol) = self
-            .with_module_symbols_or_local_at_boundary(
+            .with_module_symbols_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |_, owner_symbols| owner_symbols.get_symbol(symbol.local_id).clone(),
             )
             .ok()
@@ -1432,26 +1432,26 @@ impl Compiler {
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // enum-field ownership is module-local metadata
         if field_symbol.module_id != ctx.module.id {
-            return self
-                .with_module_symbols_at_boundary(
-                    ctx.module,
-                    ctx.profile,
+            let owner_dir = self
+                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
                     field_symbol.module_id,
-                    DirReadBoundary::Declared,
-                    |owner_module, owner_symbols| {
-                        let field_entry = owner_symbols.get_symbol(field_symbol.local_id);
-                        let primary = field_entry.primary_declaration?;
-                        if primary.local_id.ty != NodeType::EnumField {
-                            return None;
-                        }
+                    ctx.profile,
+                ))
+                .map_err(AnalyzeError::from)?;
+            let field_entry = owner_dir.symbols.get_symbol(field_symbol.local_id);
+            let Some(primary) = field_entry.primary_declaration else {
+                return Ok(None);
+            };
+            if primary.local_id.ty != NodeType::EnumField {
+                return Ok(None);
+            }
 
-                        let scope = owner_symbols.get_scope_by_symbol(field_symbol.local_id);
-                        let owner_id = scope.owner_id?;
-                        let owner_symbol = owner_id.into_global(owner_module.id);
-                        (owner_symbol.ty() == SymbolType::Enum).then_some(owner_symbol)
-                    },
-                )
-                .map_err(AnalyzeError::from);
+            let scope = owner_dir.symbols.get_scope_by_symbol(field_symbol.local_id);
+            let Some(owner_id) = scope.owner_id else {
+                return Ok(None);
+            };
+            let owner_symbol = owner_id.into_global(field_symbol.module_id);
+            return Ok((owner_symbol.ty() == SymbolType::Enum).then_some(owner_symbol));
         }
 
         let field_entry = ctx.symbols.get_symbol(field_symbol.local_id);
@@ -1563,12 +1563,12 @@ impl Compiler {
             }
 
             let next_symbol = self
-                .with_module_symbols_or_local_at_boundary(
+                .with_module_symbols_or_local_for_artifact(
                     view.module,
                     view.profile,
                     current_symbol.module_id,
                     view.symbols,
-                    DirReadBoundary::Declared,
+                    destack_workspace::ArtifactKey::dir_declared,
                     |_owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
                         symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)
@@ -1599,9 +1599,10 @@ impl Compiler {
         symbol: GlobalSymbolId,
         source_id: LocalNodeIdAny,
     ) -> Option<LocalTypeId> {
-        self.require_alias_target_type_id_for_symbol(ctx, symbol, source_id)
-            .ok()
-            .flatten()
+        match self.require_alias_target_type_id_for_symbol(ctx, symbol, source_id) {
+            Ok(result) => result,
+            Err(_) => None,
+        }
     }
 
     /// Import the alias target type for a symbol when available, yielding on unmet requirements.
@@ -1632,6 +1633,9 @@ impl Compiler {
                     current.module_id,
                     current.local_id.with_type(symbol_entry.ty),
                 );
+                let declared_symbol = self
+                    .declaration_symbol_id(ctx.module_symbol_view(), current)
+                    .unwrap_or(typed_symbol);
 
                 // check the incoming symbol first, then the declaration-typed symbol
                 ctx.types.record_normalization_symbol_dependency(current);
@@ -1639,20 +1643,16 @@ impl Compiler {
                     return Ok(Some(target));
                 }
 
+                ctx.types
+                    .record_normalization_symbol_dependency(declared_symbol);
+                if let Some(target) = ctx.types.get_alias_target_type_id(declared_symbol) {
+                    return Ok(Some(target));
+                }
+
                 if matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
                     ctx.types
                         .record_normalization_symbol_dependency(typed_symbol);
                     if let Some(target) = ctx.types.get_alias_target_type_id(typed_symbol) {
-                        return Ok(Some(target));
-                    }
-
-                    // import declared alias metadata when later artifacts no longer carry it locally
-                    if let Some(target) = self.local_declared_alias_target_type_id(
-                        ctx,
-                        source_id,
-                        current,
-                        typed_symbol,
-                    ) {
                         return Ok(Some(target));
                     }
                 }
@@ -1668,16 +1668,14 @@ impl Compiler {
             }
 
             // import the declared alias target when the symbol is remote
-            let (dependency_symbol, remote_alias_target, next) = match self
-                .remote_alias_target_snapshot_at_boundary(
+            let (dependency_symbol, remote_alias_target, next) = self
+                .remote_alias_target_for_artifact(
                     ctx.module,
                     ctx.profile,
                     current,
-                    DirReadBoundary::Declared,
-                ) {
-                Ok(value) => value,
-                Err(error) => return Err(AnalyzeError::from(error)),
-            };
+                    destack_workspace::ArtifactKey::dir_declared,
+                )
+                .map_err(AnalyzeError::from)?;
             if let Some(dependency_symbol) = dependency_symbol {
                 ctx.types
                     .record_normalization_symbol_dependency(dependency_symbol);
@@ -1698,36 +1696,6 @@ impl Compiler {
             };
             current = next;
         }
-    }
-
-    /// Import one local declared alias target when the current local table no longer carries it.
-    fn local_declared_alias_target_type_id(
-        &self,
-        ctx: &mut TypeContext<'_>,
-        source_id: LocalNodeIdAny,
-        symbol: GlobalSymbolId,
-        typed_symbol: GlobalSymbolId,
-    ) -> Option<LocalTypeId> {
-        let snapshot = self
-            .require_artifact_dir_for_boundary(
-                symbol.module_id,
-                ctx.profile,
-                DirReadBoundary::Declared,
-            )
-            .ok()?;
-        let remote_target_id = snapshot.types.get_alias_target_type_id(typed_symbol)?;
-        let remote_target_ty = snapshot.types.get_type(remote_target_id).clone();
-        let local_target_id = self.import_remote_type_for_node(
-            source_id,
-            &remote_target_ty,
-            &snapshot.types,
-            ctx.types,
-        );
-
-        ctx.types
-            .set_alias_target_type_id(typed_symbol, local_target_id);
-
-        Some(local_target_id)
     }
 
     /// Query a committed alias target type for a symbol without triggering remote evaluation.
@@ -1771,12 +1739,12 @@ impl Compiler {
             }
 
             // read one remote symbol edge under declared gating
-            let (typed_symbol, next) = match self.with_module_symbols_or_local_at_boundary(
+            let (typed_symbol, next) = match self.with_module_symbols_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 current.module_id,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |_owner_module, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(current.local_id);
                     let typed_symbol = GlobalSymbolId::new(
@@ -1797,12 +1765,12 @@ impl Compiler {
                 SymbolType::TypeAlias | SymbolType::Newtype
             ) {
                 let resolved = self
-                    .with_module_types_or_local_at_boundary(
+                    .with_module_types_or_local_for_artifact(
                         ctx.module,
                         ctx.profile,
                         current.module_id,
                         ctx.types,
-                        DirReadBoundary::Declared,
+                        destack_workspace::ArtifactKey::dir_declared,
                         |_owner_module, owner_types| {
                             owner_types.get_alias_target_type_id(typed_symbol)
                         },
@@ -1944,8 +1912,13 @@ impl Compiler {
         }
 
         // resolve static arguments before substitution
-        let resolved_arguments = self
-            .resolve_type_reference_static_arguments(
+        let resolved_arguments = if static_arguments
+            .iter()
+            .all(|argument| matches!(argument, StaticArgument::Evaluated { .. }))
+        {
+            Some(static_arguments.to_vec())
+        } else {
+            self.resolve_type_reference_static_arguments(
                 &mut ctx.reborrow(),
                 source_id,
                 symbol,
@@ -1955,7 +1928,8 @@ impl Compiler {
             .unwrap_or_else(|error| {
                 self.error(error);
                 None
-            });
+            })
+        };
         let Some(resolved_arguments) = resolved_arguments else {
             return instance_id;
         };
@@ -2380,13 +2354,13 @@ impl Compiler {
             let kind = parameter_symbols
                 .get(index)
                 .map(|parameter_symbol| {
-                    self.with_module_tree_symbol_view_or_local_at_boundary(
+                    self.with_module_tree_symbol_view_or_local_for_artifact(
                         ctx.module,
                         ctx.profile,
                         parameter_symbol.module_id,
                         ctx.tree,
                         ctx.symbols,
-                        DirReadBoundary::Declared,
+                        destack_workspace::ArtifactKey::dir_declared,
                         |view| {
                             self.static_parameter_metadata_for_symbol_in_module(
                                 view,

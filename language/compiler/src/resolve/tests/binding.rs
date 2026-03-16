@@ -23,7 +23,7 @@ outer: while (true) {
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
 
     // find the outer while loop's symbol
     let outer_symbol_id = test.resolve_label_symbol("test.ds", "outer").unwrap();
@@ -77,7 +77,7 @@ outer: for (let i = 0; i < 10; i++) {
     let outer_symbol_id = test.resolve_label_symbol("test.ds", "outer").unwrap();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
 
     // find the continue expression
     let found_continue = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
@@ -128,7 +128,7 @@ myblock: {
     let block_symbol_id = test.resolve_label_symbol("test.ds", "myblock").unwrap();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
 
     let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
         matches!(
@@ -210,7 +210,7 @@ outer: while (true) {
     let middle_symbol_id = test.resolve_label_symbol("test.ds", "middle").unwrap();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
 
     let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
         matches!(
@@ -252,7 +252,7 @@ outer: loop {
     let outer_symbol_id = test.resolve_label_symbol("test.ds", "outer").unwrap();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
 
     let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
         matches!(
@@ -290,7 +290,7 @@ let z = y;
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
     let (x_symbol_id, x_node) = test.resolve_to_node::<Pattern>("test.ds", "x").unwrap();
 
     // pattern -> declarator -> let
@@ -358,7 +358,7 @@ export let B = A + 1;
     test.compile_check_clean();
 
     let dir_b = test.dir_resolved(module_b_id);
-    let tree_b = dir_b.tree.read();
+    let tree_b = &dir_b.tree;
 
     // export let A = 1;
     let (a_symbol_id, _a_node_id) = test.resolve_to_node::<Pattern>("a.ds", "A").unwrap();
@@ -859,7 +859,7 @@ let b = obj.y;
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
     let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
 
     let a_declarator = tree.get_parent(a_node.id).unwrap();
@@ -906,7 +906,7 @@ var base = 1, mirror = base;
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
 
     // resolve the base symbol for the target assertion
     let base_symbol = test.resolve_to_symbol("test.js", "base").unwrap();
@@ -950,8 +950,8 @@ function pickFirst() {
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
-    let symbols = dir.symbols.read();
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let arguments_name = test.program.strings.intern("arguments");
 
     // scan resolved references and require one that targets the synthetic arguments binding
@@ -1167,8 +1167,8 @@ function readAfterBlock() {
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
-    let symbols = dir.symbols.read();
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let separator_name = test.program.strings.intern("separator");
 
     // locate a return expression that resolves to the hoisted separator symbol
@@ -1217,8 +1217,8 @@ function callBeforeDeclaration() {
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
-    let symbols = dir.symbols.read();
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let verb_name = test.program.strings.intern("verb");
 
     // locate a call expression whose callee resolves to the hoisted declaration symbol
@@ -1263,7 +1263,7 @@ runInContext({});
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
 
     // collect the inner and outer runInContext references
     let mut inner_symbol = None;
@@ -1344,8 +1344,8 @@ function outer() {
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
-    let symbols = dir.symbols.read();
+    let tree = &dir.tree;
+    let symbols = &dir.symbols;
     let wrapper_name = test.program.strings.intern("wrapper");
 
     // require a nested return that resolves to the hoisted wrapper binding
@@ -1390,7 +1390,7 @@ let a = obj.inner.value;
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
 
     let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
     let a_declarator = tree.get_parent(a_node.id).unwrap();
@@ -1445,7 +1445,7 @@ export let C = A + B;
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let symbols = dir.symbols.read();
+    let symbols = &dir.symbols;
 
     let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();
     let b_symbol_id = test.resolve_to_symbol("b.ds", "B").unwrap();
@@ -1742,7 +1742,7 @@ extension for Foo {
     let foo_symbol_id = test.resolve_to_symbol("test.ds", "Foo").unwrap();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
     let extensions: Vec<_> = tree
         .iter_node_ids_of_type::<Declaration>()
         .into_iter()
@@ -1790,7 +1790,7 @@ string;
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
     let roots = &dir.roots;
 
     assert_node!(tree, roots[0], Expression::Statement { statement } => {
@@ -1870,7 +1870,7 @@ string;
     test.compile_check_clean();
 
     let dir = test.dir_resolved(module_id);
-    let tree = dir.tree.read();
+    let tree = &dir.tree;
     let roots = &dir.roots;
 
     let (string_symbol_id, _) = test

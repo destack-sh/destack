@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace};
 use destack_workspace::{Module, ProfileId};
 
-use super::DirReadBoundary;
 use crate::analyze::common::ModuleSymbolView;
 use crate::{BuildRequirementError, Compiler};
 
@@ -25,10 +24,8 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> GlobalSymbolId {
-        let owner_snapshot = match self.require_artifact_dir_for_boundary(
-            symbol.module_id,
-            profile,
-            DirReadBoundary::Declared,
+        let owner_snapshot = match self.require_artifact_dir(
+            destack_workspace::ArtifactKey::dir_declared(symbol.module_id, profile),
         ) {
             Ok(snapshot) => snapshot,
             Err(_) => return symbol,
@@ -118,63 +115,32 @@ impl Compiler {
     /// Remap one symbol from typevalue space to canonical type-space carrier.
     pub(crate) fn remap_typevalue_symbol_to_type_space(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
     ) -> Result<GlobalSymbolId, BuildRequirementError> {
-        let normalize_local_symbol = |candidate| {
-            if let Some(dir) =
-                self.current_active_dir_frame(module.id, profile, DirReadBoundary::Declared)
-            {
-                let symbols = dir.symbols.read();
-                let view = ModuleSymbolView::new(module, profile, &symbols);
-                self.normalize_reference_symbol_id(view, candidate)
-            } else {
-                let module_snapshot = self
-                    .require_artifact_dir_for_boundary(
-                        module.id,
-                        profile,
-                        DirReadBoundary::Declared,
-                    )
-                    .expect("missing declared artifact for local symbol normalization");
-                let view = ModuleSymbolView::new(module, profile, &module_snapshot.symbols);
-                self.normalize_reference_symbol_id(view, candidate)
-            }
-        };
-
-        let symbol = if let Some(dir) =
-            self.current_active_dir_frame(module.id, profile, DirReadBoundary::Declared)
-        {
-            let symbols = dir.symbols.read();
-            let view = ModuleSymbolView::new(module, profile, &symbols);
-            self.normalize_reference_symbol_id(view, symbol)
-        } else {
-            normalize_local_symbol(symbol)
-        };
+        let normalize_local_symbol =
+            |candidate| self.normalize_reference_symbol_id(view, candidate);
+        let symbol = normalize_local_symbol(symbol);
 
         // normalize symbol typing first
 
-        self.with_module_symbols_at_boundary(
-            module,
-            profile,
+        let owner_dir = self.require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
             symbol.module_id,
-            DirReadBoundary::Declared,
-            |_, owner_symbols| {
-                let owner_symbol = owner_symbols.get_symbol(symbol.local_id);
-                if owner_symbol.space != SymbolSpace::TypeValue {
-                    return symbol;
-                }
+            view.profile,
+        ))?;
+        let owner_symbol = owner_dir.symbols.get_symbol(symbol.local_id);
+        if owner_symbol.space != SymbolSpace::TypeValue {
+            return Ok(symbol);
+        }
 
-                let Some(key) = owner_symbol.key else {
-                    return symbol;
-                };
-                if let Some(candidate) = self.select_canonical_type_symbol(module, profile, key) {
-                    normalize_local_symbol(candidate)
-                } else {
-                    symbol
-                }
-            },
-        )
+        let Some(key) = owner_symbol.key else {
+            return Ok(symbol);
+        };
+        if let Some(candidate) = self.select_canonical_type_symbol(view.module, view.profile, key) {
+            Ok(normalize_local_symbol(candidate))
+        } else {
+            Ok(symbol)
+        }
     }
 
     /// Return compatible symbol spaces for one merge source category.

@@ -6,10 +6,9 @@ use destack_dir::{
     PrimitiveType, ScalarLiteral, StaticKey, SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable,
     WellKnownSymbol,
 };
-use destack_workspace::WellKnownSymbols;
+use destack_workspace::{ProfileId, WellKnownSymbols};
 
 use super::mapped::MappedIndexKind;
-use super::{DirReadBoundary, TreeSymbolTypeView};
 use crate::Compiler;
 
 /// Accumulated key information for `keyof` computation.
@@ -99,7 +98,10 @@ impl Compiler {
     /// Resolve a static key from a dynamic key when possible.
     pub(crate) fn static_key_from_dynamic_key(
         &self,
-        ctx: TreeSymbolTypeView<'_>,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         key: DynamicKey,
     ) -> Option<StaticKey> {
         match key {
@@ -110,7 +112,7 @@ impl Compiler {
             }
             DynamicKey::Number(name) => Some(StaticKey::Number(name)),
             DynamicKey::Expression(expression_id) => {
-                self.static_key_from_expression(ctx, expression_id)
+                self.static_key_from_expression(profile, tree, symbols, types, expression_id)
             }
             DynamicKey::NamedExpression { .. } => None,
         }
@@ -119,10 +121,13 @@ impl Compiler {
     /// Resolve a static key from a key expression when possible.
     fn static_key_from_expression(
         &self,
-        ctx: TreeSymbolTypeView<'_>,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<StaticKey> {
-        let expression = ctx.tree.get(expression_id);
+        let expression = tree.get(expression_id);
 
         if let Expression::ScalarLiteral {
             value: ScalarLiteral::String(name),
@@ -133,15 +138,17 @@ impl Compiler {
 
         // helpers for well-known symbol resolution across ambient libs
         let symbol_key_for_global = |symbol: GlobalSymbolId| {
-            self.with_module_symbols_by_id_at_boundary(
-                ctx.profile,
-                symbol.module_id,
-                ctx.symbols,
-                DirReadBoundary::Declared,
-                |owner_symbols| owner_symbols.get_symbol(symbol.local_id).key,
-            )
-            .ok()
-            .flatten()
+            if symbol.module_id == symbols.module_id {
+                return symbols.get_symbol(symbol.local_id).key;
+            }
+
+            let dir = self
+                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                    symbol.module_id,
+                    profile,
+                ))
+                .ok()?;
+            dir.symbols.get_symbol(symbol.local_id).key
         };
         let normalize_well_known_symbol =
             |symbol: GlobalSymbolId, well_known: &WellKnownSymbols| -> Option<GlobalSymbolId> {
@@ -154,7 +161,7 @@ impl Compiler {
                     }
                 }
 
-                let is_ambient = self.is_ambient_lib_module(ctx.profile, symbol.module_id);
+                let is_ambient = self.is_ambient_lib_module(profile, symbol.module_id);
                 if !is_ambient {
                     return None;
                 }
@@ -172,19 +179,15 @@ impl Compiler {
 
         // resolve Symbol.* member keys
         if let Expression::Member { left, name, .. } = expression {
-            let well_known = self.get_well_known_symbols(ctx.profile)?;
-            let symbol_key = ctx
-                .tree
-                .get(*left)
-                .target_symbol()
-                .and_then(|base_symbol| {
-                    well_known
-                        .symbol_key_for_member(base_symbol, *name)
-                        .or_else(|| {
-                            let normalized = normalize_well_known_symbol(base_symbol, &well_known)?;
-                            well_known.symbol_key_for_member(normalized, *name)
-                        })
-                })?;
+            let well_known = self.get_well_known_symbols(profile)?;
+            let symbol_key = tree.get(*left).target_symbol().and_then(|base_symbol| {
+                well_known
+                    .symbol_key_for_member(base_symbol, *name)
+                    .or_else(|| {
+                        let normalized = normalize_well_known_symbol(base_symbol, &well_known)?;
+                        well_known.symbol_key_for_member(normalized, *name)
+                    })
+            })?;
             return Some(StaticKey::Symbol(SymbolKey::WellKnown(symbol_key)));
         }
 
@@ -195,12 +198,12 @@ impl Compiler {
             ..
         } = expression
         {
-            let Expression::Member { left, name, .. } = ctx.tree.get(*left) else {
+            let Expression::Member { left, name, .. } = tree.get(*left) else {
                 return None;
             };
-            let well_known = self.get_well_known_symbols(ctx.profile)?;
+            let well_known = self.get_well_known_symbols(profile)?;
             let symbol_symbol = well_known.get_symbol(WellKnownSymbol::Symbol)?;
-            let base_symbol = ctx.tree.get(*left).target_symbol()?;
+            let base_symbol = tree.get(*left).target_symbol()?;
             if base_symbol != symbol_symbol
                 && normalize_well_known_symbol(base_symbol, &well_known).is_none()
             {
@@ -212,11 +215,11 @@ impl Compiler {
             }
 
             let argument_id = dynamic_arguments.first()?;
-            let argument = ctx.tree.get(*argument_id);
+            let argument = tree.get(*argument_id);
             let value_id = argument.value();
             let Expression::ScalarLiteral {
                 value: ScalarLiteral::String(name),
-            } = ctx.tree.get(value_id)
+            } = tree.get(value_id)
             else {
                 return None;
             };
@@ -243,9 +246,9 @@ impl Compiler {
                 };
 
             // prefer inferred value types
-            if let Some(value_type_id) = ctx.types.get_value_type_id(symbol)
+            if let Some(value_type_id) = types.get_value_type_id(symbol)
                 && matches!(
-                    ctx.types.get_type(value_type_id),
+                    types.get_type(value_type_id),
                     Type::TypeLiteral {
                         value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
                     }
@@ -292,19 +295,24 @@ impl Compiler {
             };
 
             // check declared types in the owning module
-            let is_unique = self
-                .with_module_tree_symbols_types_by_id_at_boundary(
-                    ctx.profile,
+            let is_unique = if symbol.module_id == symbols.module_id {
+                is_unique_symbol(symbols, types, tree)
+            } else {
+                self.require_remote_artifact_dir(
+                    symbols.module_id,
                     symbol.module_id,
-                    ctx.tree,
-                    ctx.symbols,
-                    ctx.types,
-                    DirReadBoundary::Declared,
-                    |owner_tree, owner_symbols, owner_types| {
-                        is_unique_symbol(owner_symbols, owner_types, owner_tree)
-                    },
+                    profile,
+                    destack_workspace::ArtifactKey::dir_declared,
                 )
                 .ok()?;
+                let snapshot = self
+                    .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                        symbol.module_id,
+                        profile,
+                    ))
+                    .ok()?;
+                is_unique_symbol(&snapshot.symbols, &snapshot.types, &snapshot.tree)
+            };
             if is_unique {
                 return Some(StaticKey::Symbol(SymbolKey::Unique(symbol)));
             }

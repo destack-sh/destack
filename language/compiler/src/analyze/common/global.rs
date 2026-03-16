@@ -4,7 +4,7 @@ use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, Mutability, SymbolSpace, Type, TypeField,
 };
 
-use super::{DirReadBoundary, InferContext, ObjectShape};
+use super::{InferContext, ObjectShape};
 use crate::{AnalyzeError, AnalyzeResult, Compiler, InferState};
 
 impl Compiler {
@@ -81,12 +81,12 @@ impl Compiler {
 
                 // compute readonly status from the binding mutability
                 let binding_mutability = self
-                    .with_module_symbols_or_local_at_boundary(
+                    .with_module_symbols_or_local_for_artifact(
                         ctx.module,
                         ctx.profile,
                         symbol_id.module_id,
                         ctx.symbols,
-                        DirReadBoundary::Declared,
+                        destack_workspace::ArtifactKey::dir_declared,
                         |_, owner_symbols| {
                             owner_symbols
                                 .get_symbol(symbol_id.local_id)

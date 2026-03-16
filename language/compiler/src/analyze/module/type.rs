@@ -1,107 +1,68 @@
-use destack_dir::{GlobalSymbolId, SymbolType, Type, TypeTable};
+use destack_dir::{GlobalSymbolId, Lineage, SymbolType, Type, TypeTable};
 use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{ArtifactKey, Module, ProfileId};
 
-use super::DirReadBoundary;
 use crate::analyze::common::TypeContext;
 use crate::{BuildRequirementError, Compiler};
 
 impl Compiler {
-    /// Read one module type table, reusing a local table when possible.
-    fn with_module_types_read<R>(
+    /// Read one symbol lineage with exact artifact reads and local reuse.
+    pub(crate) fn lineage_for_symbol_or_local_for_artifact(
         &self,
         module: &Module,
         profile: ProfileId,
-        module_id: ModuleId,
-        local_types: Option<&TypeTable>,
-        boundary: DirReadBoundary,
-        handle: impl FnOnce(&Module, &TypeTable) -> R,
-    ) -> Result<R, BuildRequirementError> {
-        // reuse local table for local reads
-        if module_id == module.id {
-            if let Some(local_types) = local_types {
-                return Ok(handle(module, local_types));
-            }
-
-            if let Some(dir) = self.current_active_dir_frame(module_id, profile, boundary) {
-                let types = dir.types.read();
-                return Ok(handle(module, &types));
-            }
-
-            let snapshot = self.require_artifact_dir_for_boundary(module_id, profile, boundary)?;
-            return Ok(handle(module, &snapshot.types));
+        symbol: GlobalSymbolId,
+        types: &TypeTable,
+        artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
+    ) -> Result<Option<Lineage>, BuildRequirementError> {
+        if let Some(lineage) = types.get_lineage_for_symbol(symbol) {
+            return Ok(Some(lineage.clone()));
         }
 
-        // otherwise read from the remote module
-        let remote_module = self.program.modules.get(module_id);
-        let remote_module = remote_module.read();
-        if let Some(dir) = self.current_active_dir_frame(module_id, profile, boundary) {
-            let types = dir.types.read();
-            return Ok(handle(&remote_module, &types));
+        if symbol.module_id == module.id {
+            return Ok(None);
         }
 
-        let snapshot = self.require_artifact_dir_for_boundary(module_id, profile, boundary)?;
-        Ok(handle(&remote_module, &snapshot.types))
+        self.with_module_types_or_local_for_artifact(
+            module,
+            profile,
+            symbol.module_id,
+            types,
+            artifact_key,
+            |_, owner_types| owner_types.get_lineage_for_symbol(symbol).cloned(),
+        )
     }
 
-    /// Provide type ctx for a module with boundary-gated cross-module reads.
-    pub(crate) fn with_module_types_at_boundary<R>(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        module_id: ModuleId,
-        boundary: DirReadBoundary,
-        handle: impl FnOnce(&Module, &TypeTable) -> R,
-    ) -> Result<R, BuildRequirementError> {
-        self.require_boundary_for_remote_module_read(module.id, module_id, profile, boundary)?;
-
-        self.with_module_types_read(module, profile, module_id, None, boundary, handle)
-    }
-
-    /// Provide type ctx with boundary-gated cross-module reads and local reuse.
-    pub(crate) fn with_module_types_or_local_at_boundary<R>(
+    /// Provide type ctx with exact artifact reads and local reuse.
+    pub(crate) fn with_module_types_or_local_for_artifact<R>(
         &self,
         module: &Module,
         profile: ProfileId,
         module_id: ModuleId,
         types: &TypeTable,
-        boundary: DirReadBoundary,
+        artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
         handle: impl FnOnce(&Module, &TypeTable) -> R,
     ) -> Result<R, BuildRequirementError> {
-        self.require_boundary_for_remote_module_read(module.id, module_id, profile, boundary)?;
-
-        self.with_module_types_read(module, profile, module_id, Some(types), boundary, handle)
-    }
-
-    /// Provide a type table by module id with a boundary gate.
-    pub(crate) fn with_module_types_by_id_at_boundary<R>(
-        &self,
-        profile: ProfileId,
-        module_id: ModuleId,
-        boundary: DirReadBoundary,
-        handle: impl FnOnce(&Module, &TypeTable) -> R,
-    ) -> Result<R, BuildRequirementError> {
-        // by-id reads are always cross-module, so always gate
-        self.require_module_boundary_for_read(module_id, profile, boundary)?;
-
-        let remote_module = self.program.modules.get(module_id);
-        let remote_module = remote_module.read();
-        if let Some(dir) = self.current_active_dir_frame(module_id, profile, boundary) {
-            let types = dir.types.read();
-            return Ok(handle(&remote_module, &types));
+        if module_id == module.id {
+            return Ok(handle(module, types));
         }
 
-        let snapshot = self.require_artifact_dir_for_boundary(module_id, profile, boundary)?;
+        // remote reads require one exact committed artifact
+        let remote_module = self.program.modules.get(module_id);
+        let remote_module = remote_module.as_ref();
+        let key = artifact_key(module_id, profile);
+        let snapshot = self.require_artifact_dir(key)?;
+
         Ok(handle(&remote_module, &snapshot.types))
     }
 
-    /// Read one committed remote alias target snapshot at a boundary.
-    pub(crate) fn remote_alias_target_snapshot_at_boundary(
+    /// Read one committed remote alias target from one exact artifact family.
+    pub(crate) fn remote_alias_target_for_artifact(
         &self,
-        module: &Module,
+        _module: &Module,
         profile: ProfileId,
         symbol: GlobalSymbolId,
-        boundary: DirReadBoundary,
+        artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
     ) -> Result<
         (
             Option<GlobalSymbolId>,
@@ -110,17 +71,11 @@ impl Compiler {
         ),
         BuildRequirementError,
     > {
-        self.require_boundary_for_remote_module_read(
-            module.id,
-            symbol.module_id,
-            profile,
-            boundary,
-        )?;
-
+        // remote reads require one exact committed artifact
+        let key = artifact_key(symbol.module_id, profile);
         let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let snapshot =
-            self.require_artifact_dir_for_boundary(symbol.module_id, profile, boundary)?;
+        let remote_module = remote_module.as_ref();
+        let snapshot = self.require_artifact_dir(key)?;
         let symbol_entry = snapshot.symbols.get_symbol(symbol.local_id);
         if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
             let target_symbol = symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
@@ -133,8 +88,7 @@ impl Compiler {
             let target_symbol = symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
             return Ok((Some(typed_symbol), None, target_symbol));
         };
-
-        let mut remote_snapshot = snapshot.types.clone();
+        let mut remote_snapshot = snapshot.types.as_ref().clone();
         if matches!(
             remote_snapshot.get_type(remote_target_id),
             Type::Unevaluated(_)

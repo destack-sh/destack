@@ -17,10 +17,8 @@ impl Compiler {
         profile_id: ProfileId,
     ) -> ResolveResult<ModuleBindingTableKey> {
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let package_id = module.package_id;
-        drop(module);
-
         // select the module binding cache key
         let (global_key, _) = self.select_global_symbol_table(module_id, profile_id)?;
         let key = ModuleBindingTableKey {
@@ -90,14 +88,14 @@ impl Compiler {
         // module targets expose one direct runtime format
         if let ModuleTarget::Module(module_id) = target {
             let module = self.program.modules.get(module_id);
-            let module = module.read();
+            let module = module.as_ref();
 
             // declaration modules do not encode runtime format
             if module.language_type.is_declaration() {
                 return Ok(None);
             }
 
-            return Ok(Some(module.module_format));
+            return Ok(Some(module.module_format()));
         }
 
         // binding targets may span declarations from multiple modules
@@ -116,14 +114,14 @@ impl Compiler {
         let mut saw_esm = false;
         for binding_ref in bindings {
             let module = self.program.modules.get(binding_ref.module_id);
-            let module = module.read();
+            let module = module.as_ref();
 
             // declaration modules do not encode runtime format
             if module.language_type.is_declaration() {
                 continue;
             }
 
-            if module.module_format.is_commonjs() {
+            if module.module_format().is_commonjs() {
                 saw_commonjs = true;
             } else {
                 saw_esm = true;
@@ -197,27 +195,20 @@ impl Compiler {
         module_id: ModuleId,
     ) -> ResolveResult<()> {
         let module = self.program.modules.get(module_id);
-        let module = module.read();
-        cache.module_versions.insert(module_id, module.version);
+        let module = module.as_ref();
+        cache.module_versions.insert(module_id, module.version());
 
         // only code modules can contribute module bindings
         if !module.is_code() {
             return Ok(());
         }
 
-        let module_bindings = if let Some(active) =
-            self.with_current_active_base_dir(module_id, |dir| dir.module_bindings.read().clone())
-        {
-            active
-        } else {
-            self.require_dir_base(module_id)?;
+        self.require_dir_base(module_id)?;
 
-            let dir = self
-                .artifact_dir_base(module_id)
-                .unwrap_or_else(|| panic!("missing committed base dir artifact for {module_id:?}"));
-
-            dir.module_bindings.clone()
-        };
+        let dir = self
+            .artifact_dir_base(module_id)
+            .unwrap_or_else(|| panic!("missing committed base dir artifact for {module_id:?}"));
+        let module_bindings = dir.module_bindings.as_ref().clone();
 
         for module_binding in &module_bindings {
             let binding_ref = ModuleBindingReference {
@@ -289,8 +280,8 @@ impl Compiler {
         let mut expected_module_versions = expected_registry_versions;
         for module_id in self.ambient_binding_module_ids(profile_id)? {
             let module = self.program.modules.get(module_id);
-            let module = module.read();
-            expected_module_versions.insert(module_id, module.version);
+            let module = module.as_ref();
+            expected_module_versions.insert(module_id, module.version());
         }
 
         if expected_module_versions.len() != cache.module_versions.len() {

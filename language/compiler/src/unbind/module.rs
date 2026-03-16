@@ -2,7 +2,8 @@ use destack_ast::{self as ast};
 use destack_core::StringPool;
 use destack_dir::{self as dir};
 use destack_source::{FileId, ModuleId, Span};
-use destack_workspace::{Module, ModuleDirData, ProfileId};
+use destack_workspace::{Module, ModuleDir, ProfileId};
+use std::sync::Arc;
 
 use super::UnbindContext;
 use crate::Compiler;
@@ -19,16 +20,28 @@ pub struct UnboundModule {
 }
 
 impl Compiler {
-    /// Return the most advanced published DIR snapshot for one module and profile.
-    pub(super) fn unbind_dir_snapshot(
+    /// Return the most advanced DIR artifact available for unbinding.
+    pub(super) fn best_unbind_dir(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-    ) -> Option<ModuleDirData> {
-        self.program
-            .artifacts
-            .dir_snapshot(module_id, profile)
-            .map(|dir| dir.as_ref().clone())
+    ) -> Option<Arc<ModuleDir>> {
+        for dir in [
+            self.program.artifacts.dir_patched(module_id, profile),
+            self.program.artifacts.dir_elaborated(module_id, profile),
+            self.program.artifacts.dir_analyzed(module_id, profile),
+            self.program.artifacts.dir_interface(module_id, profile),
+            self.program.artifacts.dir_declared(module_id, profile),
+            self.program.artifacts.dir_resolved(module_id, profile),
+            self.program.artifacts.dir_prepared(module_id, profile),
+            self.program.artifacts.dir_base(module_id),
+        ] {
+            if let Some(dir) = dir {
+                return Some(dir);
+            }
+        }
+
+        None
     }
 
     /// Get the span for a DIR node.
@@ -40,10 +53,9 @@ impl Compiler {
 
     /// Unbind a module's DIR tree to an AST tree.
     pub fn unbind_module(&self, module: &Module, profile: ProfileId) -> UnboundModule {
-        // read the most advanced committed artifact snapshot
+        // read the most advanced committed dir artifact
         let dir = self
-            .unbind_dir_snapshot(module.id, profile)
-            .map(std::sync::Arc::new)
+            .best_unbind_dir(module.id, profile)
             .unwrap_or_else(|| panic!("missing committed dir artifact for module {:?}", module.id));
         let fallback_node = dir
             .roots
