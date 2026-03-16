@@ -13,7 +13,6 @@ mod module;
 mod package;
 mod profile;
 mod program;
-mod signature;
 mod specifier;
 mod target;
 
@@ -32,6 +31,5 @@ pub use module::*;
 pub use package::*;
 pub use profile::*;
 pub use program::*;
-pub use signature::*;
 pub use specifier::*;
 pub use target::*;

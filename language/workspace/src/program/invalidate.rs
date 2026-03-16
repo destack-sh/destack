@@ -4,7 +4,7 @@ use destack_source::{
     File, FileContent, FileId, FileType, FileVersion, ModuleId, PackageId, ProfileId,
 };
 
-use crate::{ModuleContent, PackageManifest, Program, TsConfigId};
+use crate::{PackageManifest, Program, TsConfigId};
 
 /// Content update payload for an invalidated file.
 #[derive(Debug, Clone)]
@@ -130,7 +130,7 @@ impl Program {
 
             // track packages for module source invalidation
             let module = self.modules.get(module_id);
-            packages.insert(module.read().package_id);
+            packages.insert(module.package_id);
         }
 
         // map file id to config invalidation
@@ -153,7 +153,7 @@ impl Program {
             kinds.insert(InvalidationKind::Destack);
             let mut config_modules = Vec::new();
             for module in self.modules.iter() {
-                config_modules.push(module.read().id);
+                config_modules.push(module.id);
             }
             modules.extend(config_modules.iter().copied());
             self.refresh_module_semantics_for_modules(&config_modules);
@@ -203,7 +203,7 @@ impl Program {
         // ensure package invalidation tracks modules discovered by config updates
         for module_id in &modules {
             let module = self.modules.get(*module_id);
-            packages.insert(module.read().package_id);
+            packages.insert(module.package_id);
         }
 
         // fall back to unknown when no mappings matched
@@ -317,7 +317,7 @@ impl Program {
         &self,
         module_id: ModuleId,
         file_version: FileVersion,
-        is_removed: bool,
+        _is_removed: bool,
     ) -> HashSet<ProfileId> {
         // collect profiles touched by the module
         let module_profiles = self.collect_module_profiles(module_id);
@@ -325,64 +325,20 @@ impl Program {
         // update module versions and clear cached data
         {
             let module = self.modules.get(module_id);
-            let mut module = module.write();
+            let mut state = module.state.write();
 
             // bump module and source versions
-            let next_version = module.version.next();
-            module.version = next_version;
-            module.source_version = file_version;
-
-            // determine whether to clear non code content
-            let mut clear_non_code = false;
-            match &mut module.content {
-                ModuleContent::Code(code) => {
-                    // clear code scoped caches
-                    code.ast = None;
-                }
-                ModuleContent::Data { .. }
-                | ModuleContent::Text { .. }
-                | ModuleContent::Binary { .. } => {
-                    clear_non_code = true;
-                }
-                ModuleContent::Unloaded => {}
-            }
-
-            // drop non code content when required
-            if clear_non_code {
-                module.content = ModuleContent::Unloaded;
-            }
+            let next_version = state.version.next();
+            state.version = next_version;
+            state.source_version = file_version;
         }
+
+        self.artifacts.remove_ast(module_id);
 
         // drop shared indexes that lack staleness checks
         self.index.global_symbol_tables.clear();
         self.index.module_binding_registry.clear();
         self.index.module_binding_tables.clear();
-
-        // drop cached signatures for this module
-        let signature_keys: Vec<_> = self
-            .index
-            .module_signatures
-            .iter()
-            .filter(|entry| entry.key().module_id == module_id)
-            .map(|entry| *entry.key())
-            .collect();
-        for key in signature_keys {
-            self.index.module_signatures.remove(&key);
-        }
-
-        // drop cached signature digests for removed modules
-        if is_removed {
-            let digest_keys: Vec<_> = self
-                .index
-                .module_signature_digests
-                .iter()
-                .filter(|entry| entry.key().module_id == module_id)
-                .map(|entry| *entry.key())
-                .collect();
-            for key in digest_keys {
-                self.index.module_signature_digests.remove(&key);
-            }
-        }
 
         module_profiles
     }
@@ -406,18 +362,6 @@ impl Program {
             self.artifacts.remove_language_environment(*profile_id);
             self.artifacts.remove_intrinsic_environment(*profile_id);
             self.artifacts.remove_lib_environment(*profile_id);
-        }
-
-        // drop cached signatures for affected profiles
-        let signature_keys: Vec<_> = self
-            .index
-            .module_signatures
-            .iter()
-            .filter(|entry| profile_ids.contains(&entry.key().profile_id))
-            .map(|entry| *entry.key())
-            .collect();
-        for key in signature_keys {
-            self.index.module_signatures.remove(&key);
         }
 
         // collect modules that share the profile ids
@@ -453,23 +397,7 @@ impl Program {
     /// Collect profile ids referenced by a module.
     fn collect_module_profiles(&self, module_id: ModuleId) -> HashSet<ProfileId> {
         // collect profiles from published artifacts
-        let mut profiles = self.artifacts.profile_ids_for_module(module_id);
-
-        // collect profiles from cached signatures
-        for entry in self.index.module_signatures.iter() {
-            let key = entry.key();
-            if key.module_id == module_id {
-                profiles.insert(key.profile_id);
-            }
-        }
-
-        // collect profiles from signature digests
-        for entry in self.index.module_signature_digests.iter() {
-            let key = entry.key();
-            if key.module_id == module_id {
-                profiles.insert(key.profile_id);
-            }
-        }
+        let profiles = self.artifacts.profile_ids_for_module(module_id);
 
         profiles
     }
@@ -519,7 +447,7 @@ impl Program {
         // collect modules for the package
         let mut modules = Vec::new();
         for module in self.modules.iter() {
-            let module = module.read();
+            let module = module.as_ref();
             if module.package_id == package_id {
                 modules.push(module.id);
             }
@@ -548,9 +476,9 @@ impl Program {
         // collect modules mapped to those tsconfigs
         let mut modules = Vec::new();
         for module in self.modules.iter() {
-            let module = module.read();
+            let module = module.as_ref();
             if module
-                .tsconfig_id
+                .tsconfig_id()
                 .is_some_and(|id| tsconfig_ids.contains(&id))
             {
                 modules.push(module.id);
@@ -636,9 +564,10 @@ mod tests {
     };
 
     use crate::{
-        Destack, EnvSnapshot, Loader, Module, ModuleAst, ModuleDetection, ModuleDir, ModuleFormat,
-        ModuleSource, ModuleTarget, OutputFormat, Package, PackageKind, PackageManifest, Platform,
-        ProfileFlags, ProfileId, ProfileKey, Program, Runtime, SourceType, TsConfig,
+        Destack, EnvSnapshot, ImportDir, Loader, Module, ModuleAst, ModuleDetection, ModuleDir,
+        ModuleFormat, ModuleSource, ModuleTarget, OutputFormat, Package, PackageKind,
+        PackageManifest, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime,
+        SourceType, TsConfig,
     };
 
     use super::{FileUpdate, InvalidationError};
@@ -811,13 +740,13 @@ mod tests {
         assert!(
             program
                 .artifacts
-                .dir_snapshot(module_a_id, profile_id)
+                .dir_analyzed(module_a_id, profile_id)
                 .is_some()
         );
         assert!(
             program
                 .artifacts
-                .dir_snapshot(module_b_id, profile_id)
+                .dir_analyzed(module_b_id, profile_id)
                 .is_some()
         );
 
@@ -830,13 +759,13 @@ mod tests {
         assert!(
             program
                 .artifacts
-                .dir_snapshot(module_a_id, profile_id)
+                .dir_analyzed(module_a_id, profile_id)
                 .is_none()
         );
         assert!(
             program
                 .artifacts
-                .dir_snapshot(module_b_id, profile_id)
+                .dir_analyzed(module_b_id, profile_id)
                 .is_none()
         );
     }
@@ -933,9 +862,9 @@ mod tests {
                 .contains(&super::InvalidationKind::PackageManifest)
         );
         let module = program.modules.get(module_id);
-        let module = module.read();
-        assert!(module.source_type.is_module());
-        assert!(module.module_format.is_esm());
+        let module = module.as_ref();
+        assert!(module.source_type().is_module());
+        assert_eq!(module.module_format(), ModuleFormat::Esm);
     }
 
     /// Refresh module semantics when tsconfig mapping is invalidated.
@@ -1021,9 +950,9 @@ mod tests {
         assert!(result.kinds.contains(&super::InvalidationKind::TsConfig));
 
         let module = program.modules.get(module_id);
-        let module = module.read();
-        assert!(module.source_type.is_module());
-        assert!(module.module_format.is_commonjs());
+        let module = module.as_ref();
+        assert!(module.source_type().is_module());
+        assert!(module.module_format().is_commonjs());
 
         // assert compiler options are still intact for this test setup
         let tsconfig = program.tsconfigs.get(tsconfig_id);
@@ -1086,26 +1015,25 @@ mod tests {
     fn attach_profile_dir(program: &Program, module_id: ModuleId, profile_id: ProfileId) {
         // add a minimal dir entry for the profile
         let module = program.modules.get(module_id);
-        let mut module = module.write();
-
-        // file id
+        let module = module.as_ref();
         let file_id = module.file_id;
+        let module_version = module.version();
+        drop(module);
 
         // anchor expression
-        let anchor_id = match module.code_mut().ast.as_mut() {
-            Some(ast) => ast.ensure_anchor_expression(file_id),
-            None => {
-                // synthesize a minimal AST for diagnostics
-                let mut ast = ModuleAst::new(module_id, module.version);
-                let anchor_id = ast.ensure_anchor_expression(file_id);
-                module.code_mut().ast = Some(ast);
-                anchor_id
-            }
+        let anchor_id = if let Some(ast) = program.artifacts.ast(module_id) {
+            ast.anchor_expression
+                .expect("missing anchor expression on AST")
+        } else {
+            let mut ast = ModuleAst::new(module_id, module_version);
+            let anchor_id = ast.ensure_anchor_expression(file_id);
+            program.artifacts.set_ast(module_id, ast);
+            anchor_id
         };
-        let mut dir = ModuleDir::new_base(module_id, module.version, anchor_id.id);
-        dir.profile_id = Some(profile_id);
+        let base_dir = ImportDir::new_base(module_id, module_version, anchor_id.id).into_dir();
+        let dir = ModuleDir::from_base(&base_dir, profile_id);
         program
             .artifacts
-            .set_dir_analyzed(module_id, profile_id, dir.to_data());
+            .set_dir_analyzed(module_id, profile_id, dir);
     }
 }

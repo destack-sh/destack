@@ -7,7 +7,7 @@ use parking_lot::RwLock;
 use destack_builtin::BuiltinLibKind;
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
-use crate::{Loader, ModuleAst, ModuleTarget, SourceType, TsConfigId};
+use crate::{Loader, ModuleTarget, SourceType, TsConfigId};
 
 /// The source/origin of a module.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -109,65 +109,10 @@ impl ModuleFormat {
         }
     }
 
-    /// Return true when this module format is ESM.
-    pub fn is_esm(self) -> bool {
-        matches!(self, Self::Esm)
-    }
-
     /// Return true when this module format is CommonJS.
     pub fn is_commonjs(self) -> bool {
         matches!(self, Self::CommonJs)
     }
-}
-
-/// The type of module content.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
-pub enum ModuleType {
-    /// Code module (Destack, TypeScript, JavaScript).
-    #[default]
-    Code,
-    /// Data module (JSON, TOML, YAML).
-    Data,
-    /// Text module (plain text, markdown, etc.).
-    Text,
-    /// Binary module (images, fonts, wasm, etc.).
-    Binary,
-}
-
-/// Code-specific module data.
-#[derive(Debug, Default)]
-pub struct ModuleCode {
-    /// The AST-level module data.
-    pub ast: Option<ModuleAst>,
-}
-
-/// The content of a module.
-#[derive(Debug)]
-#[allow(clippy::large_enum_variant)]
-pub enum ModuleContent {
-    /// Code module with AST-level source state.
-    Code(ModuleCode),
-    /// Data module (JSON, TOML, YAML) with parsed value.
-    Data {
-        source: String,
-        value: serde_json::Value,
-        /// The AST anchor for diagnostics.
-        ast: ModuleAst,
-    },
-    /// Text module (plain string content).
-    Text {
-        content: String,
-        /// The AST anchor for diagnostics.
-        ast: ModuleAst,
-    },
-    /// Binary module (raw bytes).
-    Binary {
-        bytes: Vec<u8>,
-        /// The AST anchor for diagnostics.
-        ast: ModuleAst,
-    },
-    /// Content not yet loaded.
-    Unloaded,
 }
 
 /// A Module is a single source unit.
@@ -176,10 +121,6 @@ pub enum ModuleContent {
 pub struct Module {
     /// The id of the Module itself.
     pub id: ModuleId,
-    /// The version of the Module (increments on each recompilation).
-    pub version: ModuleVersion,
-    /// The version of the source File this module was compiled from.
-    pub source_version: FileVersion,
     /// The underlying source File (might be empty if placeholder or synthetic module).
     pub file_id: FileId,
     /// The URI of the Module.
@@ -188,22 +129,31 @@ pub struct Module {
     pub path: Option<PathBuf>,
     /// The package of the Module (every module belongs to a package).
     pub package_id: PackageId,
-    /// The tsconfig of the Module (if any).
-    pub tsconfig_id: Option<TsConfigId>,
-    /// The source type of the Module (Script vs Module).
-    pub source_type: SourceType,
-    /// The runtime module format for import and export interop.
-    pub module_format: ModuleFormat,
     /// The language type of the Module (Destack, TypeScript, JavaScript, etc.).
     pub language_type: LanguageType,
     /// How the module content is loaded/interpreted.
     pub loader: Loader,
     /// The source/origin of the module (user code or builtin).
     pub source: ModuleSource,
-    /// The type of module content (Code, Data, Text, Binary).
-    pub module_type: ModuleType,
-    /// The module content (code-specific data, or data/text/binary content).
-    pub content: ModuleContent,
+    /// The mutable module state.
+    /// FUGU #Architecture: module identity should eventually stop carrying this mutable workspace state directly.
+    pub state: RwLock<ModuleState>,
+}
+
+/// The mutable state for one module.
+/// FUGU #Architecture: this remaining mutable tail should keep shrinking until Module is closer to pure identity.
+#[derive(Debug)]
+pub struct ModuleState {
+    /// The version of the Module (increments on each recompilation).
+    pub version: ModuleVersion,
+    /// The version of the source File this module was compiled from.
+    pub source_version: FileVersion,
+    /// The tsconfig of the Module (if any).
+    pub tsconfig_id: Option<TsConfigId>,
+    /// The source type of the Module (Script vs Module).
+    pub source_type: SourceType,
+    /// The runtime module format for import and export interop.
+    pub module_format: ModuleFormat,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -223,62 +173,22 @@ impl Module {
         loader: Loader,
         source: ModuleSource,
     ) -> Self {
-        let module_type = loader.module_type();
-        let content = match module_type {
-            ModuleType::Code => ModuleContent::Code(ModuleCode::default()),
-            _ => ModuleContent::Unloaded,
-        };
         Self {
             id,
-            version: ModuleVersion::INITIAL,
-            source_version,
             file_id,
             uri,
             path,
             package_id,
-            tsconfig_id,
-            source_type,
-            module_format,
             language_type,
             loader,
             source,
-            module_type,
-            content,
-        }
-    }
-
-    /// Create a new code Module from an AST.
-    pub fn from_ast(
-        id: ModuleId,
-        file_id: FileId,
-        source_version: FileVersion,
-        uri: Uri,
-        path: Option<PathBuf>,
-        package_id: PackageId,
-        tsconfig_id: Option<TsConfigId>,
-        source_type: SourceType,
-        module_format: ModuleFormat,
-        language_type: LanguageType,
-        loader: Loader,
-        source: ModuleSource,
-        ast: ModuleAst,
-    ) -> Self {
-        Self {
-            id,
-            version: ModuleVersion::INITIAL,
-            source_version,
-            file_id,
-            uri,
-            path,
-            package_id,
-            tsconfig_id,
-            source_type,
-            module_format,
-            language_type,
-            loader,
-            source,
-            module_type: ModuleType::Code,
-            content: ModuleContent::Code(ModuleCode { ast: Some(ast) }),
+            state: RwLock::new(ModuleState {
+                version: ModuleVersion::INITIAL,
+                source_version,
+                tsconfig_id,
+                source_type,
+                module_format,
+            }),
         }
     }
 
@@ -297,89 +207,32 @@ impl Module {
     /// Whether this module is a code module.
     #[inline]
     pub fn is_code(&self) -> bool {
-        matches!(self.content, ModuleContent::Code(_))
+        self.loader.is_code()
     }
 
-    /// Get the code-specific data.
-    ///
-    /// # Panics
-    /// Panics if this is not a code module.
-    #[inline]
-    pub fn code(&self) -> &ModuleCode {
-        match &self.content {
-            ModuleContent::Code(code) => code,
-            _ => panic!("not a code module: {self:?}"),
-        }
+    /// Return the current module version.
+    pub fn version(&self) -> ModuleVersion {
+        self.state.read().version
     }
 
-    /// Get the code-specific data mutably.
-    ///
-    /// # Panics
-    /// Panics if this is not a code module.
-    #[inline]
-    pub fn code_mut(&mut self) -> &mut ModuleCode {
-        match &mut self.content {
-            ModuleContent::Code(code) => code,
-            _ => panic!("not a code module"),
-        }
+    /// Return the current source file version.
+    pub fn source_version(&self) -> FileVersion {
+        self.state.read().source_version
     }
 
-    /// Get the AST.
-    ///
-    /// # Panics
-    /// Panics if called before Import phase completes or if not a code module.
-    #[inline]
-    pub fn ast(&self) -> &ModuleAst {
-        self.code().ast.as_ref().expect("no AST on module")
+    /// Return the active tsconfig id.
+    pub fn tsconfig_id(&self) -> Option<TsConfigId> {
+        self.state.read().tsconfig_id
     }
 
-    /// Get the AST mutably.
-    ///
-    /// # Panics
-    /// Panics if called before Import phase completes or if not a code module.
-    #[inline]
-    pub fn ast_mut(&mut self) -> &mut ModuleAst {
-        self.code_mut().ast.as_mut().expect("no AST on module")
+    /// Return the current source type.
+    pub fn source_type(&self) -> SourceType {
+        self.state.read().source_type
     }
 
-    /// Get the AST if it exists.
-    #[inline]
-    pub fn ast_maybe(&self) -> Option<&ModuleAst> {
-        match &self.content {
-            ModuleContent::Code(code) => code.ast.as_ref(),
-            ModuleContent::Data { ast, .. } => Some(ast),
-            ModuleContent::Text { ast, .. } => Some(ast),
-            ModuleContent::Binary { ast, .. } => Some(ast),
-            _ => None,
-        }
-    }
-
-    /// Get the AST mutably if it exists.
-    #[inline]
-    pub fn ast_maybe_mut(&mut self) -> Option<&mut ModuleAst> {
-        match &mut self.content {
-            ModuleContent::Code(code) => code.ast.as_mut(),
-            ModuleContent::Data { ast, .. } => Some(ast),
-            ModuleContent::Text { ast, .. } => Some(ast),
-            ModuleContent::Binary { ast, .. } => Some(ast),
-            _ => None,
-        }
-    }
-
-    /// Insert or replace the AST.
-    ///
-    /// # Panics
-    /// Panics if the module content is unloaded.
-    pub fn set_ast(&mut self, ast: ModuleAst) {
-        match &mut self.content {
-            ModuleContent::Code(code) => code.ast = Some(ast),
-            ModuleContent::Data { ast: existing, .. } => *existing = ast,
-            ModuleContent::Text { ast: existing, .. } => *existing = ast,
-            ModuleContent::Binary { ast: existing, .. } => *existing = ast,
-            ModuleContent::Unloaded => {
-                panic!("cannot set AST on unloaded module");
-            }
-        }
+    /// Return the current runtime module format.
+    pub fn module_format(&self) -> ModuleFormat {
+        self.state.read().module_format
     }
 }
 
@@ -387,7 +240,7 @@ impl Module {
 #[derive(Debug)]
 pub struct ModuleRegistry {
     /// The modules by id.
-    modules_by_id: DashMap<ModuleId, Arc<RwLock<Module>>>,
+    modules_by_id: DashMap<ModuleId, Arc<Module>>,
     /// URI-based index for looking up modules by their URI.
     modules_by_uri: DashMap<Uri, ModuleId>,
     /// Path-based index for looking up modules by their path (only for modules with valid paths).
@@ -419,7 +272,7 @@ impl ModuleRegistry {
         let path = module.path.clone();
         let file_id = module.file_id;
         let id = module.id;
-        self.modules_by_id.insert(id, Arc::new(RwLock::new(module)));
+        self.modules_by_id.insert(id, Arc::new(module));
         self.modules_by_uri.insert(uri, id);
         self.modules_by_file_id.insert(file_id, id);
         if let Some(path) = path {
@@ -437,7 +290,7 @@ impl ModuleRegistry {
     /// # Panics
     /// Panics if the module is not found.
     #[inline]
-    pub fn get(&self, id: ModuleId) -> Arc<RwLock<Module>> {
+    pub fn get(&self, id: ModuleId) -> Arc<Module> {
         self.modules_by_id
             .get(&id)
             .unwrap_or_else(|| panic!("module not found for id: {id:?}"))
@@ -450,7 +303,7 @@ impl ModuleRegistry {
     }
 
     /// Get a module by its URI.
-    pub fn get_by_uri(&self, uri: &Uri) -> Option<Arc<RwLock<Module>>> {
+    pub fn get_by_uri(&self, uri: &Uri) -> Option<Arc<Module>> {
         let id = self.get_id_by_uri(uri)?;
         Some(self.get(id))
     }
@@ -466,7 +319,7 @@ impl ModuleRegistry {
     }
 
     /// Get a module by its path.
-    pub fn get_by_path(&self, path: &Path) -> Option<Arc<RwLock<Module>>> {
+    pub fn get_by_path(&self, path: &Path) -> Option<Arc<Module>> {
         let id = self.get_id_by_path(path)?;
         Some(self.get(id))
     }
@@ -482,13 +335,13 @@ impl ModuleRegistry {
     }
 
     /// Get a module by its source file id.
-    pub fn get_by_file_id(&self, file_id: FileId) -> Option<Arc<RwLock<Module>>> {
+    pub fn get_by_file_id(&self, file_id: FileId) -> Option<Arc<Module>> {
         let id = self.get_id_by_file_id(file_id)?;
         Some(self.get(id))
     }
 
     /// Iterate over the modules in the registry.
-    pub fn iter(&self) -> impl Iterator<Item = Arc<RwLock<Module>>> {
+    pub fn iter(&self) -> impl Iterator<Item = Arc<Module>> {
         let snapshot: Vec<_> = self
             .modules_by_id
             .iter()

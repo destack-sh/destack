@@ -25,8 +25,8 @@ pub enum ArtifactFamily {
     DirElaborated,
     /// Post comptime DIR.
     DirPatched,
-    /// Lowered MIR.
-    Mir,
+    /// Base MIR before optimization.
+    MirBase,
     /// Optimized MIR.
     MirOptimized,
 }

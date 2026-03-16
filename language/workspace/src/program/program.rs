@@ -172,7 +172,7 @@ impl Program {
 
         // create and insert the root package and module (for global caching)
         let (root_module_id, fallback_file_id) =
-            Self::make_root(&modules, &packages, files.clone());
+            Self::make_root(&modules, &packages, &artifacts, files.clone());
 
         Self {
             formatter,
@@ -222,7 +222,7 @@ impl Program {
 
         // create and insert the root package and module
         let (root_module_id, fallback_file_id) =
-            Self::make_root(&modules, &packages, files.clone());
+            Self::make_root(&modules, &packages, &artifacts, files.clone());
 
         Self {
             formatter,
@@ -253,6 +253,7 @@ impl Program {
     fn make_root(
         modules: &ModuleRegistry,
         packages: &Arc<PackageRegistry>,
+        artifacts: &Arc<ArtifactRegistry>,
         files: Arc<FileRegistry>,
     ) -> (ModuleId, FileId) {
         // ephemeral package for root
@@ -301,7 +302,7 @@ impl Program {
         );
         root_module_ast.ensure_anchor_expression(root_file_id);
         let root_file = files.get(root_file_id);
-        let root_module = Module::from_ast(
+        let root_module = Module::blank(
             root_module_id,
             root_file_id,
             root_file.version,
@@ -314,10 +315,10 @@ impl Program {
             LanguageType::Destack,
             Loader::Destack,
             ModuleSource::User,
-            root_module_ast,
         );
 
         modules.insert(root_module);
+        artifacts.set_ast(root_module_id, root_module_ast);
         (root_module_id, root_file_id)
     }
 
@@ -327,11 +328,9 @@ impl Program {
         let snapshot = Arc::new(snapshot);
         *self.workspace_index.write() = Some(snapshot.clone());
 
-        // reset cached graphs and signatures
+        // reset cached graphs
         self.index.module_graphs.clear();
         self.index.module_graph_versions.clear();
-        self.index.module_signatures.clear();
-        self.index.module_signature_digests.clear();
 
         // seed module graph versions from the snapshot
         for (profile_id, version) in &snapshot.module_graph_versions {
@@ -347,11 +346,6 @@ impl Program {
                 .module_graph_versions
                 .entry(key.profile_id)
                 .or_insert(ModuleGraphVersion::INITIAL);
-        }
-
-        // seed signature digests from the snapshot
-        for (key, digest) in &snapshot.module_signature_digests {
-            self.index.module_signature_digests.insert(*key, *digest);
         }
     }
 
@@ -605,19 +599,18 @@ impl Program {
             language_type,
             previous_source_type,
             previous_module_format,
-            has_import_export,
         ) = {
-            let module = module.read();
+            let module = module.as_ref();
             (
                 module.path.clone(),
                 module.package_id,
-                module.tsconfig_id,
+                module.tsconfig_id(),
                 module.language_type,
-                module.source_type,
-                module.module_format,
-                Self::module_has_import_export_syntax(&module),
+                module.source_type(),
+                module.module_format(),
             )
         };
+        let has_import_export = self.module_has_import_export_syntax(module_id);
 
         // detect fresh semantics from current workspace state
         let source_type = self.detect_module_source_type(
@@ -639,27 +632,27 @@ impl Program {
             return;
         }
 
-        let mut module = module.write();
-        module.source_type = source_type;
-        module.module_format = module_format;
+        let mut state = module.state.write();
+        state.source_type = source_type;
+        state.module_format = module_format;
     }
 
     /// Increment a module version and return the updated value.
     pub fn bump_module_version(&self, module_id: ModuleId) -> ModuleVersion {
         // load module for update
         let module = self.modules.get(module_id);
-        let mut module = module.write();
+        let mut state = module.state.write();
 
         // bump module version
-        let next = module.version.next();
-        module.version = next;
+        let next = state.version.next();
+        state.version = next;
 
         next
     }
 
     /// Access tsconfig for a module via closure.
     pub fn with_tsconfig<T>(&self, module: &Module, f: impl FnOnce(&TsConfig) -> T) -> Option<T> {
-        let tsconfig_id = module.tsconfig_id?;
+        let tsconfig_id = module.tsconfig_id()?;
         let tsconfig = self.tsconfigs.get(tsconfig_id);
 
         Some(f(&tsconfig.read()))
@@ -671,7 +664,7 @@ impl Program {
         module: &Module,
         f: impl FnOnce(&TsConfigOptions) -> T,
     ) -> Option<T> {
-        let tsconfig_id = module.tsconfig_id?;
+        let tsconfig_id = module.tsconfig_id()?;
         let tsconfig = self.tsconfigs.get(tsconfig_id);
         Some(f(&tsconfig.read().options))
     }
@@ -691,7 +684,7 @@ impl Program {
     /// Get effective linter options for a module.
     pub fn get_linter_options(&self, module_id: ModuleId) -> LinterOptions {
         let module = self.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
 
         // try package config first
         if let Some(options) = self.with_config_options(&module, |ds| ds.linter.clone()) {
@@ -815,7 +808,7 @@ impl Program {
     pub fn default_profile_id_for_module(&self, module_id: ModuleId) -> ProfileId {
         // get package for module
         let module = self.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let package = self.packages.get(module.package_id);
         let package = package.read();
 
@@ -860,7 +853,7 @@ impl Program {
     /// Ensure a target exists for a module and return its id.
     pub fn ensure_target_for_module(&self, module_id: ModuleId) -> TargetId {
         let module = self.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let package_id = module.package_id;
         let diagnostic_id = TargetId::new(package_id, Self::DIAGNOSTIC_TARGET_NAME);
 
@@ -932,7 +925,7 @@ impl Program {
         target_id: &TargetId,
     ) -> Option<ProfileId> {
         let module = self.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let package = self.packages.get(module.package_id);
         let package = package.read();
         let target = package
@@ -1181,15 +1174,14 @@ impl Program {
     }
 
     /// Return true when a module AST contains top-level module syntax.
-    fn module_has_import_export_syntax(module: &Module) -> bool {
-        // skip modules without parsed ASTs
-        let Some(ast) = module.ast_maybe() else {
+    fn module_has_import_export_syntax(&self, module_id: ModuleId) -> bool {
+        let Some(ast) = self.artifacts.ast(module_id) else {
             return false;
         };
 
         // scan top-level expressions for import or export syntax
         for root_id in &ast.roots {
-            if Self::expression_has_module_syntax(ast, *root_id) {
+            if Self::expression_has_module_syntax_in_tree(&ast.tree, *root_id) {
                 return true;
             }
         }
@@ -1198,13 +1190,13 @@ impl Program {
     }
 
     /// Return true when one top-level expression contains module syntax.
-    fn expression_has_module_syntax(
-        ast: &ModuleAst,
+    fn expression_has_module_syntax_in_tree(
+        tree: &ast::NodeTree,
         expression_id: ast::LocalNodeId<ast::Expression>,
     ) -> bool {
         // unwrap statement wrappers at the top level
-        let expression_id = Self::top_level_expression_without_statement(&ast.tree, expression_id);
-        let expression = ast.tree.get(expression_id);
+        let expression_id = Self::top_level_expression_without_statement(tree, expression_id);
+        let expression = tree.get(expression_id);
 
         // treat module import statements as module syntax
         if let ast::Expression::Import { source, .. } = expression {
@@ -1225,7 +1217,7 @@ impl Program {
         // treat declaration-style export modifiers as module syntax
         match expression {
             ast::Expression::Declaration(declaration_id) => {
-                let declaration = ast.tree.get(*declaration_id);
+                let declaration = tree.get(*declaration_id);
                 declaration.descriptor().export.is_some()
             }
             ast::Expression::Let { descriptor, .. } | ast::Expression::Using { descriptor, .. } => {
