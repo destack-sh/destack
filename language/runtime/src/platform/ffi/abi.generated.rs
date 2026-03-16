@@ -10,7 +10,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmValueCodec, ffi as platform_ffi,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmCollectionElement, VmValueCodec,
+    ffi as platform_ffi,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -35,6 +36,8 @@ impl VmValueCodec for FfiPointer {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for FfiPointer {}
 
 /// Value type for FfiPointer.
 pub type FfiPointerValue = FfiPointer;

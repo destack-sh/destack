@@ -12,8 +12,8 @@ use crate::platform::ipc::{
     UnixReceiveAncillaryVm, native as ipc_native, vm as ipc_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
 use destack_vm as vm;
 
@@ -214,18 +214,16 @@ impl<'call> IpcHarnessContext<'call> {
                     argument_payload,
                 )
             }
-            None => {
+            None => unsafe {
                 let argument_payload = argument_payload.into_native("argument_payload")?;
-                unsafe {
-                    ipc_native::destack_ipc_message_queue_send(
-                        self.call_context,
-                        handle,
-                        priority,
-                        timeoutns,
-                        argument_payload,
-                    )
-                }
-            }
+                ipc_native::destack_ipc_message_queue_send(
+                    self.call_context,
+                    handle,
+                    priority,
+                    timeoutns,
+                    argument_payload,
+                )
+            },
         }
     }
 
@@ -255,10 +253,10 @@ impl<'call> IpcHarnessContext<'call> {
                 let name = name.into_vm("name")?;
                 ipc_vm::destack_ipc_message_queue_unlink(self.call_context, context, name)
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
-                unsafe { ipc_native::destack_ipc_message_queue_unlink(self.call_context, name) }
-            }
+                ipc_native::destack_ipc_message_queue_unlink(self.call_context, name)
+            },
         }
     }
 

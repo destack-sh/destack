@@ -41,8 +41,8 @@ use crate::platform::input::{
     vm as input_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
 use destack_vm as vm;
 
@@ -911,30 +911,28 @@ impl<'call> InputHarnessContext<'call> {
                     enabled,
                 )
             }
-            None => {
+            None => unsafe {
                 let target = target.into_native("target")?;
-                unsafe {
-                    input_native::destack_input_pointer_capture(
-                        self.call_context,
-                        handle,
-                        target,
-                        enabled,
-                    )
-                }
-            }
+                input_native::destack_input_pointer_capture(
+                    self.call_context,
+                    handle,
+                    target,
+                    enabled,
+                )
+            },
         }
     }
 
     /// Read one relative pointer state snapshot.
     ///
     /// Return one relative motion and button state snapshot for one opened pointer-capable device.
-    /// Delta units follow backend-native relative motion semantics.
+    /// Delta values are projected from the current snapshot and the last stored pointer baseline while relative mode is active.
     /// Pen-capable devices can populate pressure and tilt metadata.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific relative motion streams from evdev or libinput-style backends on Unix.
-    /// Uses raw-input relative motion on Windows.
+    /// Uses backend pointer snapshots plus runtime-managed relative baselines.
+    /// Relative mode must be enabled before this lane becomes readable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1006,17 +1004,15 @@ impl<'call> InputHarnessContext<'call> {
                     mode,
                 )
             }
-            None => {
+            None => unsafe {
                 let target = target.into_native("target")?;
-                unsafe {
-                    input_native::destack_input_pointer_set_grab_mode(
-                        self.call_context,
-                        handle,
-                        target,
-                        mode,
-                    )
-                }
-            }
+                input_native::destack_input_pointer_set_grab_mode(
+                    self.call_context,
+                    handle,
+                    target,
+                    mode,
+                )
+            },
         }
     }
 
@@ -1141,18 +1137,10 @@ impl<'call> InputHarnessContext<'call> {
                     y,
                 )
             }
-            None => {
+            None => unsafe {
                 let target = target.into_native("target")?;
-                unsafe {
-                    input_native::destack_input_pointer_warp(
-                        self.call_context,
-                        handle,
-                        target,
-                        x,
-                        y,
-                    )
-                }
-            }
+                input_native::destack_input_pointer_warp(self.call_context, handle, target, x, y)
+            },
         }
     }
 
@@ -1290,17 +1278,15 @@ impl<'call> InputHarnessContext<'call> {
                     data,
                 )
             }
-            None => {
+            None => unsafe {
                 let data = data.into_native("data")?;
-                unsafe {
-                    input_native::destack_input_raw_hid_set_feature(
-                        self.call_context,
-                        handle,
-                        reportid,
-                        data,
-                    )
-                }
-            }
+                input_native::destack_input_raw_hid_set_feature(
+                    self.call_context,
+                    handle,
+                    reportid,
+                    data,
+                )
+            },
         }
     }
 
@@ -1410,10 +1396,12 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// Apply one enable and sample-rate configuration for one sensor stream on one opened input device.
     /// Backends can negotiate one effective sample rate and one effective batching latency.
+    /// When host sensor stacks expose only fixed-rate delivery, this lane tracks the effective runtime stream configuration.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where sensor stream configuration is unavailable.
-    /// Uses backend-specific sensor configuration APIs on Unix and Windows.
+    /// Uses backend-specific sensor configuration APIs where available.
+    /// Falls back to runtime-managed effective stream configuration when the host stream is fixed-rate.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -1600,7 +1588,8 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-    /// Uses backend-specific text-area hint state tracking for global or window-scoped paths.
+    /// Uses backend-specific text-area hint state tracking.
+    /// Unix terminal and Windows console backends currently support only the default focus scope.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -1736,7 +1725,8 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where text-area hints or one window scope are unavailable.
-    /// Uses backend-specific IME candidate window placement hints for global or window-scoped paths.
+    /// Uses backend-specific text-area hint tracking.
+    /// Unix terminal and Windows console backends currently support only the default focus scope.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -1764,18 +1754,11 @@ impl<'call> InputHarnessContext<'call> {
                     area,
                 )
             }
-            None => {
+            None => unsafe {
                 let target = target.into_native("target")?;
                 let area = area.into_native("area")?;
-                unsafe {
-                    input_native::destack_input_text_set_area(
-                        self.call_context,
-                        handle,
-                        target,
-                        area,
-                    )
-                }
-            }
+                input_native::destack_input_text_set_area(self.call_context, handle, target, area)
+            },
         }
     }
 
@@ -1788,7 +1771,7 @@ impl<'call> InputHarnessContext<'call> {
     /// Unix and Windows.
     /// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
     /// Uses backend-specific text input activation primitives.
-    /// Uses host IME activation for global or window-scoped paths.
+    /// Unix terminal and Windows console backends currently support only the default focus scope.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -1815,17 +1798,10 @@ impl<'call> InputHarnessContext<'call> {
                     inputtype,
                 )
             }
-            None => {
+            None => unsafe {
                 let target = target.into_native("target")?;
-                unsafe {
-                    input_native::destack_input_text_start(
-                        self.call_context,
-                        handle,
-                        target,
-                        inputtype,
-                    )
-                }
-            }
+                input_native::destack_input_text_start(self.call_context, handle, target, inputtype)
+            },
         }
     }
 
@@ -1836,7 +1812,8 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-    /// Uses backend-specific text input deactivation primitives for global or window-scoped paths.
+    /// Uses backend-specific text input deactivation primitives.
+    /// Unix terminal and Windows console backends currently support only the default focus scope.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -1856,10 +1833,10 @@ impl<'call> InputHarnessContext<'call> {
                 let target = target.into_vm("target")?;
                 input_vm::destack_input_text_stop(self.call_context, context, handle, target)
             }
-            None => {
+            None => unsafe {
                 let target = target.into_native("target")?;
-                unsafe { input_native::destack_input_text_stop(self.call_context, handle, target) }
-            }
+                input_native::destack_input_text_stop(self.call_context, handle, target)
+            },
         }
     }
 

@@ -7,25 +7,25 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::process::tests::ProcessHarnessContext;
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessCpuSetVm, ProcessFdAction, ProcessFdActionClose,
-    ProcessFdActionCloseVm, ProcessFdActionDup2, ProcessFdActionDup2Vm, ProcessFdActionOpen,
-    ProcessFdActionOpenVm, ProcessFdActionVm, ProcessFdFlags, ProcessFdSignalFlags,
-    ProcessGroupIds, ProcessGroupIdsVm, ProcessId, ProcessLimit, ProcessLimitResource,
-    ProcessLimitVm, ProcessNamespaceKind, ProcessSchedulerConfig, ProcessSchedulerConfigVm,
-    ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessSpawnOptionsVm, ProcessStdio,
-    ProcessStdioDescriptor, ProcessStdioDescriptorVm, ProcessStdioFile, ProcessStdioFileVm,
-    ProcessStdioInherit, ProcessStdioInheritVm, ProcessStdioNull, ProcessStdioNullVm,
-    ProcessStdioPipe, ProcessStdioPipeVm, ProcessStdioVm, ProcessUnshareFlags, ProcessUserIds,
-    ProcessUserIdsVm, ProcessWaitContinuedStatus, ProcessWaitContinuedStatusVm,
-    ProcessWaitExitedStatus, ProcessWaitExitedStatusVm, ProcessWaitFlags, ProcessWaitRunningStatus,
-    ProcessWaitRunningStatusVm, ProcessWaitSignaledStatus, ProcessWaitSignaledStatusVm,
-    ProcessWaitStatus, ProcessWaitStatusVm, ProcessWaitStoppedStatus, ProcessWaitStoppedStatusVm,
-    Signal, SignalEvent, SignalEventVm, SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
-    native as process_native, vm as process_vm,
+    ExecAtFlags, GroupId, ProcessFdAction, ProcessFdActionClose, ProcessFdActionCloseVm,
+    ProcessFdActionDup2, ProcessFdActionDup2Vm, ProcessFdActionOpen, ProcessFdActionOpenVm,
+    ProcessFdActionVm, ProcessFdFlags, ProcessFdSignalFlags, ProcessGroupIds, ProcessGroupIdsVm,
+    ProcessId, ProcessLimit, ProcessLimitResource, ProcessLimitVm, ProcessNamespaceKind,
+    ProcessSchedulerConfig, ProcessSchedulerConfigVm, ProcessSchedulerPolicy, ProcessSpawnOptions,
+    ProcessSpawnOptionsVm, ProcessStdio, ProcessStdioDescriptor, ProcessStdioDescriptorVm,
+    ProcessStdioFile, ProcessStdioFileVm, ProcessStdioInherit, ProcessStdioInheritVm,
+    ProcessStdioNull, ProcessStdioNullVm, ProcessStdioPipe, ProcessStdioPipeVm, ProcessStdioVm,
+    ProcessUnshareFlags, ProcessUserIds, ProcessUserIdsVm, ProcessWaitContinuedStatus,
+    ProcessWaitContinuedStatusVm, ProcessWaitExitedStatus, ProcessWaitExitedStatusVm,
+    ProcessWaitFlags, ProcessWaitRunningStatus, ProcessWaitRunningStatusVm,
+    ProcessWaitSignaledStatus, ProcessWaitSignaledStatusVm, ProcessWaitStatus, ProcessWaitStatusVm,
+    ProcessWaitStoppedStatus, ProcessWaitStoppedStatusVm, Signal, SignalEvent, SignalEventVm,
+    SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId, native as process_native,
+    vm as process_vm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource, thread,
 };
 use destack_vm as vm;
 
@@ -109,10 +109,10 @@ impl<'call> ProcessHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 process_vm::destack_process_chdir(self.call_context, context, path)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { process_native::destack_process_chdir(self.call_context, path) }
-            }
+                process_native::destack_process_chdir(self.call_context, path)
+            },
         }
     }
 
@@ -178,10 +178,10 @@ impl<'call> ProcessHarnessContext<'call> {
                 let name = name.into_vm("name")?;
                 process_vm::destack_process_env_delete(self.call_context, context, name)
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
-                unsafe { process_native::destack_process_env_delete(self.call_context, name) }
-            }
+                process_native::destack_process_env_delete(self.call_context, name)
+            },
         }
     }
 
@@ -211,10 +211,10 @@ impl<'call> ProcessHarnessContext<'call> {
                 let name = name.into_vm("name")?;
                 process_vm::destack_process_env_delete_bytes(self.call_context, context, name)
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
-                unsafe { process_native::destack_process_env_delete_bytes(self.call_context, name) }
-            }
+                process_native::destack_process_env_delete_bytes(self.call_context, name)
+            },
         }
     }
 
@@ -338,13 +338,11 @@ impl<'call> ProcessHarnessContext<'call> {
                     argument_value,
                 )
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
                 let argument_value = argument_value.into_native("argument_value")?;
-                unsafe {
-                    process_native::destack_process_env_set(self.call_context, name, argument_value)
-                }
-            }
+                process_native::destack_process_env_set(self.call_context, name, argument_value)
+            },
         }
     }
 
@@ -381,17 +379,15 @@ impl<'call> ProcessHarnessContext<'call> {
                     argument_value,
                 )
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
                 let argument_value = argument_value.into_native("argument_value")?;
-                unsafe {
-                    process_native::destack_process_env_set_bytes(
-                        self.call_context,
-                        name,
-                        argument_value,
-                    )
-                }
-            }
+                process_native::destack_process_env_set_bytes(
+                    self.call_context,
+                    name,
+                    argument_value,
+                )
+            },
         }
     }
 
@@ -430,18 +426,16 @@ impl<'call> ProcessHarnessContext<'call> {
                     environment,
                 )
             }
-            None => {
+            None => unsafe {
                 let arguments = arguments.into_native("arguments")?;
                 let environment = environment.into_native("environment")?;
-                unsafe {
-                    process_native::destack_process_fexec(
-                        self.call_context,
-                        executable,
-                        arguments,
-                        environment,
-                    )
-                }
-            }
+                process_native::destack_process_fexec(
+                    self.call_context,
+                    executable,
+                    arguments,
+                    environment,
+                )
+            },
         }
     }
 
@@ -481,19 +475,17 @@ impl<'call> ProcessHarnessContext<'call> {
                     environment,
                 )
             }
-            None => {
+            None => unsafe {
                 let command = command.into_native("command")?;
                 let arguments = arguments.into_native("arguments")?;
                 let environment = environment.into_native("environment")?;
-                unsafe {
-                    process_native::destack_process_exec(
-                        self.call_context,
-                        command,
-                        arguments,
-                        environment,
-                    )
-                }
-            }
+                process_native::destack_process_exec(
+                    self.call_context,
+                    command,
+                    arguments,
+                    environment,
+                )
+            },
         }
     }
 
@@ -537,21 +529,19 @@ impl<'call> ProcessHarnessContext<'call> {
                     flags,
                 )
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
                 let arguments = arguments.into_native("arguments")?;
                 let environment = environment.into_native("environment")?;
-                unsafe {
-                    process_native::destack_process_execat(
-                        self.call_context,
-                        directory,
-                        path,
-                        arguments,
-                        environment,
-                        flags,
-                    )
-                }
-            }
+                process_native::destack_process_execat(
+                    self.call_context,
+                    directory,
+                    path,
+                    arguments,
+                    environment,
+                    flags,
+                )
+            },
         }
     }
 
@@ -948,16 +938,14 @@ impl<'call> ProcessHarnessContext<'call> {
                     signals,
                 )
             }
-            None => {
+            None => unsafe {
                 let signals = signals.into_native("signals")?;
-                unsafe {
-                    process_native::destack_process_signal_fd_set_mask(
-                        self.call_context,
-                        handle,
-                        signals,
-                    )
-                }
-            }
+                process_native::destack_process_signal_fd_set_mask(
+                    self.call_context,
+                    handle,
+                    signals,
+                )
+            },
         }
     }
 
@@ -1193,10 +1181,10 @@ impl<'call> ProcessHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 process_vm::destack_process_cgroup_join(self.call_context, context, path)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { process_native::destack_process_cgroup_join(self.call_context, path) }
-            }
+                process_native::destack_process_cgroup_join(self.call_context, path)
+            },
         }
     }
 
@@ -1235,18 +1223,16 @@ impl<'call> ProcessHarnessContext<'call> {
                     limit,
                 )
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
                 let limit = limit.into_native("limit")?;
-                unsafe {
-                    process_native::destack_process_cgroup_set_limit(
-                        self.call_context,
-                        path,
-                        resource,
-                        limit,
-                    )
-                }
-            }
+                process_native::destack_process_cgroup_set_limit(
+                    self.call_context,
+                    path,
+                    resource,
+                    limit,
+                )
+            },
         }
     }
 
@@ -1278,11 +1264,11 @@ impl<'call> ProcessHarnessContext<'call> {
                 let pids = pids.into_vm("pids")?;
                 process_vm::destack_process_job_assign(self.call_context, context, name, pids)
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
                 let pids = pids.into_native("pids")?;
-                unsafe { process_native::destack_process_job_assign(self.call_context, name, pids) }
-            }
+                process_native::destack_process_job_assign(self.call_context, name, pids)
+            },
         }
     }
 
@@ -1321,18 +1307,16 @@ impl<'call> ProcessHarnessContext<'call> {
                     limit,
                 )
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
                 let limit = limit.into_native("limit")?;
-                unsafe {
-                    process_native::destack_process_job_set_limit(
-                        self.call_context,
-                        name,
-                        resource,
-                        limit,
-                    )
-                }
-            }
+                process_native::destack_process_job_set_limit(
+                    self.call_context,
+                    name,
+                    resource,
+                    limit,
+                )
+            },
         }
     }
 
@@ -1682,10 +1666,10 @@ impl<'call> ProcessHarnessContext<'call> {
                 let ids = ids.into_vm("ids")?;
                 process_vm::destack_process_set_group_ids(self.call_context, context, ids)
             }
-            None => {
+            None => unsafe {
                 let ids = ids.into_native("ids")?;
-                unsafe { process_native::destack_process_set_group_ids(self.call_context, ids) }
-            }
+                process_native::destack_process_set_group_ids(self.call_context, ids)
+            },
         }
     }
 
@@ -1715,10 +1699,10 @@ impl<'call> ProcessHarnessContext<'call> {
                 let groups = groups.into_vm("groups")?;
                 process_vm::destack_process_set_groups(self.call_context, context, groups)
             }
-            None => {
+            None => unsafe {
                 let groups = groups.into_native("groups")?;
-                unsafe { process_native::destack_process_set_groups(self.call_context, groups) }
-            }
+                process_native::destack_process_set_groups(self.call_context, groups)
+            },
         }
     }
 
@@ -1774,10 +1758,10 @@ impl<'call> ProcessHarnessContext<'call> {
                 let ids = ids.into_vm("ids")?;
                 process_vm::destack_process_set_user_ids(self.call_context, context, ids)
             }
-            None => {
+            None => unsafe {
                 let ids = ids.into_native("ids")?;
-                unsafe { process_native::destack_process_set_user_ids(self.call_context, ids) }
-            }
+                process_native::destack_process_set_user_ids(self.call_context, ids)
+            },
         }
     }
 
@@ -1877,10 +1861,10 @@ impl<'call> ProcessHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 process_vm::destack_process_chroot(self.call_context, context, path)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe { process_native::destack_process_chroot(self.call_context, path) }
-            }
+                process_native::destack_process_chroot(self.call_context, path)
+            },
         }
     }
 
@@ -1916,16 +1900,14 @@ impl<'call> ProcessHarnessContext<'call> {
                     flags,
                 )
             }
-            None => {
+            None => unsafe {
                 let program = program.into_native("program")?;
-                unsafe {
-                    process_native::destack_process_install_syscall_filter(
-                        self.call_context,
-                        program,
-                        flags,
-                    )
-                }
-            }
+                process_native::destack_process_install_syscall_filter(
+                    self.call_context,
+                    program,
+                    flags,
+                )
+            },
         }
     }
 
@@ -1955,10 +1937,10 @@ impl<'call> ProcessHarnessContext<'call> {
                 let name = name.into_vm("name")?;
                 process_vm::destack_process_set_host_name(self.call_context, context, name)
             }
-            None => {
+            None => unsafe {
                 let name = name.into_native("name")?;
-                unsafe { process_native::destack_process_set_host_name(self.call_context, name) }
-            }
+                process_native::destack_process_set_host_name(self.call_context, name)
+            },
         }
     }
 
@@ -1988,12 +1970,10 @@ impl<'call> ProcessHarnessContext<'call> {
                 let path = path.into_vm("path")?;
                 process_vm::destack_process_set_network_namespace(self.call_context, context, path)
             }
-            None => {
+            None => unsafe {
                 let path = path.into_native("path")?;
-                unsafe {
-                    process_native::destack_process_set_network_namespace(self.call_context, path)
-                }
-            }
+                process_native::destack_process_set_network_namespace(self.call_context, path)
+            },
         }
     }
 
@@ -2125,23 +2105,23 @@ impl<'call> ProcessHarnessContext<'call> {
                 let limit = limit.into_vm("limit")?;
                 process_vm::destack_process_set_limit(self.call_context, context, resource, limit)
             }
-            None => {
+            None => unsafe {
                 let limit = limit.into_native("limit")?;
-                unsafe {
-                    process_native::destack_process_set_limit(self.call_context, resource, limit)
-                }
-            }
+                process_native::destack_process_set_limit(self.call_context, resource, limit)
+            },
         }
     }
 
     /// Read process CPU affinity.
     ///
-    /// Read the active CPU affinity mask for the target process identifier.
-    /// Returned CPUs reflect host scheduler topology visibility.
+    /// Read the active logical-processor affinity set for the target process identifier.
+    /// Unix targets always report group `0`.
+    /// Windows reports group-local logical processors for the active process affinity.
+    /// Newer Windows hosts use processor-group CPU-set masks when available and otherwise fall back to legacy single-group process affinity.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses sched_getaffinity(2) on Unix and GetProcessAffinityMask on Windows.
+    /// Uses sched_getaffinity(2) on Unix and process affinity APIs on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -2154,7 +2134,7 @@ impl<'call> ProcessHarnessContext<'call> {
     pub(crate) fn destack_process_get_affinity(
         &mut self,
         pid: ProcessId,
-    ) -> RuntimeResult<HarnessValue<ProcessCpuSet, ProcessCpuSetVm>> {
+    ) -> RuntimeResult<HarnessValue<thread::ThreadCpuSet, thread::ThreadCpuSetVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out =
@@ -2162,7 +2142,7 @@ impl<'call> ProcessHarnessContext<'call> {
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<ProcessCpuSet>::uninit();
+                let mut out = std::mem::MaybeUninit::<thread::ThreadCpuSet>::uninit();
                 unsafe {
                     process_native::destack_process_get_affinity(
                         self.call_context,
@@ -2259,12 +2239,13 @@ impl<'call> ProcessHarnessContext<'call> {
 
     /// Set process CPU affinity.
     ///
-    /// Set the CPU affinity mask for the target process identifier.
-    /// Invalid CPU sets and privilege violations are rejected by the host scheduler.
+    /// Set one logical-processor affinity set for the target process identifier.
+    /// Unix targets require every entry to use group `0`.
+    /// Newer Windows hosts apply processor-group CPU-set masks when available and otherwise fall back to legacy single-group process affinity.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses sched_setaffinity(2) on Unix and SetProcessAffinityMask on Windows.
+    /// Uses sched_setaffinity(2) on Unix and process affinity APIs on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -2277,19 +2258,17 @@ impl<'call> ProcessHarnessContext<'call> {
     pub(crate) fn destack_process_set_affinity(
         &mut self,
         pid: ProcessId,
-        cpus: HarnessValue<ProcessCpuSet, ProcessCpuSetVm>,
+        cpus: HarnessValue<thread::ThreadCpuSet, thread::ThreadCpuSetVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let cpus = cpus.into_vm("cpus")?;
                 process_vm::destack_process_set_affinity(self.call_context, context, pid, cpus)
             }
-            None => {
+            None => unsafe {
                 let cpus = cpus.into_native("cpus")?;
-                unsafe {
-                    process_native::destack_process_set_affinity(self.call_context, pid, cpus)
-                }
-            }
+                process_native::destack_process_set_affinity(self.call_context, pid, cpus)
+            },
         }
     }
 
@@ -2352,12 +2331,10 @@ impl<'call> ProcessHarnessContext<'call> {
                 let config = config.into_vm("config")?;
                 process_vm::destack_process_set_scheduler(self.call_context, context, pid, config)
             }
-            None => {
+            None => unsafe {
                 let config = config.into_native("config")?;
-                unsafe {
-                    process_native::destack_process_set_scheduler(self.call_context, pid, config)
-                }
-            }
+                process_native::destack_process_set_scheduler(self.call_context, pid, config)
+            },
         }
     }
 
@@ -2590,16 +2567,10 @@ impl<'call> ProcessHarnessContext<'call> {
                     signals,
                 )
             }
-            None => {
+            None => unsafe {
                 let signals = signals.into_native("signals")?;
-                unsafe {
-                    process_native::destack_process_signal_mask_update(
-                        self.call_context,
-                        how,
-                        signals,
-                    )
-                }
-            }
+                process_native::destack_process_signal_mask_update(self.call_context, how, signals)
+            },
         }
     }
 

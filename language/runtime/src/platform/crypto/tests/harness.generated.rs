@@ -62,8 +62,8 @@ use crate::platform::crypto::{
     vm as crypto_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
 use destack_vm as vm;
 
@@ -670,16 +670,10 @@ impl<'call> CryptoHarnessContext<'call> {
                     parameters,
                 )
             }
-            None => {
+            None => unsafe {
                 let parameters = parameters.into_native("parameters")?;
-                unsafe {
-                    crypto_native::destack_crypto_cipher_reset(
-                        self.call_context,
-                        handle,
-                        parameters,
-                    )
-                }
-            }
+                crypto_native::destack_crypto_cipher_reset(self.call_context, handle, parameters)
+            },
         }
     }
 
@@ -759,16 +753,14 @@ impl<'call> CryptoHarnessContext<'call> {
                     additionaldata,
                 )
             }
-            None => {
+            None => unsafe {
                 let additionaldata = additionaldata.into_native("additionaldata")?;
-                unsafe {
-                    crypto_native::destack_crypto_cipher_update_additional_data(
-                        self.call_context,
-                        handle,
-                        additionaldata,
-                    )
-                }
-            }
+                crypto_native::destack_crypto_cipher_update_additional_data(
+                    self.call_context,
+                    handle,
+                    additionaldata,
+                )
+            },
         }
     }
 
@@ -982,16 +974,14 @@ impl<'call> CryptoHarnessContext<'call> {
                     argument_payload,
                 )
             }
-            None => {
+            None => unsafe {
                 let argument_payload = argument_payload.into_native("argument_payload")?;
-                unsafe {
-                    crypto_native::destack_crypto_digest_update(
-                        self.call_context,
-                        handle,
-                        argument_payload,
-                    )
-                }
-            }
+                crypto_native::destack_crypto_digest_update(
+                    self.call_context,
+                    handle,
+                    argument_payload,
+                )
+            },
         }
     }
 
@@ -2096,16 +2086,14 @@ impl<'call> CryptoHarnessContext<'call> {
                     argument_payload,
                 )
             }
-            None => {
+            None => unsafe {
                 let argument_payload = argument_payload.into_native("argument_payload")?;
-                unsafe {
-                    crypto_native::destack_crypto_mac_update(
-                        self.call_context,
-                        handle,
-                        argument_payload,
-                    )
-                }
-            }
+                crypto_native::destack_crypto_mac_update(
+                    self.call_context,
+                    handle,
+                    argument_payload,
+                )
+            },
         }
     }
 
@@ -2692,10 +2680,10 @@ impl<'call> CryptoHarnessContext<'call> {
                 let buffer = buffer.into_vm("buffer")?;
                 crypto_vm::destack_crypto_random_fill(self.call_context, context, buffer)
             }
-            None => {
+            None => unsafe {
                 let buffer = buffer.into_native("buffer")?;
-                unsafe { crypto_native::destack_crypto_random_fill(self.call_context, buffer) }
-            }
+                crypto_native::destack_crypto_random_fill(self.call_context, buffer)
+            },
         }
     }
 
@@ -2898,7 +2886,7 @@ impl<'call> CryptoHarnessContext<'call> {
     pub(crate) fn destack_crypto_store_probe_capability(
         &mut self,
         kind: CryptoStoreKind,
-        provider: CryptoStoreProvider,
+        provider: Option<CryptoStoreProvider>,
     ) -> RuntimeResult<HarnessValue<CryptoStoreCapability, CryptoStoreCapabilityVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -2906,7 +2894,7 @@ impl<'call> CryptoHarnessContext<'call> {
                     self.call_context,
                     context,
                     kind,
-                    Some(provider),
+                    provider,
                 )?;
                 Ok(HarnessValue::Vm(out))
             }
@@ -2917,7 +2905,7 @@ impl<'call> CryptoHarnessContext<'call> {
                         self.call_context,
                         out.as_mut_ptr(),
                         kind,
-                        Some(provider),
+                        provider,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };

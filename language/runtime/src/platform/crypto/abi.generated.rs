@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, crypto as platform_crypto, resource, resource as platform_resource,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, crypto as platform_crypto, resource, resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -37,6 +37,8 @@ impl VmValueCodec for CryptoCertificateHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for CryptoCertificateHandle {}
 
 /// Value type for CryptoCertificateHandle.
 pub type CryptoCertificateHandleValue = CryptoCertificateHandle;
@@ -91,6 +93,8 @@ impl VmValueCodec for CryptoKeyHandle {
     }
 }
 
+impl VmCollectionElement for CryptoKeyHandle {}
+
 /// Value type for CryptoKeyHandle.
 pub type CryptoKeyHandleValue = CryptoKeyHandle;
 
@@ -144,6 +148,8 @@ impl VmValueCodec for CryptoKeyUsageMask {
     }
 }
 
+impl VmCollectionElement for CryptoKeyUsageMask {}
+
 /// Value type for CryptoKeyUsageMask.
 pub type CryptoKeyUsageMaskValue = CryptoKeyUsageMask;
 
@@ -196,6 +202,8 @@ impl VmValueCodec for ResourceId {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ResourceId {}
 
 /// Value type for ResourceId.
 pub type ResourceIdValue = ResourceId;
@@ -265,6 +273,8 @@ impl VmValueCodec for CryptoAsymmetricEncryptionAlgorithm {
     }
 }
 
+impl VmCollectionElement for CryptoAsymmetricEncryptionAlgorithm {}
+
 /// Value type for CryptoAsymmetricEncryptionAlgorithm.
 pub type CryptoAsymmetricEncryptionAlgorithmValue = CryptoAsymmetricEncryptionAlgorithm;
 
@@ -329,6 +339,8 @@ impl VmValueCodec for CryptoCertificateFormat {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CryptoCertificateFormat {}
 
 /// Value type for CryptoCertificateFormat.
 pub type CryptoCertificateFormatValue = CryptoCertificateFormat;
@@ -401,6 +413,8 @@ impl VmValueCodec for CryptoCertificateIdentityKind {
     }
 }
 
+impl VmCollectionElement for CryptoCertificateIdentityKind {}
+
 /// Value type for CryptoCertificateIdentityKind.
 pub type CryptoCertificateIdentityKindValue = CryptoCertificateIdentityKind;
 
@@ -472,6 +486,8 @@ impl VmValueCodec for CryptoCertificatePurpose {
     }
 }
 
+impl VmCollectionElement for CryptoCertificatePurpose {}
+
 /// Value type for CryptoCertificatePurpose.
 pub type CryptoCertificatePurposeValue = CryptoCertificatePurpose;
 
@@ -539,6 +555,8 @@ impl VmValueCodec for CryptoCertificateRevocationMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CryptoCertificateRevocationMode {}
 
 /// Value type for CryptoCertificateRevocationMode.
 pub type CryptoCertificateRevocationModeValue = CryptoCertificateRevocationMode;
@@ -629,6 +647,8 @@ impl VmValueCodec for CryptoCertificateVerifyError {
     }
 }
 
+impl VmCollectionElement for CryptoCertificateVerifyError {}
+
 /// Value type for CryptoCertificateVerifyError.
 pub type CryptoCertificateVerifyErrorValue = CryptoCertificateVerifyError;
 
@@ -703,6 +723,8 @@ impl VmValueCodec for CryptoCipherAlgorithm {
     }
 }
 
+impl VmCollectionElement for CryptoCipherAlgorithm {}
+
 /// Value type for CryptoCipherAlgorithm.
 pub type CryptoCipherAlgorithmValue = CryptoCipherAlgorithm;
 
@@ -767,6 +789,8 @@ impl VmValueCodec for CryptoCipherDirection {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CryptoCipherDirection {}
 
 /// Value type for CryptoCipherDirection.
 pub type CryptoCipherDirectionValue = CryptoCipherDirection;
@@ -860,6 +884,8 @@ impl VmValueCodec for CryptoDigestAlgorithm {
     }
 }
 
+impl VmCollectionElement for CryptoDigestAlgorithm {}
+
 /// Value type for CryptoDigestAlgorithm.
 pub type CryptoDigestAlgorithmValue = CryptoDigestAlgorithm;
 
@@ -934,6 +960,8 @@ impl VmValueCodec for CryptoKdfAlgorithm {
     }
 }
 
+impl VmCollectionElement for CryptoKdfAlgorithm {}
+
 /// Value type for CryptoKdfAlgorithm.
 pub type CryptoKdfAlgorithmValue = CryptoKdfAlgorithm;
 
@@ -1004,6 +1032,8 @@ impl VmValueCodec for CryptoKeyAgreementAlgorithm {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CryptoKeyAgreementAlgorithm {}
 
 /// Value type for CryptoKeyAgreementAlgorithm.
 pub type CryptoKeyAgreementAlgorithmValue = CryptoKeyAgreementAlgorithm;
@@ -1093,6 +1123,8 @@ impl VmValueCodec for CryptoKeyAlgorithm {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CryptoKeyAlgorithm {}
 
 /// Value type for CryptoKeyAlgorithm.
 pub type CryptoKeyAlgorithmValue = CryptoKeyAlgorithm;
@@ -1186,6 +1218,8 @@ impl VmValueCodec for CryptoKeyFormat {
     }
 }
 
+impl VmCollectionElement for CryptoKeyFormat {}
+
 /// Value type for CryptoKeyFormat.
 pub type CryptoKeyFormatValue = CryptoKeyFormat;
 
@@ -1253,6 +1287,8 @@ impl VmValueCodec for CryptoKeyKind {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CryptoKeyKind {}
 
 /// Value type for CryptoKeyKind.
 pub type CryptoKeyKindValue = CryptoKeyKind;
@@ -1325,6 +1361,8 @@ impl VmValueCodec for CryptoKeyResidency {
     }
 }
 
+impl VmCollectionElement for CryptoKeyResidency {}
+
 /// Value type for CryptoKeyResidency.
 pub type CryptoKeyResidencyValue = CryptoKeyResidency;
 
@@ -1396,6 +1434,8 @@ impl VmValueCodec for CryptoKeyWrapAlgorithm {
     }
 }
 
+impl VmCollectionElement for CryptoKeyWrapAlgorithm {}
+
 /// Value type for CryptoKeyWrapAlgorithm.
 pub type CryptoKeyWrapAlgorithmValue = CryptoKeyWrapAlgorithm;
 
@@ -1460,6 +1500,8 @@ impl VmValueCodec for CryptoMacAlgorithm {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CryptoMacAlgorithm {}
 
 /// Value type for CryptoMacAlgorithm.
 pub type CryptoMacAlgorithmValue = CryptoMacAlgorithm;
@@ -1547,6 +1589,8 @@ impl VmValueCodec for CryptoNamedCurve {
     }
 }
 
+impl VmCollectionElement for CryptoNamedCurve {}
+
 /// Value type for CryptoNamedCurve.
 pub type CryptoNamedCurveValue = CryptoNamedCurve;
 
@@ -1624,6 +1668,8 @@ impl VmValueCodec for CryptoSignatureAlgorithm {
     }
 }
 
+impl VmCollectionElement for CryptoSignatureAlgorithm {}
+
 /// Value type for CryptoSignatureAlgorithm.
 pub type CryptoSignatureAlgorithmValue = CryptoSignatureAlgorithm;
 
@@ -1698,6 +1744,8 @@ impl VmValueCodec for CryptoStoreKind {
     }
 }
 
+impl VmCollectionElement for CryptoStoreKind {}
+
 /// Value type for CryptoStoreKind.
 pub type CryptoStoreKindValue = CryptoStoreKind;
 
@@ -1759,6 +1807,8 @@ impl VmValueCodec for CryptoStoreProvider {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CryptoStoreProvider {}
 
 /// Value type for CryptoStoreProvider.
 pub type CryptoStoreProviderValue = CryptoStoreProvider;
@@ -2009,6 +2059,8 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyDescriptorAbi<VmAbi> {}
 
 /// Value type for CryptoKeyDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2460,6 +2512,8 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyGenerationRequestAbi<VmAbi> {}
 
 /// Value type for CryptoKeyGenerationRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2931,6 +2985,8 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyImportRequestAbi<VmAbi> {}
+
 /// Value type for CryptoKeyImportRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CryptoKeyImportRequestValue {
@@ -3270,6 +3326,8 @@ impl VmAggregateCodec for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {}
+
 /// Value type for CryptoAgreementDeriveKeyRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoAgreementDeriveKeyRequestValue {
@@ -3459,6 +3517,8 @@ impl VmAggregateCodec for CryptoArgon2idRequestAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoArgon2idRequestAbi<VmAbi> {}
 
 /// Value type for CryptoArgon2idRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3653,6 +3713,8 @@ impl VmAggregateCodec for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {}
 
 /// Value type for CryptoAsymmetricEncryptionParameters.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3876,6 +3938,8 @@ impl VmAggregateCodec for CryptoCertificateDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoCertificateDescriptorAbi<VmAbi> {}
 
 /// Value type for CryptoCertificateDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4137,6 +4201,8 @@ impl VmAggregateCodec for CryptoCertificateListEntryAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoCertificateListEntryAbi<VmAbi> {}
+
 /// Value type for CryptoCertificateListEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCertificateListEntryValue {
@@ -4309,6 +4375,8 @@ impl VmAggregateCodec for CryptoCertificateListPageAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoCertificateListPageAbi<VmAbi> {}
 
 /// Value type for CryptoCertificateListPage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4494,6 +4562,8 @@ impl VmAggregateCodec for CryptoCertificateQueryAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoCertificateQueryAbi<VmAbi> {}
 
 /// Value type for CryptoCertificateQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4690,6 +4760,8 @@ impl VmAbiCodec for CryptoCertificateValidity {
     }
 }
 
+impl VmCollectionElement for CryptoCertificateValidity {}
+
 /// ABI struct for CryptoCertificateVerifyIdentity.
 #[repr(C)]
 pub struct CryptoCertificateVerifyIdentityAbi<A: BindingAbi> {
@@ -4771,6 +4843,8 @@ impl VmAggregateCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoCertificateVerifyIdentityAbi<VmAbi> {}
 
 /// Value type for CryptoCertificateVerifyIdentity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4976,6 +5050,8 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoCertificateVerifyRequestAbi<VmAbi> {}
 
 /// Value type for CryptoCertificateVerifyRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5273,6 +5349,8 @@ impl VmAggregateCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoCertificateVerifyResultAbi<VmAbi> {}
+
 /// Value type for CryptoCertificateVerifyResult.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCertificateVerifyResultValue {
@@ -5473,6 +5551,8 @@ impl VmAggregateCodec for CryptoCipherOutputAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoCipherOutputAbi<VmAbi> {}
+
 /// Value type for CryptoCipherOutput.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCipherOutputValue {
@@ -5625,6 +5705,8 @@ impl VmAggregateCodec for CryptoCipherParametersAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoCipherParametersAbi<VmAbi> {}
 
 /// Value type for CryptoCipherParameters.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5820,6 +5902,8 @@ impl VmAggregateCodec for CryptoHkdfRequestAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoHkdfRequestAbi<VmAbi> {}
 
 /// Value type for CryptoHkdfRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6032,6 +6116,8 @@ impl VmAggregateCodec for CryptoKeyDescriptorAesAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyDescriptorAesAbi<VmAbi> {}
 
 /// Value type for CryptoKeyDescriptorAes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6282,6 +6368,8 @@ impl VmAggregateCodec for CryptoKeyDescriptorChaCha20Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyDescriptorChaCha20Abi<VmAbi> {}
 
 /// Value type for CryptoKeyDescriptorChaCha20.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6535,6 +6623,8 @@ impl VmAggregateCodec for CryptoKeyDescriptorEcAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyDescriptorEcAbi<VmAbi> {}
 
 /// Value type for CryptoKeyDescriptorEc.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6791,6 +6881,8 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd25519Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyDescriptorEd25519Abi<VmAbi> {}
+
 /// Value type for CryptoKeyDescriptorEd25519.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorEd25519Value {
@@ -7028,6 +7120,8 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd448Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyDescriptorEd448Abi<VmAbi> {}
 
 /// Value type for CryptoKeyDescriptorEd448.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7283,6 +7377,8 @@ impl VmAggregateCodec for CryptoKeyDescriptorHmacAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyDescriptorHmacAbi<VmAbi> {}
 
 /// Value type for CryptoKeyDescriptorHmac.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7568,6 +7664,8 @@ impl VmAggregateCodec for CryptoKeyDescriptorRsaAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyDescriptorRsaAbi<VmAbi> {}
+
 /// Value type for CryptoKeyDescriptorRsa.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorRsaValue {
@@ -7848,6 +7946,8 @@ impl VmAggregateCodec for CryptoKeyDescriptorX25519Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyDescriptorX25519Abi<VmAbi> {}
+
 /// Value type for CryptoKeyDescriptorX25519.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorX25519Value {
@@ -8086,6 +8186,8 @@ impl VmAggregateCodec for CryptoKeyDescriptorX448Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyDescriptorX448Abi<VmAbi> {}
+
 /// Value type for CryptoKeyDescriptorX448.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorX448Value {
@@ -8319,6 +8421,8 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAesAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyGenerationRequestAesAbi<VmAbi> {}
+
 /// Value type for CryptoKeyGenerationRequestAes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestAesValue {
@@ -8543,6 +8647,8 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {}
 
 /// Value type for CryptoKeyGenerationRequestChaCha20.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8770,6 +8876,8 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEcAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyGenerationRequestEcAbi<VmAbi> {}
+
 /// Value type for CryptoKeyGenerationRequestEc.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestEcValue {
@@ -8995,6 +9103,8 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {}
+
 /// Value type for CryptoKeyGenerationRequestEd25519.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestEd25519Value {
@@ -9208,6 +9318,8 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd448Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyGenerationRequestEd448Abi<VmAbi> {}
 
 /// Value type for CryptoKeyGenerationRequestEd448.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9433,6 +9545,8 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestHmacAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyGenerationRequestHmacAbi<VmAbi> {}
 
 /// Value type for CryptoKeyGenerationRequestHmac.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9682,6 +9796,8 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestRsaAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyGenerationRequestRsaAbi<VmAbi> {}
+
 /// Value type for CryptoKeyGenerationRequestRsa.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestRsaValue {
@@ -9925,6 +10041,8 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX25519Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyGenerationRequestX25519Abi<VmAbi> {}
+
 /// Value type for CryptoKeyGenerationRequestX25519.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestX25519Value {
@@ -10138,6 +10256,8 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX448Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyGenerationRequestX448Abi<VmAbi> {}
 
 /// Value type for CryptoKeyGenerationRequestX448.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10368,6 +10488,8 @@ impl VmAggregateCodec for CryptoKeyImportRequestAesAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyImportRequestAesAbi<VmAbi> {}
 
 /// Value type for CryptoKeyImportRequestAes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10616,6 +10738,8 @@ impl VmAggregateCodec for CryptoKeyImportRequestChaCha20Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyImportRequestChaCha20Abi<VmAbi> {}
 
 /// Value type for CryptoKeyImportRequestChaCha20.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10873,6 +10997,8 @@ impl VmAggregateCodec for CryptoKeyImportRequestEcAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyImportRequestEcAbi<VmAbi> {}
 
 /// Value type for CryptoKeyImportRequestEc.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11139,6 +11265,8 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd25519Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyImportRequestEd25519Abi<VmAbi> {}
+
 /// Value type for CryptoKeyImportRequestEd25519.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestEd25519Value {
@@ -11386,6 +11514,8 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd448Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyImportRequestEd448Abi<VmAbi> {}
 
 /// Value type for CryptoKeyImportRequestEd448.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11640,6 +11770,8 @@ impl VmAggregateCodec for CryptoKeyImportRequestHmacAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyImportRequestHmacAbi<VmAbi> {}
 
 /// Value type for CryptoKeyImportRequestHmac.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11906,6 +12038,8 @@ impl VmAggregateCodec for CryptoKeyImportRequestRsaAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyImportRequestRsaAbi<VmAbi> {}
+
 /// Value type for CryptoKeyImportRequestRsa.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestRsaValue {
@@ -12171,6 +12305,8 @@ impl VmAggregateCodec for CryptoKeyImportRequestX25519Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyImportRequestX25519Abi<VmAbi> {}
+
 /// Value type for CryptoKeyImportRequestX25519.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestX25519Value {
@@ -12419,6 +12555,8 @@ impl VmAggregateCodec for CryptoKeyImportRequestX448Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyImportRequestX448Abi<VmAbi> {}
+
 /// Value type for CryptoKeyImportRequestX448.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestX448Value {
@@ -12633,6 +12771,8 @@ impl VmAggregateCodec for CryptoKeyListEntryAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyListEntryAbi<VmAbi> {}
+
 /// Value type for CryptoKeyListEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyListEntryValue {
@@ -12795,6 +12935,8 @@ impl VmAggregateCodec for CryptoKeyListPageAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyListPageAbi<VmAbi> {}
 
 /// Value type for CryptoKeyListPage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12971,6 +13113,8 @@ impl VmAbiCodec for CryptoKeyPair {
     }
 }
 
+impl VmCollectionElement for CryptoKeyPair {}
+
 /// ABI struct for CryptoKeyQuery.
 #[repr(C)]
 pub struct CryptoKeyQueryAbi<A: BindingAbi> {
@@ -13083,6 +13227,8 @@ impl VmAggregateCodec for CryptoKeyQueryAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoKeyQueryAbi<VmAbi> {}
 
 /// Value type for CryptoKeyQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -13279,6 +13425,8 @@ impl VmAggregateCodec for CryptoKeyWrapParametersAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoKeyWrapParametersAbi<VmAbi> {}
+
 /// Value type for CryptoKeyWrapParameters.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyWrapParametersValue {
@@ -13454,6 +13602,8 @@ impl VmAbiCodec for CryptoMacParameters {
     }
 }
 
+impl VmCollectionElement for CryptoMacParameters {}
+
 /// ABI struct for CryptoPbkdf2Request.
 #[repr(C)]
 pub struct CryptoPbkdf2RequestAbi<A: BindingAbi> {
@@ -13547,6 +13697,8 @@ impl VmAggregateCodec for CryptoPbkdf2RequestAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoPbkdf2RequestAbi<VmAbi> {}
 
 /// Value type for CryptoPbkdf2Request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -13697,6 +13849,8 @@ impl VmAggregateCodec for CryptoPrivateKeyExportRequestAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoPrivateKeyExportRequestAbi<VmAbi> {}
 
 /// Value type for CryptoPrivateKeyExportRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -13857,6 +14011,8 @@ impl VmAggregateCodec for CryptoScryptRequestAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoScryptRequestAbi<VmAbi> {}
 
 /// Value type for CryptoScryptRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14050,6 +14206,8 @@ impl VmAbiCodec for CryptoSignatureParameters {
     }
 }
 
+impl VmCollectionElement for CryptoSignatureParameters {}
+
 /// ABI struct for CryptoStoreAgreementCapability.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -14173,6 +14331,8 @@ impl VmAbiCodec for CryptoStoreAgreementCapability {
     }
 }
 
+impl VmCollectionElement for CryptoStoreAgreementCapability {}
+
 /// ABI struct for CryptoStoreAsymmetricEncryptionCapability.
 #[repr(C)]
 pub struct CryptoStoreAsymmetricEncryptionCapabilityAbi<A: BindingAbi> {
@@ -14284,6 +14444,8 @@ impl VmAggregateCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {}
 
 /// Value type for CryptoStoreAsymmetricEncryptionCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14577,6 +14739,8 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoStoreCapabilityAbi<VmAbi> {}
 
 /// Value type for CryptoStoreCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15028,6 +15192,8 @@ impl VmAbiCodec for CryptoStoreCertificateCapability {
     }
 }
 
+impl VmCollectionElement for CryptoStoreCertificateCapability {}
+
 /// ABI struct for CryptoStoreCipherCapability.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -15164,6 +15330,8 @@ impl VmAbiCodec for CryptoStoreCipherCapability {
     }
 }
 
+impl VmCollectionElement for CryptoStoreCipherCapability {}
+
 /// ABI struct for CryptoStoreIdentity.
 #[repr(C)]
 pub struct CryptoStoreIdentityAbi<A: BindingAbi> {
@@ -15256,6 +15424,8 @@ impl VmAggregateCodec for CryptoStoreIdentityAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoStoreIdentityAbi<VmAbi> {}
 
 /// Value type for CryptoStoreIdentity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15482,6 +15652,8 @@ impl VmAggregateCodec for CryptoStoreKeyCapabilityAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoStoreKeyCapabilityAbi<VmAbi> {}
 
 /// Value type for CryptoStoreKeyCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15792,6 +15964,8 @@ impl VmAggregateCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {}
+
 /// Value type for CryptoStoreKeyWrapCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreKeyWrapCapabilityValue {
@@ -16009,6 +16183,8 @@ impl VmAggregateCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoStoreMacCapabilityAbi<VmAbi> {}
 
 /// Value type for CryptoStoreMacCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -16245,6 +16421,8 @@ impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoStoreOptionsAbi<VmAbi> {}
+
 /// Value type for CryptoStoreOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreOptionsValue {
@@ -16400,6 +16578,8 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CryptoStoreProvenanceAbi<VmAbi> {}
+
 /// Value type for CryptoStoreProvenance.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreProvenanceValue {
@@ -16554,6 +16734,8 @@ impl VmAggregateCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CryptoStoreSignatureCapabilityAbi<VmAbi> {}
 
 /// Value type for CryptoStoreSignatureCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

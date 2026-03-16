@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, resource, resource as platform_resource, tty as platform_tty,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, resource, resource as platform_resource, tty as platform_tty,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -37,6 +37,8 @@ impl VmValueCodec for PtyHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for PtyHandle {}
 
 /// Value type for PtyHandle.
 pub type PtyHandleValue = PtyHandle;
@@ -91,6 +93,8 @@ impl VmValueCodec for ResourceId {
     }
 }
 
+impl VmCollectionElement for ResourceId {}
+
 /// Value type for ResourceId.
 pub type ResourceIdValue = ResourceId;
 
@@ -143,6 +147,8 @@ impl VmValueCodec for TtyHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for TtyHandle {}
 
 /// Value type for TtyHandle.
 pub type TtyHandleValue = TtyHandle;
@@ -215,6 +221,8 @@ impl VmValueCodec for TtyTermiosFlowAction {
     }
 }
 
+impl VmCollectionElement for TtyTermiosFlowAction {}
+
 /// Value type for TtyTermiosFlowAction.
 pub type TtyTermiosFlowActionValue = TtyTermiosFlowAction;
 
@@ -283,6 +291,8 @@ impl VmValueCodec for TtyTermiosQueue {
     }
 }
 
+impl VmCollectionElement for TtyTermiosQueue {}
+
 /// Value type for TtyTermiosQueue.
 pub type TtyTermiosQueueValue = TtyTermiosQueue;
 
@@ -350,6 +360,8 @@ impl VmValueCodec for TtyTermiosSetAction {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for TtyTermiosSetAction {}
 
 /// Value type for TtyTermiosSetAction.
 pub type TtyTermiosSetActionValue = TtyTermiosSetAction;
@@ -477,6 +489,8 @@ impl VmAbiCodec for PtyPair {
     }
 }
 
+impl VmCollectionElement for PtyPair {}
+
 /// ABI struct for TtyMode.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -576,6 +590,8 @@ impl VmAbiCodec for TtyMode {
     }
 }
 
+impl VmCollectionElement for TtyMode {}
+
 /// ABI struct for TtySize.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -673,6 +689,8 @@ impl VmAbiCodec for TtySize {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for TtySize {}
 
 /// ABI struct for TtyTermiosAttributes.
 #[repr(C)]
@@ -782,6 +800,8 @@ impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for TtyTermiosAttributesAbi<VmAbi> {}
 
 /// Value type for TtyTermiosAttributes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

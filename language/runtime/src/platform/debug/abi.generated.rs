@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, debug as platform_debug,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, debug as platform_debug,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -52,6 +52,8 @@ impl VmValueCodec for ProfileKind {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for ProfileKind {}
 
 /// Value type for ProfileKind.
 pub type ProfileKindValue = ProfileKind;
@@ -123,6 +125,8 @@ impl VmValueCodec for TraceLevel {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for TraceLevel {}
 
 /// Value type for TraceLevel.
 pub type TraceLevelValue = TraceLevel;
@@ -234,6 +238,8 @@ impl VmAggregateCodec for InspectorEndpointAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for InspectorEndpointAbi<VmAbi> {}
 
 /// Value type for InspectorEndpoint.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

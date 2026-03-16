@@ -10,8 +10,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, memory as platform_memory,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, memory as platform_memory,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -36,6 +36,8 @@ impl VmValueCodec for MemoryProtection {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for MemoryProtection {}
 
 /// Value type for MemoryProtection.
 pub type MemoryProtectionValue = MemoryProtection;
@@ -90,6 +92,8 @@ impl VmValueCodec for MemoryRemapFlags {
     }
 }
 
+impl VmCollectionElement for MemoryRemapFlags {}
+
 /// Value type for MemoryRemapFlags.
 pub type MemoryRemapFlagsValue = MemoryRemapFlags;
 
@@ -142,6 +146,8 @@ impl VmValueCodec for MemoryReserveFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for MemoryReserveFlags {}
 
 /// Value type for MemoryReserveFlags.
 pub type MemoryReserveFlagsValue = MemoryReserveFlags;
@@ -216,6 +222,8 @@ impl VmValueCodec for MemoryAdvice {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for MemoryAdvice {}
 
 /// Value type for MemoryAdvice.
 pub type MemoryAdviceValue = MemoryAdvice;
@@ -339,6 +347,8 @@ impl VmAbiCodec for MemoryRange {
     }
 }
 
+impl VmCollectionElement for MemoryRange {}
+
 /// ABI struct for ProtectedMemoryRange.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -427,6 +437,8 @@ impl VmAbiCodec for ProtectedMemoryRange {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for ProtectedMemoryRange {}
 
 /// Allow instruction fetch from mapped pages.
 pub const MEMORY_PROTECTION_EXECUTE: MemoryProtection = MemoryProtection(4u32);

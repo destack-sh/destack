@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, tls as platform_tls,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, tls as platform_tls,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -52,6 +52,8 @@ impl VmValueCodec for TlsHandshakeStatus {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for TlsHandshakeStatus {}
 
 /// Value type for TlsHandshakeStatus.
 pub type TlsHandshakeStatusValue = TlsHandshakeStatus;
@@ -121,6 +123,8 @@ impl VmValueCodec for TlsHostnameVerificationMode {
     }
 }
 
+impl VmCollectionElement for TlsHostnameVerificationMode {}
+
 /// Value type for TlsHostnameVerificationMode.
 pub type TlsHostnameVerificationModeValue = TlsHostnameVerificationMode;
 
@@ -185,6 +189,8 @@ impl VmValueCodec for TlsRole {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for TlsRole {}
 
 /// Value type for TlsRole.
 pub type TlsRoleValue = TlsRole;
@@ -257,6 +263,8 @@ impl VmValueCodec for TlsSessionResumptionMode {
     }
 }
 
+impl VmCollectionElement for TlsSessionResumptionMode {}
+
 /// Value type for TlsSessionResumptionMode.
 pub type TlsSessionResumptionModeValue = TlsSessionResumptionMode;
 
@@ -322,6 +330,8 @@ impl VmValueCodec for TlsSessionResumptionState {
     }
 }
 
+impl VmCollectionElement for TlsSessionResumptionState {}
+
 /// Value type for TlsSessionResumptionState.
 pub type TlsSessionResumptionStateValue = TlsSessionResumptionState;
 
@@ -386,6 +396,8 @@ impl VmValueCodec for TlsVersion {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for TlsVersion {}
 
 /// Value type for TlsVersion.
 pub type TlsVersionValue = TlsVersion;
@@ -517,6 +529,8 @@ impl VmAggregateCodec for TlsContextOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for TlsContextOptionsAbi<VmAbi> {}
 
 /// Value type for TlsContextOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

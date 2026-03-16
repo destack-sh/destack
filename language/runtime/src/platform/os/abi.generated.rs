@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, fs, fs as platform_fs, os as platform_os,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, fs, fs as platform_fs, os as platform_os,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -46,6 +46,8 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
+
+impl VmCollectionElement for PathBytesAbi<VmAbi> {}
 
 /// Value type for PathBytes.
 #[repr(transparent)]
@@ -121,6 +123,8 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
         <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
+
+impl VmCollectionElement for PathUtf16Abi<VmAbi> {}
 
 /// Value type for PathUtf16.
 #[repr(transparent)]
@@ -203,6 +207,8 @@ impl VmValueCodec for BackgroundStatus {
     }
 }
 
+impl VmCollectionElement for BackgroundStatus {}
+
 /// Value type for BackgroundStatus.
 pub type BackgroundStatusValue = BackgroundStatus;
 
@@ -271,6 +277,8 @@ impl VmValueCodec for BackgroundTaskResult {
     }
 }
 
+impl VmCollectionElement for BackgroundTaskResult {}
+
 /// Value type for BackgroundTaskResult.
 pub type BackgroundTaskResultValue = BackgroundTaskResult;
 
@@ -336,6 +344,8 @@ impl VmValueCodec for BackgroundTriggerKind {
     }
 }
 
+impl VmCollectionElement for BackgroundTriggerKind {}
+
 /// Value type for BackgroundTriggerKind.
 pub type BackgroundTriggerKindValue = BackgroundTriggerKind;
 
@@ -400,6 +410,8 @@ impl VmValueCodec for CalendarAccess {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CalendarAccess {}
 
 /// Value type for CalendarAccess.
 pub type CalendarAccessValue = CalendarAccess;
@@ -472,6 +484,8 @@ impl VmValueCodec for CalendarAvailability {
     }
 }
 
+impl VmCollectionElement for CalendarAvailability {}
+
 /// Value type for CalendarAvailability.
 pub type CalendarAvailabilityValue = CalendarAvailability;
 
@@ -542,6 +556,8 @@ impl VmValueCodec for CalendarParticipantStatus {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CalendarParticipantStatus {}
 
 /// Value type for CalendarParticipantStatus.
 pub type CalendarParticipantStatusValue = CalendarParticipantStatus;
@@ -614,6 +630,8 @@ impl VmValueCodec for CalendarRecurrenceFrequency {
     }
 }
 
+impl VmCollectionElement for CalendarRecurrenceFrequency {}
+
 /// Value type for CalendarRecurrenceFrequency.
 pub type CalendarRecurrenceFrequencyValue = CalendarRecurrenceFrequency;
 
@@ -681,6 +699,8 @@ impl VmValueCodec for ClipboardBinaryFormat {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for ClipboardBinaryFormat {}
 
 /// Value type for ClipboardBinaryFormat.
 pub type ClipboardBinaryFormatValue = ClipboardBinaryFormat;
@@ -750,6 +770,8 @@ impl VmValueCodec for CredentialAccessibility {
     }
 }
 
+impl VmCollectionElement for CredentialAccessibility {}
+
 /// Value type for CredentialAccessibility.
 pub type CredentialAccessibilityValue = CredentialAccessibility;
 
@@ -817,6 +839,8 @@ impl VmValueCodec for CredentialAuthenticationMechanism {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for CredentialAuthenticationMechanism {}
 
 /// Value type for CredentialAuthenticationMechanism.
 pub type CredentialAuthenticationMechanismValue = CredentialAuthenticationMechanism;
@@ -889,6 +913,8 @@ impl VmValueCodec for CredentialAuthenticationPolicy {
     }
 }
 
+impl VmCollectionElement for CredentialAuthenticationPolicy {}
+
 /// Value type for CredentialAuthenticationPolicy.
 pub type CredentialAuthenticationPolicyValue = CredentialAuthenticationPolicy;
 
@@ -957,6 +983,8 @@ impl VmValueCodec for CredentialAuthenticationRequirement {
     }
 }
 
+impl VmCollectionElement for CredentialAuthenticationRequirement {}
+
 /// Value type for CredentialAuthenticationRequirement.
 pub type CredentialAuthenticationRequirementValue = CredentialAuthenticationRequirement;
 
@@ -1024,6 +1052,8 @@ impl VmValueCodec for DocumentAccess {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for DocumentAccess {}
 
 /// Value type for DocumentAccess.
 pub type DocumentAccessValue = DocumentAccess;
@@ -1095,6 +1125,8 @@ impl VmValueCodec for LifecycleState {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for LifecycleState {}
 
 /// Value type for LifecycleState.
 pub type LifecycleStateValue = LifecycleState;
@@ -1170,6 +1202,8 @@ impl VmValueCodec for LocationAccuracy {
     }
 }
 
+impl VmCollectionElement for LocationAccuracy {}
+
 /// Value type for LocationAccuracy.
 pub type LocationAccuracyValue = LocationAccuracy;
 
@@ -1240,6 +1274,8 @@ impl VmValueCodec for MediaAssetKind {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for MediaAssetKind {}
 
 /// Value type for MediaAssetKind.
 pub type MediaAssetKindValue = MediaAssetKind;
@@ -1314,6 +1350,8 @@ impl VmValueCodec for NetworkCellularGeneration {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for NetworkCellularGeneration {}
 
 /// Value type for NetworkCellularGeneration.
 pub type NetworkCellularGenerationValue = NetworkCellularGeneration;
@@ -1398,6 +1436,8 @@ impl VmValueCodec for NetworkConnectionType {
     }
 }
 
+impl VmCollectionElement for NetworkConnectionType {}
+
 /// Value type for NetworkConnectionType.
 pub type NetworkConnectionTypeValue = NetworkConnectionType;
 
@@ -1465,6 +1505,8 @@ impl VmValueCodec for NotificationActionStyle {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for NotificationActionStyle {}
 
 /// Value type for NotificationActionStyle.
 pub type NotificationActionStyleValue = NotificationActionStyle;
@@ -1534,6 +1576,8 @@ impl VmValueCodec for NotificationPermissionState {
     }
 }
 
+impl VmCollectionElement for NotificationPermissionState {}
+
 /// Value type for NotificationPermissionState.
 pub type NotificationPermissionStateValue = NotificationPermissionState;
 
@@ -1601,6 +1645,8 @@ impl VmValueCodec for NotificationPriority {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for NotificationPriority {}
 
 /// Value type for NotificationPriority.
 pub type NotificationPriorityValue = NotificationPriority;
@@ -1703,6 +1749,8 @@ impl VmValueCodec for Permission {
     }
 }
 
+impl VmCollectionElement for Permission {}
+
 /// Value type for Permission.
 pub type PermissionValue = Permission;
 
@@ -1777,6 +1825,8 @@ impl VmValueCodec for PermissionState {
     }
 }
 
+impl VmCollectionElement for PermissionState {}
+
 /// Value type for PermissionState.
 pub type PermissionStateValue = PermissionState;
 
@@ -1844,6 +1894,8 @@ impl VmValueCodec for PowerState {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for PowerState {}
 
 /// Value type for PowerState.
 pub type PowerStateValue = PowerState;
@@ -1982,6 +2034,8 @@ impl VmAggregateCodec for BackgroundEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BackgroundEventAbi<VmAbi> {}
 
 /// Value type for BackgroundEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2172,6 +2226,8 @@ impl VmAggregateCodec for CalendarReminderAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CalendarReminderAbi<VmAbi> {}
 
 /// Value type for CalendarReminder.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2408,6 +2464,8 @@ impl VmAggregateCodec for IntentEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for IntentEventAbi<VmAbi> {}
 
 /// Value type for IntentEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2723,6 +2781,8 @@ impl VmAggregateCodec for LifecycleEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for LifecycleEventAbi<VmAbi> {}
+
 /// Value type for LifecycleEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LifecycleEventValue {
@@ -3031,6 +3091,8 @@ impl VmAggregateCodec for NotificationEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for NotificationEventAbi<VmAbi> {}
+
 /// Value type for NotificationEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum NotificationEventValue {
@@ -3259,6 +3321,8 @@ impl VmAggregateCodec for NotificationTriggerAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for NotificationTriggerAbi<VmAbi> {}
+
 /// Value type for NotificationTrigger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum NotificationTriggerValue {
@@ -3462,6 +3526,8 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for OsPathAbi<VmAbi> {}
+
 /// Value type for OsPath.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OsPathValue {
@@ -3628,6 +3694,8 @@ impl VmAggregateCodec for BackgroundEventMetadataAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BackgroundEventMetadataAbi<VmAbi> {}
 
 /// Value type for BackgroundEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3801,6 +3869,8 @@ impl VmAbiCodec for BackgroundEventOpenOptions {
     }
 }
 
+impl VmCollectionElement for BackgroundEventOpenOptions {}
+
 /// ABI struct for BackgroundTaskDescriptor.
 #[repr(C)]
 pub struct BackgroundTaskDescriptorAbi<A: BindingAbi> {
@@ -3926,6 +3996,8 @@ impl VmAggregateCodec for BackgroundTaskDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BackgroundTaskDescriptorAbi<VmAbi> {}
 
 /// Value type for BackgroundTaskDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4147,6 +4219,8 @@ impl VmAggregateCodec for BackgroundTaskExpiredEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for BackgroundTaskExpiredEventAbi<VmAbi> {}
+
 /// Value type for BackgroundTaskExpiredEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BackgroundTaskExpiredEventValue {
@@ -4334,6 +4408,8 @@ impl VmAggregateCodec for BackgroundTaskOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for BackgroundTaskOptionsAbi<VmAbi> {}
 
 /// Value type for BackgroundTaskOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4555,6 +4631,8 @@ impl VmAggregateCodec for BackgroundTaskReadyEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for BackgroundTaskReadyEventAbi<VmAbi> {}
+
 /// Value type for BackgroundTaskReadyEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BackgroundTaskReadyEventValue {
@@ -4695,6 +4773,8 @@ impl VmAggregateCodec for CalendarAbsoluteReminderAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CalendarAbsoluteReminderAbi<VmAbi> {}
 
 /// Value type for CalendarAbsoluteReminder.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4858,6 +4938,8 @@ impl VmAggregateCodec for CalendarAttendeeAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CalendarAttendeeAbi<VmAbi> {}
 
 /// Value type for CalendarAttendee.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5053,6 +5135,8 @@ impl VmAggregateCodec for CalendarDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CalendarDescriptorAbi<VmAbi> {}
 
 /// Value type for CalendarDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5362,6 +5446,8 @@ impl VmAggregateCodec for CalendarEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CalendarEventAbi<VmAbi> {}
 
 /// Value type for CalendarEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5809,6 +5895,8 @@ impl VmAggregateCodec for CalendarEventDraftAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CalendarEventDraftAbi<VmAbi> {}
+
 /// Value type for CalendarEventDraft.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalendarEventDraftValue {
@@ -6116,6 +6204,8 @@ impl VmAggregateCodec for CalendarEventQueryAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CalendarEventQueryAbi<VmAbi> {}
+
 /// Value type for CalendarEventQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalendarEventQueryValue {
@@ -6336,6 +6426,8 @@ impl VmAggregateCodec for CalendarRecurrenceRuleAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CalendarRecurrenceRuleAbi<VmAbi> {}
+
 /// Value type for CalendarRecurrenceRule.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalendarRecurrenceRuleValue {
@@ -6522,6 +6614,8 @@ impl VmAggregateCodec for CalendarRelativeReminderAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CalendarRelativeReminderAbi<VmAbi> {}
+
 /// Value type for CalendarRelativeReminder.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalendarRelativeReminderValue {
@@ -6702,6 +6796,8 @@ impl VmAggregateCodec for ContactAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ContactAbi<VmAbi> {}
 
 /// Value type for Contact.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6928,6 +7024,8 @@ impl VmAggregateCodec for ContactAddressAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for ContactAddressAbi<VmAbi> {}
+
 /// Value type for ContactAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactAddressValue {
@@ -7138,6 +7236,8 @@ impl VmAggregateCodec for ContactDraftAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for ContactDraftAbi<VmAbi> {}
+
 /// Value type for ContactDraft.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactDraftValue {
@@ -7329,6 +7429,8 @@ impl VmAggregateCodec for ContactEmailAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for ContactEmailAbi<VmAbi> {}
+
 /// Value type for ContactEmail.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactEmailValue {
@@ -7506,6 +7608,8 @@ impl VmAggregateCodec for ContactNameAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ContactNameAbi<VmAbi> {}
 
 /// Value type for ContactName.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7713,6 +7817,8 @@ impl VmAggregateCodec for ContactOrganizationAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for ContactOrganizationAbi<VmAbi> {}
+
 /// Value type for ContactOrganization.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactOrganizationValue {
@@ -7855,6 +7961,8 @@ impl VmAggregateCodec for ContactPageAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ContactPageAbi<VmAbi> {}
 
 /// Value type for ContactPage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8012,6 +8120,8 @@ impl VmAggregateCodec for ContactPhoneAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ContactPhoneAbi<VmAbi> {}
 
 /// Value type for ContactPhone.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8198,6 +8308,8 @@ impl VmAggregateCodec for ContactQueryAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ContactQueryAbi<VmAbi> {}
 
 /// Value type for ContactQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8394,6 +8506,8 @@ impl VmAggregateCodec for CredentialAuthenticationOptionsAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for CredentialAuthenticationOptionsAbi<VmAbi> {}
+
 /// Value type for CredentialAuthenticationOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CredentialAuthenticationOptionsValue {
@@ -8566,6 +8680,8 @@ impl VmAbiCodec for CredentialAuthenticationResult {
     }
 }
 
+impl VmCollectionElement for CredentialAuthenticationResult {}
+
 /// ABI struct for CredentialQuery.
 #[repr(C)]
 pub struct CredentialQueryAbi<A: BindingAbi> {
@@ -8659,6 +8775,8 @@ impl VmAggregateCodec for CredentialQueryAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CredentialQueryAbi<VmAbi> {}
 
 /// Value type for CredentialQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8841,6 +8959,8 @@ impl VmAggregateCodec for CredentialRecordAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CredentialRecordAbi<VmAbi> {}
 
 /// Value type for CredentialRecord.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9032,6 +9152,8 @@ impl VmAggregateCodec for CredentialWriteOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for CredentialWriteOptionsAbi<VmAbi> {}
 
 /// Value type for CredentialWriteOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9265,6 +9387,8 @@ impl VmAggregateCodec for DocumentDescriptorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for DocumentDescriptorAbi<VmAbi> {}
+
 /// Value type for DocumentDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentDescriptorValue {
@@ -9483,6 +9607,8 @@ impl VmAggregateCodec for DocumentPickOptionsAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for DocumentPickOptionsAbi<VmAbi> {}
+
 /// Value type for DocumentPickOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentPickOptionsValue {
@@ -9673,6 +9799,8 @@ impl VmAggregateCodec for HostIdentityAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for HostIdentityAbi<VmAbi> {}
+
 /// Value type for HostIdentity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HostIdentityValue {
@@ -9835,6 +9963,8 @@ impl VmAggregateCodec for IntentCustomActionEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for IntentCustomActionEventAbi<VmAbi> {}
 
 /// Value type for IntentCustomActionEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10008,6 +10138,8 @@ impl VmAggregateCodec for IntentCustomActionPayloadAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for IntentCustomActionPayloadAbi<VmAbi> {}
+
 /// Value type for IntentCustomActionPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentCustomActionPayloadValue {
@@ -10174,6 +10306,8 @@ impl VmAggregateCodec for IntentEventMetadataAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for IntentEventMetadataAbi<VmAbi> {}
+
 /// Value type for IntentEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentEventMetadataValue {
@@ -10324,6 +10458,8 @@ impl VmAggregateCodec for IntentOpenFileEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for IntentOpenFileEventAbi<VmAbi> {}
+
 /// Value type for IntentOpenFileEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentOpenFileEventValue {
@@ -10466,6 +10602,8 @@ impl VmAggregateCodec for IntentOpenFilePayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for IntentOpenFilePayloadAbi<VmAbi> {}
 
 /// Value type for IntentOpenFilePayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10632,6 +10770,8 @@ impl VmAbiCodec for IntentOpenOptions {
     }
 }
 
+impl VmCollectionElement for IntentOpenOptions {}
+
 /// ABI struct for IntentOpenUrlEvent.
 #[repr(C)]
 pub struct IntentOpenUrlEventAbi<A: BindingAbi> {
@@ -10722,6 +10862,8 @@ impl VmAggregateCodec for IntentOpenUrlEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for IntentOpenUrlEventAbi<VmAbi> {}
 
 /// Value type for IntentOpenUrlEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10852,6 +10994,8 @@ impl VmAggregateCodec for IntentOpenUrlPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for IntentOpenUrlPayloadAbi<VmAbi> {}
 
 /// Value type for IntentOpenUrlPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10989,6 +11133,8 @@ impl VmAggregateCodec for IntentShareFilesEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for IntentShareFilesEventAbi<VmAbi> {}
 
 /// Value type for IntentShareFilesEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11135,6 +11281,8 @@ impl VmAggregateCodec for IntentShareFilesPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for IntentShareFilesPayloadAbi<VmAbi> {}
 
 /// Value type for IntentShareFilesPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11289,6 +11437,8 @@ impl VmAggregateCodec for IntentShareTextEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for IntentShareTextEventAbi<VmAbi> {}
+
 /// Value type for IntentShareTextEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentShareTextEventValue {
@@ -11431,6 +11581,8 @@ impl VmAggregateCodec for IntentShareTextPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for IntentShareTextPayloadAbi<VmAbi> {}
 
 /// Value type for IntentShareTextPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11575,6 +11727,8 @@ impl VmAggregateCodec for LifecycleBackgroundEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for LifecycleBackgroundEventAbi<VmAbi> {}
 
 /// Value type for LifecycleBackgroundEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11724,6 +11878,8 @@ impl VmAbiCodec for LifecycleEventMetadata {
     }
 }
 
+impl VmCollectionElement for LifecycleEventMetadata {}
+
 /// ABI struct for LifecycleForegroundEvent.
 #[repr(C)]
 pub struct LifecycleForegroundEventAbi<A: BindingAbi> {
@@ -11805,6 +11961,8 @@ impl VmAggregateCodec for LifecycleForegroundEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for LifecycleForegroundEventAbi<VmAbi> {}
 
 /// Value type for LifecycleForegroundEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11946,6 +12104,8 @@ impl VmAggregateCodec for LifecycleLaunchEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for LifecycleLaunchEventAbi<VmAbi> {}
 
 /// Value type for LifecycleLaunchEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12097,6 +12257,8 @@ impl VmAggregateCodec for LifecycleLowMemoryEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for LifecycleLowMemoryEventAbi<VmAbi> {}
 
 /// Value type for LifecycleLowMemoryEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12259,6 +12421,8 @@ impl VmAbiCodec for LifecycleLowMemoryPayload {
     }
 }
 
+impl VmCollectionElement for LifecycleLowMemoryPayload {}
+
 /// ABI struct for LifecycleLowPowerModeChangedEvent.
 #[repr(C)]
 pub struct LifecycleLowPowerModeChangedEventAbi<A: BindingAbi> {
@@ -12350,6 +12514,8 @@ impl VmAggregateCodec for LifecycleLowPowerModeChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for LifecycleLowPowerModeChangedEventAbi<VmAbi> {}
 
 /// Value type for LifecycleLowPowerModeChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12509,6 +12675,8 @@ impl VmAbiCodec for LifecycleLowPowerPayload {
     }
 }
 
+impl VmCollectionElement for LifecycleLowPowerPayload {}
+
 /// ABI struct for LifecyclePauseEvent.
 #[repr(C)]
 pub struct LifecyclePauseEventAbi<A: BindingAbi> {
@@ -12590,6 +12758,8 @@ impl VmAggregateCodec for LifecyclePauseEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for LifecyclePauseEventAbi<VmAbi> {}
 
 /// Value type for LifecyclePauseEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12732,6 +12902,8 @@ impl VmAggregateCodec for LifecycleResumeEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for LifecycleResumeEventAbi<VmAbi> {}
+
 /// Value type for LifecycleResumeEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LifecycleResumeEventValue {
@@ -12872,6 +13044,8 @@ impl VmAggregateCodec for LifecycleTerminateEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for LifecycleTerminateEventAbi<VmAbi> {}
 
 /// Value type for LifecycleTerminateEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -13026,6 +13200,8 @@ impl VmAbiCodec for LoadAverage {
     }
 }
 
+impl VmCollectionElement for LoadAverage {}
+
 /// ABI struct for LocationSample.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -13156,6 +13332,8 @@ impl VmAbiCodec for LocationSample {
     }
 }
 
+impl VmCollectionElement for LocationSample {}
+
 /// ABI struct for LocationWatchOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -13258,6 +13436,8 @@ impl VmAbiCodec for LocationWatchOptions {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for LocationWatchOptions {}
 
 /// ABI struct for MediaAssetDescriptor.
 #[repr(C)]
@@ -13387,6 +13567,8 @@ impl VmAggregateCodec for MediaAssetDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for MediaAssetDescriptorAbi<VmAbi> {}
 
 /// Value type for MediaAssetDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -13584,6 +13766,8 @@ impl VmAggregateCodec for MediaPageAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for MediaPageAbi<VmAbi> {}
+
 /// Value type for MediaPage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MediaPageValue {
@@ -13753,6 +13937,8 @@ impl VmAggregateCodec for MediaQueryAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for MediaQueryAbi<VmAbi> {}
+
 /// Value type for MediaQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MediaQueryValue {
@@ -13919,6 +14105,8 @@ impl VmAggregateCodec for MountEntryAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for MountEntryAbi<VmAbi> {}
 
 /// Value type for MountEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14091,6 +14279,8 @@ impl VmAbiCodec for NetworkEvent {
     }
 }
 
+impl VmCollectionElement for NetworkEvent {}
+
 /// ABI struct for NetworkState.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -14231,6 +14421,8 @@ impl VmAbiCodec for NetworkState {
     }
 }
 
+impl VmCollectionElement for NetworkState {}
+
 /// ABI struct for NotificationAction.
 #[repr(C)]
 pub struct NotificationActionAbi<A: BindingAbi> {
@@ -14346,6 +14538,8 @@ impl VmAggregateCodec for NotificationActionAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for NotificationActionAbi<VmAbi> {}
 
 /// Value type for NotificationAction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14549,6 +14743,8 @@ impl VmAggregateCodec for NotificationCalendarDateTriggerAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for NotificationCalendarDateTriggerAbi<VmAbi> {}
+
 /// Value type for NotificationCalendarDateTrigger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationCalendarDateTriggerValue {
@@ -14718,6 +14914,8 @@ impl VmAggregateCodec for NotificationCalendarTriggerAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for NotificationCalendarTriggerAbi<VmAbi> {}
 
 /// Value type for NotificationCalendarTrigger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14890,6 +15088,8 @@ impl VmAggregateCodec for NotificationCategoryAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for NotificationCategoryAbi<VmAbi> {}
+
 /// Value type for NotificationCategory.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationCategoryValue {
@@ -15036,6 +15236,8 @@ impl VmAggregateCodec for NotificationDeliveredEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for NotificationDeliveredEventAbi<VmAbi> {}
+
 /// Value type for NotificationDeliveredEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationDeliveredEventValue {
@@ -15181,6 +15383,8 @@ impl VmAggregateCodec for NotificationDismissedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for NotificationDismissedEventAbi<VmAbi> {}
 
 /// Value type for NotificationDismissedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15335,6 +15539,8 @@ impl VmAggregateCodec for NotificationEventMetadataAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for NotificationEventMetadataAbi<VmAbi> {}
 
 /// Value type for NotificationEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15496,6 +15702,8 @@ impl VmAbiCodec for NotificationEventOpenOptions {
     }
 }
 
+impl VmCollectionElement for NotificationEventOpenOptions {}
+
 /// ABI struct for NotificationImmediateTrigger.
 #[repr(C)]
 pub struct NotificationImmediateTriggerAbi<A: BindingAbi> {
@@ -15566,6 +15774,8 @@ impl VmAggregateCodec for NotificationImmediateTriggerAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for NotificationImmediateTriggerAbi<VmAbi> {}
 
 /// Value type for NotificationImmediateTrigger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15706,6 +15916,8 @@ impl VmAggregateCodec for NotificationInteractedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for NotificationInteractedEventAbi<VmAbi> {}
 
 /// Value type for NotificationInteractedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15870,6 +16082,8 @@ impl VmAggregateCodec for NotificationInteractedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for NotificationInteractedPayloadAbi<VmAbi> {}
 
 /// Value type for NotificationInteractedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -16116,6 +16330,8 @@ impl VmAggregateCodec for NotificationRequestAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for NotificationRequestAbi<VmAbi> {}
 
 /// Value type for NotificationRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -16390,6 +16606,8 @@ impl VmAggregateCodec for NotificationScheduledDescriptorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for NotificationScheduledDescriptorAbi<VmAbi> {}
+
 /// Value type for NotificationScheduledDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationScheduledDescriptorValue {
@@ -16536,6 +16754,8 @@ impl VmAggregateCodec for NotificationTimeIntervalTriggerAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for NotificationTimeIntervalTriggerAbi<VmAbi> {}
+
 /// Value type for NotificationTimeIntervalTrigger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationTimeIntervalTriggerValue {
@@ -16666,6 +16886,8 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for OsPathBytesAbi<VmAbi> {}
+
 /// Value type for OsPathBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OsPathBytesValue {
@@ -16795,6 +17017,8 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for OsPathUtf16Abi<VmAbi> {}
 
 /// Value type for OsPathUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -16938,6 +17162,8 @@ impl VmAbiCodec for PermissionEntry {
     }
 }
 
+impl VmCollectionElement for PermissionEntry {}
+
 /// ABI struct for SystemSnapshot.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -17037,6 +17263,8 @@ impl VmAbiCodec for SystemSnapshot {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for SystemSnapshot {}
 
 /// Replay struct for BackgroundEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

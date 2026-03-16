@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    thread as platform_thread,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, thread as platform_thread,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -108,6 +108,8 @@ impl VmAbiCodec for ThreadCpu {
     }
 }
 
+impl VmCollectionElement for ThreadCpu {}
+
 /// ABI struct for ThreadCpuSet.
 #[repr(C)]
 pub struct ThreadCpuSetAbi<A: BindingAbi> {
@@ -178,6 +180,8 @@ impl VmAggregateCodec for ThreadCpuSetAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for ThreadCpuSetAbi<VmAbi> {}
 
 /// Value type for ThreadCpuSet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -312,6 +316,8 @@ impl VmAbiCodec for ThreadOptions {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for ThreadOptions {}
 
 /// Replay struct for ThreadCpuSet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

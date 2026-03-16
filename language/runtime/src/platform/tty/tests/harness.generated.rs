@@ -12,7 +12,8 @@ use crate::platform::tty::{
     native as tty_native, vm as tty_vm,
 };
 use crate::platform::{
-    NativeSlice, PlatformError as HarnessPlatformError, VmSlice, process, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, process, resource,
 };
 use destack_vm as vm;
 
@@ -211,7 +212,7 @@ impl<'call> TtyHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses read(2) on Unix terminals and ReadConsole or ReadFile on Windows consoles.
+    /// Uses read(2) on Unix terminals and Windows handle I/O on terminal endpoints.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -256,7 +257,7 @@ impl<'call> TtyHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses write(2) on Unix terminals and WriteConsole or WriteFile on Windows consoles.
+    /// Uses write(2) on Unix terminals and Windows handle I/O on terminal endpoints.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -299,6 +300,7 @@ impl<'call> TtyHarnessContext<'call> {
     /// Read one terminal mode snapshot for one terminal handle.
     /// Mode fields are projected from host terminal APIs.
     /// Field-level behavior is host-specific, especially for non-POSIX backends.
+    /// Windows PTY worker handles may report `notSupported` because ConPTY pipes do not expose console-mode APIs.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -336,6 +338,7 @@ impl<'call> TtyHarnessContext<'call> {
     ///
     /// Apply one terminal mode snapshot to one terminal handle.
     /// Mode transition timing and unsupported bits follow host API behavior.
+    /// Windows PTY worker handles may report `notSupported` because ConPTY pipes do not expose console-mode APIs.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -359,10 +362,10 @@ impl<'call> TtyHarnessContext<'call> {
                 let mode = mode.into_vm("mode")?;
                 tty_vm::destack_tty_set_mode(self.call_context, context, handle, mode)
             }
-            None => {
+            None => unsafe {
                 let mode = mode.into_native("mode")?;
-                unsafe { tty_native::destack_tty_set_mode(self.call_context, handle, mode) }
-            }
+                tty_native::destack_tty_set_mode(self.call_context, handle, mode)
+            },
         }
     }
 
@@ -370,6 +373,7 @@ impl<'call> TtyHarnessContext<'call> {
     ///
     /// Apply one host-defined raw-mode profile for one terminal handle.
     /// This maps to cfmakeraw-style behavior on Unix and console-mode toggles on Windows.
+    /// Windows PTY worker handles may report `notSupported` because ConPTY pipes do not expose console-mode APIs.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -432,7 +436,7 @@ impl<'call> TtyHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses posix_openpt and openpty on Unix and ConPTY on Windows.
+    /// Uses host pseudo-terminal APIs on Unix and ConPTY on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -535,10 +539,10 @@ impl<'call> TtyHarnessContext<'call> {
                 let size = size.into_vm("size")?;
                 tty_vm::destack_tty_set_size(self.call_context, context, handle, size)
             }
-            None => {
+            None => unsafe {
                 let size = size.into_native("size")?;
-                unsafe { tty_native::destack_tty_set_size(self.call_context, handle, size) }
-            }
+                tty_native::destack_tty_set_size(self.call_context, handle, size)
+            },
         }
     }
 
@@ -786,17 +790,15 @@ impl<'call> TtyHarnessContext<'call> {
                     action,
                 )
             }
-            None => {
+            None => unsafe {
                 let attributes = attributes.into_native("attributes")?;
-                unsafe {
-                    tty_native::destack_tty_termios_set_attributes(
-                        self.call_context,
-                        handle,
-                        attributes,
-                        action,
-                    )
-                }
-            }
+                tty_native::destack_tty_termios_set_attributes(
+                    self.call_context,
+                    handle,
+                    attributes,
+                    action,
+                )
+            },
         }
     }
 

@@ -10,8 +10,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, time as platform_time,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, time as platform_time,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -36,6 +36,8 @@ impl VmValueCodec for TimerFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for TimerFlags {}
 
 /// Value type for TimerFlags.
 pub type TimerFlagsValue = TimerFlags;
@@ -114,6 +116,8 @@ impl VmValueCodec for ClockId {
     }
 }
 
+impl VmCollectionElement for ClockId {}
+
 /// Value type for ClockId.
 pub type ClockIdValue = ClockId;
 
@@ -185,6 +189,8 @@ impl VmValueCodec for ClockSource {
     }
 }
 
+impl VmCollectionElement for ClockSource {}
+
 /// Value type for ClockSource.
 pub type ClockSourceValue = ClockSource;
 
@@ -250,6 +256,8 @@ impl VmValueCodec for SleepClock {
     }
 }
 
+impl VmCollectionElement for SleepClock {}
+
 /// Value type for SleepClock.
 pub type SleepClockValue = SleepClock;
 
@@ -314,6 +322,8 @@ impl VmValueCodec for TimerClock {
         <u8 as VmValueCodec>::encode(self as u8)
     }
 }
+
+impl VmCollectionElement for TimerClock {}
 
 /// Value type for TimerClock.
 pub type TimerClockValue = TimerClock;
@@ -450,6 +460,8 @@ impl VmAbiCodec for ClockMetadata {
     }
 }
 
+impl VmCollectionElement for ClockMetadata {}
+
 /// ABI struct for TimerOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -538,3 +550,5 @@ impl VmAbiCodec for TimerOptions {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for TimerOptions {}

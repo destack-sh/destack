@@ -25,8 +25,8 @@ use crate::platform::midi::{
     MidiVirtualOutputCreateOptionsVm, native as midi_native, vm as midi_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, core, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, core, fs, resource,
 };
 use destack_vm as vm;
 
@@ -53,7 +53,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Enumerate backend selectors, support state, and backend-level feature flags.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioInvalidData, notSupported.
@@ -90,7 +90,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Pending events are discarded.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -116,7 +116,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Subscription routing and queue depth follow host backend behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -158,7 +158,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -205,7 +205,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -255,7 +255,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -295,7 +295,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -341,7 +341,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Close one opened MIDI input session and release host resources.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -371,7 +371,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -415,7 +415,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Endpoint visibility and ordering follow host MIDI subsystem behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -459,7 +459,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Endpoint open behavior follows host MIDI session policy and sharing semantics.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -505,9 +505,10 @@ impl<'call> MidiHarnessContext<'call> {
     /// Wait for one queued inbound MIDI transport record from one opened input endpoint.
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     /// Record framing and payload encoding follow the selected transport data format.
+    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -553,9 +554,10 @@ impl<'call> MidiHarnessContext<'call> {
     /// Wait for queued inbound MIDI transport records from one opened input endpoint and return up to `maxRecords`.
     /// Timeout uses nanoseconds in the runtime monotonic domain.
     /// Record framing and payload encoding follow the selected transport data format.
+    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -604,9 +606,10 @@ impl<'call> MidiHarnessContext<'call> {
     /// Poll one pending inbound MIDI transport record from one opened input endpoint.
     /// Empty queue state is reported through ioWouldBlock.
     /// Record framing and payload encoding follow the selected transport data format.
+    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -645,9 +648,10 @@ impl<'call> MidiHarnessContext<'call> {
     /// Poll pending inbound MIDI transport records from one opened input endpoint and return up to `maxRecords`.
     /// Empty queue state is reported through ioWouldBlock.
     /// Record framing and payload encoding follow the selected transport data format.
+    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -693,7 +697,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Create one host-visible virtual MIDI input endpoint and return one opened input handle for reads.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -738,7 +742,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Close one opened MIDI output session and release host resources.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -768,7 +772,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -812,7 +816,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Endpoint visibility and ordering follow host MIDI subsystem behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -856,7 +860,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Endpoint open behavior follows host MIDI session policy and sharing semantics.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -906,7 +910,7 @@ impl<'call> MidiHarnessContext<'call> {
     /// Create one host-visible virtual MIDI output endpoint and return one opened output handle for writes.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -949,11 +953,11 @@ impl<'call> MidiHarnessContext<'call> {
     /// Write one batch of outbound MIDI records.
     ///
     /// Submit one batch of outbound MIDI transport records to one opened output endpoint.
-    /// Scheduled timestamps are advisory unless the backend advertises scheduled output support.
+    /// Scheduled timestamps are advisory unless the backend advertises scheduled output support and the opened endpoint accepts them.
     /// Record framing and payload encoding must match the selected transport data format.
     ///
     /// # Platform
-    /// Unix and Windows.
+    /// Android, Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.

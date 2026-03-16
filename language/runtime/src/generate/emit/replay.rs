@@ -13,9 +13,7 @@ impl<'a> ModuleCodegen<'a> {
     fn replay_collection_items_can_be_borrowed(binding_type: &BindingType) -> bool {
         match binding_type {
             BindingType::String | BindingType::StringSlice => true,
-            BindingType::Slice(inner) | BindingType::Array(inner) => {
-                matches!(**inner, BindingType::UInt(8))
-            }
+            BindingType::Slice(inner) | BindingType::Array(inner) => inner.is_byte_element(),
             BindingType::Newtype { inner, .. } => {
                 binding_type_requires_abi(inner)
                     && Self::replay_collection_items_can_be_borrowed(inner)
@@ -368,14 +366,14 @@ impl<'a> ModuleCodegen<'a> {
                 self.render_replay_encode_collection_lines(&BindingType::String, name, value_expr)
             }
             BindingType::Slice(inner) => {
-                if matches!(**inner, BindingType::UInt(8)) {
+                if inner.is_byte_element() {
                     vec![format!("let {name} = {value_expr}.read_bytes(context)?;")]
                 } else {
                     self.render_replay_encode_collection_lines(inner, name, value_expr)
                 }
             }
             BindingType::Array(inner) => {
-                if matches!(**inner, BindingType::UInt(8)) {
+                if inner.is_byte_element() {
                     vec![format!("let {name} = {value_expr}.read_bytes(context)?;")]
                 } else {
                     self.render_replay_encode_collection_lines(inner, name, value_expr)
@@ -564,13 +562,13 @@ impl<'a> ModuleCodegen<'a> {
                 false,
             ),
             BindingType::Slice(inner) => {
-                let is_bytes = matches!(**inner, BindingType::UInt(8));
+                let is_bytes = inner.is_byte_element();
                 self.render_replay_to_vm_binding_collection_lines(
                     inner, name, value_expr, is_bytes, false,
                 )
             }
             BindingType::Array(inner) => {
-                let is_bytes = matches!(**inner, BindingType::UInt(8));
+                let is_bytes = inner.is_byte_element();
                 self.render_replay_to_vm_binding_collection_lines(
                     inner, name, value_expr, is_bytes, true,
                 )

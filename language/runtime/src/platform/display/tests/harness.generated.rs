@@ -71,8 +71,8 @@ use crate::platform::display::{
     WindowWindowedModeOptionsVm, native as display_native, vm as display_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, core, fs, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmArray, VmSlice, core, fs, resource,
 };
 use destack_vm as vm;
 
@@ -968,16 +968,14 @@ impl<'call> DisplayHarnessContext<'call> {
                     ramp,
                 )
             }
-            None => {
+            None => unsafe {
                 let ramp = ramp.into_native("ramp")?;
-                unsafe {
-                    display_native::destack_display_monitor_set_gamma_ramp(
-                        self.call_context,
-                        handle,
-                        ramp,
-                    )
-                }
-            }
+                display_native::destack_display_monitor_set_gamma_ramp(
+                    self.call_context,
+                    handle,
+                    ramp,
+                )
+            },
         }
     }
 
@@ -1051,16 +1049,10 @@ impl<'call> DisplayHarnessContext<'call> {
                     mode,
                 )
             }
-            None => {
+            None => unsafe {
                 let mode = mode.into_native("mode")?;
-                unsafe {
-                    display_native::destack_display_monitor_set_mode(
-                        self.call_context,
-                        handle,
-                        mode,
-                    )
-                }
-            }
+                display_native::destack_display_monitor_set_mode(self.call_context, handle, mode)
+            },
         }
     }
 
@@ -1898,16 +1890,14 @@ impl<'call> DisplayHarnessContext<'call> {
                     aspectratio,
                 )
             }
-            None => {
+            None => unsafe {
                 let aspectratio = aspectratio.into_native("aspectratio")?;
-                unsafe {
-                    display_native::destack_display_window_set_aspect_ratio(
-                        self.call_context,
-                        window,
-                        aspectratio,
-                    )
-                }
-            }
+                display_native::destack_display_window_set_aspect_ratio(
+                    self.call_context,
+                    window,
+                    aspectratio,
+                )
+            },
         }
     }
 
@@ -2054,16 +2044,14 @@ impl<'call> DisplayHarnessContext<'call> {
                     position,
                 )
             }
-            None => {
+            None => unsafe {
                 let position = position.into_native("position")?;
-                unsafe {
-                    display_native::destack_display_window_set_cursor_position(
-                        self.call_context,
-                        window,
-                        position,
-                    )
-                }
-            }
+                display_native::destack_display_window_set_cursor_position(
+                    self.call_context,
+                    window,
+                    position,
+                )
+            },
         }
     }
 
@@ -2176,16 +2164,10 @@ impl<'call> DisplayHarnessContext<'call> {
                     icons,
                 )
             }
-            None => {
+            None => unsafe {
                 let icons = icons.into_native("icons")?;
-                unsafe {
-                    display_native::destack_display_window_set_icons(
-                        self.call_context,
-                        window,
-                        icons,
-                    )
-                }
-            }
+                display_native::destack_display_window_set_icons(self.call_context, window, icons)
+            },
         }
     }
 
@@ -2255,12 +2237,10 @@ impl<'call> DisplayHarnessContext<'call> {
                     mode,
                 )
             }
-            None => {
+            None => unsafe {
                 let mode = mode.into_native("mode")?;
-                unsafe {
-                    display_native::destack_display_window_set_mode(self.call_context, window, mode)
-                }
-            }
+                display_native::destack_display_window_set_mode(self.call_context, window, mode)
+            },
         }
     }
 
@@ -2407,16 +2387,14 @@ impl<'call> DisplayHarnessContext<'call> {
                     position,
                 )
             }
-            None => {
+            None => unsafe {
                 let position = position.into_native("position")?;
-                unsafe {
-                    display_native::destack_display_window_set_position(
-                        self.call_context,
-                        window,
-                        position,
-                    )
-                }
-            }
+                display_native::destack_display_window_set_position(
+                    self.call_context,
+                    window,
+                    position,
+                )
+            },
         }
     }
 
@@ -2490,16 +2468,14 @@ impl<'call> DisplayHarnessContext<'call> {
                     constraints,
                 )
             }
-            None => {
+            None => unsafe {
                 let constraints = constraints.into_native("constraints")?;
-                unsafe {
-                    display_native::destack_display_window_set_size_constraints(
-                        self.call_context,
-                        window,
-                        constraints,
-                    )
-                }
-            }
+                display_native::destack_display_window_set_size_constraints(
+                    self.call_context,
+                    window,
+                    constraints,
+                )
+            },
         }
     }
 
@@ -2534,16 +2510,14 @@ impl<'call> DisplayHarnessContext<'call> {
                     size,
                 )
             }
-            None => {
+            None => unsafe {
                 let size = size.into_native("size")?;
-                unsafe {
-                    display_native::destack_display_window_set_size_logical(
-                        self.call_context,
-                        window,
-                        size,
-                    )
-                }
-            }
+                display_native::destack_display_window_set_size_logical(
+                    self.call_context,
+                    window,
+                    size,
+                )
+            },
         }
     }
 
@@ -2578,16 +2552,14 @@ impl<'call> DisplayHarnessContext<'call> {
                     size,
                 )
             }
-            None => {
+            None => unsafe {
                 let size = size.into_native("size")?;
-                unsafe {
-                    display_native::destack_display_window_set_size_physical(
-                        self.call_context,
-                        window,
-                        size,
-                    )
-                }
-            }
+                display_native::destack_display_window_set_size_physical(
+                    self.call_context,
+                    window,
+                    size,
+                )
+            },
         }
     }
 
@@ -2660,16 +2632,10 @@ impl<'call> DisplayHarnessContext<'call> {
                     title,
                 )
             }
-            None => {
+            None => unsafe {
                 let title = title.into_native("title")?;
-                unsafe {
-                    display_native::destack_display_window_set_title(
-                        self.call_context,
-                        window,
-                        title,
-                    )
-                }
-            }
+                display_native::destack_display_window_set_title(self.call_context, window, title)
+            },
         }
     }
 

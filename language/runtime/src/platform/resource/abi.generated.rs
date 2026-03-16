@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, resource as platform_resource,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -37,6 +37,8 @@ impl VmValueCodec for AudioDeviceHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for AudioDeviceHandle {}
 
 /// Value type for AudioDeviceHandle.
 pub type AudioDeviceHandleValue = AudioDeviceHandle;
@@ -91,6 +93,8 @@ impl VmValueCodec for AudioEventHandle {
     }
 }
 
+impl VmCollectionElement for AudioEventHandle {}
+
 /// Value type for AudioEventHandle.
 pub type AudioEventHandleValue = AudioEventHandle;
 
@@ -143,6 +147,8 @@ impl VmValueCodec for AudioStreamHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for AudioStreamHandle {}
 
 /// Value type for AudioStreamHandle.
 pub type AudioStreamHandleValue = AudioStreamHandle;
@@ -197,6 +203,8 @@ impl VmValueCodec for BackgroundEventHandle {
     }
 }
 
+impl VmCollectionElement for BackgroundEventHandle {}
+
 /// Value type for BackgroundEventHandle.
 pub type BackgroundEventHandleValue = BackgroundEventHandle;
 
@@ -249,6 +257,8 @@ impl VmValueCodec for BluetoothDeviceHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for BluetoothDeviceHandle {}
 
 /// Value type for BluetoothDeviceHandle.
 pub type BluetoothDeviceHandleValue = BluetoothDeviceHandle;
@@ -303,6 +313,8 @@ impl VmValueCodec for BluetoothScanHandle {
     }
 }
 
+impl VmCollectionElement for BluetoothScanHandle {}
+
 /// Value type for BluetoothScanHandle.
 pub type BluetoothScanHandleValue = BluetoothScanHandle;
 
@@ -355,6 +367,8 @@ impl VmValueCodec for BluetoothSubscriptionHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for BluetoothSubscriptionHandle {}
 
 /// Value type for BluetoothSubscriptionHandle.
 pub type BluetoothSubscriptionHandleValue = BluetoothSubscriptionHandle;
@@ -409,6 +423,8 @@ impl VmValueCodec for CameraDeviceHandle {
     }
 }
 
+impl VmCollectionElement for CameraDeviceHandle {}
+
 /// Value type for CameraDeviceHandle.
 pub type CameraDeviceHandleValue = CameraDeviceHandle;
 
@@ -461,6 +477,8 @@ impl VmValueCodec for CameraStreamHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for CameraStreamHandle {}
 
 /// Value type for CameraStreamHandle.
 pub type CameraStreamHandleValue = CameraStreamHandle;
@@ -515,6 +533,8 @@ impl VmValueCodec for CompletionHandle {
     }
 }
 
+impl VmCollectionElement for CompletionHandle {}
+
 /// Value type for CompletionHandle.
 pub type CompletionHandleValue = CompletionHandle;
 
@@ -567,6 +587,8 @@ impl VmValueCodec for CryptoCertificateHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for CryptoCertificateHandle {}
 
 /// Value type for CryptoCertificateHandle.
 pub type CryptoCertificateHandleValue = CryptoCertificateHandle;
@@ -621,6 +643,8 @@ impl VmValueCodec for CryptoCipherHandle {
     }
 }
 
+impl VmCollectionElement for CryptoCipherHandle {}
+
 /// Value type for CryptoCipherHandle.
 pub type CryptoCipherHandleValue = CryptoCipherHandle;
 
@@ -673,6 +697,8 @@ impl VmValueCodec for CryptoDigestHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for CryptoDigestHandle {}
 
 /// Value type for CryptoDigestHandle.
 pub type CryptoDigestHandleValue = CryptoDigestHandle;
@@ -727,6 +753,8 @@ impl VmValueCodec for CryptoKeyHandle {
     }
 }
 
+impl VmCollectionElement for CryptoKeyHandle {}
+
 /// Value type for CryptoKeyHandle.
 pub type CryptoKeyHandleValue = CryptoKeyHandle;
 
@@ -779,6 +807,8 @@ impl VmValueCodec for CryptoMacHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for CryptoMacHandle {}
 
 /// Value type for CryptoMacHandle.
 pub type CryptoMacHandleValue = CryptoMacHandle;
@@ -833,6 +863,8 @@ impl VmValueCodec for CryptoStoreHandle {
     }
 }
 
+impl VmCollectionElement for CryptoStoreHandle {}
+
 /// Value type for CryptoStoreHandle.
 pub type CryptoStoreHandleValue = CryptoStoreHandle;
 
@@ -885,6 +917,8 @@ impl VmValueCodec for DeviceHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for DeviceHandle {}
 
 /// Value type for DeviceHandle.
 pub type DeviceHandleValue = DeviceHandle;
@@ -939,6 +973,8 @@ impl VmValueCodec for DirectoryHandle {
     }
 }
 
+impl VmCollectionElement for DirectoryHandle {}
+
 /// Value type for DirectoryHandle.
 pub type DirectoryHandleValue = DirectoryHandle;
 
@@ -991,6 +1027,8 @@ impl VmValueCodec for DisplayEventHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for DisplayEventHandle {}
 
 /// Value type for DisplayEventHandle.
 pub type DisplayEventHandleValue = DisplayEventHandle;
@@ -1045,6 +1083,8 @@ impl VmValueCodec for DisplayHandle {
     }
 }
 
+impl VmCollectionElement for DisplayHandle {}
+
 /// Value type for DisplayHandle.
 pub type DisplayHandleValue = DisplayHandle;
 
@@ -1097,6 +1137,8 @@ impl VmValueCodec for DocumentHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for DocumentHandle {}
 
 /// Value type for DocumentHandle.
 pub type DocumentHandleValue = DocumentHandle;
@@ -1151,6 +1193,8 @@ impl VmValueCodec for FileHandle {
     }
 }
 
+impl VmCollectionElement for FileHandle {}
+
 /// Value type for FileHandle.
 pub type FileHandleValue = FileHandle;
 
@@ -1203,6 +1247,8 @@ impl VmValueCodec for GpuAdapterHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuAdapterHandle {}
 
 /// Value type for GpuAdapterHandle.
 pub type GpuAdapterHandleValue = GpuAdapterHandle;
@@ -1257,6 +1303,8 @@ impl VmValueCodec for GpuBindGroupHandle {
     }
 }
 
+impl VmCollectionElement for GpuBindGroupHandle {}
+
 /// Value type for GpuBindGroupHandle.
 pub type GpuBindGroupHandleValue = GpuBindGroupHandle;
 
@@ -1309,6 +1357,8 @@ impl VmValueCodec for GpuBindGroupLayoutHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuBindGroupLayoutHandle {}
 
 /// Value type for GpuBindGroupLayoutHandle.
 pub type GpuBindGroupLayoutHandleValue = GpuBindGroupLayoutHandle;
@@ -1363,6 +1413,8 @@ impl VmValueCodec for GpuBufferHandle {
     }
 }
 
+impl VmCollectionElement for GpuBufferHandle {}
+
 /// Value type for GpuBufferHandle.
 pub type GpuBufferHandleValue = GpuBufferHandle;
 
@@ -1415,6 +1467,8 @@ impl VmValueCodec for GpuCommandListHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuCommandListHandle {}
 
 /// Value type for GpuCommandListHandle.
 pub type GpuCommandListHandleValue = GpuCommandListHandle;
@@ -1469,6 +1523,8 @@ impl VmValueCodec for GpuComputePassHandle {
     }
 }
 
+impl VmCollectionElement for GpuComputePassHandle {}
+
 /// Value type for GpuComputePassHandle.
 pub type GpuComputePassHandleValue = GpuComputePassHandle;
 
@@ -1521,6 +1577,8 @@ impl VmValueCodec for GpuDeviceHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuDeviceHandle {}
 
 /// Value type for GpuDeviceHandle.
 pub type GpuDeviceHandleValue = GpuDeviceHandle;
@@ -1575,6 +1633,8 @@ impl VmValueCodec for GpuFenceHandle {
     }
 }
 
+impl VmCollectionElement for GpuFenceHandle {}
+
 /// Value type for GpuFenceHandle.
 pub type GpuFenceHandleValue = GpuFenceHandle;
 
@@ -1627,6 +1687,8 @@ impl VmValueCodec for GpuMemoryHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuMemoryHandle {}
 
 /// Value type for GpuMemoryHandle.
 pub type GpuMemoryHandleValue = GpuMemoryHandle;
@@ -1681,6 +1743,8 @@ impl VmValueCodec for GpuPipelineHandle {
     }
 }
 
+impl VmCollectionElement for GpuPipelineHandle {}
+
 /// Value type for GpuPipelineHandle.
 pub type GpuPipelineHandleValue = GpuPipelineHandle;
 
@@ -1733,6 +1797,8 @@ impl VmValueCodec for GpuPipelineLayoutHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuPipelineLayoutHandle {}
 
 /// Value type for GpuPipelineLayoutHandle.
 pub type GpuPipelineLayoutHandleValue = GpuPipelineLayoutHandle;
@@ -1787,6 +1853,8 @@ impl VmValueCodec for GpuQuerySetHandle {
     }
 }
 
+impl VmCollectionElement for GpuQuerySetHandle {}
+
 /// Value type for GpuQuerySetHandle.
 pub type GpuQuerySetHandleValue = GpuQuerySetHandle;
 
@@ -1839,6 +1907,8 @@ impl VmValueCodec for GpuQueueHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuQueueHandle {}
 
 /// Value type for GpuQueueHandle.
 pub type GpuQueueHandleValue = GpuQueueHandle;
@@ -1893,6 +1963,8 @@ impl VmValueCodec for GpuRenderBundleEncoderHandle {
     }
 }
 
+impl VmCollectionElement for GpuRenderBundleEncoderHandle {}
+
 /// Value type for GpuRenderBundleEncoderHandle.
 pub type GpuRenderBundleEncoderHandleValue = GpuRenderBundleEncoderHandle;
 
@@ -1945,6 +2017,8 @@ impl VmValueCodec for GpuRenderBundleHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuRenderBundleHandle {}
 
 /// Value type for GpuRenderBundleHandle.
 pub type GpuRenderBundleHandleValue = GpuRenderBundleHandle;
@@ -1999,6 +2073,8 @@ impl VmValueCodec for GpuRenderPassHandle {
     }
 }
 
+impl VmCollectionElement for GpuRenderPassHandle {}
+
 /// Value type for GpuRenderPassHandle.
 pub type GpuRenderPassHandleValue = GpuRenderPassHandle;
 
@@ -2051,6 +2127,8 @@ impl VmValueCodec for GpuSamplerHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuSamplerHandle {}
 
 /// Value type for GpuSamplerHandle.
 pub type GpuSamplerHandleValue = GpuSamplerHandle;
@@ -2105,6 +2183,8 @@ impl VmValueCodec for GpuShaderHandle {
     }
 }
 
+impl VmCollectionElement for GpuShaderHandle {}
+
 /// Value type for GpuShaderHandle.
 pub type GpuShaderHandleValue = GpuShaderHandle;
 
@@ -2157,6 +2237,8 @@ impl VmValueCodec for GpuSurfaceHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuSurfaceHandle {}
 
 /// Value type for GpuSurfaceHandle.
 pub type GpuSurfaceHandleValue = GpuSurfaceHandle;
@@ -2211,6 +2293,8 @@ impl VmValueCodec for GpuTextureHandle {
     }
 }
 
+impl VmCollectionElement for GpuTextureHandle {}
+
 /// Value type for GpuTextureHandle.
 pub type GpuTextureHandleValue = GpuTextureHandle;
 
@@ -2263,6 +2347,8 @@ impl VmValueCodec for GpuTextureViewHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for GpuTextureViewHandle {}
 
 /// Value type for GpuTextureViewHandle.
 pub type GpuTextureViewHandleValue = GpuTextureViewHandle;
@@ -2317,6 +2403,8 @@ impl VmValueCodec for InputDeviceHandle {
     }
 }
 
+impl VmCollectionElement for InputDeviceHandle {}
+
 /// Value type for InputDeviceHandle.
 pub type InputDeviceHandleValue = InputDeviceHandle;
 
@@ -2369,6 +2457,8 @@ impl VmValueCodec for InputMonitorHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for InputMonitorHandle {}
 
 /// Value type for InputMonitorHandle.
 pub type InputMonitorHandleValue = InputMonitorHandle;
@@ -2423,6 +2513,8 @@ impl VmValueCodec for InspectorHandle {
     }
 }
 
+impl VmCollectionElement for InspectorHandle {}
+
 /// Value type for InspectorHandle.
 pub type InspectorHandleValue = InspectorHandle;
 
@@ -2475,6 +2567,8 @@ impl VmValueCodec for IntentHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for IntentHandle {}
 
 /// Value type for IntentHandle.
 pub type IntentHandleValue = IntentHandle;
@@ -2529,6 +2623,8 @@ impl VmValueCodec for LibraryHandle {
     }
 }
 
+impl VmCollectionElement for LibraryHandle {}
+
 /// Value type for LibraryHandle.
 pub type LibraryHandleValue = LibraryHandle;
 
@@ -2581,6 +2677,8 @@ impl VmValueCodec for LifecycleEventHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for LifecycleEventHandle {}
 
 /// Value type for LifecycleEventHandle.
 pub type LifecycleEventHandleValue = LifecycleEventHandle;
@@ -2635,6 +2733,8 @@ impl VmValueCodec for ListenerHandle {
     }
 }
 
+impl VmCollectionElement for ListenerHandle {}
+
 /// Value type for ListenerHandle.
 pub type ListenerHandleValue = ListenerHandle;
 
@@ -2687,6 +2787,8 @@ impl VmValueCodec for LocationWatchHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for LocationWatchHandle {}
 
 /// Value type for LocationWatchHandle.
 pub type LocationWatchHandleValue = LocationWatchHandle;
@@ -2741,6 +2843,8 @@ impl VmValueCodec for MessageQueueHandle {
     }
 }
 
+impl VmCollectionElement for MessageQueueHandle {}
+
 /// Value type for MessageQueueHandle.
 pub type MessageQueueHandleValue = MessageQueueHandle;
 
@@ -2793,6 +2897,8 @@ impl VmValueCodec for MidiEventHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for MidiEventHandle {}
 
 /// Value type for MidiEventHandle.
 pub type MidiEventHandleValue = MidiEventHandle;
@@ -2847,6 +2953,8 @@ impl VmValueCodec for MidiInputPortHandle {
     }
 }
 
+impl VmCollectionElement for MidiInputPortHandle {}
+
 /// Value type for MidiInputPortHandle.
 pub type MidiInputPortHandleValue = MidiInputPortHandle;
 
@@ -2899,6 +3007,8 @@ impl VmValueCodec for MidiOutputPortHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for MidiOutputPortHandle {}
 
 /// Value type for MidiOutputPortHandle.
 pub type MidiOutputPortHandleValue = MidiOutputPortHandle;
@@ -2953,6 +3063,8 @@ impl VmValueCodec for NetworkWatchHandle {
     }
 }
 
+impl VmCollectionElement for NetworkWatchHandle {}
+
 /// Value type for NetworkWatchHandle.
 pub type NetworkWatchHandleValue = NetworkWatchHandle;
 
@@ -3005,6 +3117,8 @@ impl VmValueCodec for NotificationEventHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for NotificationEventHandle {}
 
 /// Value type for NotificationEventHandle.
 pub type NotificationEventHandleValue = NotificationEventHandle;
@@ -3059,6 +3173,8 @@ impl VmValueCodec for PipeHandle {
     }
 }
 
+impl VmCollectionElement for PipeHandle {}
+
 /// Value type for PipeHandle.
 pub type PipeHandleValue = PipeHandle;
 
@@ -3111,6 +3227,8 @@ impl VmValueCodec for PollHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for PollHandle {}
 
 /// Value type for PollHandle.
 pub type PollHandleValue = PollHandle;
@@ -3165,6 +3283,8 @@ impl VmValueCodec for ProcessFdHandle {
     }
 }
 
+impl VmCollectionElement for ProcessFdHandle {}
+
 /// Value type for ProcessFdHandle.
 pub type ProcessFdHandleValue = ProcessFdHandle;
 
@@ -3217,6 +3337,8 @@ impl VmValueCodec for ProcessHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ProcessHandle {}
 
 /// Value type for ProcessHandle.
 pub type ProcessHandleValue = ProcessHandle;
@@ -3271,6 +3393,8 @@ impl VmValueCodec for ProfileHandle {
     }
 }
 
+impl VmCollectionElement for ProfileHandle {}
+
 /// Value type for ProfileHandle.
 pub type ProfileHandleValue = ProfileHandle;
 
@@ -3324,6 +3448,8 @@ impl VmValueCodec for PtyHandle {
     }
 }
 
+impl VmCollectionElement for PtyHandle {}
+
 /// Value type for PtyHandle.
 pub type PtyHandleValue = PtyHandle;
 
@@ -3376,6 +3502,8 @@ impl VmValueCodec for ResourceId {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ResourceId {}
 
 /// Value type for ResourceId.
 pub type ResourceIdValue = ResourceId;
@@ -3438,6 +3566,8 @@ impl VmAggregateCodec for ResourceKindAbi<VmAbi> {
         <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
+
+impl VmCollectionElement for ResourceKindAbi<VmAbi> {}
 
 /// Value type for ResourceKind.
 #[repr(transparent)]
@@ -3505,6 +3635,8 @@ impl VmValueCodec for SandboxHandle {
     }
 }
 
+impl VmCollectionElement for SandboxHandle {}
+
 /// Value type for SandboxHandle.
 pub type SandboxHandleValue = SandboxHandle;
 
@@ -3557,6 +3689,8 @@ impl VmValueCodec for SemaphoreHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for SemaphoreHandle {}
 
 /// Value type for SemaphoreHandle.
 pub type SemaphoreHandleValue = SemaphoreHandle;
@@ -3611,6 +3745,8 @@ impl VmValueCodec for SerialPortHandle {
     }
 }
 
+impl VmCollectionElement for SerialPortHandle {}
+
 /// Value type for SerialPortHandle.
 pub type SerialPortHandleValue = SerialPortHandle;
 
@@ -3663,6 +3799,8 @@ impl VmValueCodec for SharedMemoryHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for SharedMemoryHandle {}
 
 /// Value type for SharedMemoryHandle.
 pub type SharedMemoryHandleValue = SharedMemoryHandle;
@@ -3717,6 +3855,8 @@ impl VmValueCodec for SignalFdHandle {
     }
 }
 
+impl VmCollectionElement for SignalFdHandle {}
+
 /// Value type for SignalFdHandle.
 pub type SignalFdHandleValue = SignalFdHandle;
 
@@ -3769,6 +3909,8 @@ impl VmValueCodec for SignalHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for SignalHandle {}
 
 /// Value type for SignalHandle.
 pub type SignalHandleValue = SignalHandle;
@@ -3823,6 +3965,8 @@ impl VmValueCodec for SocketHandle {
     }
 }
 
+impl VmCollectionElement for SocketHandle {}
+
 /// Value type for SocketHandle.
 pub type SocketHandleValue = SocketHandle;
 
@@ -3875,6 +4019,8 @@ impl VmValueCodec for SymbolHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for SymbolHandle {}
 
 /// Value type for SymbolHandle.
 pub type SymbolHandleValue = SymbolHandle;
@@ -3929,6 +4075,8 @@ impl VmValueCodec for ThreadEntryHandle {
     }
 }
 
+impl VmCollectionElement for ThreadEntryHandle {}
+
 /// Value type for ThreadEntryHandle.
 pub type ThreadEntryHandleValue = ThreadEntryHandle;
 
@@ -3981,6 +4129,8 @@ impl VmValueCodec for ThreadHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ThreadHandle {}
 
 /// Value type for ThreadHandle.
 pub type ThreadHandleValue = ThreadHandle;
@@ -4035,6 +4185,8 @@ impl VmValueCodec for ThreadLocalKey {
     }
 }
 
+impl VmCollectionElement for ThreadLocalKey {}
+
 /// Value type for ThreadLocalKey.
 pub type ThreadLocalKeyValue = ThreadLocalKey;
 
@@ -4087,6 +4239,8 @@ impl VmValueCodec for TimerFdHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for TimerFdHandle {}
 
 /// Value type for TimerFdHandle.
 pub type TimerFdHandleValue = TimerFdHandle;
@@ -4141,6 +4295,8 @@ impl VmValueCodec for TimerHandle {
     }
 }
 
+impl VmCollectionElement for TimerHandle {}
+
 /// Value type for TimerHandle.
 pub type TimerHandleValue = TimerHandle;
 
@@ -4193,6 +4349,8 @@ impl VmValueCodec for TlsContextHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for TlsContextHandle {}
 
 /// Value type for TlsContextHandle.
 pub type TlsContextHandleValue = TlsContextHandle;
@@ -4247,6 +4405,8 @@ impl VmValueCodec for TlsSessionHandle {
     }
 }
 
+impl VmCollectionElement for TlsSessionHandle {}
+
 /// Value type for TlsSessionHandle.
 pub type TlsSessionHandleValue = TlsSessionHandle;
 
@@ -4299,6 +4459,8 @@ impl VmValueCodec for TraceHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for TraceHandle {}
 
 /// Value type for TraceHandle.
 pub type TraceHandleValue = TraceHandle;
@@ -4353,6 +4515,8 @@ impl VmValueCodec for TransferredHandle {
     }
 }
 
+impl VmCollectionElement for TransferredHandle {}
+
 /// Value type for TransferredHandle.
 pub type TransferredHandleValue = TransferredHandle;
 
@@ -4405,6 +4569,8 @@ impl VmValueCodec for TtyHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for TtyHandle {}
 
 /// Value type for TtyHandle.
 pub type TtyHandleValue = TtyHandle;
@@ -4459,6 +4625,8 @@ impl VmValueCodec for UringHandle {
     }
 }
 
+impl VmCollectionElement for UringHandle {}
+
 /// Value type for UringHandle.
 pub type UringHandleValue = UringHandle;
 
@@ -4511,6 +4679,8 @@ impl VmValueCodec for UsbDeviceHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for UsbDeviceHandle {}
 
 /// Value type for UsbDeviceHandle.
 pub type UsbDeviceHandleValue = UsbDeviceHandle;
@@ -4565,6 +4735,8 @@ impl VmValueCodec for UsbWatchHandle {
     }
 }
 
+impl VmCollectionElement for UsbWatchHandle {}
+
 /// Value type for UsbWatchHandle.
 pub type UsbWatchHandleValue = UsbWatchHandle;
 
@@ -4617,6 +4789,8 @@ impl VmValueCodec for WatchHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for WatchHandle {}
 
 /// Value type for WatchHandle.
 pub type WatchHandleValue = WatchHandle;
@@ -4671,6 +4845,8 @@ impl VmValueCodec for WindowEventHandle {
     }
 }
 
+impl VmCollectionElement for WindowEventHandle {}
+
 /// Value type for WindowEventHandle.
 pub type WindowEventHandleValue = WindowEventHandle;
 
@@ -4723,6 +4899,8 @@ impl VmValueCodec for WindowHandle {
         <ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for WindowHandle {}
 
 /// Value type for WindowHandle.
 pub type WindowHandleValue = WindowHandle;
@@ -4788,6 +4966,8 @@ impl VmValueCodec for ResourceOwnership {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for ResourceOwnership {}
 
 /// Value type for ResourceOwnership.
 pub type ResourceOwnershipValue = ResourceOwnership;

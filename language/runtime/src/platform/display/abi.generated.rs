@@ -11,9 +11,9 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, core, core as platform_core, display as platform_display, fs, fs as platform_fs,
-    resource, resource as platform_resource,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, core, core as platform_core, display as platform_display, fs,
+    fs as platform_fs, resource, resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -38,6 +38,8 @@ impl VmValueCodec for DisplayBackendCapabilityFlags {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for DisplayBackendCapabilityFlags {}
 
 /// Value type for DisplayBackendCapabilityFlags.
 pub type DisplayBackendCapabilityFlagsValue = DisplayBackendCapabilityFlags;
@@ -92,6 +94,8 @@ impl VmValueCodec for DisplayHandle {
     }
 }
 
+impl VmCollectionElement for DisplayHandle {}
+
 /// Value type for DisplayHandle.
 pub type DisplayHandleValue = DisplayHandle;
 
@@ -145,6 +149,8 @@ impl VmValueCodec for DisplayMetricChangedMask {
     }
 }
 
+impl VmCollectionElement for DisplayMetricChangedMask {}
+
 /// Value type for DisplayMetricChangedMask.
 pub type DisplayMetricChangedMaskValue = DisplayMetricChangedMask;
 
@@ -197,6 +203,8 @@ impl VmValueCodec for DisplayMonitorEventKindMask {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for DisplayMonitorEventKindMask {}
 
 /// Value type for DisplayMonitorEventKindMask.
 pub type DisplayMonitorEventKindMaskValue = DisplayMonitorEventKindMask;
@@ -259,6 +267,8 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
 }
+
+impl VmCollectionElement for PathBytesAbi<VmAbi> {}
 
 /// Value type for PathBytes.
 #[repr(transparent)]
@@ -335,6 +345,8 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for PathUtf16Abi<VmAbi> {}
+
 /// Value type for PathUtf16.
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -401,6 +413,8 @@ impl VmValueCodec for ResourceId {
     }
 }
 
+impl VmCollectionElement for ResourceId {}
+
 /// Value type for ResourceId.
 pub type ResourceIdValue = ResourceId;
 
@@ -454,6 +468,8 @@ impl VmValueCodec for WindowEventKindMask {
     }
 }
 
+impl VmCollectionElement for WindowEventKindMask {}
+
 /// Value type for WindowEventKindMask.
 pub type WindowEventKindMaskValue = WindowEventKindMask;
 
@@ -506,6 +522,8 @@ impl VmValueCodec for WindowHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for WindowHandle {}
 
 /// Value type for WindowHandle.
 pub type WindowHandleValue = WindowHandle;
@@ -577,6 +595,8 @@ impl VmValueCodec for BackendSupport {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for BackendSupport {}
 
 /// Value type for BackendSupport.
 pub type BackendSupportValue = BackendSupport;
@@ -661,6 +681,8 @@ impl VmValueCodec for DisplayBackend {
     }
 }
 
+impl VmCollectionElement for DisplayBackend {}
+
 /// Value type for DisplayBackend.
 pub type DisplayBackendValue = DisplayBackend;
 
@@ -725,6 +747,8 @@ impl VmValueCodec for DisplayBackendSelectionPolicy {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for DisplayBackendSelectionPolicy {}
 
 /// Value type for DisplayBackendSelectionPolicy.
 pub type DisplayBackendSelectionPolicyValue = DisplayBackendSelectionPolicy;
@@ -803,6 +827,8 @@ impl VmValueCodec for DisplayColorSpace {
     }
 }
 
+impl VmCollectionElement for DisplayColorSpace {}
+
 /// Value type for DisplayColorSpace.
 pub type DisplayColorSpaceValue = DisplayColorSpace;
 
@@ -870,6 +896,8 @@ impl VmValueCodec for DisplayEventOverflowPolicy {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for DisplayEventOverflowPolicy {}
 
 /// Value type for DisplayEventOverflowPolicy.
 pub type DisplayEventOverflowPolicyValue = DisplayEventOverflowPolicy;
@@ -941,6 +969,8 @@ impl VmValueCodec for DisplayHdrMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for DisplayHdrMode {}
 
 /// Value type for DisplayHdrMode.
 pub type DisplayHdrModeValue = DisplayHdrMode;
@@ -1016,6 +1046,8 @@ impl VmValueCodec for DisplayOrientation {
     }
 }
 
+impl VmCollectionElement for DisplayOrientation {}
+
 /// Value type for DisplayOrientation.
 pub type DisplayOrientationValue = DisplayOrientation;
 
@@ -1084,6 +1116,8 @@ impl VmValueCodec for DisplaySupportStatus {
     }
 }
 
+impl VmCollectionElement for DisplaySupportStatus {}
+
 /// Value type for DisplaySupportStatus.
 pub type DisplaySupportStatusValue = DisplaySupportStatus;
 
@@ -1148,6 +1182,8 @@ impl VmValueCodec for WindowAttentionLevel {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for WindowAttentionLevel {}
 
 /// Value type for WindowAttentionLevel.
 pub type WindowAttentionLevelValue = WindowAttentionLevel;
@@ -1216,6 +1252,8 @@ impl VmValueCodec for WindowChromeKind {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for WindowChromeKind {}
 
 /// Value type for WindowChromeKind.
 pub type WindowChromeKindValue = WindowChromeKind;
@@ -1360,6 +1398,8 @@ impl VmValueCodec for WindowCursorIcon {
     }
 }
 
+impl VmCollectionElement for WindowCursorIcon {}
+
 /// Value type for WindowCursorIcon.
 pub type WindowCursorIconValue = WindowCursorIcon;
 
@@ -1431,6 +1471,8 @@ impl VmValueCodec for WindowCursorMode {
     }
 }
 
+impl VmCollectionElement for WindowCursorMode {}
+
 /// Value type for WindowCursorMode.
 pub type WindowCursorModeValue = WindowCursorMode;
 
@@ -1495,6 +1537,8 @@ impl VmValueCodec for WindowIconPixelFormat {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for WindowIconPixelFormat {}
 
 /// Value type for WindowIconPixelFormat.
 pub type WindowIconPixelFormatValue = WindowIconPixelFormat;
@@ -1563,6 +1607,8 @@ impl VmValueCodec for WindowOcclusionState {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for WindowOcclusionState {}
 
 /// Value type for WindowOcclusionState.
 pub type WindowOcclusionStateValue = WindowOcclusionState;
@@ -1647,6 +1693,8 @@ impl VmValueCodec for WindowResizeEdge {
     }
 }
 
+impl VmCollectionElement for WindowResizeEdge {}
+
 /// Value type for WindowResizeEdge.
 pub type WindowResizeEdgeValue = WindowResizeEdge;
 
@@ -1714,6 +1762,8 @@ impl VmValueCodec for WindowRole {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for WindowRole {}
 
 /// Value type for WindowRole.
 pub type WindowRoleValue = WindowRole;
@@ -1789,6 +1839,8 @@ impl VmValueCodec for WindowTheme {
     }
 }
 
+impl VmCollectionElement for WindowTheme {}
+
 /// Value type for WindowTheme.
 pub type WindowThemeValue = WindowTheme;
 
@@ -1859,6 +1911,8 @@ impl VmValueCodec for WindowVisibility {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for WindowVisibility {}
 
 /// Value type for WindowVisibility.
 pub type WindowVisibilityValue = WindowVisibility;
@@ -2041,6 +2095,8 @@ impl VmAggregateCodec for DisplayMonitorEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DisplayMonitorEventAbi<VmAbi> {}
 
 /// Value type for DisplayMonitorEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2274,6 +2330,8 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for OsPathAbi<VmAbi> {}
 
 /// Value type for OsPath.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2874,6 +2932,8 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowEventAbi<VmAbi> {}
 
 /// Value type for WindowEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3584,6 +3644,8 @@ impl VmAggregateCodec for WindowModeOptionsAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for WindowModeOptionsAbi<VmAbi> {}
+
 /// Value type for WindowModeOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum WindowModeOptionsValue {
@@ -3790,6 +3852,8 @@ impl VmAggregateCodec for DisplayAddedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for DisplayAddedEventAbi<VmAbi> {}
+
 /// Value type for DisplayAddedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayAddedEventValue {
@@ -3933,6 +3997,8 @@ impl VmAggregateCodec for DisplayAddedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DisplayAddedPayloadAbi<VmAbi> {}
 
 /// Value type for DisplayAddedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4084,6 +4150,8 @@ impl VmAggregateCodec for DisplayBackendDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DisplayBackendDescriptorAbi<VmAbi> {}
 
 /// Value type for DisplayBackendDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4266,6 +4334,8 @@ impl VmAbiCodec for DisplayColorState {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for DisplayColorState {}
 
 /// ABI struct for DisplayDescriptor.
 #[repr(C)]
@@ -4450,6 +4520,8 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DisplayDescriptorAbi<VmAbi> {}
 
 /// Value type for DisplayDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4761,6 +4833,8 @@ impl VmAggregateCodec for DisplayDescriptorChangedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for DisplayDescriptorChangedEventAbi<VmAbi> {}
+
 /// Value type for DisplayDescriptorChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayDescriptorChangedEventValue {
@@ -4932,6 +5006,8 @@ impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DisplayDescriptorChangedPayloadAbi<VmAbi> {}
 
 /// Value type for DisplayDescriptorChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5108,6 +5184,8 @@ impl VmAbiCodec for DisplayEventQueueOptions {
     }
 }
 
+impl VmCollectionElement for DisplayEventQueueOptions {}
+
 /// ABI struct for DisplayGammaRamp.
 #[repr(C)]
 pub struct DisplayGammaRampAbi<A: BindingAbi> {
@@ -5191,6 +5269,8 @@ impl VmAggregateCodec for DisplayGammaRampAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DisplayGammaRampAbi<VmAbi> {}
 
 /// Value type for DisplayGammaRamp.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5354,6 +5434,8 @@ impl VmAbiCodec for DisplayMode {
     }
 }
 
+impl VmCollectionElement for DisplayMode {}
+
 /// ABI struct for DisplayModeChangedEvent.
 #[repr(C)]
 pub struct DisplayModeChangedEventAbi<A: BindingAbi> {
@@ -5447,6 +5529,8 @@ impl VmAggregateCodec for DisplayModeChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DisplayModeChangedEventAbi<VmAbi> {}
 
 /// Value type for DisplayModeChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5621,6 +5705,8 @@ impl VmAbiCodec for DisplayModeChangedPayload {
     }
 }
 
+impl VmCollectionElement for DisplayModeChangedPayload {}
+
 /// ABI struct for DisplayMonitorEventFilter.
 #[repr(C)]
 pub struct DisplayMonitorEventFilterAbi<A: BindingAbi> {
@@ -5707,6 +5793,8 @@ impl VmAggregateCodec for DisplayMonitorEventFilterAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DisplayMonitorEventFilterAbi<VmAbi> {}
 
 /// Value type for DisplayMonitorEventFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5878,6 +5966,8 @@ impl VmAggregateCodec for DisplayMonitorEventMetadataAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DisplayMonitorEventMetadataAbi<VmAbi> {}
 
 /// Value type for DisplayMonitorEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6064,6 +6154,8 @@ impl VmAggregateCodec for DisplayMonitorEventOpenOptionsAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for DisplayMonitorEventOpenOptionsAbi<VmAbi> {}
+
 /// Value type for DisplayMonitorEventOpenOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayMonitorEventOpenOptionsValue {
@@ -6247,6 +6339,8 @@ impl VmAbiCodec for DisplayMonitorListRequest {
     }
 }
 
+impl VmCollectionElement for DisplayMonitorListRequest {}
+
 /// ABI struct for DisplayMonitorOpenOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -6344,6 +6438,8 @@ impl VmAbiCodec for DisplayMonitorOpenOptions {
     }
 }
 
+impl VmCollectionElement for DisplayMonitorOpenOptions {}
+
 /// ABI struct for DisplayPrimaryChangedEvent.
 #[repr(C)]
 pub struct DisplayPrimaryChangedEventAbi<A: BindingAbi> {
@@ -6436,6 +6532,8 @@ impl VmAggregateCodec for DisplayPrimaryChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DisplayPrimaryChangedEventAbi<VmAbi> {}
 
 /// Value type for DisplayPrimaryChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6591,6 +6689,8 @@ impl VmAggregateCodec for DisplayPrimaryPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for DisplayPrimaryPayloadAbi<VmAbi> {}
 
 /// Value type for DisplayPrimaryPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6758,6 +6858,8 @@ impl VmAggregateCodec for DisplayRemovedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for DisplayRemovedEventAbi<VmAbi> {}
+
 /// Value type for DisplayRemovedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayRemovedEventValue {
@@ -6912,6 +7014,8 @@ impl VmAggregateCodec for DisplayRemovedPayloadAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for DisplayRemovedPayloadAbi<VmAbi> {}
+
 /// Value type for DisplayRemovedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayRemovedPayloadValue {
@@ -7053,6 +7157,8 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for OsPathBytesAbi<VmAbi> {}
+
 /// Value type for OsPathBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OsPathBytesValue {
@@ -7182,6 +7288,8 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for OsPathUtf16Abi<VmAbi> {}
 
 /// Value type for OsPathUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7323,6 +7431,8 @@ impl VmAbiCodec for WindowAspectRatio {
     }
 }
 
+impl VmCollectionElement for WindowAspectRatio {}
+
 /// ABI struct for WindowAspectRatioChangedEvent.
 #[repr(C)]
 pub struct WindowAspectRatioChangedEventAbi<A: BindingAbi> {
@@ -7414,6 +7524,8 @@ impl VmAggregateCodec for WindowAspectRatioChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowAspectRatioChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowAspectRatioChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7583,6 +7695,8 @@ impl VmAbiCodec for WindowAspectRatioPayload {
     }
 }
 
+impl VmCollectionElement for WindowAspectRatioPayload {}
+
 /// ABI struct for WindowBorderlessModeOptions.
 #[repr(C)]
 pub struct WindowBorderlessModeOptionsAbi<A: BindingAbi> {
@@ -7666,6 +7780,8 @@ impl VmAggregateCodec for WindowBorderlessModeOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowBorderlessModeOptionsAbi<VmAbi> {}
 
 /// Value type for WindowBorderlessModeOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7819,6 +7935,8 @@ impl VmAggregateCodec for WindowChromeChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowChromeChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowChromeChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7976,6 +8094,8 @@ impl VmAbiCodec for WindowChromePayload {
     }
 }
 
+impl VmCollectionElement for WindowChromePayload {}
+
 /// ABI struct for WindowCloseRequestedEvent.
 #[repr(C)]
 pub struct WindowCloseRequestedEventAbi<A: BindingAbi> {
@@ -8057,6 +8177,8 @@ impl VmAggregateCodec for WindowCloseRequestedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowCloseRequestedEventAbi<VmAbi> {}
 
 /// Value type for WindowCloseRequestedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8192,6 +8314,8 @@ impl VmAggregateCodec for WindowCreatedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowCreatedEventAbi<VmAbi> {}
 
 /// Value type for WindowCreatedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8435,6 +8559,8 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowDescriptorAbi<VmAbi> {}
 
 /// Value type for WindowDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8714,6 +8840,8 @@ impl VmAggregateCodec for WindowDestroyedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for WindowDestroyedEventAbi<VmAbi> {}
+
 /// Value type for WindowDestroyedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowDestroyedEventValue {
@@ -8857,6 +8985,8 @@ impl VmAggregateCodec for WindowDisplayChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowDisplayChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowDisplayChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9018,6 +9148,8 @@ impl VmAbiCodec for WindowDisplayPayload {
     }
 }
 
+impl VmCollectionElement for WindowDisplayPayload {}
+
 /// ABI struct for WindowDropCancelledEvent.
 #[repr(C)]
 pub struct WindowDropCancelledEventAbi<A: BindingAbi> {
@@ -9099,6 +9231,8 @@ impl VmAggregateCodec for WindowDropCancelledEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowDropCancelledEventAbi<VmAbi> {}
 
 /// Value type for WindowDropCancelledEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9235,6 +9369,8 @@ impl VmAggregateCodec for WindowDropCompletedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for WindowDropCompletedEventAbi<VmAbi> {}
+
 /// Value type for WindowDropCompletedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowDropCompletedEventValue {
@@ -9369,6 +9505,8 @@ impl VmAggregateCodec for WindowDropFilePayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowDropFilePayloadAbi<VmAbi> {}
 
 /// Value type for WindowDropFilePayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9513,6 +9651,8 @@ impl VmAggregateCodec for WindowDropHoverLeavePayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowDropHoverLeavePayloadAbi<VmAbi> {}
 
 /// Value type for WindowDropHoverLeavePayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9666,6 +9806,8 @@ impl VmAggregateCodec for WindowDropHoverPayloadAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for WindowDropHoverPayloadAbi<VmAbi> {}
+
 /// Value type for WindowDropHoverPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowDropHoverPayloadValue {
@@ -9807,6 +9949,8 @@ impl VmAggregateCodec for WindowDropStartedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for WindowDropStartedEventAbi<VmAbi> {}
+
 /// Value type for WindowDropStartedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowDropStartedEventValue {
@@ -9941,6 +10085,8 @@ impl VmAggregateCodec for WindowDropTextPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowDropTextPayloadAbi<VmAbi> {}
 
 /// Value type for WindowDropTextPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10102,6 +10248,8 @@ impl VmAbiCodec for WindowEventFilter {
     }
 }
 
+impl VmCollectionElement for WindowEventFilter {}
+
 /// ABI struct for WindowEventMetadata.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -10211,6 +10359,8 @@ impl VmAbiCodec for WindowEventMetadata {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for WindowEventMetadata {}
 
 /// ABI struct for WindowEventOpenOptions.
 #[repr(C)]
@@ -10328,6 +10478,8 @@ impl VmAbiCodec for WindowEventOpenOptions {
     }
 }
 
+impl VmCollectionElement for WindowEventOpenOptions {}
+
 /// ABI struct for WindowExclusiveFullscreenModeOptions.
 #[repr(C)]
 pub struct WindowExclusiveFullscreenModeOptionsAbi<A: BindingAbi> {
@@ -10418,6 +10570,8 @@ impl VmAggregateCodec for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowExclusiveFullscreenModeOptionsAbi<VmAbi> {}
 
 /// Value type for WindowExclusiveFullscreenModeOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10583,6 +10737,8 @@ impl VmAggregateCodec for WindowFileDroppedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for WindowFileDroppedEventAbi<VmAbi> {}
+
 /// Value type for WindowFileDroppedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowFileDroppedEventValue {
@@ -10736,6 +10892,8 @@ impl VmAggregateCodec for WindowFileHoverLeftEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowFileHoverLeftEventAbi<VmAbi> {}
 
 /// Value type for WindowFileHoverLeftEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -10898,6 +11056,8 @@ impl VmAggregateCodec for WindowFileHoveredEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for WindowFileHoveredEventAbi<VmAbi> {}
+
 /// Value type for WindowFileHoveredEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowFileHoveredEventValue {
@@ -11046,6 +11206,8 @@ impl VmAggregateCodec for WindowFocusChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowFocusChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowFocusChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11197,6 +11359,8 @@ impl VmAbiCodec for WindowFocusPayload {
     }
 }
 
+impl VmCollectionElement for WindowFocusPayload {}
+
 /// ABI struct for WindowIconImage.
 #[repr(C)]
 pub struct WindowIconImageAbi<A: BindingAbi> {
@@ -11288,6 +11452,8 @@ impl VmAggregateCodec for WindowIconImageAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowIconImageAbi<VmAbi> {}
 
 /// Value type for WindowIconImage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11440,6 +11606,8 @@ impl VmAggregateCodec for WindowIconSetAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for WindowIconSetAbi<VmAbi> {}
+
 /// Value type for WindowIconSet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowIconSetValue {
@@ -11579,6 +11747,8 @@ impl VmAbiCodec for WindowLogicalSize {
     }
 }
 
+impl VmCollectionElement for WindowLogicalSize {}
+
 /// ABI struct for WindowModalChangedEvent.
 #[repr(C)]
 pub struct WindowModalChangedEventAbi<A: BindingAbi> {
@@ -11666,6 +11836,8 @@ impl VmAggregateCodec for WindowModalChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowModalChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowModalChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11817,6 +11989,8 @@ impl VmAbiCodec for WindowModalPayload {
     }
 }
 
+impl VmCollectionElement for WindowModalPayload {}
+
 /// ABI struct for WindowModeChangedEvent.
 #[repr(C)]
 pub struct WindowModeChangedEventAbi<A: BindingAbi> {
@@ -11904,6 +12078,8 @@ impl VmAggregateCodec for WindowModeChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowModeChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowModeChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12048,6 +12224,8 @@ impl VmAggregateCodec for WindowModePayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowModePayloadAbi<VmAbi> {}
 
 /// Value type for WindowModePayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12214,6 +12392,8 @@ impl VmAggregateCodec for WindowMousePassthroughChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowMousePassthroughChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowMousePassthroughChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12382,6 +12562,8 @@ impl VmAbiCodec for WindowMousePassthroughPayload {
     }
 }
 
+impl VmCollectionElement for WindowMousePassthroughPayload {}
+
 /// ABI struct for WindowOcclusionChangedEvent.
 #[repr(C)]
 pub struct WindowOcclusionChangedEventAbi<A: BindingAbi> {
@@ -12472,6 +12654,8 @@ impl VmAggregateCodec for WindowOcclusionChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowOcclusionChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowOcclusionChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12631,6 +12815,8 @@ impl VmAbiCodec for WindowOcclusionPayload {
     }
 }
 
+impl VmCollectionElement for WindowOcclusionPayload {}
+
 /// ABI struct for WindowOpacityChangedEvent.
 #[repr(C)]
 pub struct WindowOpacityChangedEventAbi<A: BindingAbi> {
@@ -12721,6 +12907,8 @@ impl VmAggregateCodec for WindowOpacityChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowOpacityChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowOpacityChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12871,6 +13059,8 @@ impl VmAbiCodec for WindowOpacityPayload {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for WindowOpacityPayload {}
 
 /// ABI struct for WindowOptions.
 #[repr(C)]
@@ -13116,6 +13306,8 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowOptionsAbi<VmAbi> {}
 
 /// Value type for WindowOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -13487,6 +13679,8 @@ impl VmAggregateCodec for WindowParentChangedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for WindowParentChangedEventAbi<VmAbi> {}
+
 /// Value type for WindowParentChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowParentChangedEventValue {
@@ -13647,6 +13841,8 @@ impl VmAbiCodec for WindowParentPayload {
     }
 }
 
+impl VmCollectionElement for WindowParentPayload {}
+
 /// ABI struct for WindowPhysicalSize.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -13736,6 +13932,8 @@ impl VmAbiCodec for WindowPhysicalSize {
     }
 }
 
+impl VmCollectionElement for WindowPhysicalSize {}
+
 /// ABI struct for WindowPosition.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -13824,6 +14022,8 @@ impl VmAbiCodec for WindowPosition {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for WindowPosition {}
 
 /// ABI struct for WindowPositionChangedEvent.
 #[repr(C)]
@@ -13915,6 +14115,8 @@ impl VmAggregateCodec for WindowPositionChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowPositionChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowPositionChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14074,6 +14276,8 @@ impl VmAbiCodec for WindowPositionPayload {
     }
 }
 
+impl VmCollectionElement for WindowPositionPayload {}
+
 /// ABI struct for WindowRefreshRequestedEvent.
 #[repr(C)]
 pub struct WindowRefreshRequestedEventAbi<A: BindingAbi> {
@@ -14155,6 +14359,8 @@ impl VmAggregateCodec for WindowRefreshRequestedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowRefreshRequestedEventAbi<VmAbi> {}
 
 /// Value type for WindowRefreshRequestedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14299,6 +14505,8 @@ impl VmAggregateCodec for WindowSafeAreaChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowSafeAreaChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowSafeAreaChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14460,6 +14668,8 @@ impl VmAbiCodec for WindowSafeAreaInsets {
     }
 }
 
+impl VmCollectionElement for WindowSafeAreaInsets {}
+
 /// ABI struct for WindowSafeAreaPayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -14561,6 +14771,8 @@ impl VmAbiCodec for WindowSafeAreaPayload {
     }
 }
 
+impl VmCollectionElement for WindowSafeAreaPayload {}
+
 /// ABI struct for WindowScaleFactorChangedEvent.
 #[repr(C)]
 pub struct WindowScaleFactorChangedEventAbi<A: BindingAbi> {
@@ -14652,6 +14864,8 @@ impl VmAggregateCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowScaleFactorChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowScaleFactorChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14817,6 +15031,8 @@ impl VmAbiCodec for WindowScaleFactorPayload {
     }
 }
 
+impl VmCollectionElement for WindowScaleFactorPayload {}
+
 /// ABI struct for WindowSizeChangedEvent.
 #[repr(C)]
 pub struct WindowSizeChangedEventAbi<A: BindingAbi> {
@@ -14904,6 +15120,8 @@ impl VmAggregateCodec for WindowSizeChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowSizeChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowSizeChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15061,6 +15279,8 @@ impl VmAbiCodec for WindowSizeConstraints {
     }
 }
 
+impl VmCollectionElement for WindowSizeConstraints {}
+
 /// ABI struct for WindowSizePayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -15175,6 +15395,8 @@ impl VmAbiCodec for WindowSizePayload {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for WindowSizePayload {}
 
 /// ABI struct for WindowState.
 #[repr(C)]
@@ -15411,6 +15633,8 @@ impl VmAbiCodec for WindowState {
     }
 }
 
+impl VmCollectionElement for WindowState {}
+
 /// ABI struct for WindowTaskbarVisibilityChangedEvent.
 #[repr(C)]
 pub struct WindowTaskbarVisibilityChangedEventAbi<A: BindingAbi> {
@@ -15503,6 +15727,8 @@ impl VmAggregateCodec for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowTaskbarVisibilityChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowTaskbarVisibilityChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15668,6 +15894,8 @@ impl VmAbiCodec for WindowTaskbarVisibilityPayload {
     }
 }
 
+impl VmCollectionElement for WindowTaskbarVisibilityPayload {}
+
 /// ABI struct for WindowTextDroppedEvent.
 #[repr(C)]
 pub struct WindowTextDroppedEventAbi<A: BindingAbi> {
@@ -15758,6 +15986,8 @@ impl VmAggregateCodec for WindowTextDroppedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowTextDroppedEventAbi<VmAbi> {}
 
 /// Value type for WindowTextDroppedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15907,6 +16137,8 @@ impl VmAggregateCodec for WindowThemeChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowThemeChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowThemeChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -16058,6 +16290,8 @@ impl VmAbiCodec for WindowThemePayload {
     }
 }
 
+impl VmCollectionElement for WindowThemePayload {}
+
 /// ABI struct for WindowTransientChangedEvent.
 #[repr(C)]
 pub struct WindowTransientChangedEventAbi<A: BindingAbi> {
@@ -16148,6 +16382,8 @@ impl VmAggregateCodec for WindowTransientChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowTransientChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowTransientChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -16311,6 +16547,8 @@ impl VmAbiCodec for WindowTransientPayload {
     }
 }
 
+impl VmCollectionElement for WindowTransientPayload {}
+
 /// ABI struct for WindowVisibilityChangedEvent.
 #[repr(C)]
 pub struct WindowVisibilityChangedEventAbi<A: BindingAbi> {
@@ -16402,6 +16640,8 @@ impl VmAggregateCodec for WindowVisibilityChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowVisibilityChangedEventAbi<VmAbi> {}
 
 /// Value type for WindowVisibilityChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -16564,6 +16804,8 @@ impl VmAbiCodec for WindowVisibilityPayload {
     }
 }
 
+impl VmCollectionElement for WindowVisibilityPayload {}
+
 /// ABI struct for WindowWindowedModeOptions.
 #[repr(C)]
 pub struct WindowWindowedModeOptionsAbi<A: BindingAbi> {
@@ -16634,6 +16876,8 @@ impl VmAggregateCodec for WindowWindowedModeOptionsAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for WindowWindowedModeOptionsAbi<VmAbi> {}
 
 /// Value type for WindowWindowedModeOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

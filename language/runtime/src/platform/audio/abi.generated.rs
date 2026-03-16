@@ -11,8 +11,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
     NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmSlice,
-    VmValueCodec, audio as platform_audio, core, core as platform_core, resource,
+    PlatformError as AbiPlatformError, VmAbiCodec, VmAggregateCodec, VmArray, VmCollectionElement,
+    VmSlice, VmValueCodec, audio as platform_audio, core, core as platform_core, resource,
     resource as platform_resource,
 };
 use crate::runtime::BindingCallContext;
@@ -38,6 +38,8 @@ impl VmValueCodec for AudioBackendCapabilityFlags {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for AudioBackendCapabilityFlags {}
 
 /// Value type for AudioBackendCapabilityFlags.
 pub type AudioBackendCapabilityFlagsValue = AudioBackendCapabilityFlags;
@@ -92,6 +94,8 @@ impl VmValueCodec for AudioDeviceCapabilityFlags {
     }
 }
 
+impl VmCollectionElement for AudioDeviceCapabilityFlags {}
+
 /// Value type for AudioDeviceCapabilityFlags.
 pub type AudioDeviceCapabilityFlagsValue = AudioDeviceCapabilityFlags;
 
@@ -144,6 +148,8 @@ impl VmValueCodec for AudioDeviceListFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for AudioDeviceListFlags {}
 
 /// Value type for AudioDeviceListFlags.
 pub type AudioDeviceListFlagsValue = AudioDeviceListFlags;
@@ -198,6 +204,8 @@ impl VmValueCodec for AudioDeviceOpenFlags {
     }
 }
 
+impl VmCollectionElement for AudioDeviceOpenFlags {}
+
 /// Value type for AudioDeviceOpenFlags.
 pub type AudioDeviceOpenFlagsValue = AudioDeviceOpenFlags;
 
@@ -250,6 +258,8 @@ impl VmValueCodec for AudioEventSubscriptionFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for AudioEventSubscriptionFlags {}
 
 /// Value type for AudioEventSubscriptionFlags.
 pub type AudioEventSubscriptionFlagsValue = AudioEventSubscriptionFlags;
@@ -304,6 +314,8 @@ impl VmValueCodec for AudioStreamFlags {
     }
 }
 
+impl VmCollectionElement for AudioStreamFlags {}
+
 /// Value type for AudioStreamFlags.
 pub type AudioStreamFlagsValue = AudioStreamFlags;
 
@@ -356,6 +368,8 @@ impl VmValueCodec for AudioStreamHandle {
         <resource::ResourceId as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for AudioStreamHandle {}
 
 /// Value type for AudioStreamHandle.
 pub type AudioStreamHandleValue = AudioStreamHandle;
@@ -410,6 +424,8 @@ impl VmValueCodec for AudioStreamRequirementFlags {
     }
 }
 
+impl VmCollectionElement for AudioStreamRequirementFlags {}
+
 /// Value type for AudioStreamRequirementFlags.
 pub type AudioStreamRequirementFlagsValue = AudioStreamRequirementFlags;
 
@@ -462,6 +478,8 @@ impl VmValueCodec for AudioStreamStatusFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for AudioStreamStatusFlags {}
 
 /// Value type for AudioStreamStatusFlags.
 pub type AudioStreamStatusFlagsValue = AudioStreamStatusFlags;
@@ -516,6 +534,8 @@ impl VmValueCodec for AudioSupportedEventSubscriptionFlags {
     }
 }
 
+impl VmCollectionElement for AudioSupportedEventSubscriptionFlags {}
+
 /// Value type for AudioSupportedEventSubscriptionFlags.
 pub type AudioSupportedEventSubscriptionFlagsValue = AudioSupportedEventSubscriptionFlags;
 
@@ -568,6 +588,8 @@ impl VmValueCodec for AudioSupportedStreamClockDomains {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for AudioSupportedStreamClockDomains {}
 
 /// Value type for AudioSupportedStreamClockDomains.
 pub type AudioSupportedStreamClockDomainsValue = AudioSupportedStreamClockDomains;
@@ -622,6 +644,8 @@ impl VmValueCodec for AudioSupportedStreamFlags {
     }
 }
 
+impl VmCollectionElement for AudioSupportedStreamFlags {}
+
 /// Value type for AudioSupportedStreamFlags.
 pub type AudioSupportedStreamFlagsValue = AudioSupportedStreamFlags;
 
@@ -675,6 +699,8 @@ impl VmValueCodec for AudioSupportedStreamRequirementFlags {
     }
 }
 
+impl VmCollectionElement for AudioSupportedStreamRequirementFlags {}
+
 /// Value type for AudioSupportedStreamRequirementFlags.
 pub type AudioSupportedStreamRequirementFlagsValue = AudioSupportedStreamRequirementFlags;
 
@@ -727,6 +753,8 @@ impl VmValueCodec for ResourceId {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
+
+impl VmCollectionElement for ResourceId {}
 
 /// Value type for ResourceId.
 pub type ResourceIdValue = ResourceId;
@@ -820,6 +848,8 @@ impl VmValueCodec for AudioBackend {
     }
 }
 
+impl VmCollectionElement for AudioBackend {}
+
 /// Value type for AudioBackend.
 pub type AudioBackendValue = AudioBackend;
 
@@ -884,6 +914,8 @@ impl VmValueCodec for AudioBackendSelectionPolicy {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for AudioBackendSelectionPolicy {}
 
 /// Value type for AudioBackendSelectionPolicy.
 pub type AudioBackendSelectionPolicyValue = AudioBackendSelectionPolicy;
@@ -971,6 +1003,8 @@ impl VmValueCodec for AudioChannelLayout {
     }
 }
 
+impl VmCollectionElement for AudioChannelLayout {}
+
 /// Value type for AudioChannelLayout.
 pub type AudioChannelLayoutValue = AudioChannelLayout;
 
@@ -1035,6 +1069,8 @@ impl VmValueCodec for AudioClockDomain {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for AudioClockDomain {}
 
 /// Value type for AudioClockDomain.
 pub type AudioClockDomainValue = AudioClockDomain;
@@ -1103,6 +1139,8 @@ impl VmValueCodec for AudioClockQuality {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for AudioClockQuality {}
 
 /// Value type for AudioClockQuality.
 pub type AudioClockQualityValue = AudioClockQuality;
@@ -1175,6 +1213,8 @@ impl VmValueCodec for AudioDeviceDirection {
     }
 }
 
+impl VmCollectionElement for AudioDeviceDirection {}
+
 /// Value type for AudioDeviceDirection.
 pub type AudioDeviceDirectionValue = AudioDeviceDirection;
 
@@ -1242,6 +1282,8 @@ impl VmValueCodec for AudioEventDeliveryMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for AudioEventDeliveryMode {}
 
 /// Value type for AudioEventDeliveryMode.
 pub type AudioEventDeliveryModeValue = AudioEventDeliveryMode;
@@ -1311,6 +1353,8 @@ impl VmValueCodec for AudioEventOverflowPolicy {
     }
 }
 
+impl VmCollectionElement for AudioEventOverflowPolicy {}
+
 /// Value type for AudioEventOverflowPolicy.
 pub type AudioEventOverflowPolicyValue = AudioEventOverflowPolicy;
 
@@ -1375,6 +1419,8 @@ impl VmValueCodec for AudioEventSource {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for AudioEventSource {}
 
 /// Value type for AudioEventSource.
 pub type AudioEventSourceValue = AudioEventSource;
@@ -1453,6 +1499,8 @@ impl VmValueCodec for AudioSampleFormat {
     }
 }
 
+impl VmCollectionElement for AudioSampleFormat {}
+
 /// Value type for AudioSampleFormat.
 pub type AudioSampleFormatValue = AudioSampleFormat;
 
@@ -1517,6 +1565,8 @@ impl VmValueCodec for AudioShareMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for AudioShareMode {}
 
 /// Value type for AudioShareMode.
 pub type AudioShareModeValue = AudioShareMode;
@@ -1594,6 +1644,8 @@ impl VmValueCodec for AudioStreamClockDomain {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for AudioStreamClockDomain {}
 
 /// Value type for AudioStreamClockDomain.
 pub type AudioStreamClockDomainValue = AudioStreamClockDomain;
@@ -1684,6 +1736,8 @@ impl VmValueCodec for AudioStreamStateKind {
     }
 }
 
+impl VmCollectionElement for AudioStreamStateKind {}
+
 /// Value type for AudioStreamStateKind.
 pub type AudioStreamStateKindValue = AudioStreamStateKind;
 
@@ -1745,6 +1799,8 @@ impl VmValueCodec for AudioStreamTransferMode {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for AudioStreamTransferMode {}
 
 /// Value type for AudioStreamTransferMode.
 pub type AudioStreamTransferModeValue = AudioStreamTransferMode;
@@ -1816,6 +1872,8 @@ impl VmValueCodec for BackendSupport {
         <i32 as VmValueCodec>::encode(self as i32)
     }
 }
+
+impl VmCollectionElement for BackendSupport {}
 
 /// Value type for BackendSupport.
 pub type BackendSupportValue = BackendSupport;
@@ -2146,6 +2204,8 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioEventAbi<VmAbi> {}
 
 /// Value type for AudioEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2631,6 +2691,8 @@ impl VmAggregateCodec for AudioBackendDescriptorAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for AudioBackendDescriptorAbi<VmAbi> {}
+
 /// Value type for AudioBackendDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioBackendDescriptorValue {
@@ -2929,6 +2991,8 @@ impl VmAggregateCodec for AudioBackendDisconnectedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for AudioBackendDisconnectedEventAbi<VmAbi> {}
+
 /// Value type for AudioBackendDisconnectedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioBackendDisconnectedEventValue {
@@ -3087,6 +3151,8 @@ impl VmAbiCodec for AudioBackendDisconnectedPayload {
     }
 }
 
+impl VmCollectionElement for AudioBackendDisconnectedPayload {}
+
 /// ABI struct for AudioBackendResetEvent.
 #[repr(C)]
 pub struct AudioBackendResetEventAbi<A: BindingAbi> {
@@ -3178,6 +3244,8 @@ impl VmAggregateCodec for AudioBackendResetEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioBackendResetEventAbi<VmAbi> {}
 
 /// Value type for AudioBackendResetEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3333,6 +3401,8 @@ impl VmAbiCodec for AudioBackendResetPayload {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for AudioBackendResetPayload {}
 
 /// ABI struct for AudioClockSnapshot.
 #[repr(C)]
@@ -3499,6 +3569,8 @@ impl VmAbiCodec for AudioClockSnapshot {
     }
 }
 
+impl VmCollectionElement for AudioClockSnapshot {}
+
 /// ABI struct for AudioDefaultCaptureChangedEvent.
 #[repr(C)]
 pub struct AudioDefaultCaptureChangedEventAbi<A: BindingAbi> {
@@ -3591,6 +3663,8 @@ impl VmAggregateCodec for AudioDefaultCaptureChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioDefaultCaptureChangedEventAbi<VmAbi> {}
 
 /// Value type for AudioDefaultCaptureChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3735,6 +3809,8 @@ impl VmAggregateCodec for AudioDefaultCaptureChangedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioDefaultCaptureChangedPayloadAbi<VmAbi> {}
 
 /// Value type for AudioDefaultCaptureChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3885,6 +3961,8 @@ impl VmAggregateCodec for AudioDefaultLoopbackChangedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for AudioDefaultLoopbackChangedEventAbi<VmAbi> {}
+
 /// Value type for AudioDefaultLoopbackChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDefaultLoopbackChangedEventValue {
@@ -4028,6 +4106,8 @@ impl VmAggregateCodec for AudioDefaultLoopbackChangedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioDefaultLoopbackChangedPayloadAbi<VmAbi> {}
 
 /// Value type for AudioDefaultLoopbackChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4178,6 +4258,8 @@ impl VmAggregateCodec for AudioDefaultPlaybackChangedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for AudioDefaultPlaybackChangedEventAbi<VmAbi> {}
+
 /// Value type for AudioDefaultPlaybackChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDefaultPlaybackChangedEventValue {
@@ -4321,6 +4403,8 @@ impl VmAggregateCodec for AudioDefaultPlaybackChangedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioDefaultPlaybackChangedPayloadAbi<VmAbi> {}
 
 /// Value type for AudioDefaultPlaybackChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4470,6 +4554,8 @@ impl VmAggregateCodec for AudioDeviceAddedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for AudioDeviceAddedEventAbi<VmAbi> {}
+
 /// Value type for AudioDeviceAddedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceAddedEventValue {
@@ -4607,6 +4693,8 @@ impl VmAggregateCodec for AudioDeviceAddedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioDeviceAddedPayloadAbi<VmAbi> {}
 
 /// Value type for AudioDeviceAddedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4945,6 +5033,8 @@ impl VmAggregateCodec for AudioDeviceDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioDeviceDescriptorAbi<VmAbi> {}
 
 /// Value type for AudioDeviceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5447,6 +5537,8 @@ impl VmAggregateCodec for AudioDeviceFormatChangedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for AudioDeviceFormatChangedEventAbi<VmAbi> {}
+
 /// Value type for AudioDeviceFormatChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceFormatChangedEventValue {
@@ -5590,6 +5682,8 @@ impl VmAggregateCodec for AudioDeviceFormatChangedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioDeviceFormatChangedPayloadAbi<VmAbi> {}
 
 /// Value type for AudioDeviceFormatChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5758,6 +5852,8 @@ impl VmAbiCodec for AudioDeviceListRequest {
     }
 }
 
+impl VmCollectionElement for AudioDeviceListRequest {}
+
 /// ABI struct for AudioDeviceOpenOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -5875,6 +5971,8 @@ impl VmAbiCodec for AudioDeviceOpenOptions {
     }
 }
 
+impl VmCollectionElement for AudioDeviceOpenOptions {}
+
 /// ABI struct for AudioDeviceRemovedEvent.
 #[repr(C)]
 pub struct AudioDeviceRemovedEventAbi<A: BindingAbi> {
@@ -5966,6 +6064,8 @@ impl VmAggregateCodec for AudioDeviceRemovedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioDeviceRemovedEventAbi<VmAbi> {}
 
 /// Value type for AudioDeviceRemovedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6110,6 +6210,8 @@ impl VmAggregateCodec for AudioDeviceRemovedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioDeviceRemovedPayloadAbi<VmAbi> {}
 
 /// Value type for AudioDeviceRemovedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6260,6 +6362,8 @@ impl VmAggregateCodec for AudioDeviceReroutedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for AudioDeviceReroutedEventAbi<VmAbi> {}
+
 /// Value type for AudioDeviceReroutedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceReroutedEventValue {
@@ -6403,6 +6507,8 @@ impl VmAggregateCodec for AudioDeviceReroutedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioDeviceReroutedPayloadAbi<VmAbi> {}
 
 /// Value type for AudioDeviceReroutedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6572,6 +6678,8 @@ impl VmAbiCodec for AudioEventMetadata {
     }
 }
 
+impl VmCollectionElement for AudioEventMetadata {}
+
 /// ABI struct for AudioEventSubscriptionOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -6718,6 +6826,8 @@ impl VmAbiCodec for AudioEventSubscriptionOptions {
     }
 }
 
+impl VmCollectionElement for AudioEventSubscriptionOptions {}
+
 /// ABI struct for AudioInterruptionBeganEvent.
 #[repr(C)]
 pub struct AudioInterruptionBeganEventAbi<A: BindingAbi> {
@@ -6810,6 +6920,8 @@ impl VmAggregateCodec for AudioInterruptionBeganEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioInterruptionBeganEventAbi<VmAbi> {}
 
 /// Value type for AudioInterruptionBeganEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6969,6 +7081,8 @@ impl VmAbiCodec for AudioInterruptionBeganPayload {
     }
 }
 
+impl VmCollectionElement for AudioInterruptionBeganPayload {}
+
 /// ABI struct for AudioInterruptionEndedEvent.
 #[repr(C)]
 pub struct AudioInterruptionEndedEventAbi<A: BindingAbi> {
@@ -7061,6 +7175,8 @@ impl VmAggregateCodec for AudioInterruptionEndedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioInterruptionEndedEventAbi<VmAbi> {}
 
 /// Value type for AudioInterruptionEndedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7220,6 +7336,8 @@ impl VmAbiCodec for AudioInterruptionEndedPayload {
     }
 }
 
+impl VmCollectionElement for AudioInterruptionEndedPayload {}
+
 /// ABI struct for AudioStreamAvailability.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -7327,6 +7445,8 @@ impl VmAbiCodec for AudioStreamAvailability {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for AudioStreamAvailability {}
 
 /// ABI struct for AudioStreamConfig.
 #[repr(C)]
@@ -7451,6 +7571,8 @@ impl VmAbiCodec for AudioStreamConfig {
         Ok(value)
     }
 }
+
+impl VmCollectionElement for AudioStreamConfig {}
 
 /// ABI struct for AudioStreamDescriptor.
 #[repr(C)]
@@ -7682,6 +7804,8 @@ impl VmAggregateCodec for AudioStreamDescriptorAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioStreamDescriptorAbi<VmAbi> {}
 
 /// Value type for AudioStreamDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8055,6 +8179,8 @@ impl VmAggregateCodec for AudioStreamDeviceChangedEventAbi<VmAbi> {
     }
 }
 
+impl VmCollectionElement for AudioStreamDeviceChangedEventAbi<VmAbi> {}
+
 /// Value type for AudioStreamDeviceChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamDeviceChangedEventValue {
@@ -8218,6 +8344,8 @@ impl VmAggregateCodec for AudioStreamDeviceChangedPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioStreamDeviceChangedPayloadAbi<VmAbi> {}
 
 /// Value type for AudioStreamDeviceChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8406,6 +8534,8 @@ impl VmAbiCodec for AudioStreamOpenOptions {
     }
 }
 
+impl VmCollectionElement for AudioStreamOpenOptions {}
+
 /// ABI struct for AudioStreamState.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -8569,6 +8699,8 @@ impl VmAbiCodec for AudioStreamState {
     }
 }
 
+impl VmCollectionElement for AudioStreamState {}
+
 /// ABI struct for AudioStreamStateChangedEvent.
 #[repr(C)]
 pub struct AudioStreamStateChangedEventAbi<A: BindingAbi> {
@@ -8661,6 +8793,8 @@ impl VmAggregateCodec for AudioStreamStateChangedEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioStreamStateChangedEventAbi<VmAbi> {}
 
 /// Value type for AudioStreamStateChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -8829,6 +8963,8 @@ impl VmAbiCodec for AudioStreamStateChangedPayload {
     }
 }
 
+impl VmCollectionElement for AudioStreamStateChangedPayload {}
+
 /// ABI struct for AudioStreamSupport.
 #[repr(C)]
 pub struct AudioStreamSupportAbi<A: BindingAbi> {
@@ -8932,6 +9068,8 @@ impl VmAggregateCodec for AudioStreamSupportAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioStreamSupportAbi<VmAbi> {}
 
 /// Value type for AudioStreamSupport.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9173,6 +9311,8 @@ impl VmAbiCodec for AudioStreamTiming {
     }
 }
 
+impl VmCollectionElement for AudioStreamTiming {}
+
 /// ABI struct for AudioStreamXRunEvent.
 #[repr(C)]
 pub struct AudioStreamXRunEventAbi<A: BindingAbi> {
@@ -9263,6 +9403,8 @@ impl VmAggregateCodec for AudioStreamXRunEventAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioStreamXRunEventAbi<VmAbi> {}
 
 /// Value type for AudioStreamXRunEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -9424,6 +9566,8 @@ impl VmAggregateCodec for AudioStreamXRunPayloadAbi<VmAbi> {
             .map_err(Box::<RuntimeError>::from)
     }
 }
+
+impl VmCollectionElement for AudioStreamXRunPayloadAbi<VmAbi> {}
 
 /// Value type for AudioStreamXRunPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

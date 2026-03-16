@@ -7,10 +7,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::ffi::tests::FfiHarnessContext;
 use crate::platform::ffi::{FfiPointer, native as ffi_native, vm as ffi_vm};
-use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs,
-    resource,
-};
+use crate::platform::{NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
 use destack_vm as vm;
 
 impl<'call> FfiHarnessContext<'call> {
@@ -59,34 +56,18 @@ impl<'call> FfiHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let arguments = arguments.into_vm("arguments")?;
-                let out = ffi_vm::destack_ffi_call(
-                    self.call_context,
-                    context,
-                    symbol,
-                    abi,
-                    flags,
-                    arguments,
-                    resultsize,
-                )?;
+                let out = ffi_vm::destack_ffi_call(self.call_context, context, symbol, abi, flags, arguments, resultsize)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let arguments = arguments.into_native("arguments")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
                 unsafe {
-                    ffi_native::destack_ffi_call(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        symbol,
-                        abi,
-                        flags,
-                        arguments,
-                        resultsize,
-                    )?;
+                    ffi_native::destack_ffi_call(self.call_context, out.as_mut_ptr(), symbol, abi, flags, arguments, resultsize)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
-            }
+            },
         }
     }
 
@@ -112,8 +93,12 @@ impl<'call> FfiHarnessContext<'call> {
         handle: resource::LibraryHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => ffi_vm::destack_ffi_close(self.call_context, context, handle),
-            None => unsafe { ffi_native::destack_ffi_close(self.call_context, handle) },
+            Some(context) => {
+                ffi_vm::destack_ffi_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                ffi_native::destack_ffi_close(self.call_context, handle)
+            },
         }
     }
 
@@ -153,7 +138,7 @@ impl<'call> FfiHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -174,7 +159,10 @@ impl<'call> FfiHarnessContext<'call> {
     ///
     /// # Replay
     /// Deterministic.
-    pub(crate) fn destack_ffi_address(&mut self, pointer: FfiPointer) -> RuntimeResult<u64> {
+    pub(crate) fn destack_ffi_address(
+        &mut self,
+        pointer: FfiPointer,
+    ) -> RuntimeResult<u64> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out = ffi_vm::destack_ffi_address(self.call_context, context, pointer)?;
@@ -187,7 +175,7 @@ impl<'call> FfiHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -208,7 +196,10 @@ impl<'call> FfiHarnessContext<'call> {
     ///
     /// # Replay
     /// Deterministic.
-    pub(crate) fn destack_ffi_from_address(&mut self, address: u64) -> RuntimeResult<FfiPointer> {
+    pub(crate) fn destack_ffi_from_address(
+        &mut self,
+        address: u64,
+    ) -> RuntimeResult<FfiPointer> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out = ffi_vm::destack_ffi_from_address(self.call_context, context, address)?;
@@ -217,15 +208,11 @@ impl<'call> FfiHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<FfiPointer>::uninit();
                 unsafe {
-                    ffi_native::destack_ffi_from_address(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        address,
-                    )?;
+                    ffi_native::destack_ffi_from_address(self.call_context, out.as_mut_ptr(), address)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -258,15 +245,11 @@ impl<'call> FfiHarnessContext<'call> {
             None => {
                 let mut out = std::mem::MaybeUninit::<u64>::uninit();
                 unsafe {
-                    ffi_native::destack_ffi_symbol_address(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        symbol,
-                    )?;
+                    ffi_native::destack_ffi_symbol_address(self.call_context, out.as_mut_ptr(), symbol)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 
@@ -295,24 +278,18 @@ impl<'call> FfiHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let name = name.into_vm("name")?;
-                let out =
-                    ffi_vm::destack_ffi_symbol_lookup(self.call_context, context, library, name)?;
+                let out = ffi_vm::destack_ffi_symbol_lookup(self.call_context, context, library, name)?;
                 Ok(out)
             }
             None => {
                 let name = name.into_native("name")?;
                 let mut out = std::mem::MaybeUninit::<resource::SymbolHandle>::uninit();
                 unsafe {
-                    ffi_native::destack_ffi_symbol_lookup(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        library,
-                        name,
-                    )?;
+                    ffi_native::destack_ffi_symbol_lookup(self.call_context, out.as_mut_ptr(), library, name)?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
-            }
+            },
         }
     }
 }
