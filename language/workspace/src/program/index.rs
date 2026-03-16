@@ -9,13 +9,11 @@ use destack_dir::{
 use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
 
-use crate::{
-    ModuleGraph, ModuleGraphKey, ModuleGraphVersion, ModuleSignature, ModuleSignatureDigest,
-    ModuleSignatureKey, ProfileId, TargetId,
-};
+use crate::{ModuleGraph, ModuleGraphKey, ModuleGraphVersion, ProfileId, TargetId};
 use destack_source::PackageId;
 
 /// Derived indexes and tables for a Program.
+/// FUGU #Cleanup: this must stay a narrow derived-index home rather than growing back into semantic truth.
 #[derive(Debug, Default)]
 pub struct ProgramIndex {
     /// Global symbol tables indexed by target and profile.
@@ -28,10 +26,6 @@ pub struct ProgramIndex {
     pub module_graphs: DashMap<ModuleGraphKey, ModuleGraph>,
     /// Module graph versions indexed by profile.
     pub module_graph_versions: DashMap<ProfileId, ModuleGraphVersion>,
-    /// Module signatures indexed by module and profile.
-    pub module_signatures: DashMap<ModuleSignatureKey, ModuleSignature>,
-    /// Module signature digests indexed by module and profile.
-    pub module_signature_digests: DashMap<ModuleSignatureKey, ModuleSignatureDigest>,
     /// Extension index for O(1) extension lookups.
     pub extensions: ExtensionIndex,
     /// Exported symbol index for O(1) auto-import lookups.

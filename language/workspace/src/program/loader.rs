@@ -1,12 +1,10 @@
 use destack_source::FileType;
 use serde::{Deserialize, Serialize};
 
-use crate::ModuleType;
-
 /// How to load/interpret a file's content.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Loader {
-    // Code loaders → ModuleType::Code
+    // code loaders
     /// Destack code (.ds, .d.ds)
     Destack,
     /// TypeScript code (.ts, .tsx, .d.ts)
@@ -14,7 +12,7 @@ pub enum Loader {
     /// JavaScript code (.js, .jsx)
     JavaScript,
 
-    // Data loaders → ModuleType::Data
+    // data loaders
     /// JSON data (.json)
     Json,
     /// TOML data (.toml)
@@ -22,11 +20,11 @@ pub enum Loader {
     /// YAML data (.yaml, .yml)
     Yaml,
 
-    // Text loaders → ModuleType::Text
+    // text loaders
     /// Plain text content
     Text,
 
-    // Binary loaders → ModuleType::Binary
+    // binary loaders
     /// Raw binary bytes
     Binary,
     /// URL to bundled asset (for bundler output)
@@ -82,16 +80,6 @@ impl Loader {
             | FileType::Document
             | FileType::Binary
             | FileType::Unknown => Loader::Binary,
-        }
-    }
-
-    /// Get the module type that this loader produces.
-    pub fn module_type(&self) -> ModuleType {
-        match self {
-            Loader::Destack | Loader::TypeScript | Loader::JavaScript => ModuleType::Code,
-            Loader::Json | Loader::Toml | Loader::Yaml => ModuleType::Data,
-            Loader::Text | Loader::Base64 => ModuleType::Text,
-            Loader::Binary | Loader::File => ModuleType::Binary,
         }
     }
 

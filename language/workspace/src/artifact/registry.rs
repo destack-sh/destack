@@ -6,8 +6,7 @@ use destack_dir::{GlobalSymbolId, WellKnownSymbol};
 use destack_source::ModuleId;
 
 use crate::{
-    ArtifactDependency, ArtifactKey, ModuleAstData, ModuleDirData, ModuleMirData, ProfileId,
-    TargetId,
+    ArtifactDependency, ArtifactKey, ModuleAst, ModuleDir, ModuleMir, ProfileId, TargetId,
 };
 
 use super::{IntrinsicEnvironment, LanguageEnvironment, LibEnvironment};
@@ -23,31 +22,33 @@ pub struct ArtifactRegistry {
     intrinsic_environments: DashMap<ProfileId, Arc<IntrinsicEnvironment>>,
     /// Lib environments by profile.
     lib_environments: DashMap<ProfileId, Arc<LibEnvironment>>,
-    /// AST snapshots by module.
-    asts: DashMap<ModuleId, Arc<ModuleAstData>>,
-    /// Base DIR snapshots by module.
-    dir_bases: DashMap<ModuleId, Arc<ModuleDirData>>,
-    /// Prepared DIR snapshots by module and profile.
-    dir_prepared: DashMap<(ModuleId, ProfileId), Arc<ModuleDirData>>,
-    /// Resolved DIR snapshots by module and profile.
-    dir_resolved: DashMap<(ModuleId, ProfileId), Arc<ModuleDirData>>,
-    /// Declared DIR snapshots by module and profile.
-    dir_declared: DashMap<(ModuleId, ProfileId), Arc<ModuleDirData>>,
-    /// Interface DIR snapshots by module and profile.
-    dir_interface: DashMap<(ModuleId, ProfileId), Arc<ModuleDirData>>,
-    /// Analyzed DIR snapshots by module and profile.
-    dir_analyzed: DashMap<(ModuleId, ProfileId), Arc<ModuleDirData>>,
-    /// Elaborated DIR snapshots by module and profile.
-    dir_elaborated: DashMap<(ModuleId, ProfileId), Arc<ModuleDirData>>,
-    /// Patched DIR snapshots by module and profile.
-    dir_patched: DashMap<(ModuleId, ProfileId), Arc<ModuleDirData>>,
-    /// MIR snapshots by module, profile, and target.
-    mirs: DashMap<(ModuleId, ProfileId, TargetId), Arc<ModuleMirData>>,
-    /// Optimized MIR snapshots by module, profile, and target.
-    optimized_mirs: DashMap<(ModuleId, ProfileId, TargetId), Arc<ModuleMirData>>,
+    /// AST artifacts by module.
+    asts: DashMap<ModuleId, Arc<ModuleAst>>,
+    /// Base DIR artifacts by module.
+    dir_bases: DashMap<ModuleId, Arc<ModuleDir>>,
+    /// Prepared DIR artifacts by module and profile.
+    dir_prepared: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    /// Resolved DIR artifacts by module and profile.
+    dir_resolved: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    /// Declared DIR artifacts by module and profile.
+    dir_declared: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    /// Interface DIR artifacts by module and profile.
+    dir_interface: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    /// Analyzed DIR artifacts by module and profile.
+    dir_analyzed: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    /// Elaborated DIR artifacts by module and profile.
+    dir_elaborated: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    /// Patched DIR artifacts by module and profile.
+    dir_patched: DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
+    /// Base MIR artifacts by module, profile, and target.
+    mir_bases: DashMap<(ModuleId, ProfileId, TargetId), Arc<ModuleMir>>,
+    /// Optimized MIR artifacts by module, profile, and target.
+    mir_optimized: DashMap<(ModuleId, ProfileId, TargetId), Arc<ModuleMir>>,
 }
 
 impl ArtifactRegistry {
+    /// FUGU #Cleanup: typed exact reads are fine, but publication and invalidation should collapse away from this set/remove helper forest.
+
     /// Get one shared artifact payload from a map.
     fn get_shared<K, V>(&self, entries: &DashMap<K, Arc<V>>, key: &K) -> Option<Arc<V>>
     where
@@ -57,11 +58,16 @@ impl ArtifactRegistry {
     }
 
     /// Insert one shared artifact payload into a map.
-    fn set_shared<K, V>(&self, entries: &DashMap<K, Arc<V>>, key: K, value: V) -> Arc<V>
+    fn set_shared<K, V>(
+        &self,
+        entries: &DashMap<K, Arc<V>>,
+        key: K,
+        value: impl Into<Arc<V>>,
+    ) -> Arc<V>
     where
         K: Eq + std::hash::Hash,
     {
-        let value = Arc::new(value);
+        let value = value.into();
         entries.insert(key, value.clone());
         value
     }
@@ -91,7 +97,7 @@ impl ArtifactRegistry {
     fn collect_profile_ids(
         &self,
         profiles: &mut HashSet<ProfileId>,
-        entries: &DashMap<(ModuleId, ProfileId), Arc<ModuleDirData>>,
+        entries: &DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
         module: ModuleId,
     ) {
         for entry in entries.iter() {
@@ -106,7 +112,7 @@ impl ArtifactRegistry {
     fn collect_module_ids(
         &self,
         modules: &mut HashSet<ModuleId>,
-        entries: &DashMap<(ModuleId, ProfileId), Arc<ModuleDirData>>,
+        entries: &DashMap<(ModuleId, ProfileId), Arc<ModuleDir>>,
         profiles: &HashSet<ProfileId>,
     ) {
         for entry in entries.iter() {
@@ -115,22 +121,6 @@ impl ArtifactRegistry {
                 modules.insert(module);
             }
         }
-    }
-
-    /// Return the first DIR snapshot for one module from one profiled artifact family.
-    fn dir_any_snapshot_from(
-        &self,
-        entries: &DashMap<(ModuleId, ProfileId), Arc<ModuleDirData>>,
-        module: ModuleId,
-    ) -> Option<Arc<ModuleDirData>> {
-        for entry in entries.iter() {
-            let (entry_module, _) = *entry.key();
-            if entry_module == module {
-                return Some(entry.value().clone());
-            }
-        }
-
-        None
     }
 
     /// Create a new semantic artifact registry.
@@ -149,8 +139,8 @@ impl ArtifactRegistry {
             dir_analyzed: DashMap::new(),
             dir_elaborated: DashMap::new(),
             dir_patched: DashMap::new(),
-            mirs: DashMap::new(),
-            optimized_mirs: DashMap::new(),
+            mir_bases: DashMap::new(),
+            mir_optimized: DashMap::new(),
         }
     }
 
@@ -258,42 +248,47 @@ impl ArtifactRegistry {
         None
     }
 
-    /// Get one AST snapshot.
-    pub fn ast(&self, module: ModuleId) -> Option<Arc<ModuleAstData>> {
+    /// Get one AST artifact.
+    pub fn ast(&self, module: ModuleId) -> Option<Arc<ModuleAst>> {
         self.get_shared(&self.asts, &module)
     }
 
-    /// Insert one AST snapshot.
-    pub fn set_ast(&self, module: ModuleId, ast: ModuleAstData) -> Arc<ModuleAstData> {
+    /// Insert one AST artifact.
+    pub fn set_ast(&self, module: ModuleId, ast: impl Into<Arc<ModuleAst>>) -> Arc<ModuleAst> {
         self.set_shared(&self.asts, module, ast)
     }
 
-    /// Get one base DIR snapshot.
-    pub fn dir_base(&self, module: ModuleId) -> Option<Arc<ModuleDirData>> {
+    /// Remove one AST artifact.
+    pub fn remove_ast(&self, module: ModuleId) {
+        self.remove_shared_with_dependency(&self.asts, &module, ArtifactKey::Ast { module });
+    }
+
+    /// Get one base DIR artifact.
+    pub fn dir_base(&self, module: ModuleId) -> Option<Arc<ModuleDir>> {
         self.get_shared(&self.dir_bases, &module)
     }
 
-    /// Insert one base DIR snapshot.
-    pub fn set_dir_base(&self, module: ModuleId, dir: ModuleDirData) -> Arc<ModuleDirData> {
+    /// Insert one base DIR artifact.
+    pub fn set_dir_base(&self, module: ModuleId, dir: impl Into<Arc<ModuleDir>>) -> Arc<ModuleDir> {
         self.set_shared(&self.dir_bases, module, dir)
     }
 
-    /// Get one prepared DIR snapshot.
-    pub fn dir_prepared(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDirData>> {
+    /// Get one prepared DIR artifact.
+    pub fn dir_prepared(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
         self.get_shared(&self.dir_prepared, &(module, profile))
     }
 
-    /// Insert one prepared DIR snapshot.
+    /// Insert one prepared DIR artifact.
     pub fn set_dir_prepared(
         &self,
         module: ModuleId,
         profile: ProfileId,
-        dir: ModuleDirData,
-    ) -> Arc<ModuleDirData> {
+        dir: impl Into<Arc<ModuleDir>>,
+    ) -> Arc<ModuleDir> {
         self.set_shared(&self.dir_prepared, (module, profile), dir)
     }
 
-    /// Remove one prepared DIR snapshot.
+    /// Remove one prepared DIR artifact.
     pub fn remove_dir_prepared(&self, module: ModuleId, profile: ProfileId) {
         self.remove_shared_with_dependency(
             &self.dir_prepared,
@@ -302,22 +297,22 @@ impl ArtifactRegistry {
         );
     }
 
-    /// Get one resolved DIR snapshot.
-    pub fn dir_resolved(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDirData>> {
+    /// Get one resolved DIR artifact.
+    pub fn dir_resolved(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
         self.get_shared(&self.dir_resolved, &(module, profile))
     }
 
-    /// Insert one resolved DIR snapshot.
+    /// Insert one resolved DIR artifact.
     pub fn set_dir_resolved(
         &self,
         module: ModuleId,
         profile: ProfileId,
-        dir: ModuleDirData,
-    ) -> Arc<ModuleDirData> {
+        dir: impl Into<Arc<ModuleDir>>,
+    ) -> Arc<ModuleDir> {
         self.set_shared(&self.dir_resolved, (module, profile), dir)
     }
 
-    /// Remove one resolved DIR snapshot.
+    /// Remove one resolved DIR artifact.
     pub fn remove_dir_resolved(&self, module: ModuleId, profile: ProfileId) {
         self.remove_shared_with_dependency(
             &self.dir_resolved,
@@ -326,22 +321,22 @@ impl ArtifactRegistry {
         );
     }
 
-    /// Get one declared DIR snapshot.
-    pub fn dir_declared(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDirData>> {
+    /// Get one declared DIR artifact.
+    pub fn dir_declared(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
         self.get_shared(&self.dir_declared, &(module, profile))
     }
 
-    /// Insert one declared DIR snapshot.
+    /// Insert one declared DIR artifact.
     pub fn set_dir_declared(
         &self,
         module: ModuleId,
         profile: ProfileId,
-        dir: ModuleDirData,
-    ) -> Arc<ModuleDirData> {
+        dir: impl Into<Arc<ModuleDir>>,
+    ) -> Arc<ModuleDir> {
         self.set_shared(&self.dir_declared, (module, profile), dir)
     }
 
-    /// Remove one declared DIR snapshot.
+    /// Remove one declared DIR artifact.
     pub fn remove_dir_declared(&self, module: ModuleId, profile: ProfileId) {
         self.remove_shared_with_dependency(
             &self.dir_declared,
@@ -350,26 +345,22 @@ impl ArtifactRegistry {
         );
     }
 
-    /// Get one interface DIR snapshot.
-    pub fn dir_interface(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Option<Arc<ModuleDirData>> {
+    /// Get one interface DIR artifact.
+    pub fn dir_interface(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
         self.get_shared(&self.dir_interface, &(module, profile))
     }
 
-    /// Insert one interface DIR snapshot.
+    /// Insert one interface DIR artifact.
     pub fn set_dir_interface(
         &self,
         module: ModuleId,
         profile: ProfileId,
-        dir: ModuleDirData,
-    ) -> Arc<ModuleDirData> {
+        dir: impl Into<Arc<ModuleDir>>,
+    ) -> Arc<ModuleDir> {
         self.set_shared(&self.dir_interface, (module, profile), dir)
     }
 
-    /// Remove one interface DIR snapshot.
+    /// Remove one interface DIR artifact.
     pub fn remove_dir_interface(&self, module: ModuleId, profile: ProfileId) {
         self.remove_shared_with_dependency(
             &self.dir_interface,
@@ -378,22 +369,22 @@ impl ArtifactRegistry {
         );
     }
 
-    /// Get one analyzed DIR snapshot.
-    pub fn dir_analyzed(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDirData>> {
+    /// Get one analyzed DIR artifact.
+    pub fn dir_analyzed(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
         self.get_shared(&self.dir_analyzed, &(module, profile))
     }
 
-    /// Insert one analyzed DIR snapshot.
+    /// Insert one analyzed DIR artifact.
     pub fn set_dir_analyzed(
         &self,
         module: ModuleId,
         profile: ProfileId,
-        dir: ModuleDirData,
-    ) -> Arc<ModuleDirData> {
+        dir: impl Into<Arc<ModuleDir>>,
+    ) -> Arc<ModuleDir> {
         self.set_shared(&self.dir_analyzed, (module, profile), dir)
     }
 
-    /// Remove one analyzed DIR snapshot.
+    /// Remove one analyzed DIR artifact.
     pub fn remove_dir_analyzed(&self, module: ModuleId, profile: ProfileId) {
         self.remove_shared_with_dependency(
             &self.dir_analyzed,
@@ -402,26 +393,22 @@ impl ArtifactRegistry {
         );
     }
 
-    /// Get one elaborated DIR snapshot.
-    pub fn dir_elaborated(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Option<Arc<ModuleDirData>> {
+    /// Get one elaborated DIR artifact.
+    pub fn dir_elaborated(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
         self.get_shared(&self.dir_elaborated, &(module, profile))
     }
 
-    /// Insert one elaborated DIR snapshot.
+    /// Insert one elaborated DIR artifact.
     pub fn set_dir_elaborated(
         &self,
         module: ModuleId,
         profile: ProfileId,
-        dir: ModuleDirData,
-    ) -> Arc<ModuleDirData> {
+        dir: impl Into<Arc<ModuleDir>>,
+    ) -> Arc<ModuleDir> {
         self.set_shared(&self.dir_elaborated, (module, profile), dir)
     }
 
-    /// Remove one elaborated DIR snapshot.
+    /// Remove one elaborated DIR artifact.
     pub fn remove_dir_elaborated(&self, module: ModuleId, profile: ProfileId) {
         self.remove_shared_with_dependency(
             &self.dir_elaborated,
@@ -430,79 +417,22 @@ impl ArtifactRegistry {
         );
     }
 
-    /// Get one patched DIR snapshot.
-    pub fn dir_patched(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDirData>> {
+    /// Get one patched DIR artifact.
+    pub fn dir_patched(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDir>> {
         self.get_shared(&self.dir_patched, &(module, profile))
     }
 
-    /// Get the best available profile-scoped DIR snapshot for one module.
-    fn best_available_profile_dir_snapshot(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Option<Arc<ModuleDirData>> {
-        for get in [
-            Self::dir_patched,
-            Self::dir_elaborated,
-            Self::dir_analyzed,
-            Self::dir_interface,
-            Self::dir_declared,
-            Self::dir_resolved,
-            Self::dir_prepared,
-        ] {
-            if let Some(dir) = get(self, module, profile) {
-                return Some(dir);
-            }
-        }
-
-        None
-    }
-
-    /// Get the best available profile-scoped DIR snapshot across any profile.
-    fn best_available_profile_dir_any_snapshot(
-        &self,
-        module: ModuleId,
-    ) -> Option<Arc<ModuleDirData>> {
-        for map in [
-            &self.dir_patched,
-            &self.dir_elaborated,
-            &self.dir_analyzed,
-            &self.dir_interface,
-            &self.dir_declared,
-            &self.dir_resolved,
-            &self.dir_prepared,
-        ] {
-            if let Some(dir) = self.dir_any_snapshot_from(map, module) {
-                return Some(dir);
-            }
-        }
-
-        None
-    }
-
-    /// Get the best available DIR snapshot for one module and profile.
-    pub fn dir_snapshot(&self, module: ModuleId, profile: ProfileId) -> Option<Arc<ModuleDirData>> {
-        self.best_available_profile_dir_snapshot(module, profile)
-            .or_else(|| self.dir_base(module))
-    }
-
-    /// Get the best available DIR snapshot for one module across any profile.
-    pub fn dir_any_snapshot(&self, module: ModuleId) -> Option<Arc<ModuleDirData>> {
-        self.best_available_profile_dir_any_snapshot(module)
-            .or_else(|| self.dir_base(module))
-    }
-
-    /// Insert one patched DIR snapshot.
+    /// Insert one patched DIR artifact.
     pub fn set_dir_patched(
         &self,
         module: ModuleId,
         profile: ProfileId,
-        dir: ModuleDirData,
-    ) -> Arc<ModuleDirData> {
+        dir: impl Into<Arc<ModuleDir>>,
+    ) -> Arc<ModuleDir> {
         self.set_shared(&self.dir_patched, (module, profile), dir)
     }
 
-    /// Remove one patched DIR snapshot.
+    /// Remove one patched DIR artifact.
     pub fn remove_dir_patched(&self, module: ModuleId, profile: ProfileId) {
         self.remove_shared_with_dependency(
             &self.dir_patched,
@@ -511,33 +441,33 @@ impl ArtifactRegistry {
         );
     }
 
-    /// Get one MIR snapshot.
-    pub fn mir(
+    /// Get one base MIR artifact.
+    pub fn mir_base(
         &self,
         module: ModuleId,
         profile: ProfileId,
         target: &TargetId,
-    ) -> Option<Arc<ModuleMirData>> {
-        self.get_shared(&self.mirs, &(module, profile, target.clone()))
+    ) -> Option<Arc<ModuleMir>> {
+        self.get_shared(&self.mir_bases, &(module, profile, target.clone()))
     }
 
-    /// Insert one MIR snapshot.
-    pub fn set_mir(
+    /// Insert one base MIR artifact.
+    pub fn set_mir_base(
         &self,
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
-        mir: ModuleMirData,
-    ) -> Arc<ModuleMirData> {
-        self.set_shared(&self.mirs, (module, profile, target), mir)
+        mir: impl Into<Arc<ModuleMir>>,
+    ) -> Arc<ModuleMir> {
+        self.set_shared(&self.mir_bases, (module, profile, target), mir)
     }
 
-    /// Remove one MIR snapshot.
-    pub fn remove_mir(&self, module: ModuleId, profile: ProfileId, target: &TargetId) {
+    /// Remove one base MIR artifact.
+    pub fn remove_mir_base(&self, module: ModuleId, profile: ProfileId, target: &TargetId) {
         self.remove_shared_with_dependency(
-            &self.mirs,
+            &self.mir_bases,
             &(module, profile, target.clone()),
-            ArtifactKey::Mir {
+            ArtifactKey::MirBase {
                 module,
                 profile,
                 target: target.clone(),
@@ -545,42 +475,31 @@ impl ArtifactRegistry {
         );
     }
 
-    /// Get one optimized MIR snapshot.
-    pub fn optimized_mir(
+    /// Get one optimized MIR artifact.
+    pub fn mir_optimized(
         &self,
         module: ModuleId,
         profile: ProfileId,
         target: &TargetId,
-    ) -> Option<Arc<ModuleMirData>> {
-        self.get_shared(&self.optimized_mirs, &(module, profile, target.clone()))
+    ) -> Option<Arc<ModuleMir>> {
+        self.get_shared(&self.mir_optimized, &(module, profile, target.clone()))
     }
 
-    /// Get the best available MIR snapshot for one module, profile, and target.
-    pub fn mir_snapshot(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        target: &TargetId,
-    ) -> Option<Arc<ModuleMirData>> {
-        self.optimized_mir(module, profile, target)
-            .or_else(|| self.mir(module, profile, target))
-    }
-
-    /// Insert one optimized MIR snapshot.
-    pub fn set_optimized_mir(
+    /// Insert one optimized MIR artifact.
+    pub fn set_mir_optimized(
         &self,
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
-        mir: ModuleMirData,
-    ) -> Arc<ModuleMirData> {
-        self.set_shared(&self.optimized_mirs, (module, profile, target), mir)
+        mir: impl Into<Arc<ModuleMir>>,
+    ) -> Arc<ModuleMir> {
+        self.set_shared(&self.mir_optimized, (module, profile, target), mir)
     }
 
-    /// Remove one optimized MIR snapshot.
-    pub fn remove_optimized_mir(&self, module: ModuleId, profile: ProfileId, target: &TargetId) {
+    /// Remove one optimized MIR artifact.
+    pub fn remove_mir_optimized(&self, module: ModuleId, profile: ProfileId, target: &TargetId) {
         self.remove_shared_with_dependency(
-            &self.optimized_mirs,
+            &self.mir_optimized,
             &(module, profile, target.clone()),
             ArtifactKey::MirOptimized {
                 module,
@@ -594,14 +513,14 @@ impl ArtifactRegistry {
     pub fn target_ids_for_mir(&self, module: ModuleId, profile: ProfileId) -> Vec<TargetId> {
         let mut targets = Vec::new();
 
-        for entry in self.mirs.iter() {
+        for entry in self.mir_bases.iter() {
             let (entry_module, entry_profile, target) = entry.key();
             if *entry_module == module && *entry_profile == profile {
                 targets.push(target.clone());
             }
         }
 
-        for entry in self.optimized_mirs.iter() {
+        for entry in self.mir_optimized.iter() {
             let (entry_module, entry_profile, target) = entry.key();
             if *entry_module == module
                 && *entry_profile == profile
@@ -625,14 +544,14 @@ impl ArtifactRegistry {
         self.collect_profile_ids(&mut profiles, &self.dir_elaborated, module);
         self.collect_profile_ids(&mut profiles, &self.dir_patched, module);
 
-        for entry in self.mirs.iter() {
+        for entry in self.mir_bases.iter() {
             let (entry_module, profile, _) = entry.key();
             if *entry_module == module {
                 profiles.insert(*profile);
             }
         }
 
-        for entry in self.optimized_mirs.iter() {
+        for entry in self.mir_optimized.iter() {
             let (entry_module, profile, _) = entry.key();
             if *entry_module == module {
                 profiles.insert(*profile);
@@ -658,14 +577,14 @@ impl ArtifactRegistry {
         self.collect_module_ids(&mut modules, &self.dir_elaborated, profiles);
         self.collect_module_ids(&mut modules, &self.dir_patched, profiles);
 
-        for entry in self.mirs.iter() {
+        for entry in self.mir_bases.iter() {
             let (module, profile, _) = entry.key();
             if profiles.contains(profile) {
                 modules.insert(*module);
             }
         }
 
-        for entry in self.optimized_mirs.iter() {
+        for entry in self.mir_optimized.iter() {
             let (module, profile, _) = entry.key();
             if profiles.contains(profile) {
                 modules.insert(*module);
@@ -687,8 +606,8 @@ impl ArtifactRegistry {
             self.remove_dir_patched(module, *profile);
 
             for target in self.target_ids_for_mir(module, *profile) {
-                self.remove_mir(module, *profile, &target);
-                self.remove_optimized_mir(module, *profile, &target);
+                self.remove_mir_base(module, *profile, &target);
+                self.remove_mir_optimized(module, *profile, &target);
             }
         }
     }
@@ -708,7 +627,7 @@ impl ArtifactRegistry {
         self.dir_analyzed.clear();
         self.dir_elaborated.clear();
         self.dir_patched.clear();
-        self.mirs.clear();
-        self.optimized_mirs.clear();
+        self.mir_bases.clear();
+        self.mir_optimized.clear();
     }
 }

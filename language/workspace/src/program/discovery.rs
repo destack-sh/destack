@@ -157,7 +157,7 @@ fn select_entry_paths(
     // collect candidate module paths that belong to the package
     let mut candidates = Vec::new();
     for module_ref in modules.iter() {
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         if module.package_id != package_id {
             continue;
         }
@@ -294,7 +294,7 @@ fn resolve_entry_module_id(
 ) -> Option<ModuleId> {
     let module_id = modules.get_id_by_path(entry_path)?;
     let module_ref = modules.get(module_id);
-    let module = module_ref.read();
+    let module = module_ref.as_ref();
     if module.package_id != package_id {
         return None;
     }
@@ -313,7 +313,7 @@ pub fn discover_include_modules(
 
     // scan modules that belong to the package
     for module_ref in modules.iter() {
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         if module.package_id != package_id {
             continue;
         }

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{CACHE_FORMAT_VERSION, CACHE_MAGIC, CacheHeader, CacheKind, ModuleId};
 
-use crate::{CacheStoreError, ModuleAstData, ModuleDirData, ModuleMirData, ProfileId};
+use crate::{CacheStoreError, ModuleAst, ModuleDir, ModuleMir, ProfileId};
 
 // limit cache entry size to avoid excessive memory usage
 pub const CACHE_ENTRY_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
@@ -22,18 +22,18 @@ pub struct ModuleAstCacheEntry {
     /// The cache header for this entry.
     pub header: CacheHeader,
     /// The cached AST payload.
-    pub payload: ModuleAstData,
+    pub payload: ModuleAst,
 }
 
 impl ModuleAstCacheEntry {
     /// Create a new AST cache entry.
-    pub fn new(mut header: CacheHeader, payload: ModuleAstData) -> Result<Self, CacheError> {
+    pub fn new(mut header: CacheHeader, payload: ModuleAst) -> Result<Self, CacheError> {
         header.payload_hash = payload_hash_from_payload(&payload)?;
         Ok(Self { header, payload })
     }
 
     /// Create a new AST cache entry without computing a payload hash.
-    pub fn new_unchecked(mut header: CacheHeader, payload: ModuleAstData) -> Self {
+    pub fn new_unchecked(mut header: CacheHeader, payload: ModuleAst) -> Self {
         header.payload_hash = 0;
         Self { header, payload }
     }
@@ -51,18 +51,18 @@ pub struct ModuleDirCacheEntry {
     /// The cache header for this entry.
     pub header: CacheHeader,
     /// The cached DIR payload.
-    pub payload: ModuleDirData,
+    pub payload: ModuleDir,
 }
 
 impl ModuleDirCacheEntry {
     /// Create a new DIR cache entry.
-    pub fn new(mut header: CacheHeader, payload: ModuleDirData) -> Result<Self, CacheError> {
+    pub fn new(mut header: CacheHeader, payload: ModuleDir) -> Result<Self, CacheError> {
         header.payload_hash = payload_hash_from_payload(&payload)?;
         Ok(Self { header, payload })
     }
 
     /// Create a new DIR cache entry without computing a payload hash.
-    pub fn new_unchecked(mut header: CacheHeader, payload: ModuleDirData) -> Self {
+    pub fn new_unchecked(mut header: CacheHeader, payload: ModuleDir) -> Self {
         header.payload_hash = 0;
         Self { header, payload }
     }
@@ -85,18 +85,18 @@ pub struct ModuleMirCacheEntry {
     /// The cache header for this entry.
     pub header: CacheHeader,
     /// The cached MIR payload.
-    pub payload: ModuleMirData,
+    pub payload: ModuleMir,
 }
 
 impl ModuleMirCacheEntry {
     /// Create a new MIR cache entry.
-    pub fn new(mut header: CacheHeader, payload: ModuleMirData) -> Result<Self, CacheError> {
+    pub fn new(mut header: CacheHeader, payload: ModuleMir) -> Result<Self, CacheError> {
         header.payload_hash = payload_hash_from_payload(&payload)?;
         Ok(Self { header, payload })
     }
 
     /// Create a new MIR cache entry without computing a payload hash.
-    pub fn new_unchecked(mut header: CacheHeader, payload: ModuleMirData) -> Self {
+    pub fn new_unchecked(mut header: CacheHeader, payload: ModuleMir) -> Self {
         header.payload_hash = 0;
         Self { header, payload }
     }
@@ -527,7 +527,7 @@ mod tests {
         TemporaryPhysicalFileSystem,
     };
 
-    use crate::{ModuleAst, ModuleDir, ModuleMir, TargetId};
+    use crate::{ImportDir, ModuleAst, ModuleDir, ModuleMir, TargetId};
 
     use super::*;
 
@@ -576,8 +576,7 @@ mod tests {
     fn test_module_ast_cache_roundtrip() {
         // roundtrip module ast cache entries through disk
         let module_ast = ModuleAst::new(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
-        let entry =
-            ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast.to_data()).unwrap();
+        let entry = ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast).unwrap();
         let root = TemporaryPhysicalFileSystem::new_with_prefix("module_ast_cache");
         let path = cache_path(&root, "ast");
 
@@ -595,13 +594,13 @@ mod tests {
     fn test_module_dir_base_cache_roundtrip() {
         // roundtrip module dir base cache entries through disk
         let anchor_source_id = test_anchor_source_id();
-        let module_dir = ModuleDir::new_base(
+        let module_dir = ImportDir::new_base(
             ModuleId::EPHEMERAL,
             ModuleVersion::INITIAL,
             anchor_source_id,
-        );
-        let entry = ModuleDirCacheEntry::new(test_header(CacheKind::DirBase), module_dir.to_data())
-            .unwrap();
+        )
+        .into_dir();
+        let entry = ModuleDirCacheEntry::new(test_header(CacheKind::DirBase), module_dir).unwrap();
         let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_base_cache");
         let path = cache_path(&root, "dir-base");
 
@@ -619,15 +618,15 @@ mod tests {
     fn test_module_dir_resolved_cache_roundtrip() {
         // roundtrip module dir resolved cache entries through disk
         let anchor_source_id = test_anchor_source_id();
-        let base = ModuleDir::new_base(
+        let base = ImportDir::new_base(
             ModuleId::EPHEMERAL,
             ModuleVersion::INITIAL,
             anchor_source_id,
-        );
+        )
+        .into_dir();
         let module_dir = ModuleDir::from_base(&base, ProfileId::new(1));
         let entry =
-            ModuleDirCacheEntry::new(test_header(CacheKind::DirResolved), module_dir.to_data())
-                .unwrap();
+            ModuleDirCacheEntry::new(test_header(CacheKind::DirResolved), module_dir).unwrap();
         let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_resolved_cache");
         let path = cache_path(&root, "dir-resolved");
 
@@ -645,15 +644,15 @@ mod tests {
     fn test_module_dir_analyzed_cache_roundtrip() {
         // roundtrip analyzed dir cache entries through disk
         let anchor_source_id = test_anchor_source_id();
-        let base = ModuleDir::new_base(
+        let base = ImportDir::new_base(
             ModuleId::EPHEMERAL,
             ModuleVersion::INITIAL,
             anchor_source_id,
-        );
+        )
+        .into_dir();
         let module_dir = ModuleDir::from_base(&base, ProfileId::new(1));
         let entry =
-            ModuleDirCacheEntry::new(test_header(CacheKind::DirAnalyzed), module_dir.to_data())
-                .unwrap();
+            ModuleDirCacheEntry::new(test_header(CacheKind::DirAnalyzed), module_dir).unwrap();
         let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_analyzed_cache");
         let path = cache_path(&root, "dir-analyzed");
 
@@ -671,15 +670,15 @@ mod tests {
     fn test_module_dir_patched_cache_roundtrip() {
         // roundtrip patched dir cache entries through disk
         let anchor_source_id = test_anchor_source_id();
-        let base = ModuleDir::new_base(
+        let base = ImportDir::new_base(
             ModuleId::EPHEMERAL,
             ModuleVersion::INITIAL,
             anchor_source_id,
-        );
+        )
+        .into_dir();
         let module_dir = ModuleDir::from_base(&base, ProfileId::new(1));
         let entry =
-            ModuleDirCacheEntry::new(test_header(CacheKind::DirPatched), module_dir.to_data())
-                .unwrap();
+            ModuleDirCacheEntry::new(test_header(CacheKind::DirPatched), module_dir).unwrap();
         let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_patched_cache");
         let path = cache_path(&root, "dir-patched");
 
@@ -699,8 +698,7 @@ mod tests {
         // roundtrip module mir cache entries through disk
         let target = TargetId::new(PackageId::EPHEMERAL, "test");
         let module_mir = ModuleMir::new(ModuleId::EPHEMERAL, ModuleVersion::INITIAL, target);
-        let entry =
-            ModuleMirCacheEntry::new(test_header(CacheKind::Mir), module_mir.to_data()).unwrap();
+        let entry = ModuleMirCacheEntry::new(test_header(CacheKind::Mir), module_mir).unwrap();
         let root = TemporaryPhysicalFileSystem::new_with_prefix("mir_cache");
         let path = cache_path(&root, "mir");
 
@@ -717,8 +715,7 @@ mod tests {
     fn test_cache_invalid_magic() {
         // reject invalid cache magic
         let module_ast = ModuleAst::new(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
-        let mut entry =
-            ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast.to_data()).unwrap();
+        let mut entry = ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast).unwrap();
         entry.header.magic = [0; 4];
 
         let result = entry.validate();
@@ -729,8 +726,7 @@ mod tests {
     fn test_cache_invalid_kind() {
         // reject wrong cache kind
         let module_ast = ModuleAst::new(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
-        let mut entry =
-            ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast.to_data()).unwrap();
+        let mut entry = ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast).unwrap();
         entry.header.cache_kind = CacheKind::DirResolved;
 
         let result = entry.validate();
@@ -741,8 +737,7 @@ mod tests {
     fn test_cache_payload_hash_mismatch() {
         // reject payload hash mismatch
         let module_ast = ModuleAst::new(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
-        let mut entry =
-            ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast.to_data()).unwrap();
+        let mut entry = ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast).unwrap();
         entry.header.payload_hash = entry.header.payload_hash.wrapping_add(1);
 
         let result = entry.validate();
@@ -753,8 +748,7 @@ mod tests {
     fn test_cache_truncated_bytes() {
         // reject truncated cache entry
         let module_ast = ModuleAst::new(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
-        let entry =
-            ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast.to_data()).unwrap();
+        let entry = ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast).unwrap();
         let bytes = serialize_cache_entry(&entry).expect("serialize cache entry");
         let truncated = &bytes[..bytes.len() / 2];
         let result: Result<ModuleAstCacheEntry, CacheError> = deserialize_cache_entry(truncated);
@@ -765,8 +759,7 @@ mod tests {
     fn test_cache_size_limit() {
         // enforce size limits on cache serialization
         let module_ast = ModuleAst::new(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
-        let entry =
-            ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast.to_data()).unwrap();
+        let entry = ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast).unwrap();
         let result = serialize_cache_entry_with_limit(&entry, 1);
         assert!(matches!(result, Err(CacheError::SizeLimitExceeded { .. })));
     }

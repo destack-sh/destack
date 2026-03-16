@@ -52,8 +52,8 @@ pub enum ArtifactKey {
         module: ModuleId,
         profile: ProfileId,
     },
-    /// MIR.
-    Mir {
+    /// Base MIR before optimization.
+    MirBase {
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
@@ -82,7 +82,7 @@ impl ArtifactKey {
             Self::DirAnalyzed { .. } => ArtifactFamily::DirAnalyzed,
             Self::DirElaborated { .. } => ArtifactFamily::DirElaborated,
             Self::DirPatched { .. } => ArtifactFamily::DirPatched,
-            Self::Mir { .. } => ArtifactFamily::Mir,
+            Self::MirBase { .. } => ArtifactFamily::MirBase,
             Self::MirOptimized { .. } => ArtifactFamily::MirOptimized,
         }
     }

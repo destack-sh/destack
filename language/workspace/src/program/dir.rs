@@ -2,74 +2,16 @@ use destack_core::StringId;
 use destack_dir::{self as dir};
 use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
-use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 use crate::{ImportEdgeKind, ImportMeta, Loader, ProfileId};
 
-/// DIR-level module data.
-/// The base DIR uses `profile_id: None`.
+/// Mutable import-time DIR state for one module snapshot.
+/// FUGU #Architecture: this is still a broad mutable import working set and should shrink toward narrower phase-local tables.
 #[derive(Debug)]
 #[allow(clippy::type_complexity)]
-pub struct ModuleDir {
-    /// The profile id this is targeting, if any.
-    pub profile_id: Option<ProfileId>,
-    /// The id of the Module.
-    pub id: ModuleId,
-    /// The version of the Module.
-    pub version: ModuleVersion,
-
-    /// The main DIR node tree of the Module.
-    pub tree: RwLock<dir::NodeTree>,
-    /// The symbol side table of the Module.
-    pub symbols: RwLock<dir::SymbolTable>,
-    /// The type side table of the Module (includes types, instances, resolutions).
-    pub types: RwLock<dir::TypeTable>,
-    /// The capture side table of the Module.
-    pub captures: RwLock<dir::CaptureTable>,
-    /// The top-level expressions of the Module.
-    pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
-    /// Stable fallback node for diagnostics and synthetic types.
-    pub anchor_node: dir::LocalNodeIdAny,
-
-    /// Metadata exposed via import.meta.
-    pub import_meta: Option<ImportMeta>,
-    /// The symbol of the Module namespace.
-    pub namespace_symbol: dir::LocalSymbolId,
-    /// The scope of the Module.
-    pub namespace_scope: dir::LocalScopeId,
-    /// The scope for global augmentations within this module.
-    pub global_augmentation_scope: dir::LocalScopeId,
-    /// The symbol of the Module default.
-    pub default_symbol: dir::LocalSymbolId,
-    /// The symbol of the Module export assignment.
-    pub export_assignment_symbol: dir::LocalSymbolId,
-    /// Export assignment item (`export = ...`) when present.
-    pub export_assignment: RwLock<Option<dir::LocalNodeId<dir::DependencyItem>>>,
-    /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
-    pub namespace_exports: RwLock<Vec<dir::NamespaceExport>>,
-    /// Module bindings (e.g., `declare module "foo"`).
-    pub module_bindings: RwLock<Vec<dir::ModuleBinding>>,
-    /// Export tables for module bindings.
-    pub module_binding_exports: RwLock<IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>>,
-    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, edge, loader)).
-    /// The edge and loader components distinguish require-style imports and non-default loaders.
-    pub imported_modules: RwLock<
-        IndexMap<
-            (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
-            dir::ModuleResolution,
-        >,
-    >,
-    /// Exported symbols by key (space, name).
-    pub exported_symbols: RwLock<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>>,
-    /// Runtime infer table handoff between analyze infer, solve, and commit.
-    pub analyze_infer_table: Mutex<Option<dir::InferTable>>,
-}
-
-/// Serializable snapshot of ModuleDir data.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(clippy::type_complexity)]
-pub struct ModuleDirData {
+pub struct ImportDir {
     /// The profile id this is targeting, if any.
     pub profile_id: Option<ProfileId>,
     /// The id of the Module.
@@ -81,7 +23,7 @@ pub struct ModuleDirData {
     pub tree: dir::NodeTree,
     /// The symbol side table of the Module.
     pub symbols: dir::SymbolTable,
-    /// The type side table of the Module (includes types, instances, resolutions).
+    /// The type side table of the Module.
     pub types: dir::TypeTable,
     /// The capture side table of the Module.
     pub captures: dir::CaptureTable,
@@ -110,8 +52,7 @@ pub struct ModuleDirData {
     pub module_bindings: Vec<dir::ModuleBinding>,
     /// Export tables for module bindings.
     pub module_binding_exports: IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>,
-    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, edge, loader)).
-    /// The edge and loader components distinguish require-style imports and non-default loaders.
+    /// Resolved import specifiers to module ids.
     pub imported_modules: IndexMap<
         (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
         dir::ModuleResolution,
@@ -120,7 +61,63 @@ pub struct ModuleDirData {
     pub exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
 }
 
-impl ModuleDir {
+/// Immutable published DIR artifact data.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::type_complexity)]
+pub struct ModuleDir {
+    /// The profile id this is targeting, if any.
+    pub profile_id: Option<ProfileId>,
+    /// The id of the Module.
+    pub id: ModuleId,
+    /// The version of the Module.
+    pub version: ModuleVersion,
+
+    /// The main DIR node tree of the Module.
+    pub tree: Arc<dir::NodeTree>,
+    /// The symbol side table of the Module.
+    pub symbols: Arc<dir::SymbolTable>,
+    /// The type side table of the Module (includes types, instances, resolutions).
+    pub types: Arc<dir::TypeTable>,
+    /// The capture side table of the Module.
+    pub captures: Arc<dir::CaptureTable>,
+    /// The top-level expressions of the Module.
+    pub roots: Arc<Vec<dir::LocalNodeId<dir::Expression>>>,
+    /// Stable fallback node for diagnostics and synthetic types.
+    pub anchor_node: dir::LocalNodeIdAny,
+
+    /// Metadata exposed via import.meta.
+    pub import_meta: Option<ImportMeta>,
+    /// The symbol of the Module namespace.
+    pub namespace_symbol: dir::LocalSymbolId,
+    /// The scope of the Module.
+    pub namespace_scope: dir::LocalScopeId,
+    /// The scope for global augmentations within this module.
+    pub global_augmentation_scope: dir::LocalScopeId,
+    /// The symbol of the Module default.
+    pub default_symbol: dir::LocalSymbolId,
+    /// The symbol of the Module export assignment.
+    pub export_assignment_symbol: dir::LocalSymbolId,
+    /// Export assignment item (`export = ...`) when present.
+    pub export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
+    /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
+    pub namespace_exports: Arc<Vec<dir::NamespaceExport>>,
+    /// Module bindings (e.g., `declare module "foo"`).
+    pub module_bindings: Arc<Vec<dir::ModuleBinding>>,
+    /// Export tables for module bindings.
+    pub module_binding_exports: Arc<IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>>,
+    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, edge, loader)).
+    /// The edge and loader components distinguish require-style imports and non-default loaders.
+    pub imported_modules: Arc<
+        IndexMap<
+            (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
+            dir::ModuleResolution,
+        >,
+    >,
+    /// Exported symbols by key (space, name).
+    pub exported_symbols: Arc<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>>,
+}
+
+impl ImportDir {
     /// Create a stable anchor node for module-level diagnostics.
     fn create_anchor_node(
         tree: &mut dir::NodeTree,
@@ -137,9 +134,14 @@ impl ModuleDir {
         tree.insert(anchor_slot, expression).into_any()
     }
 
-    /// Create a new base DIR.
-    pub fn new_base(id: ModuleId, version: ModuleVersion, anchor_source_id: u32) -> Self {
-        // set up default namespace, symbol, scopes, etc.
+    /// Create one base import DIR with the chosen default symbol kind.
+    fn new_with_default_symbol(
+        id: ModuleId,
+        version: ModuleVersion,
+        anchor_source_id: u32,
+        default_symbol_kind: dir::SymbolKind,
+    ) -> Self {
+        // set up the namespace, scopes, and default symbols
         let mut symbols = dir::SymbolTable::new(id);
         let namespace_scope_id = symbols.insert_scope(dir::ScopeKind::Namespace, None, None);
         let global_augmentation_scope_id = symbols.insert_scope(
@@ -158,7 +160,7 @@ impl ModuleDir {
         );
         symbols.get_scope_by_id_mut(namespace_scope_id).owner_id = Some(namespace_symbol_id);
         let (default_symbol_id, _) = symbols.insert_symbol(
-            dir::SymbolKind::Namespace,
+            default_symbol_kind,
             dir::SymbolType::Void,
             dir::SymbolSpace::Value,
             dir::SymbolBinding::Runtime,
@@ -175,86 +177,6 @@ impl ModuleDir {
             (namespace_scope_id, dir::LocalScopeMark::end()),
             None,
         );
-
-        let mut tree = dir::NodeTree::new(id);
-        let anchor_node = Self::create_anchor_node(&mut tree, namespace_scope_id, anchor_source_id);
-        Self {
-            profile_id: None,
-            id,
-            version,
-            tree: RwLock::new(tree),
-            symbols: RwLock::new(symbols),
-            types: RwLock::new(dir::TypeTable::new(id)),
-            captures: RwLock::new(dir::CaptureTable::new()),
-            roots: Vec::new(),
-            anchor_node,
-            import_meta: None,
-            namespace_symbol: namespace_symbol_id,
-            namespace_scope: namespace_scope_id,
-            global_augmentation_scope: global_augmentation_scope_id,
-            default_symbol: default_symbol_id,
-            export_assignment_symbol: export_assignment_symbol_id,
-            export_assignment: RwLock::new(None),
-            namespace_exports: RwLock::new(Vec::new()),
-            module_bindings: RwLock::new(Vec::new()),
-            module_binding_exports: RwLock::new(IndexMap::new()),
-            imported_modules: RwLock::new(IndexMap::new()),
-            exported_symbols: RwLock::new(IndexMap::new()),
-            analyze_infer_table: Mutex::new(None),
-        }
-    }
-
-    /// Create a minimal base DIR for data modules (JSON, TOML, text, binary).
-    ///
-    /// Data modules have a simpler structure than code modules:
-    /// - No syntax tree, but a diagnostic anchor is still provided
-    /// - Single default export (the data value itself)
-    /// - No named exports
-    pub fn new_data_base(id: ModuleId, version: ModuleVersion, anchor_source_id: u32) -> Self {
-        // create minimal symbol table with namespace and default symbols
-        let mut symbols = dir::SymbolTable::new(id);
-        let namespace_scope_id = symbols.insert_scope(dir::ScopeKind::Namespace, None, None);
-        let global_augmentation_scope_id = symbols.insert_scope(
-            dir::ScopeKind::Namespace,
-            Some((namespace_scope_id, dir::LocalScopeMark::end())),
-            None,
-        );
-
-        // namespace symbol
-        let (namespace_symbol_id, _) = symbols.insert_symbol(
-            dir::SymbolKind::Namespace,
-            dir::SymbolType::Void,
-            dir::SymbolSpace::Value,
-            dir::SymbolBinding::Runtime,
-            None,
-            (namespace_scope_id, dir::LocalScopeMark::end()),
-            Some(dir::DependencyMode::Namespace),
-        );
-        symbols.get_scope_by_id_mut(namespace_scope_id).owner_id = Some(namespace_symbol_id);
-
-        // default symbol - this is what gets exported as `default`
-        let (default_symbol_id, _) = symbols.insert_symbol(
-            dir::SymbolKind::Item,
-            dir::SymbolType::Void,
-            dir::SymbolSpace::Value,
-            dir::SymbolBinding::Runtime,
-            None,
-            (namespace_scope_id, dir::LocalScopeMark::end()),
-            Some(dir::DependencyMode::Default),
-        );
-
-        // export assignment symbol (not used for data modules, but needed for structure)
-        let (export_assignment_symbol_id, _) = symbols.insert_symbol(
-            dir::SymbolKind::Namespace,
-            dir::SymbolType::Void,
-            dir::SymbolSpace::Value,
-            dir::SymbolBinding::Runtime,
-            None,
-            (namespace_scope_id, dir::LocalScopeMark::end()),
-            None,
-        );
-
-        // (exported_symbols will be populated during resolve phase when string pool is available)
 
         // create a stable anchor node for diagnostics
         let mut tree = dir::NodeTree::new(id);
@@ -264,10 +186,10 @@ impl ModuleDir {
             profile_id: None,
             id,
             version,
-            tree: RwLock::new(tree),
-            symbols: RwLock::new(symbols),
-            types: RwLock::new(dir::TypeTable::new(id)),
-            captures: RwLock::new(dir::CaptureTable::new()),
+            tree,
+            symbols,
+            types: dir::TypeTable::new(id),
+            captures: dir::CaptureTable::new(),
             roots: Vec::new(),
             anchor_node,
             import_meta: None,
@@ -276,16 +198,83 @@ impl ModuleDir {
             global_augmentation_scope: global_augmentation_scope_id,
             default_symbol: default_symbol_id,
             export_assignment_symbol: export_assignment_symbol_id,
-            export_assignment: RwLock::new(None),
-            namespace_exports: RwLock::new(Vec::new()),
-            module_bindings: RwLock::new(Vec::new()),
-            module_binding_exports: RwLock::new(IndexMap::new()),
-            imported_modules: RwLock::new(IndexMap::new()),
-            exported_symbols: RwLock::new(IndexMap::new()),
-            analyze_infer_table: Mutex::new(None),
+            export_assignment: None,
+            namespace_exports: Vec::new(),
+            module_bindings: Vec::new(),
+            module_binding_exports: IndexMap::new(),
+            imported_modules: IndexMap::new(),
+            exported_symbols: IndexMap::new(),
         }
     }
 
+    /// Create a new base import DIR.
+    pub fn new_base(id: ModuleId, version: ModuleVersion, anchor_source_id: u32) -> Self {
+        Self::new_with_default_symbol(id, version, anchor_source_id, dir::SymbolKind::Namespace)
+    }
+
+    /// Create a minimal base import DIR for data modules.
+    ///
+    /// Data modules have a simpler structure than code modules:
+    /// - No syntax tree, but a diagnostic anchor is still provided
+    /// - Single default export (the data value itself)
+    /// - No named exports
+    pub fn new_data_base(id: ModuleId, version: ModuleVersion, anchor_source_id: u32) -> Self {
+        Self::new_with_default_symbol(id, version, anchor_source_id, dir::SymbolKind::Item)
+    }
+
+    /// Freeze this import DIR into one published DIR artifact.
+    pub fn into_dir(self) -> ModuleDir {
+        let Self {
+            profile_id,
+            id,
+            version,
+            tree,
+            symbols,
+            types,
+            captures,
+            roots,
+            anchor_node,
+            import_meta,
+            namespace_symbol,
+            namespace_scope,
+            global_augmentation_scope,
+            default_symbol,
+            export_assignment_symbol,
+            export_assignment,
+            namespace_exports,
+            module_bindings,
+            module_binding_exports,
+            imported_modules,
+            exported_symbols,
+        } = self;
+
+        ModuleDir {
+            profile_id,
+            id,
+            version,
+            tree: Arc::new(tree),
+            symbols: Arc::new(symbols),
+            types: Arc::new(types),
+            captures: Arc::new(captures),
+            roots: Arc::new(roots),
+            anchor_node,
+            import_meta,
+            namespace_symbol,
+            namespace_scope,
+            global_augmentation_scope,
+            default_symbol,
+            export_assignment_symbol,
+            export_assignment,
+            namespace_exports: Arc::new(namespace_exports),
+            module_bindings: Arc::new(module_bindings),
+            module_binding_exports: Arc::new(module_binding_exports),
+            imported_modules: Arc::new(imported_modules),
+            exported_symbols: Arc::new(exported_symbols),
+        }
+    }
+}
+
+impl ModuleDir {
     /// Clone a profile-dependent DIR from a base DIR.
     pub fn from_base(base: &ModuleDir, profile_id: ProfileId) -> Self {
         if base.profile_id.is_some() {
@@ -295,10 +284,10 @@ impl ModuleDir {
             profile_id: Some(profile_id),
             id: base.id,
             version: base.version,
-            tree: RwLock::new(base.tree.read().clone()),
-            symbols: RwLock::new(base.symbols.read().clone()),
-            types: RwLock::new(base.types.read().clone()),
-            captures: RwLock::new(base.captures.read().clone()),
+            tree: base.tree.clone(),
+            symbols: base.symbols.clone(),
+            types: base.types.clone(),
+            captures: base.captures.clone(),
             roots: base.roots.clone(),
             anchor_node: base.anchor_node,
             import_meta: None,
@@ -307,119 +296,71 @@ impl ModuleDir {
             global_augmentation_scope: base.global_augmentation_scope,
             default_symbol: base.default_symbol,
             export_assignment_symbol: base.export_assignment_symbol,
-            export_assignment: RwLock::new(*base.export_assignment.read()),
-            namespace_exports: RwLock::new(base.namespace_exports.read().clone()),
-            module_bindings: RwLock::new(base.module_bindings.read().clone()),
-            module_binding_exports: RwLock::new(base.module_binding_exports.read().clone()),
-            imported_modules: RwLock::new(base.imported_modules.read().clone()),
-            exported_symbols: RwLock::new(base.exported_symbols.read().clone()),
-            analyze_infer_table: Mutex::new(None),
+            export_assignment: base.export_assignment,
+            namespace_exports: base.namespace_exports.clone(),
+            module_bindings: base.module_bindings.clone(),
+            module_binding_exports: base.module_binding_exports.clone(),
+            imported_modules: base.imported_modules.clone(),
+            exported_symbols: base.exported_symbols.clone(),
         }
     }
 
-    /// Create a serializable snapshot of this module dir.
-    pub fn to_data(&self) -> ModuleDirData {
-        // snapshot module dir state
-        ModuleDirData {
-            profile_id: self.profile_id,
-            id: self.id,
-            version: self.version,
-            tree: self.tree.read().clone(),
-            symbols: self.symbols.read().clone(),
-            types: self.types.read().clone(),
-            captures: self.captures.read().clone(),
-            roots: self.roots.clone(),
-            anchor_node: self.anchor_node,
-            import_meta: self.import_meta.clone(),
-            namespace_symbol: self.namespace_symbol,
-            namespace_scope: self.namespace_scope,
-            global_augmentation_scope: self.global_augmentation_scope,
-            default_symbol: self.default_symbol,
-            export_assignment_symbol: self.export_assignment_symbol,
-            export_assignment: *self.export_assignment.read(),
-            namespace_exports: self.namespace_exports.read().clone(),
-            module_bindings: self.module_bindings.read().clone(),
-            module_binding_exports: self.module_binding_exports.read().clone(),
-            imported_modules: self.imported_modules.read().clone(),
-            exported_symbols: self.exported_symbols.read().clone(),
-        }
+    /// Return the mutable node tree, cloning only when still shared.
+    pub fn tree_mut(&mut self) -> &mut dir::NodeTree {
+        Arc::make_mut(&mut self.tree)
     }
 
-    /// Rebuild a ModuleDir from serialized data.
-    pub fn from_data(data: ModuleDirData) -> Self {
-        // rebuild module dir from snapshot
-        Self {
-            profile_id: data.profile_id,
-            id: data.id,
-            version: data.version,
-            tree: RwLock::new(data.tree),
-            symbols: RwLock::new(data.symbols),
-            types: RwLock::new(data.types),
-            captures: RwLock::new(data.captures),
-            roots: data.roots,
-            anchor_node: data.anchor_node,
-            import_meta: data.import_meta,
-            namespace_symbol: data.namespace_symbol,
-            namespace_scope: data.namespace_scope,
-            global_augmentation_scope: data.global_augmentation_scope,
-            default_symbol: data.default_symbol,
-            export_assignment_symbol: data.export_assignment_symbol,
-            export_assignment: RwLock::new(data.export_assignment),
-            namespace_exports: RwLock::new(data.namespace_exports),
-            module_bindings: RwLock::new(data.module_bindings),
-            module_binding_exports: RwLock::new(data.module_binding_exports),
-            imported_modules: RwLock::new(data.imported_modules),
-            exported_symbols: RwLock::new(data.exported_symbols),
-            analyze_infer_table: Mutex::new(None),
-        }
+    /// Return the mutable symbol table, cloning only when still shared.
+    pub fn symbols_mut(&mut self) -> &mut dir::SymbolTable {
+        Arc::make_mut(&mut self.symbols)
     }
 
-    /// Publish one infer table for analyze solve and commit.
-    pub fn publish_analyze_infer_table(&self, infer: dir::InferTable) {
-        *self.analyze_infer_table.lock() = Some(infer);
+    /// Return the mutable type table, cloning only when still shared.
+    pub fn types_mut(&mut self) -> &mut dir::TypeTable {
+        Arc::make_mut(&mut self.types)
     }
 
-    /// Read the published infer table for this profile.
-    pub fn with_analyze_infer_table<R>(
-        &self,
-        handle: impl FnOnce(&dir::InferTable) -> R,
-    ) -> Option<R> {
-        let infer = self.analyze_infer_table.lock();
-        let infer = infer.as_ref()?;
-        Some(handle(infer))
+    /// Return the mutable capture table, cloning only when still shared.
+    pub fn captures_mut(&mut self) -> &mut dir::CaptureTable {
+        Arc::make_mut(&mut self.captures)
     }
 
-    /// Mutate the published infer table for this profile.
-    pub fn with_analyze_infer_table_mut<R>(
-        &self,
-        handle: impl FnOnce(&mut dir::InferTable) -> R,
-    ) -> Option<R> {
-        let mut infer = self.analyze_infer_table.lock();
-        let infer = infer.as_mut()?;
-        Some(handle(infer))
+    /// Return the mutable roots list, cloning only when still shared.
+    pub fn roots_mut(&mut self) -> &mut Vec<dir::LocalNodeId<dir::Expression>> {
+        Arc::make_mut(&mut self.roots)
     }
 
-    /// Clear the published infer table for this profile.
-    pub fn clear_analyze_infer_table(&self) {
-        self.analyze_infer_table.lock().take();
+    /// Return the mutable namespace exports, cloning only when still shared.
+    pub fn namespace_exports_mut(&mut self) -> &mut Vec<dir::NamespaceExport> {
+        Arc::make_mut(&mut self.namespace_exports)
     }
-}
 
-impl Serialize for ModuleDir {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.to_data().serialize(serializer)
+    /// Return the mutable module bindings, cloning only when still shared.
+    pub fn module_bindings_mut(&mut self) -> &mut Vec<dir::ModuleBinding> {
+        Arc::make_mut(&mut self.module_bindings)
     }
-}
 
-impl<'de> Deserialize<'de> for ModuleDir {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let data = ModuleDirData::deserialize(deserializer)?;
-        Ok(ModuleDir::from_data(data))
+    /// Return the mutable binding export tables, cloning only when still shared.
+    pub fn module_binding_exports_mut(
+        &mut self,
+    ) -> &mut IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports> {
+        Arc::make_mut(&mut self.module_binding_exports)
+    }
+
+    /// Return the mutable imported-module table, cloning only when still shared.
+    pub fn imported_modules_mut(
+        &mut self,
+    ) -> &mut IndexMap<
+        (Option<ModuleId>, StringId, ImportEdgeKind, Option<Loader>),
+        dir::ModuleResolution,
+    > {
+        Arc::make_mut(&mut self.imported_modules)
+    }
+
+    /// Return the mutable exported-symbol table, cloning only when still shared.
+    pub fn exported_symbols_mut(
+        &mut self,
+    ) -> &mut IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export> {
+        Arc::make_mut(&mut self.exported_symbols)
     }
 }

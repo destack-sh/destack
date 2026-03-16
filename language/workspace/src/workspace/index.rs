@@ -15,10 +15,9 @@ use destack_source::{
 
 use crate::{
     CacheScope, CacheStoreError, CacheValidate, Destack, ModuleGraph, ModuleGraphKey,
-    ModuleGraphVersion, ModuleSignatureDigest, ModuleSignatureKey, ProfileId, Program, Workspace,
-    hash_bytes, hash_json_value, resolve_cache_dir, resolve_cache_root_for_scope,
+    ModuleGraphVersion, ProfileId, Program, Workspace, hash_bytes, hash_json_value,
+    resolve_cache_dir, resolve_cache_root_for_scope,
 };
-
 /// Header for workspace index snapshots.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceIndexHeader {
@@ -195,8 +194,6 @@ pub struct WorkspaceIndexSnapshot {
     pub module_graphs: IndexMap<ModuleGraphKey, ModuleGraph>,
     /// Module graph versions keyed by profile.
     pub module_graph_versions: IndexMap<ProfileId, ModuleGraphVersion>,
-    /// Module signature digests keyed by module and profile.
-    pub module_signature_digests: IndexMap<ModuleSignatureKey, ModuleSignatureDigest>,
 }
 
 impl WorkspaceIndexSnapshot {
@@ -212,10 +209,10 @@ impl WorkspaceIndexSnapshot {
         // walk modules and snapshot file/module metadata
         for module in program.modules.iter() {
             // snapshot module metadata
-            let module = module.read();
+            let module = module.as_ref();
             modules.insert(
                 module.id,
-                WorkspaceModuleEntry::new(module.version, module.source_version),
+                WorkspaceModuleEntry::new(module.version(), module.source_version()),
             );
 
             // skip modules without file paths
@@ -272,26 +269,12 @@ impl WorkspaceIndexSnapshot {
             module_graph_versions.insert(key, version);
         }
 
-        // snapshot signature digests
-        let mut module_signature_digests = IndexMap::new();
-        let mut digest_entries: Vec<_> = program
-            .index
-            .module_signature_digests
-            .iter()
-            .map(|entry| (*entry.key(), *entry.value()))
-            .collect();
-        digest_entries.sort_by_key(|(key, _)| *key);
-        for (key, digest) in digest_entries {
-            module_signature_digests.insert(key, digest);
-        }
-
         Ok(Self {
             header,
             files,
             modules,
             module_graphs,
             module_graph_versions,
-            module_signature_digests,
         })
     }
 }
@@ -707,7 +690,6 @@ mod tests {
             modules,
             module_graphs: IndexMap::new(),
             module_graph_versions: IndexMap::new(),
-            module_signature_digests: IndexMap::new(),
         };
 
         // write and read the snapshot
@@ -747,7 +729,6 @@ mod tests {
             modules: IndexMap::new(),
             module_graphs: IndexMap::new(),
             module_graph_versions: IndexMap::new(),
-            module_signature_digests: IndexMap::new(),
         };
         index_store.save(&snapshot).unwrap();
 
@@ -977,7 +958,6 @@ mod tests {
             modules: IndexMap::new(),
             module_graphs: IndexMap::new(),
             module_graph_versions: IndexMap::new(),
-            module_signature_digests: IndexMap::new(),
         };
 
         // write and reload

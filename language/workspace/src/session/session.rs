@@ -43,55 +43,10 @@ pub struct Session {
 }
 
 impl Session {
-    /// Create the shared input registries and builtin catalog for one session.
-    fn bootstrap_state(
-        files: Arc<FileRegistry>,
-    ) -> (
-        Arc<ModuleRegistry>,
-        Arc<PackageRegistry>,
-        Arc<TsConfigRegistry>,
-        Arc<StringPool>,
-        Arc<Builtins>,
-    ) {
-        let modules = Arc::new(ModuleRegistry::new());
-        let packages = Arc::new(PackageRegistry::new());
-        let builtins = Arc::new(Builtins::embedded(
-            files.clone(),
-            modules.clone(),
-            packages.clone(),
-        ));
-
-        (
-            modules,
-            packages,
-            Arc::new(TsConfigRegistry::new()),
-            Arc::new(StringPool::new()),
-            builtins,
-        )
-    }
-
     /// Create a new session with builtins loaded.
     pub fn new(cwd: PathBuf) -> Self {
-        let options = SessionOptions::default();
-        let files = Arc::new(FileRegistry::new());
-        let (modules, packages, tsconfigs, strings, builtins) =
-            Self::bootstrap_state(files.clone());
-
-        Self {
-            workspace: RwLock::new(Workspace::single_package(cwd.clone())),
-            cwd,
-            options,
-            fs: Arc::new(PhysicalFileSystem::new()),
-            cache_store: Arc::new(DiskCacheStore::new()),
-            files,
-
-            programs: DashMap::new(),
-            packages,
-            modules,
-            builtins,
-            strings,
-            tsconfigs,
-        }
+        let workspace = Arc::new(Workspace::single_package(cwd.clone()));
+        Self::workspace(cwd, workspace)
     }
 
     /// Create a session for a workspace with builtins loaded.
@@ -100,8 +55,15 @@ impl Session {
         let options = SessionOptions::default();
 
         let files = Arc::new(FileRegistry::new());
-        let (modules, packages, tsconfigs, strings, builtins) =
-            Self::bootstrap_state(files.clone());
+        let modules = Arc::new(ModuleRegistry::new());
+        let packages = Arc::new(PackageRegistry::new());
+        let tsconfigs = Arc::new(TsConfigRegistry::new());
+        let strings = Arc::new(StringPool::new());
+        let builtins = Arc::new(Builtins::embedded(
+            files.clone(),
+            modules.clone(),
+            packages.clone(),
+        ));
 
         Self {
             workspace: RwLock::new((*workspace).clone()),
