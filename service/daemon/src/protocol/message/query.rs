@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
-use destack_source::{ModuleId, ProfileId};
+use destack_source::ProfileId;
 
 use super::{BinaryPayload, DiagnosticBatch, WorkspaceHandleId};
 
@@ -165,15 +165,6 @@ pub enum DaemonQuery {
         /// Profile id for the graph.
         profile: ProfileId,
     },
-    /// Request module signature payload.
-    ModuleSignature {
-        /// Workspace handle.
-        handle: WorkspaceHandleId,
-        /// Module id.
-        module_id: ModuleId,
-        /// Profile id.
-        profile: ProfileId,
-    },
     /// Request diagnostics snapshot.
     Diagnostics { handle: WorkspaceHandleId },
     /// Request cache statistics.
@@ -203,8 +194,6 @@ pub enum DaemonQueryResponse {
     WorkspaceIndex(BinaryPayload),
     /// Module graph payload.
     ModuleGraph(BinaryPayload),
-    /// Module signature payload.
-    ModuleSignature(BinaryPayload),
     /// Diagnostics snapshot.
     Diagnostics(Vec<DiagnosticBatch>),
     /// Cache stats payload.

@@ -182,7 +182,7 @@ fn enqueue_lower_tasks(
     target_id: &TargetId,
 ) {
     let profile = program.profile_id_for_target_or_default(module_id, target_id);
-    compiler.enqueue(BuildKey::Artifact(ArtifactKey::Mir {
+    compiler.enqueue(BuildKey::Artifact(ArtifactKey::MirBase {
         module: module_id,
         profile,
         target: target_id.clone(),
@@ -360,7 +360,8 @@ fn create_isolate(
     let profile_id = program.default_profile_id_for_module(module_id);
     let mir = program
         .artifacts
-        .mir_snapshot(module_id, profile_id, target_id)
+        .mir_optimized(module_id, profile_id, target_id)
+        .or_else(|| program.artifacts.mir_base(module_id, profile_id, target_id))
         .ok_or_else(|| format!("missing MIR for target {target_id:?} (run requires lowering)"))?;
     let tree = mir.tree.clone();
     let strings = mir.strings.clone().into_immutable();

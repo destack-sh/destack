@@ -161,8 +161,8 @@ impl<'a> CommandContext<'a> {
         let mut file_versions: HashMap<FileId, FileVersion> = HashMap::new();
         for module_id in modules {
             let module = self.program.modules.get(*module_id);
-            let module = module.read();
-            file_versions.insert(module.file_id, module.source_version);
+            let module = module.as_ref();
+            file_versions.insert(module.file_id, module.source_version());
         }
 
         // extend file versions for diagnostics outside modules
@@ -204,7 +204,7 @@ impl<'a> CommandContext<'a> {
         overrides: Option<&CommandTargetOverrides>,
     ) -> super::CommandResult<TargetId> {
         let module = self.program.modules.get(module_id);
-        let package_id = module.read().package_id;
+        let package_id = module.package_id;
         let target_id = TargetId::new(package_id, target_name);
 
         let package = self.program.packages.get(package_id);
@@ -254,7 +254,7 @@ impl<'a> CommandContext<'a> {
 
         // derive from package defaults and configured targets
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let package = self.program.packages.get(module.package_id);
         let package = package.read();
 
