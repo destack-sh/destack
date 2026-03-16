@@ -62,19 +62,19 @@ destack_lsp = { workspace = true }
 destack_service = { workspace = true }
 
 # general
-clap = { version = "4.5.54", features = ["derive"] }
-clap_complete = "4.5.65"
-console = "0.16"
-indicatif = "0.18"
+clap = { workspace = true, features = ["derive"] }
+clap_complete = { workspace = true }
+console = { workspace = true }
+indicatif = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { version = "1.49.0" }
+tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 schemars = { workspace = true, optional = true }
 
 # dev-only
-tiktoken-rs = { version = "0.9", optional = true }
+tiktoken-rs = { workspace = true, optional = true }
 
 [dev-dependencies]
 
