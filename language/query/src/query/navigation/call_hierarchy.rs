@@ -114,7 +114,7 @@ pub fn prepare_call_hierarchy(
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
     let module = session.modules.get(canonical_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
     let name = {
         let symbols = ctx.symbols();
@@ -158,7 +158,7 @@ pub fn incoming_calls(
 
     // find all call expressions that target this function
     for module in session.modules.iter() {
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             continue;
         };
@@ -210,7 +210,7 @@ pub fn incoming_calls(
                     continue;
                 }
 
-                let Some(call_span) = get_dir_node_span(ctx.ast, &ctx.dir, expr_id.into()) else {
+                let Some(call_span) = get_dir_node_span(&ctx.ast, &ctx.dir, expr_id.into()) else {
                     continue;
                 };
 
@@ -259,7 +259,7 @@ pub fn outgoing_calls(
 
     // get the module containing this function
     let module = session.modules.get(canonical_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = crate::query_context(session, &module) else {
         return Vec::new();
     };
@@ -294,7 +294,7 @@ pub fn outgoing_calls(
         // get spans for collected calls
         let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
         for (target_id, expr_id) in collector.calls {
-            if let Some(span) = get_dir_node_span(ctx.ast, &ctx.dir, expr_id.into()) {
+            if let Some(span) = get_dir_node_span(&ctx.ast, &ctx.dir, expr_id.into()) {
                 calls_with_spans.entry(target_id).or_default().push(span);
             }
         }
@@ -307,8 +307,7 @@ pub fn outgoing_calls(
     for (target_symbol_id, call_spans) in calls_with_spans {
         // only include function calls
         let target_module = session.modules.get(target_symbol_id.module_id);
-        let target = target_module.read();
-        let Some(target_ctx) = crate::query_context(session, &target) else {
+        let Some(target_ctx) = crate::query_context(session, &target_module) else {
             continue;
         };
         let is_function = {
@@ -440,7 +439,7 @@ fn call_hierarchy_item_from_symbol(
 ) -> Option<CallHierarchyItem> {
     let canonical_id = get_canonical_symbol(session, symbol_id);
     let module = session.modules.get(canonical_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
     let name = {
         let symbols = ctx.symbols();

@@ -60,7 +60,7 @@ pub(crate) fn token_span_at_offset(
 ) -> Option<ast::TokenSpan> {
     // resolve query context for token lookup
     let module = get_module_by_file_id(session, file_id)?;
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     token_span_at_offset_in_context(&ctx, offset)

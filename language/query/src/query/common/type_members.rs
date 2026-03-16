@@ -213,7 +213,7 @@ fn resolve_type_members_inner(
                     if let Type::Reference { symbol, .. } = inner {
                         // load the symbol and check if it's an enum
                         let module = session.modules.get(symbol.module_id);
-                        let module = module.read();
+                        let module = module.as_ref();
                         if let Some(ctx) = query_context(session, &module) {
                             let symbols_table = ctx.symbols();
                             let sym = symbols_table.get_symbol(symbol.local_id);
@@ -313,7 +313,7 @@ pub(crate) fn resolve_reference_members(
 ) -> Vec<MemberInfo> {
     // load the symbol's module
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = query_context(session, &module) else {
         return Vec::new();
     };

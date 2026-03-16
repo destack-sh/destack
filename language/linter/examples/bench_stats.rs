@@ -226,7 +226,7 @@ fn compute_line_stats(program: &Program, modules: &[ModuleId]) -> LineStats {
     let mut max_lines = 0usize;
 
     for module_id in modules {
-        let file_id = program.modules.get(*module_id).read().file_id;
+        let file_id = program.modules.get(*module_id).file_id;
         let file = program.files.get(file_id);
         let module_lines = file.line_count() as usize;
         total_lines += module_lines;

@@ -174,7 +174,7 @@ pub fn symbol_for(
 
     let dir = program
         .artifacts
-        .dir_snapshot(symbol_id.module_id, profile_id)?;
+        .dir_analyzed(symbol_id.module_id, profile_id)?;
     Some(dir.symbols.get_symbol(symbol_id.local_id).clone())
 }
 
@@ -441,7 +441,7 @@ pub fn symbol_value_type_id_for(
 
     let dir = program
         .artifacts
-        .dir_snapshot(symbol_id.module_id, profile_id)?;
+        .dir_analyzed(symbol_id.module_id, profile_id)?;
     let type_id = dir.types.get_value_type_id(symbol_id)?;
     Some(SymbolValueTypeId {
         module_id: symbol_id.module_id,
@@ -474,7 +474,7 @@ pub fn symbol_value_type_map_for<T>(
 
     let dir = program
         .artifacts
-        .dir_snapshot(symbol_type_id.module_id, profile_id)?;
+        .dir_analyzed(symbol_type_id.module_id, profile_id)?;
     Some(map(&dir.types, symbol_type_id.type_id))
 }
 

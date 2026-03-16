@@ -129,7 +129,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = crate::query_context(session, &module) else {
         return Vec::new();
     };
@@ -324,8 +324,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             | dir::Expression::LocalReference { target_symbol, .. }
             | dir::Expression::ModuleReference { target_symbol, .. } => {
                 let target_module = session.modules.get(target_symbol.module_id);
-                let target_guard = target_module.read();
-                let Some(target_ctx) = crate::query_context(session, &target_guard) else {
+                let Some(target_ctx) = crate::query_context(session, &target_module) else {
                     continue;
                 };
                 let target_symbols = target_ctx.symbols();
@@ -558,8 +557,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             dir::DependencyItem::Local { target_symbol, .. }
             | dir::DependencyItem::Remote { target_symbol, .. } => {
                 let target_module = session.modules.get(target_symbol.module_id);
-                let target_guard = target_module.read();
-                if let Some(target_ctx) = crate::query_context(session, &target_guard) {
+                if let Some(target_ctx) = crate::query_context(session, &target_module) {
                     let target_symbols = target_ctx.symbols();
                     let symbol = target_symbols.get_symbol(target_symbol.local_id);
                     symbol_type_to_token_type(symbol.ty)

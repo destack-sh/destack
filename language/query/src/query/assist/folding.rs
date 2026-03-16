@@ -3,7 +3,7 @@ use destack_dir::Declaration;
 use destack_source::{FileId, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::common::get_module_by_file_id;
+use crate::common::{get_module_by_file_id, program_for_module};
 use destack_workspace::Session;
 
 /// Kind of folding range.
@@ -156,8 +156,9 @@ fn folding_ranges_with_ast(session: &Session, file: FileId) -> Vec<FoldingRange>
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
-    let module = module.read();
-    let Some(ast) = module.ast_maybe() else {
+    let module = module.as_ref();
+    let program = program_for_module(session, &module);
+    let Some(ast) = program.artifacts.ast(module.id) else {
         return Vec::new();
     };
 

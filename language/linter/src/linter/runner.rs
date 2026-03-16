@@ -1,8 +1,6 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use parking_lot::RwLock;
-
 use destack_source::ModuleId;
 use destack_workspace::{LintCategory, LintPreset, LinterOptions, Module, ProfileId, Program};
 
@@ -224,7 +222,7 @@ impl LintRunner {
     pub fn lint_module(
         &self,
         program: Arc<Program>,
-        module: Arc<RwLock<Module>>,
+        module: Arc<Module>,
         profile: ProfileId,
         options: &LinterOptions,
         level: LintLevel,
@@ -237,7 +235,7 @@ impl LintRunner {
     pub fn lint_module_profiled(
         &self,
         program: Arc<Program>,
-        module: Arc<RwLock<Module>>,
+        module: Arc<Module>,
         profile: ProfileId,
         options: &LinterOptions,
         level: LintLevel,
@@ -267,12 +265,12 @@ impl LintRunner {
     fn lint_module_ast(
         &self,
         program: Arc<Program>,
-        module: Arc<RwLock<Module>>,
+        module: Arc<Module>,
         _profile: ProfileId,
         options: &LinterOptions,
         mut performance: Option<&mut LintPerformanceReport>,
     ) -> Vec<LintDiagnostic> {
-        let module = module.read();
+        let module = module.as_ref();
         let ast = program
             .artifacts
             .ast(module.id)
@@ -329,13 +327,13 @@ impl LintRunner {
     fn lint_module_dir(
         &self,
         program: Arc<Program>,
-        module: Arc<RwLock<Module>>,
+        module: Arc<Module>,
         profile: ProfileId,
         options: &LinterOptions,
         mut performance: Option<&mut LintPerformanceReport>,
     ) -> Vec<LintDiagnostic> {
         // context
-        let module = module.read();
+        let module = module.as_ref();
         let ast = program
             .artifacts
             .ast(module.id)
@@ -355,7 +353,7 @@ impl LintRunner {
             &dir.tree,
             &dir.symbols,
             &dir.types,
-            dir.roots.clone(),
+            dir.roots.as_ref().clone(),
             dir.namespace_symbol,
             dir.namespace_scope,
             dir.default_symbol,
@@ -363,8 +361,8 @@ impl LintRunner {
                 .iter()
                 .map(|export| export.module_id)
                 .collect(),
-            dir.imported_modules.clone(),
-            dir.exported_symbols.clone(),
+            dir.imported_modules.as_ref().clone(),
+            dir.exported_symbols.as_ref().clone(),
             options,
             self.compute_fixes,
         );
@@ -442,7 +440,7 @@ impl LintRunner {
         let mut diagnostics = Vec::new();
         let mut performance = LintPerformanceReport::default();
         for module in program.modules.iter() {
-            let profile = program.default_profile_id_for_module(module.read().id);
+            let profile = program.default_profile_id_for_module(module.id);
             let report =
                 self.lint_module_profiled(program.clone(), module, profile, options, level);
             diagnostics.extend(report.diagnostics);

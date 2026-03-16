@@ -19,7 +19,7 @@ pub(crate) fn for_each_visible_extension(
     // scan all modules for extensions that target the canonical symbol
     for module in session.modules.iter() {
         // read the module and query context
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             continue;
         };

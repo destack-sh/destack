@@ -8,7 +8,7 @@ pub use crate::common::SymbolKind;
 use crate::common::{
     QueryContext, declaration_display_name, declaration_symbol_kind, get_module_by_file_id,
     is_synthetic_function_keyword_field, main_span_for_dir_node, member_key_name,
-    member_symbol_kind, span_for_dir_node,
+    member_symbol_kind, program_for_module, span_for_dir_node,
 };
 use destack_workspace::{ModuleAst, Session};
 
@@ -147,8 +147,9 @@ fn document_symbols_with_ast(session: &Session, file: FileId) -> Vec<DocumentSym
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
-    let module = module.read();
-    let Some(ast) = module.ast_maybe() else {
+    let module = module.as_ref();
+    let program = program_for_module(session, &module);
+    let Some(ast) = program.artifacts.ast(module.id) else {
         return Vec::new();
     };
 
@@ -178,7 +179,7 @@ fn document_symbols_with_ast(session: &Session, file: FileId) -> Vec<DocumentSym
             | ast::Declaration::Interface { members, .. }
             | ast::Declaration::Extension { members, .. } => {
                 for member_id in members {
-                    if let Some(child) = member_to_document_symbol_ast(ast, *member_id) {
+                    if let Some(child) = member_to_document_symbol_ast(&ast, *member_id) {
                         symbol = symbol.with_child(child);
                     }
                 }
@@ -187,12 +188,12 @@ fn document_symbols_with_ast(session: &Session, file: FileId) -> Vec<DocumentSym
                 fields, members, ..
             } => {
                 for member_id in members {
-                    if let Some(child) = member_to_document_symbol_ast(ast, *member_id) {
+                    if let Some(child) = member_to_document_symbol_ast(&ast, *member_id) {
                         symbol = symbol.with_child(child);
                     }
                 }
                 for field_id in fields {
-                    if let Some(child) = enum_field_to_document_symbol_ast(ast, *field_id) {
+                    if let Some(child) = enum_field_to_document_symbol_ast(&ast, *field_id) {
                         symbol = symbol.with_child(child);
                     }
                 }

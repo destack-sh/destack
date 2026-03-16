@@ -175,7 +175,7 @@ fn static_parameter_defaults_for_symbol(
     let module_dir = ctx
         .program
         .artifacts
-        .dir_snapshot(declaration_id.module_id, ctx.profile_id)?;
+        .dir_analyzed(declaration_id.module_id, ctx.profile_id)?;
     let static_parameters =
         static_parameters_for_declaration(&module_dir.tree, declaration_id.local_id)?;
     Some(
@@ -311,7 +311,7 @@ fn expression_ast_signature_for_module(
 ) -> Option<Vec<u64>> {
     if module_id == ctx.module_id() {
         let source_id = ctx.tree.get_source(expression_id.id);
-        let ast = ctx.module.ast_maybe()?;
+        let ast = ctx.program.artifacts.ast(module_id)?;
         if ast.tree.get_node_type(source_id) != ast::NodeType::Expression {
             return None;
         }
@@ -326,14 +326,12 @@ fn expression_ast_signature_for_module(
     }
 
     // load the referenced module when the expression comes from another module
-    let module_ref = ctx.program.modules.get(module_id);
-    let module = module_ref.read();
     let module_dir = ctx
         .program
         .artifacts
-        .dir_snapshot(module_id, ctx.profile_id)?;
+        .dir_analyzed(module_id, ctx.profile_id)?;
     let source_id = module_dir.tree.get_source(expression_id.id);
-    let ast = module.ast_maybe()?;
+    let ast = ctx.program.artifacts.ast(module_id)?;
     if ast.tree.get_node_type(source_id) != ast::NodeType::Expression {
         return None;
     }

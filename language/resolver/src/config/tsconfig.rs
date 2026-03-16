@@ -129,7 +129,10 @@ impl Resolver {
 
         // merge parent configs in order
         if !extended_tsconfig_paths.is_empty() {
-            let tsconfig_path = tsconfig.read().path.to_owned();
+            let tsconfig_path = {
+                let tsconfig = tsconfig.read();
+                tsconfig.path.to_owned()
+            };
             ctx.with_extended_file(tsconfig_path, |ctx| {
                 for extended_tsconfig_path in extended_tsconfig_paths {
                     let extended_tsconfig_id = self.read_tsconfig(
@@ -175,7 +178,10 @@ impl Resolver {
                 .map(|r| tsconfig.directory.normalize_with(&r.path))
                 .collect()
         };
-        let current_path = tsconfig.read().path.to_path_buf();
+        let current_path = {
+            let tsconfig = tsconfig.read();
+            tsconfig.path.to_path_buf()
+        };
         for reference_tsconfig_path in references_to_load {
             let reference_tsconfig_id = self.read_tsconfig(
                 true,

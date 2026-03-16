@@ -352,7 +352,7 @@ fn parameter_names_for_symbol(
     let module_dir = ctx
         .program
         .artifacts
-        .dir_snapshot(declaration_id.module_id, ctx.profile_id)?;
+        .dir_analyzed(declaration_id.module_id, ctx.profile_id)?;
     declaration_parameter_names(&module_dir.tree, declaration_id.local_id)
 }
 

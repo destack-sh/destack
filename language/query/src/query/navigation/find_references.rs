@@ -132,7 +132,7 @@ fn find_references_to_symbol(
 
     // collect references across all modules
     for module in session.modules.iter() {
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             continue;
         };

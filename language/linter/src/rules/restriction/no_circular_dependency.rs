@@ -107,7 +107,7 @@ fn build_cycle_diagnostic(
     ctx: &LintProgramDirContext,
 ) -> LintDiagnostic {
     let module_ref = ctx.program.modules.get(module_id);
-    let module = module_ref.read();
+    let module = module_ref.as_ref();
 
     let mut diagnostic = LintDiagnostic::new(
         NO_CIRCULAR_DEPENDENCY.id,
@@ -133,7 +133,7 @@ fn collect_eligible_modules(ctx: &LintProgramDirContext) -> HashSet<ModuleId> {
     let mut modules = HashSet::new();
 
     for module_ref in ctx.program.modules.iter() {
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         if !module.is_user() {
             continue;
         }
@@ -158,7 +158,7 @@ fn collect_module_display_names(
 
     for module_id in module_ids {
         let module_ref = ctx.program.modules.get(*module_id);
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         let file = ctx.program.files.get(module.file_id);
         names.insert(*module_id, file.name.clone());
     }

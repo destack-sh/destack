@@ -56,7 +56,7 @@ pub fn workspace_symbols(
 
     // search all modules
     for module in session.modules.iter() {
-        let module = module.read();
+        let module = module.as_ref();
 
         // skip builtin modules
         if module.source != ModuleSource::User {

@@ -2,7 +2,7 @@ use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use crate::common::{get_module_by_file_id, span_contains_span};
+use crate::common::{get_module_by_file_id, program_for_module, span_contains_span};
 use destack_workspace::Session;
 
 /// A selection range with parent.
@@ -69,8 +69,9 @@ pub fn selection_ranges(session: &Session, file: FileId, positions: &[u32]) -> V
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
-    let module = module.read();
-    let Some(ast) = module.ast_maybe() else {
+    let module = module.as_ref();
+    let program = program_for_module(session, &module);
+    let Some(ast) = program.artifacts.ast(module.id) else {
         return Vec::new();
     };
 

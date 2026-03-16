@@ -6,7 +6,7 @@ use {destack_ast as ast, destack_dir as dir};
 
 use crate::common::{
     get_module_by_file_id, main_or_enclosing_span_for_dir_node, module_specifier_in_expression,
-    resolve_module_id_for_import_target_path, string_literal_span_in_enclosing,
+    program_for_module, resolve_module_id_for_import_target_path, string_literal_span_in_enclosing,
 };
 use destack_workspace::Session;
 
@@ -147,9 +147,8 @@ fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<Docume
                     };
 
                     // get the target module's file path
-                    let target_module_ref = session.modules.get(*target_module_id);
-                    let target_guard = target_module_ref.read();
-                    let Some(ref path) = target_guard.path else {
+                    let target_module = session.modules.get(*target_module_id);
+                    let Some(ref path) = target_module.path else {
                         continue;
                     };
 
@@ -186,8 +185,9 @@ fn document_links_with_ast(session: &Session, file: FileId) -> Vec<DocumentLink>
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
-    let module = module.read();
-    let Some(ast) = module.ast_maybe() else {
+    let module = module.as_ref();
+    let program = program_for_module(session, &module);
+    let Some(ast) = program.artifacts.ast(module.id) else {
         return Vec::new();
     };
 
@@ -229,7 +229,7 @@ fn document_links_with_ast(session: &Session, file: FileId) -> Vec<DocumentLink>
             resolve_module_id_for_import_target_path(session, source_path, &specifier_text)
                 .and_then(|module_id| {
                     let module = session.modules.get(module_id);
-                    let module = module.read();
+                    let module = module.as_ref();
                     module.path.as_ref().map(|path| DocumentLinkTarget::File {
                         path: path.to_string_lossy().to_string(),
                     })

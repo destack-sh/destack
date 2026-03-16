@@ -136,7 +136,7 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = crate::query_context(session, &module) else {
         return Vec::new();
     };
@@ -163,7 +163,7 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
                         .tree
                         .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
                     let name = resolve_symbol_name(session, global_symbol_id);
-                    let is_test = has_decorator_named(ctx.ast, ast_node_id, "test");
+                    let is_test = has_decorator_named(&ctx.ast, ast_node_id, "test");
                     let symbol_type = symbols.get_symbol(symbol_id).ty;
                     (
                         decl.clone(),
@@ -252,7 +252,7 @@ fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
     let mut count = 0;
 
     for module in session.modules.iter() {
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             continue;
         };
@@ -277,7 +277,7 @@ fn count_implementations(session: &Session, symbol_id: GlobalSymbolId) -> usize 
     let mut count = 0;
 
     for module in session.modules.iter() {
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             continue;
         };
@@ -299,7 +299,7 @@ fn count_subclasses(session: &Session, symbol_id: GlobalSymbolId) -> usize {
     let mut count = 0;
 
     for module in session.modules.iter() {
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             continue;
         };

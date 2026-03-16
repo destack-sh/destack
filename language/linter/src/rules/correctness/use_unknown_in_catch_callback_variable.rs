@@ -1,6 +1,6 @@
 use destack_ast as ast;
 use destack_dir::{self as dir, WellKnownSymbol};
-use destack_workspace::{LintSeverity, Module};
+use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
@@ -152,7 +152,7 @@ fn catch_callback_unknown_fix(
     ctx: &LintModuleDirContext<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<LintFix> {
-    let type_expression_id = ast_parameter_type_expression_id(ctx.module, ctx.tree, parameter_id)?;
+    let type_expression_id = ast_parameter_type_expression_id(ctx.ast, ctx.tree, parameter_id)?;
     if !ast_type_expression_is_explicit_any(ctx.ast, type_expression_id) {
         return None;
     }
@@ -229,8 +229,11 @@ fn catch_callback_uses_any_parameter(
 ) -> bool {
     // prefer direct parameter analysis for local callback declarations
     if let Some(parameter_id) = callback_parameter_id {
+        let Some(ast) = ctx.program.artifacts.ast(ctx.module_id()) else {
+            return false;
+        };
         return parameter_uses_explicit_any(
-            ctx.module,
+            &ast.tree,
             ctx.tree,
             ctx.types,
             ctx.module_id(),
@@ -302,13 +305,14 @@ fn callback_declaration_uses_any_parameter(
     ctx: &LintModuleDirContext<'_>,
     declaration_id: dir::GlobalNodeIdAny,
 ) -> bool {
-    let module = ctx.program.modules.get(declaration_id.module_id);
-    let module = module.read();
     let Some(module_dir) = ctx
         .program
         .artifacts
-        .dir_snapshot(declaration_id.module_id, ctx.profile_id)
+        .dir_analyzed(declaration_id.module_id, ctx.profile_id)
     else {
+        return false;
+    };
+    let Some(ast) = ctx.program.artifacts.ast(declaration_id.module_id) else {
         return false;
     };
 
@@ -319,7 +323,7 @@ fn callback_declaration_uses_any_parameter(
     };
 
     parameter_uses_explicit_any(
-        &module,
+        &ast.tree,
         &module_dir.tree,
         &module_dir.types,
         declaration_id.module_id,
@@ -366,14 +370,14 @@ fn first_callback_parameter(
 
 /// Return true when one callback parameter is typed as explicit `any`.
 fn parameter_uses_explicit_any(
-    module: &Module,
+    ast_tree: &ast::NodeTree,
     tree: &dir::NodeTree,
     types: &dir::TypeTable,
     module_id: destack_source::ModuleId,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> bool {
     // source declared `any` should be detected directly from AST structure
-    if parameter_declares_explicit_any_in_ast(module, tree, parameter_id) {
+    if parameter_declares_explicit_any_in_ast(ast_tree, tree, parameter_id) {
         return true;
     }
 
@@ -394,33 +398,31 @@ fn parameter_uses_explicit_any(
 
 /// Return true when one parameter declaration is explicitly `any` in source AST.
 fn parameter_declares_explicit_any_in_ast(
-    module: &Module,
+    ast_tree: &ast::NodeTree,
     tree: &dir::NodeTree,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> bool {
-    let Some(type_expression_id) = ast_parameter_type_expression_id(module, tree, parameter_id)
+    let Some(type_expression_id) = ast_parameter_type_expression_id(ast_tree, tree, parameter_id)
     else {
         return false;
     };
 
-    let ast = module.ast();
-    ast_type_expression_is_explicit_any(&ast.tree, type_expression_id)
+    ast_type_expression_is_explicit_any(ast_tree, type_expression_id)
 }
 
 /// Resolve the AST type expression for one DIR parameter.
 fn ast_parameter_type_expression_id(
-    module: &Module,
+    ast_tree: &ast::NodeTree,
     tree: &dir::NodeTree,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let ast = module.ast_maybe()?;
     let source_id = tree.get_source(parameter_id.id);
-    if ast.tree.get_node_type(source_id) != ast::NodeType::Parameter {
+    if ast_tree.get_node_type(source_id) != ast::NodeType::Parameter {
         return None;
     }
 
     let ast_parameter_id = ast::LocalNodeId::<ast::Parameter>::new(source_id);
-    let ast_parameter = ast.tree.get(ast_parameter_id);
+    let ast_parameter = ast_tree.get(ast_parameter_id);
     match ast_parameter {
         ast::Parameter::Named { ty, .. }
         | ast::Parameter::Pattern { ty, .. }

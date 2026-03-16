@@ -556,7 +556,7 @@ impl LanguageService {
         // prefer module lookups by uri
         if let Some(module_id) = program.modules.get_id_by_uri(uri) {
             let module = program.modules.get(module_id);
-            return Some(module.read().file_id);
+            return Some(module.file_id);
         }
 
         // fall back to module lookups by path
@@ -564,7 +564,7 @@ impl LanguageService {
             && let Some(module_id) = program.modules.get_id_by_path(&path)
         {
             let module = program.modules.get(module_id);
-            return Some(module.read().file_id);
+            return Some(module.file_id);
         }
 
         // fall back to file registry lookups by uri
@@ -596,11 +596,11 @@ impl LanguageService {
             .modules
             .get_by_file_id(file_id)
             .map(|module| {
-                let module = module.read();
+                let module = module.as_ref();
                 let profile_id = program.default_profile_id_for_module(module.id);
                 let ast_ready = program.artifacts.ast(module.id).is_some();
                 let base_dir_ready = program.artifacts.dir_base(module.id).is_some();
-                let dir_ready = program.artifacts.dir_snapshot(module.id, profile_id).is_some();
+                let dir_ready = program.artifacts.dir_analyzed(module.id, profile_id).is_some();
                 let path = module
                     .path
                     .as_ref()
@@ -626,10 +626,10 @@ impl LanguageService {
         };
 
         // require both ast and profile dir state
-        let module = module.read();
+        let module = module.as_ref();
         let profile = program.default_profile_id_for_module(module.id);
         program.artifacts.ast(module.id).is_some()
-            && program.artifacts.dir_snapshot(module.id, profile).is_some()
+            && program.artifacts.dir_analyzed(module.id, profile).is_some()
     }
 
     /// Build a span from offsets for a file.

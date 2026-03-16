@@ -319,7 +319,7 @@ impl LanguageService {
             file_id
         } else {
             match module_id {
-                Some(module_id) => program.modules.get(module_id).read().file_id,
+                Some(module_id) => program.modules.get(module_id).file_id,
                 None => program.files.get_id_by_path(path).ok_or_else(|| {
                     LanguageServiceError::FileNotTracked {
                         path: path.to_path_buf(),
@@ -371,7 +371,7 @@ impl LanguageService {
         // gather all tracked file ids for this root
         let mut file_ids = std::collections::HashSet::new();
         for module in program.modules.iter() {
-            let module = module.read();
+            let module = module.as_ref();
             if !self.is_workspace_module(&module) {
                 continue;
             }

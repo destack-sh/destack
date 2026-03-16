@@ -172,7 +172,8 @@ impl LanguageService {
         // reload tracked tsconfig files
         let mut tsconfig_paths = Vec::new();
         for tsconfig in program.tsconfigs.iter() {
-            tsconfig_paths.push(tsconfig.read().path.clone());
+            let tsconfig = tsconfig.read();
+            tsconfig_paths.push(tsconfig.path.clone());
         }
         for path in tsconfig_paths {
             if let Err(error) = resolver.reload_tsconfig(&path) {
@@ -192,7 +193,7 @@ impl LanguageService {
         // refresh module to tsconfig mapping
         let mut module_updates: Vec<(ModuleId, _)> = Vec::new();
         for module in program.modules.iter() {
-            let module = module.read();
+            let module = module.as_ref();
             let Some(path) = module.path.as_ref() else {
                 continue;
             };
@@ -210,14 +211,15 @@ impl LanguageService {
                 }
             };
             if module.tsconfig_id != next_tsconfig {
+            if module.tsconfig_id() != next_tsconfig {
                 module_updates.push((module.id, next_tsconfig));
             }
         }
 
         for (module_id, tsconfig_id) in module_updates {
             let module = program.modules.get(module_id);
-            let mut module = module.write();
-            module.tsconfig_id = tsconfig_id;
+            let mut state = module.state.write();
+            state.tsconfig_id = tsconfig_id;
         }
 
         messages
@@ -244,7 +246,7 @@ impl LanguageService {
     /// Return true when the module id maps to a workspace module.
     pub(super) fn is_workspace_module_id(&self, program: &Program, module_id: ModuleId) -> bool {
         let module = program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         self.is_workspace_module(&module)
     }
 

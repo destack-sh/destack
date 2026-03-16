@@ -417,7 +417,7 @@ fn symbol_resolves_to_canonical(
     while visited.insert(current_symbol) {
         // load the module context for the current symbol
         let module = session.modules.get(current_symbol.module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             return false;
         };
@@ -447,8 +447,8 @@ fn resolve_expression_reference_span(
     dir_tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
-    let span = get_dir_node_main_span(ctx.ast, &ctx.dir, expression_id.into())
-        .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, expression_id.into()))?;
+    let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, expression_id.into())
+        .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, expression_id.into()))?;
 
     let Some(parent) = dir_tree.get_parent(expression_id.id) else {
         return Some(span);
@@ -479,7 +479,7 @@ fn resolve_expression_reference_span(
     }
 
     // recover receiver spans when direct mapping points at member names
-    if let Some(member_span) = get_dir_node_span(ctx.ast, &ctx.dir, parent_expression_id.into())
+    if let Some(member_span) = get_dir_node_span(&ctx.ast, &ctx.dir, parent_expression_id.into())
         && member_span.file == member_name_span.file
         && member_span.start < receiver_end
     {
@@ -509,8 +509,8 @@ fn resolve_member_receiver_reference_span(
     };
 
     let receiver_span = ast_member_receiver_span(ctx, member_expression_id)
-        .or_else(|| get_dir_node_main_span(ctx.ast, &ctx.dir, receiver_expression_id.into()))
-        .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, receiver_expression_id.into()))?;
+        .or_else(|| get_dir_node_main_span(&ctx.ast, &ctx.dir, receiver_expression_id.into()))
+        .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, receiver_expression_id.into()))?;
 
     let Some(member_name_span) = get_member_access_name_span(ctx, member_expression_id) else {
         return Some(receiver_span);
@@ -530,7 +530,7 @@ fn resolve_member_receiver_reference_span(
     }
 
     // recover from member spans that only map to the member name
-    if let Some(member_span) = get_dir_node_span(ctx.ast, &ctx.dir, member_expression_id.into())
+    if let Some(member_span) = get_dir_node_span(&ctx.ast, &ctx.dir, member_expression_id.into())
         && member_span.file == member_name_span.file
         && member_span.start < receiver_end
     {
@@ -562,7 +562,7 @@ fn ast_member_receiver_span(
 fn symbol_is_type_parameter(session: &Session, symbol_id: GlobalSymbolId) -> bool {
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = crate::query_context(session, &module) else {
         return false;
     };
@@ -724,14 +724,14 @@ fn collect_interface_type_parameter_spans(
                 break;
             }
 
-            let Some(interface_span) = get_dir_node_span(ctx.ast, &ctx.dir, parent) else {
+            let Some(interface_span) = get_dir_node_span(&ctx.ast, &ctx.dir, parent) else {
                 break;
             };
 
             let mut spans = Vec::new();
             for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
                 let Some(expression_span) =
-                    get_dir_node_span(ctx.ast, &ctx.dir, expression_id.into())
+                    get_dir_node_span(&ctx.ast, &ctx.dir, expression_id.into())
                 else {
                     continue;
                 };
@@ -759,7 +759,7 @@ fn collect_interface_type_parameter_spans(
                     continue;
                 }
 
-                let Some(span) = get_dir_node_main_span(ctx.ast, &ctx.dir, expression_id.into())
+                let Some(span) = get_dir_node_main_span(&ctx.ast, &ctx.dir, expression_id.into())
                     .or(Some(expression_span))
                 else {
                     continue;
@@ -1066,7 +1066,7 @@ fn collect_dependency_reference_spans(
         } else {
             None
         }
-        .or_else(|| get_dir_node_main_span(ctx.ast, &ctx.dir, item_id.into()));
+        .or_else(|| get_dir_node_main_span(&ctx.ast, &ctx.dir, item_id.into()));
 
         let Some(span) = span else {
             continue;
@@ -1095,7 +1095,7 @@ fn dependency_item_name_span(
 ) -> Option<Span> {
     // fall back to the main span when no name was provided
     let Some(target_name) = target_name else {
-        return get_dir_node_main_span(ctx.ast, &ctx.dir, item_id.into());
+        return get_dir_node_main_span(&ctx.ast, &ctx.dir, item_id.into());
     };
 
     // resolve name + alias for matching

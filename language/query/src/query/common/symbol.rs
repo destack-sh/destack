@@ -12,7 +12,7 @@ use super::{
     QueryContext, get_dir_node_main_span, get_dir_node_span, get_module_by_file_id,
     token_at_offset, token_span_at_offset,
 };
-use destack_workspace::{ModuleAst, ModuleDirData, Session};
+use destack_workspace::{ModuleAst, ModuleDir, Session};
 
 pub(crate) use super::resolve::{
     dependency_item_matches_name, matches_symbol_space_filter, owned_scope_for_symbol,
@@ -62,7 +62,7 @@ fn find_symbol_at_offset_impl(
 ) -> Option<SymbolAtOffset> {
     // resolve the module and query context
     let module = get_module_by_file_id(session, file_id)?;
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // find AST nodes at the offset
@@ -198,12 +198,12 @@ fn find_symbol_at_offset_impl(
                             dir_tree.get::<Expression>(*left).target_symbol()
                         {
                             let receiver_span =
-                                get_dir_node_main_span(ctx.ast, &ctx.dir, (*left).into())
+                                get_dir_node_main_span(&ctx.ast, &ctx.dir, (*left).into())
                                     .or_else(|| {
-                                        get_dir_node_span(ctx.ast, &ctx.dir, (*left).into())
+                                        get_dir_node_span(&ctx.ast, &ctx.dir, (*left).into())
                                     })
                                     .or_else(|| {
-                                        get_dir_node_span(ctx.ast, &ctx.dir, dir_node_id).and_then(
+                                        get_dir_node_span(&ctx.ast, &ctx.dir, dir_node_id).and_then(
                                             |member_span| {
                                                 let receiver_end =
                                                     name_span.start.saturating_sub(1);
@@ -231,7 +231,7 @@ fn find_symbol_at_offset_impl(
                     }
 
                     // check if the cursor is on the left expression and resolve that symbol
-                    if let Some(left_span) = get_dir_node_span(ctx.ast, &ctx.dir, (*left).into())
+                    if let Some(left_span) = get_dir_node_span(&ctx.ast, &ctx.dir, (*left).into())
                         && offset >= left_span.start
                         && offset <= left_span.end
                     {
@@ -248,8 +248,8 @@ fn find_symbol_at_offset_impl(
 
                 if !skip_expression_target_symbol && let Some(target_symbol) = expr.target_symbol()
                 {
-                    let span = get_dir_node_main_span(ctx.ast, &ctx.dir, dir_node_id)
-                        .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, dir_node_id))
+                    let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, dir_node_id)
+                        .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, dir_node_id))
                         .unwrap_or_else(|| {
                             Span::new(
                                 ctx.file_id,
@@ -272,8 +272,8 @@ fn find_symbol_at_offset_impl(
                 if let Some(target_symbol) =
                     unresolved_type_symbol_for_expression(session, &ctx, expr)
                 {
-                    let span = get_dir_node_main_span(ctx.ast, &ctx.dir, dir_node_id)
-                        .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, dir_node_id))
+                    let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, dir_node_id)
+                        .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, dir_node_id))
                         .unwrap_or_else(|| {
                             Span::new(
                                 ctx.file_id,
@@ -300,8 +300,8 @@ fn find_symbol_at_offset_impl(
                 let pattern = dir_tree.get::<Pattern>(pattern_id);
                 if let Some(local_symbol) = pattern.symbol() {
                     let symbol_id = global_symbol(ctx.module_id, local_symbol);
-                    let span = get_dir_node_main_span(ctx.ast, &ctx.dir, dir_node_id)
-                        .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, dir_node_id))
+                    let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, dir_node_id)
+                        .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, dir_node_id))
                         .unwrap_or_else(|| {
                             Span::new(
                                 ctx.file_id,
@@ -328,7 +328,7 @@ fn find_symbol_at_offset_impl(
                 let field = dir_tree.get::<PatternField>(field_id);
                 if let Some(local_symbol) = field.symbol() {
                     let symbol_id = global_symbol(ctx.module_id, local_symbol);
-                    let span = get_dir_node_main_span(ctx.ast, &ctx.dir, dir_node_id)
+                    let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, dir_node_id)
                         .unwrap_or_else(|| {
                             Span::new(
                                 ctx.file_id,
@@ -360,8 +360,8 @@ fn find_symbol_at_offset_impl(
                 let declaration = dir_tree.get::<Declaration>(declaration_id);
                 let local_symbol = declaration.symbol();
                 let symbol_id = global_symbol(ctx.module_id, local_symbol);
-                let span = get_dir_node_main_span(ctx.ast, &ctx.dir, dir_node_id)
-                    .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, dir_node_id))
+                let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, dir_node_id)
+                    .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, dir_node_id))
                     .unwrap_or_else(|| {
                         Span::new(
                             ctx.file_id,
@@ -388,8 +388,8 @@ fn find_symbol_at_offset_impl(
                 let member = dir_tree.get::<Member>(member_id);
                 let local_symbol = member.symbol();
                 let symbol_id = global_symbol(ctx.module_id, local_symbol);
-                let span = get_dir_node_main_span(ctx.ast, &ctx.dir, dir_node_id)
-                    .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, dir_node_id))
+                let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, dir_node_id)
+                    .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, dir_node_id))
                     .unwrap_or_else(|| {
                         Span::new(
                             ctx.file_id,
@@ -414,8 +414,8 @@ fn find_symbol_at_offset_impl(
                 };
                 let field = dir_tree.get::<EnumField>(field_id);
                 let symbol_id = global_symbol(ctx.module_id, field.symbol);
-                let span = get_dir_node_main_span(ctx.ast, &ctx.dir, dir_node_id)
-                    .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, dir_node_id))
+                let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, dir_node_id)
+                    .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, dir_node_id))
                     .unwrap_or_else(|| {
                         Span::new(
                             ctx.file_id,
@@ -441,8 +441,8 @@ fn find_symbol_at_offset_impl(
                 let param = dir_tree.get::<Parameter>(param_id);
                 let local_symbol = param.symbol();
                 let symbol_id = global_symbol(ctx.module_id, local_symbol);
-                let span = get_dir_node_main_span(ctx.ast, &ctx.dir, dir_node_id)
-                    .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, dir_node_id))
+                let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, dir_node_id)
+                    .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, dir_node_id))
                     .unwrap_or_else(|| {
                         Span::new(
                             ctx.file_id,
@@ -507,8 +507,8 @@ fn find_symbol_at_offset_impl(
                     continue;
                 };
 
-                let span = get_dir_node_main_span(ctx.ast, &ctx.dir, dir_node_id)
-                    .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, dir_node_id))
+                let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, dir_node_id)
+                    .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, dir_node_id))
                     .unwrap_or_else(|| {
                         Span::new(
                             ctx.file_id,
@@ -578,7 +578,7 @@ fn declaration_modifier_symbol_at_offset(
 
     // resolve query context for declaration lookup
     let module = get_module_by_file_id(session, file_id)?;
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
     let dir_tree = ctx.tree();
 
@@ -849,8 +849,8 @@ fn pattern_field_symbol_at_offset(
         }
         PatternField::Alias { symbol, .. } => {
             let node_id = field_id.into();
-            let span = get_dir_node_main_span(ctx.ast, &ctx.dir, node_id)
-                .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, node_id))?;
+            let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, node_id)
+                .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, node_id))?;
             if !offset_matches_symbol_span(offset, span) {
                 return None;
             }
@@ -880,8 +880,8 @@ fn pattern_symbol_at_offset(
             symbol, pattern, ..
         } => {
             let node_id = pattern_id.into();
-            let span = get_dir_node_main_span(ctx.ast, &ctx.dir, node_id)
-                .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, node_id))?;
+            let span = get_dir_node_main_span(&ctx.ast, &ctx.dir, node_id)
+                .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, node_id))?;
             if offset_matches_symbol_span(offset, span) {
                 return Some(SymbolAtOffset {
                     symbol_id: global_symbol(ctx.module_id, *symbol),
@@ -987,7 +987,7 @@ pub(crate) fn get_member_access_name_span(
     }
 
     // resolve the expression span from DIR or AST maps
-    let expression_span = get_dir_node_span(ctx.ast, &ctx.dir, expression_id.into())
+    let expression_span = get_dir_node_span(&ctx.ast, &ctx.dir, expression_id.into())
         .unwrap_or_else(|| ctx.ast.tree.source_map.get(ast_node_id));
 
     // prefer the last identifier token in the member expression
@@ -1024,7 +1024,7 @@ pub(crate) fn get_member_access_name_span(
 pub fn get_canonical_symbol(session: &Session, symbol_id: GlobalSymbolId) -> GlobalSymbolId {
     // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = crate::query_context(session, &module) else {
         return symbol_id;
     };
@@ -1051,7 +1051,7 @@ pub(crate) fn resolve_symbol_name(
 ) -> Option<String> {
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // read the symbol name string
@@ -1069,7 +1069,7 @@ pub(crate) fn resolve_local_import_alias_name(
 ) -> Option<String> {
     // resolve query context for the symbol module
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the symbol declaration and support declaration/import forms
@@ -1202,7 +1202,7 @@ pub(crate) fn resolve_symbol_name_id(
 
     // fall back to the symbol's module context
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let target_ctx = crate::query_context(session, &module)?;
     let symbols = target_ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
@@ -1239,12 +1239,12 @@ pub(crate) fn is_synthetic_function_keyword_field(
 fn get_symbol_span_with(
     session: &Session,
     symbol_id: GlobalSymbolId,
-    span_for_declaration: impl Fn(&ModuleAst, &ModuleDirData, LocalNodeIdAny) -> Option<Span> + Copy,
+    span_for_declaration: impl Fn(&ModuleAst, &ModuleDir, LocalNodeIdAny) -> Option<Span> + Copy,
     prefer_precise_member_name: bool,
 ) -> Option<Span> {
     // resolve the module and query context for this symbol
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // read the symbol and follow the canonical chain
@@ -1284,7 +1284,7 @@ fn get_symbol_span_with(
             return Some(span);
         }
 
-        return span_for_declaration(ctx.ast, &ctx.dir, declaration.local_id);
+        return span_for_declaration(&ctx.ast, &ctx.dir, declaration.local_id);
     }
 
     // follow target symbols when the canonical symbol is an alias
@@ -1315,7 +1315,7 @@ pub(crate) fn get_symbol_local_definition_span(
 ) -> Option<Span> {
     // resolve the module and query context for this symbol
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the symbol declaration in its local module
@@ -1333,8 +1333,8 @@ pub(crate) fn get_symbol_local_definition_span(
             return Some(span);
         }
 
-        return get_dir_node_main_span(ctx.ast, &ctx.dir, declaration.local_id)
-            .or_else(|| get_dir_node_span(ctx.ast, &ctx.dir, declaration.local_id));
+        return get_dir_node_main_span(&ctx.ast, &ctx.dir, declaration.local_id)
+            .or_else(|| get_dir_node_span(&ctx.ast, &ctx.dir, declaration.local_id));
     }
 
     // fall back to local export assignment style spans
@@ -1348,7 +1348,7 @@ pub(crate) fn type_definition_span_for_symbol(
 ) -> Option<Span> {
     // resolve the module and query context for the symbol
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // check whether the symbol participates in the type namespace
@@ -1393,7 +1393,7 @@ fn precise_member_name_span_for_declaration(
         _ => return None,
     };
 
-    let declaration_span = get_dir_node_span(ctx.ast, &ctx.dir, declaration)?;
+    let declaration_span = get_dir_node_span(&ctx.ast, &ctx.dir, declaration)?;
     let source_file = session.files.get(ctx.file_id);
     for token in &ctx.ast.tokens {
         if token.span.file != ctx.file_id {
@@ -1420,14 +1420,14 @@ fn precise_member_name_span_for_declaration(
 fn fallback_export_span(
     ctx: &QueryContext<'_>,
     symbol_id: GlobalSymbolId,
-    span_for_declaration: impl Fn(&ModuleAst, &ModuleDirData, LocalNodeIdAny) -> Option<Span> + Copy,
+    span_for_declaration: impl Fn(&ModuleAst, &ModuleDir, LocalNodeIdAny) -> Option<Span> + Copy,
 ) -> Option<Span> {
     // handle export assignment symbols
     let is_export_assignment = symbol_id.local_id == ctx.dir.export_assignment_symbol;
     if is_export_assignment {
         let item_id = ctx.dir.export_assignment;
         if let Some(item_id) = item_id {
-            return span_for_declaration(ctx.ast, &ctx.dir, item_id.into());
+            return span_for_declaration(&ctx.ast, &ctx.dir, item_id.into());
         }
     }
 
@@ -1447,7 +1447,7 @@ fn fallback_export_span(
             continue;
         }
 
-        return span_for_declaration(ctx.ast, &ctx.dir, item_id.into());
+        return span_for_declaration(&ctx.ast, &ctx.dir, item_id.into());
     }
 
     None

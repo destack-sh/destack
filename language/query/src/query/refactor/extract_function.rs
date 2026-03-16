@@ -73,7 +73,7 @@ pub fn extract_function(
 
     // resolve the module and query context
     let module = get_module_by_file_id(session, file)?;
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = query_context(session, &module)?;
 
     // resolve source text for edits
@@ -339,7 +339,7 @@ fn resolve_statement_selection(
         let block = dir_tree.get::<dir::Block>(block_id);
         block.expressions.clone()
     } else {
-        ctx.dir.roots.clone()
+        ctx.dir.roots.as_ref().clone()
     };
     if container_expressions.is_empty() {
         return None;
@@ -709,7 +709,7 @@ fn collect_free_variables(
 fn symbol_mutability(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<dir::Mutability> {
     // resolve the mutability for the symbol
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = query_context(session, &module)?;
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
@@ -747,7 +747,7 @@ fn symbol_type_text(
 
     // resolve the declaration node for the symbol in its module
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = query_context(session, &module)?;
     let declaration = {
         let symbols = ctx.symbols();

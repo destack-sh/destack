@@ -212,7 +212,7 @@ fn signature_info_for_symbol(
 ) -> Option<SignatureInfo> {
     // read the symbol's module and query context
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = query_context(session, &module)?;
 
     // resolve the symbol declaration
@@ -238,7 +238,7 @@ fn signature_info_for_symbol(
             };
             let ast_node_id = dir_tree.get_source(declaration_id.id);
             let doc_text = doc_text_for_node_without_tags(
-                ctx.ast,
+                &ctx.ast,
                 source,
                 ast_node_id,
                 &["@param", "@return", "@returns"],
@@ -254,7 +254,7 @@ fn signature_info_for_symbol(
             };
             let ast_node_id = dir_tree.get_source(member_id.id);
             let doc_text = doc_text_for_node_without_tags(
-                ctx.ast,
+                &ctx.ast,
                 source,
                 ast_node_id,
                 &["@param", "@return", "@returns"],

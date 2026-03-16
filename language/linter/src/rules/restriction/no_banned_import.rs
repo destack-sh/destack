@@ -232,7 +232,7 @@ fn matching_target(
     match target_module {
         dir::ModuleTarget::Module(module_id) => {
             let module_ref = ctx.program.modules.get(module_id);
-            let module = module_ref.read();
+            let module = module_ref.as_ref();
 
             // check resolved module path next
             if let Some(path) = module.path.as_ref() {

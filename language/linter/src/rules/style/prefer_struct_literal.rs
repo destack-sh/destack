@@ -106,7 +106,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
             .ctx
             .program
             .artifacts
-            .dir_snapshot(declaration_id.module_id, self.ctx.profile_id)?;
+            .dir_analyzed(declaration_id.module_id, self.ctx.profile_id)?;
         let declaration = module_dir
             .tree
             .get(declaration_id.into_local_typed::<dir::Declaration>());

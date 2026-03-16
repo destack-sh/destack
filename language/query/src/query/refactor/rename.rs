@@ -252,7 +252,7 @@ fn collect_symbol_reference_spans_across_user_modules(
     let mut spans = Vec::new();
 
     for module in session.modules.iter() {
-        let module = module.read();
+        let module = module.as_ref();
         if !module.is_user() {
             continue;
         }
@@ -322,7 +322,7 @@ fn resolve_name_from_primary_declaration(
 ) -> Option<String> {
     // resolve query context for the symbol module
     let module = session.modules.get(canonical_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the primary declaration node id
@@ -413,7 +413,7 @@ fn resolve_interface_member_target(
 ) -> Option<InterfaceMemberTarget> {
     // resolve query context for the symbol module
     let module = session.modules.get(canonical_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = crate::query_context(session, &module)?;
 
     // resolve the member declaration node
@@ -474,7 +474,7 @@ fn collect_interface_member_implementations(
     let mut members = Vec::new();
 
     for module in session.modules.iter() {
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = crate::query_context(session, &module) else {
             continue;
         };

@@ -38,7 +38,7 @@ pub fn format_declaration_signature(
 ) -> FormattedSignature {
     // resolve dir data for formatting
     let dir = artifacts
-        .dir_snapshot(module.id, profile)
+        .dir_analyzed(module.id, profile)
         .unwrap_or_else(|| panic!("no DIR artifact for profile {profile:?}"));
     let dir_tree = &dir.tree;
     let types = &dir.types;
@@ -423,8 +423,8 @@ pub fn format_symbol_signature(
 ) -> Option<FormattedSignature> {
     // resolve module dir data
     let module = modules.get(symbol_id.module_id);
-    let module = module.read();
-    let dir = artifacts.dir_snapshot(symbol_id.module_id, profile)?;
+    let module = module.as_ref();
+    let dir = artifacts.dir_analyzed(symbol_id.module_id, profile)?;
     let declaration_ref = {
         let symbols = &dir.symbols;
         let symbol = symbols.get_symbol(symbol_id.into_local());

@@ -121,7 +121,7 @@ fn auto_import_sort_order(
     // resolve the target package id
     let target_package_id = {
         let module = session.modules.get(target_module_id);
-        module.read().package_id
+        module.package_id
     };
 
     // adjust for same or different packages
@@ -409,7 +409,7 @@ fn get_function_param_names(
 fn format_symbol_type_detail(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<String> {
     // read the symbol's module and build query context
     let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = query_context(session, &module)?;
 
     // load symbol and type tables
@@ -550,7 +550,7 @@ fn complete_auto_imports(
     // get current module to exclude from results and rank by package
     let (current_module_id, current_package_id) =
         if let Some(module) = get_module_by_file_id(session, file_id) {
-            let module = module.read();
+            let module = module.as_ref();
             (Some(module.id), Some(module.package_id))
         } else {
             (None, None)
@@ -686,7 +686,7 @@ fn collect_visible_names(
 ) -> Option<HashSet<String>> {
     // resolve the module and query context
     let module = get_module_by_file_id(session, file_id)?;
-    let module = module.read();
+    let module = module.as_ref();
     let ctx = query_context(session, &module)?;
     let symbols = ctx.symbols();
     let scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
@@ -1037,7 +1037,7 @@ fn complete_members(
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = query_context(session, &module) else {
         return Vec::new();
     };
@@ -1101,7 +1101,7 @@ fn complete_members(
             resolve_nominal_symbol_from_initializer(session, &ctx, symbol_id)
         } else {
             let symbol_module = session.modules.get(symbol_id.module_id);
-            let symbol_module = symbol_module.read();
+            let symbol_module = symbol_module.as_ref();
             let symbol_ctx = query_context(session, &symbol_module);
             symbol_ctx.and_then(|symbol_ctx| {
                 resolve_nominal_symbol_from_initializer(session, &symbol_ctx, symbol_id)
@@ -1128,7 +1128,7 @@ fn complete_members(
     // fallback path: use receiver symbol (for cases where type inference hasn't run)
     if let Some(symbol_id) = receiver_symbol {
         let symbol_module = session.modules.get(symbol_id.module_id);
-        let symbol_module = symbol_module.read();
+        let symbol_module = symbol_module.as_ref();
         let Some(symbol_ctx) = query_context(session, &symbol_module) else {
             return Vec::new();
         };
@@ -1240,7 +1240,10 @@ fn ast_type_name_from_receiver_node(
         return None;
     }
 
-    ast_type_name_from_expression_ast(ctx.ast, ast::LocalNodeId::<ast::Expression>::new(source_id))
+    ast_type_name_from_expression_ast(
+        &ctx.ast,
+        ast::LocalNodeId::<ast::Expression>::new(source_id),
+    )
 }
 
 /// Complete members from AST declarations for a fallback type name.
@@ -1252,8 +1255,9 @@ fn complete_members_from_ast_type(
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
-    let module = module.read();
-    let Some(ast) = module.ast_maybe() else {
+    let module = module.as_ref();
+    let program = program_for_file(session, file);
+    let Some(ast) = program.artifacts.ast(module.id) else {
         return Vec::new();
     };
 
@@ -1276,7 +1280,7 @@ fn complete_members_from_ast_type(
             | ast::Declaration::Interface { members, .. }
                 if matches_target =>
             {
-                collect_member_completions_from_ast(ast, members, false, &mut seen, &mut results);
+                collect_member_completions_from_ast(&ast, members, false, &mut seen, &mut results);
             }
             ast::Declaration::Enum {
                 fields, members, ..
@@ -1291,17 +1295,17 @@ fn complete_members_from_ast_type(
                         );
                     }
                 }
-                collect_member_completions_from_ast(ast, members, true, &mut seen, &mut results);
+                collect_member_completions_from_ast(&ast, members, true, &mut seen, &mut results);
             }
             ast::Declaration::Extension {
                 target_type,
                 members,
                 ..
             } => {
-                let extension_target = ast_type_name_from_expression_ast(ast, *target_type);
+                let extension_target = ast_type_name_from_expression_ast(&ast, *target_type);
                 if extension_target.as_deref() == Some(type_name) {
                     collect_member_completions_from_ast(
-                        ast,
+                        &ast,
                         members,
                         false,
                         &mut seen,
@@ -1408,7 +1412,7 @@ fn complete_object_literal(
         let Some(module) = get_module_by_file_id(session, file) else {
             return results;
         };
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = query_context(session, &module) else {
             return results;
         };
@@ -1462,7 +1466,7 @@ fn complete_object_literal(
         let Some(module) = get_module_by_file_id(session, file) else {
             return results;
         };
-        let module = module.read();
+        let module = module.as_ref();
         let Some(ctx) = query_context(session, &module) else {
             return results;
         };
@@ -1508,7 +1512,7 @@ fn complete_types(
     let Some(module) = get_module_by_file_id(session, file) else {
         return primitive_type_completions();
     };
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = query_context(session, &module) else {
         return primitive_type_completions();
     };
@@ -1534,11 +1538,7 @@ fn complete_types(
             return symbol.ty;
         }
 
-        let Some(dir) = ctx
-            .program
-            .artifacts
-            .dir_snapshot(canonical_id.module_id, ctx.profile_id)
-        else {
+        let Some(dir) = ctx.program.artifacts.dir_base(canonical_id.module_id) else {
             return symbol.ty;
         };
         let canonical_symbol = dir.symbols.get_symbol(canonical_id.local_id);
@@ -1710,7 +1710,7 @@ fn complete_values(
     let Some(module) = get_module_by_file_id(session, file) else {
         return keyword_completions();
     };
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = query_context(session, &module) else {
         return keyword_completions();
     };
@@ -1792,7 +1792,7 @@ fn complete_new_expression(
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = query_context(session, &module) else {
         return Vec::new();
     };
@@ -1923,7 +1923,7 @@ fn complete_imports(
 
     // get module AST/DIR
     let module = session.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let Some(ctx) = query_context(session, &module) else {
         return Vec::new();
     };

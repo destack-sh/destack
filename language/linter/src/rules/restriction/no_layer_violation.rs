@@ -106,7 +106,7 @@ fn collect_module_descriptors(
 
     // collect user modules and assign configured components
     for module_ref in ctx.program.modules.iter() {
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         if module.id == ctx.program.root_module_id {
             continue;
         }
