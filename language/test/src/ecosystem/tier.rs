@@ -320,7 +320,7 @@ fn collect_compiler_phase_stats(program: &Arc<Program>) -> PhaseReadStats {
     let mut lines = 0usize;
 
     for module_ref in program.modules.iter() {
-        let module = module_ref.read();
+        let module = module_ref.as_ref();
         let file = program.files.get(module.file_id);
 
         modules += 1;

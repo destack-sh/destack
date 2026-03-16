@@ -193,7 +193,7 @@ impl RuntimeGenerator {
         let mut selected = Vec::new();
         for module_id in platform_modules {
             let module = self.program.modules.get(*module_id);
-            let module = module.read();
+            let module = module.as_ref();
             let module_uri = module.uri.as_ref();
 
             // keep matching modules
@@ -289,7 +289,7 @@ impl RuntimeGenerator {
     /// Assert that one compiler task completed successfully.
     fn assert_task_complete(&self, outcome: TaskOutcome, task_name: &str) {
         match outcome {
-            TaskOutcome::Complete { product: _ } => {}
+            TaskOutcome::Complete => {}
             TaskOutcome::Skipped { reason } => {
                 panic!("binding generation task {task_name} was skipped: {reason:?}");
             }

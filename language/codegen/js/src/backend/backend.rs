@@ -43,14 +43,17 @@ pub fn generate_module(
 
     // get module
     let module_ref = program.modules.get(module_id);
-    let module = module_ref.read();
-    let ast = module.ast();
+    let module = module_ref.as_ref();
+    let ast = program
+        .artifacts
+        .ast(module_id)
+        .unwrap_or_else(|| panic!("missing committed AST artifact for {module_id:?}"));
     let dir = program
         .artifacts
-        .dir_snapshot(module_id, profile)
+        .dir_analyzed(module_id, profile)
         .unwrap_or_else(|| panic!("missing committed dir artifact for {module_id:?}"));
     let dir_tree = &dir.tree;
-    let dir_roots = dir.roots.clone();
+    let dir_roots = dir.roots.as_ref().clone();
     let symbols = &dir.symbols;
     let types = &dir.types;
 

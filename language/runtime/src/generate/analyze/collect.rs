@@ -122,7 +122,7 @@ pub(crate) fn collect_platform_bindings(
     for module_id in platform_modules {
         // load module metadata
         let module = program.modules.get(*module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let resolved_dir = program
             .artifacts
             .dir_resolved(module.id, profile_id)
@@ -264,7 +264,7 @@ pub(crate) fn collect_platform_constants(
     // scan each platform module for exported immutable let declarations
     for module_id in platform_modules {
         let module = program.modules.get(*module_id);
-        let module = module.read();
+        let module = module.as_ref();
 
         let Some(domain) = module_platform_domain(module.uri.as_ref()) else {
             continue;
@@ -377,7 +377,7 @@ pub(crate) fn collect_platform_types(
     // scan each platform module for exported type declarations
     for module_id in platform_modules {
         let module = program.modules.get(*module_id);
-        let module = module.read();
+        let module = module.as_ref();
 
         let dir = program
             .artifacts

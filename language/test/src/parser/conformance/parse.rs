@@ -279,7 +279,7 @@ fn apply_default_destack_config(program: &Program, module_id: ModuleId, root: &P
     };
     let package_id = {
         let module = program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         module.package_id
     };
     let package = program.packages.get(package_id);

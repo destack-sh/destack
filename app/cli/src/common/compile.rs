@@ -244,20 +244,21 @@ impl CompilerContext {
             }
             CompilerMode::Lower { target } => {
                 let module_ref = self.program.modules.get(module);
-                let package_id = module_ref.read().package_id;
+                let package_id = module_ref.package_id;
                 let target_id = TargetId::new(package_id, target);
                 let profile = self
                     .program
                     .profile_id_for_target_or_default(module, &target_id);
-                self.compiler.enqueue(BuildKey::Artifact(ArtifactKey::Mir {
-                    module,
-                    profile,
-                    target: target_id,
-                }));
+                self.compiler
+                    .enqueue(BuildKey::Artifact(ArtifactKey::MirBase {
+                        module,
+                        profile,
+                        target: target_id,
+                    }));
             }
             CompilerMode::Build { target } => {
                 let module_ref = self.program.modules.get(module);
-                let package_id = module_ref.read().package_id;
+                let package_id = module_ref.package_id;
                 let target_id = TargetId::new(package_id, target);
                 self.compiler
                     .enqueue(BuildKey::Output(OutputKey::module(module, target_id)));

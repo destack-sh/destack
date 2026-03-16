@@ -110,7 +110,7 @@ fn run_emit_case(test: &TestCase) -> TestResult {
     }
     let package_id = {
         let module = program.modules.get(module_ids[0]);
-        let module = module.read();
+        let module = module.as_ref();
         module.package_id
     };
 

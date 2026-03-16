@@ -15,12 +15,12 @@ pub(crate) fn compile_mir_to_clif(source: &str) -> String {
             .expect("failed to parse MIR");
 
     // create a ModuleMir and populate it
-    let module = ModuleMir::new(
+    let mut module = ModuleMir::new(
         ModuleId::EPHEMERAL,
         ModuleVersion::INITIAL,
         TargetId::new(PackageId::EPHEMERAL, "clif"),
     );
-    *module.tree.write() = tree;
+    module.tree = tree;
 
     // copy strings into module's string pool
     for i in 0..strings.len() {
