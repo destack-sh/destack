@@ -41,18 +41,30 @@ impl Compiler {
         }
 
         let actions =
-            match self.collect_projection_obligation_actions(&mut ctx.reborrow(), &obligations) {
-                Ok(actions) => actions,
-                Err(AnalyzeError::Yield { requirement }) => {
+            match self.query_projection_obligation_actions(&mut ctx.reborrow(), &obligations)? {
+                Some(actions) => actions,
+                None => {
                     for obligation in obligations {
                         infer.push_associated_comptime_projection_obligation(obligation);
                     }
-                    return Err(AnalyzeError::Yield { requirement });
+                    return Ok(());
                 }
-                Err(error) => return Err(error),
             };
 
         self.apply_projection_obligation_actions_in_solve(&mut ctx.reborrow(), actions, infer)
+    }
+
+    /// Query projection obligation actions after infer convergence.
+    fn query_projection_obligation_actions(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        obligations: &[AssociatedComptimeProjectionObligation],
+    ) -> AnalyzeResult<Option<Vec<ProjectionObligationAction>>> {
+        match self.collect_projection_obligation_actions(ctx, obligations) {
+            Ok(actions) => Ok(Some(actions)),
+            Err(AnalyzeError::Yield { .. }) => Ok(None),
+            Err(error) => Err(error),
+        }
     }
 
     /// Apply projection actions to infer overlays during solve discharge.

@@ -1,11 +1,8 @@
-use std::collections::HashMap;
-
-use crate::analyze::common::{InferContext, RelationMode};
-use crate::{AnalyzeOptions, AnalyzeResult, Compiler};
+use crate::analyze::common::{CanonicalSymbolMode, InferContext, RelationMode};
+use crate::{AnalyzeOptions, AnalyzeResult, Compiler, WellKnownSymbol};
 use destack_dir::{
-    Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeTree,
-    NormalizationMode, PrimitiveType, Property, ScalarLiteral, StaticArgument, StaticKey,
-    SymbolType, Type, TypeKind, TypeLiteral, TypeTable,
+    Declaration, Expression, LocalNodeId, LocalTypeId, Member, NodeTree, NormalizationMode,
+    PrimitiveType, Property, ScalarLiteral, StaticKey, SymbolType, Type, TypeLiteral, TypeTable,
 };
 
 /// Contextual function signature derived from an expected type.
@@ -86,107 +83,56 @@ impl Compiler {
             return Ok(Some(expected_ty_id));
         }
 
-        // resolve the reference symbol and arguments
         let source_id = ctx.types.get_type_source(expected_ty_id);
-        let (symbol, static_arguments): (GlobalSymbolId, Option<Vec<StaticArgument>>) =
-            match expected_type {
-                Type::Reference {
-                    symbol,
-                    static_arguments,
-                } => (symbol, static_arguments),
-                _ => {
-                    let Some(symbol) = expected_type.symbol() else {
-                        return Ok(None);
-                    };
-                    (symbol, None)
-                }
-            };
+        let expected_type = ctx.types.get_type(expected_ty_id).clone();
 
-        // unwrap local nominal aliases to their declared types for tagged literals
-        let mut declared_type_id = None;
-        if symbol.module_id == ctx.module.id {
-            let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
-            if symbol_entry.ty == SymbolType::Newtype
-                && let Some(primary_declaration) = symbol_entry.primary_declaration
-                && let Ok(declaration_id) = primary_declaration.try_into_typed::<Declaration>()
-            {
-                let declaration_id: LocalNodeId<Declaration> = declaration_id.into();
-                if let Declaration::Type {
-                    kind: TypeKind::Nominal,
-                    value,
-                    ..
-                } = ctx.tree.get(declaration_id)
-                {
-                    let value_id = value.into_global_any(ctx.module.id);
-                    if let Some(value_ty_id) = ctx.types.get_declared_type_id(value_id) {
-                        if matches!(ctx.types.get_type(value_ty_id), Type::Unevaluated(_)) {
-                            self.resolve_declared_type(
-                                &mut ctx.type_context_reborrow(),
-                                value_ty_id,
-                            )?;
-                        }
-                        declared_type_id = Some(value_ty_id);
-                    }
-                }
+        // resolve the canonical reference target behind the expected type
+        let (symbol, static_arguments) = match expected_type {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => (symbol, static_arguments),
+            _ => {
+                let Some(symbol) = expected_type.symbol() else {
+                    return Ok(None);
+                };
+                (symbol, None)
             }
+        };
+        let symbol = self.canonical_symbol_id(
+            ctx.module_symbol_view(),
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+
+        // keep dedicated record-like contexts on the map or record path
+        let is_record_like_symbol = self
+            .get_well_known_type_symbol(ctx.profile, WellKnownSymbol::Map)
+            .is_some_and(|map_symbol| map_symbol == symbol)
+            || self
+                .get_well_known_type_symbol(ctx.profile, WellKnownSymbol::Record)
+                .is_some_and(|record_symbol| record_symbol == symbol);
+        if is_record_like_symbol {
+            return Ok(None);
         }
 
-        // resolve the instance type for the reference
-        let instance_ty_id = self.resolve_instance_type_for_symbol(
+        // nominal targets should not be treated as plain object contexts
+        if symbol.ty() == SymbolType::Newtype
+            || self.symbol_is_nominal_interface(ctx.tree_symbol_view(), symbol)
+        {
+            return Ok(None);
+        }
+
+        // resolve the specialized instance type for the reference
+        let Some(instance_ty_id) = self.specialized_instance_type_for_reference(
             &mut ctx.type_context_reborrow(),
             source_id,
             symbol,
-        )?;
-        let Some(instance_ty_id) = instance_ty_id else {
+            static_arguments.as_deref(),
+        ) else {
             return Ok(None);
         };
-        let instance_ty_id = declared_type_id.unwrap_or(instance_ty_id);
-
-        // return the instance type when no static arguments exist
-        let Some(static_arguments) = static_arguments else {
-            return Ok(Some(instance_ty_id));
-        };
-
-        // resolve static arguments for substitution
-        let resolved_arguments = self.resolve_type_reference_static_arguments(
-            &mut ctx.type_context_reborrow(),
-            source_id,
-            symbol,
-            Some(static_arguments.as_slice()),
-            true,
-        )?;
-        let Some(resolved_arguments) = resolved_arguments else {
-            return Ok(Some(instance_ty_id));
-        };
-
-        // reuse instance type when no substitutions are needed
-        if resolved_arguments.is_empty() {
-            return Ok(Some(instance_ty_id));
-        }
-
-        // build substitutions for type parameters
-        let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            &mut ctx.type_context_reborrow(),
-            symbol,
-            source_id,
-            &resolved_arguments,
-        );
-
-        // reuse instance type when no substitutions are needed
-        if substitutions.is_empty() {
-            return Ok(Some(instance_ty_id));
-        }
-
-        // substitute parameters inside the instance type
-        let mut cache = HashMap::new();
-        let substituted = self.substitute_static_parameters(
-            instance_ty_id,
-            &substitutions,
-            ctx.types,
-            &mut cache,
-        );
-
-        Ok(Some(substituted))
+        Ok(Some(instance_ty_id))
     }
 
     /// Derive an expected object type for an object literal with a union context.
@@ -224,9 +170,13 @@ impl Compiler {
             let Some(value_id) = value else {
                 continue;
             };
-            let Some(static_key) =
-                self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), *key)
-            else {
+            let Some(static_key) = self.static_key_from_dynamic_key(
+                ctx.profile,
+                ctx.tree,
+                ctx.symbols,
+                ctx.types,
+                *key,
+            ) else {
                 continue;
             };
             let Expression::ScalarLiteral { value } = ctx.tree.get(*value_id) else {
@@ -343,9 +293,13 @@ impl Compiler {
             let member = ctx.tree.get(*member_id);
             match member {
                 Member::Field { key: Some(key), .. } => {
-                    if let Some(static_key) =
-                        self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), *key)
-                    {
+                    if let Some(static_key) = self.static_key_from_dynamic_key(
+                        ctx.profile,
+                        ctx.tree,
+                        ctx.symbols,
+                        ctx.types,
+                        *key,
+                    ) {
                         declared_field_keys.push(static_key);
                     }
                 }

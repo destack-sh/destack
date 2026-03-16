@@ -18,7 +18,7 @@ impl Compiler {
 
         // normalize to declared symbol typing first
         let symbol = self
-            .remap_typevalue_symbol_to_type_space(ctx.module, ctx.profile, symbol)
+            .remap_typevalue_symbol_to_type_space(ctx.module_symbol_view(), symbol)
             .map_err(AnalyzeError::from)?;
 
         Ok(Type::Reference {
@@ -828,25 +828,10 @@ impl Compiler {
 
         // step 3: check visible extensions
         let extension_symbols =
-            match self.visible_extension_symbols_for_target(ctx.symbol_type_view(), symbol) {
-                Ok(symbols) => symbols,
-                Err(AnalyzeError::Yield { .. }) => return None,
-                Err(error) => {
-                    self.error(error);
-                    return None;
-                }
-            };
+            self.query_visible_extension_symbols_for_target(ctx.symbol_type_view(), symbol)?;
         for extension_symbol in extension_symbols {
-            let extension = match self
-                .extension_for_symbol_in_module(ctx.module_type_view(), extension_symbol)
-            {
-                Ok(extension) => extension,
-                Err(AnalyzeError::Yield { .. }) => return None,
-                Err(error) => {
-                    self.error(error);
-                    return None;
-                }
-            };
+            let extension =
+                self.query_extension_for_symbol_in_module(ctx.module_type_view(), extension_symbol);
             let Some(extension) = extension else {
                 continue;
             };
@@ -858,17 +843,11 @@ impl Compiler {
             }
 
             // materialize the extension instance type before reading its surface
-            match self.resolve_instance_type_for_symbol(
-                &mut ctx.reborrow(),
-                node_id,
-                extension_symbol,
-            ) {
-                Ok(_) => {}
-                Err(AnalyzeError::Yield { .. }) => return None,
-                Err(error) => {
-                    self.error(error);
-                    return None;
-                }
+            if self
+                .query_instance_type_for_symbol(&mut ctx.reborrow(), node_id, extension_symbol)
+                .is_none()
+            {
+                return None;
             }
 
             if let Some(ty_id) =

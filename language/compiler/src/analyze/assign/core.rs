@@ -6,9 +6,7 @@ pub(crate) use destack_dir::{
 pub(crate) use destack_workspace::{ImplicitCollectionConversionPolicy, Module, ProfileId};
 pub(crate) use std::collections::{HashMap, HashSet};
 
-pub(crate) use super::super::common::{
-    CanonicalSymbolMode, DirReadBoundary, NormalizationMode, RelationMode,
-};
+pub(crate) use super::super::common::{CanonicalSymbolMode, NormalizationMode, RelationMode};
 pub(crate) use crate::timing::tags;
 pub(crate) use crate::{AnalyzeError, AnalyzeOptions, AnalyzeWarning, Compiler};
 

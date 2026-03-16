@@ -2,8 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::resolve::{AssociatedAliasProjectionRewriter, ProjectionEnvironment};
 use crate::analyze::common::{
-    CanonicalSymbolMode, DirReadBoundary, RelationMode, TreeSymbolView, TypeContext,
-    TypeRewriteCache,
+    CanonicalSymbolMode, RelationMode, TreeSymbolView, TypeContext, TypeRewriteCache,
 };
 use crate::analyze::declare::StaticConstantResolutionMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
@@ -199,20 +198,22 @@ impl Compiler {
         for heritage_expression_id in heritage_expressions {
             // resolve the heritage target and applied arguments
             let resolved_heritage = self
-                .with_module_tree_symbol_view_or_local_at_boundary(
+                .with_module_tree_symbol_view_or_local_for_artifact(
                     ctx.module,
                     ctx.profile,
                     heritage_expression_id.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    DirReadBoundary::Declared,
+                    destack_workspace::ArtifactKey::dir_declared,
                     |view| -> AnalyzeResult<Option<(GlobalSymbolId, Vec<StaticArgument>)>> {
                         let owner_options = self.analyze_context_options_for_module(view.module.id);
-                        let mut ctx = ctx.reborrow_for_module_with_options(
+                        let mut ctx = TypeContext::new(
                             view.module,
+                            ctx.profile,
                             &owner_options,
                             view.tree,
                             view.symbols,
+                            ctx.types,
                         );
                         let expression_id = heritage_expression_id.local_id;
                         let expression = view.tree.get(expression_id);
@@ -323,13 +324,13 @@ impl Compiler {
         ctx: &TypeContext<'_>,
         symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Vec<GlobalNodeId<Expression>>> {
-        self.with_module_tree_symbol_view_or_local_at_boundary(
+        self.with_module_tree_symbol_view_or_local_for_artifact(
             ctx.module,
             ctx.profile,
             symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |view| {
                 let symbol_entry = view.symbols.get_symbol(symbol.local_id);
                 let Some(primary_declaration) = symbol_entry.primary_declaration else {
@@ -414,13 +415,13 @@ impl Compiler {
 
         // include directly declared extensions from the receiver module
         let declared_extension_symbols = self
-            .with_module_tree_symbol_view_or_local_at_boundary(
+            .with_module_tree_symbol_view_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 canonical_receiver_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |view| {
                     let mut declared = Vec::new();
                     for declaration_id in view.tree.iter_node_ids_of_type::<Declaration>() {
@@ -465,13 +466,13 @@ impl Compiler {
         // find an extension that implements the owning interface
         for extension_symbol in extension_symbols {
             let substitutions = self
-                .with_module_tree_symbol_view_or_local_at_boundary(
+                .with_module_tree_symbol_view_or_local_for_artifact(
                     ctx.module,
                     ctx.profile,
                     extension_symbol.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    DirReadBoundary::Declared,
+                    destack_workspace::ArtifactKey::dir_declared,
                     |view| -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
                         let symbol_entry = view.symbols.get_symbol(extension_symbol.local_id);
                         let Some(primary_declaration) = symbol_entry.primary_declaration else {
@@ -491,11 +492,13 @@ impl Compiler {
                         };
 
                         let owner_options = self.analyze_context_options_for_module(view.module.id);
-                        let mut ctx = ctx.reborrow_for_module_with_options(
+                        let mut ctx = TypeContext::new(
                             view.module,
+                            ctx.profile,
                             &owner_options,
                             view.tree,
                             view.symbols,
+                            ctx.types,
                         );
                         self.interface_substitutions_for_owner_implements_types(
                             &mut ctx,
@@ -525,13 +528,13 @@ impl Compiler {
         receiver_arguments: &[StaticArgument],
         interface_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
-        self.with_module_tree_symbol_view_or_local_at_boundary(
+        self.with_module_tree_symbol_view_or_local_for_artifact(
             ctx.module,
             ctx.profile,
             receiver_symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |view| {
                 // resolve receiver declaration and heritage
                 let symbol_entry = view.symbols.get_symbol(receiver_symbol.local_id);
@@ -553,11 +556,13 @@ impl Compiler {
                 };
 
                 let owner_options = self.analyze_context_options_for_module(view.module.id);
-                let mut ctx = ctx.reborrow_for_module_with_options(
+                let mut ctx = TypeContext::new(
                     view.module,
+                    ctx.profile,
                     &owner_options,
                     view.tree,
                     view.symbols,
+                    ctx.types,
                 );
                 self.interface_substitutions_for_owner_implements_types(
                     &mut ctx,
@@ -897,13 +902,13 @@ impl Compiler {
 
         // collect owner associated comptime member symbols by name
         let owner_members = self
-            .with_module_tree_symbol_view_or_local_at_boundary(
+            .with_module_tree_symbol_view_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 owner_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |view| {
                     let mut members = Vec::new();
                     let symbol_entry = view.symbols.get_symbol(owner_symbol.local_id);
@@ -960,13 +965,13 @@ impl Compiler {
             }
 
             let resolved_member_symbol = self
-                .with_module_tree_symbol_view_or_local_at_boundary(
+                .with_module_tree_symbol_view_or_local_for_artifact(
                     ctx.module,
                     ctx.profile,
                     canonical_receiver_symbol.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    DirReadBoundary::Interface,
+                    destack_workspace::ArtifactKey::dir_interface,
                     |view| {
                         self.query_static_member_symbol(
                             view.module,
@@ -1100,76 +1105,6 @@ impl Compiler {
         }
     }
 
-    /// Import one alias target for projection substitution roots.
-    /// This path permits unresolved static-value arguments so projection rewriting can stay symbolic.
-    pub(super) fn projection_alias_target_type_id_for_symbol(
-        &self,
-        ctx: &mut TypeContext<'_>,
-        symbol: GlobalSymbolId,
-        source_id: LocalNodeIdAny,
-    ) -> Option<LocalTypeId> {
-        let typed_symbol = self
-            .with_module_tree_symbol_view_or_local_at_boundary(
-                ctx.module,
-                ctx.profile,
-                symbol.module_id,
-                ctx.tree,
-                ctx.symbols,
-                DirReadBoundary::Declared,
-                |view| {
-                    let symbol_entry = view.symbols.get_symbol(symbol.local_id);
-                    if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
-                        return None;
-                    }
-
-                    Some(GlobalSymbolId::new(
-                        symbol.module_id,
-                        symbol.local_id.with_type(symbol_entry.ty),
-                    ))
-                },
-            )
-            .map_err(AnalyzeError::from)
-            .ok()??;
-
-        if typed_symbol.module_id == ctx.module.id {
-            ctx.types
-                .record_normalization_symbol_dependency(typed_symbol);
-            return ctx
-                .types
-                .get_alias_target_type_id(typed_symbol)
-                .or_else(|| ctx.types.get_alias_target_type_id(symbol));
-        }
-
-        let remote_alias_target = self
-            .with_module_tree_symbol_type_view_at_boundary(
-                ctx.module,
-                ctx.profile,
-                typed_symbol.module_id,
-                DirReadBoundary::Declared,
-                |view| {
-                    let remote_target_id = view.types.get_alias_target_type_id(typed_symbol)?;
-                    let remote_target_ty = view.types.get_type(remote_target_id).clone();
-                    let remote_snapshot = view.types.clone();
-                    Some((remote_target_ty, remote_snapshot))
-                },
-            )
-            .map_err(AnalyzeError::from)
-            .ok()??;
-
-        let (remote_target_ty, remote_snapshot) = remote_alias_target;
-        let local_target_id = self.import_remote_type_for_node(
-            source_id,
-            &remote_target_ty,
-            &remote_snapshot,
-            ctx.types,
-        );
-        ctx.types
-            .record_normalization_symbol_dependency(typed_symbol);
-        ctx.types
-            .set_alias_target_type_id(typed_symbol, local_target_id);
-        Some(local_target_id)
-    }
-
     /// Find one projection substitution for a symbol, tolerating placeholder symbol types.
     fn projection_substitution_type_for_symbol(
         &self,
@@ -1274,6 +1209,25 @@ impl Compiler {
         local_type_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<LocalTypeId> {
+        // resolve local declared types before rewriting structured expression shapes
+        let needs_declared_shape = matches!(
+            ctx.tree.get(expression_id),
+            Expression::TypeMapped { .. }
+                | Expression::TupleExpression { .. }
+                | Expression::ArrayExpression { .. }
+                | Expression::TaggedTupleExpression { .. }
+                | Expression::TypeIndex { .. }
+                | Expression::Parenthesized { .. }
+                | Expression::TypeUnary {
+                    operator: TypeUnaryOperator::AsComptime,
+                    ..
+                }
+        );
+        if needs_declared_shape && matches!(ctx.types.get_type(local_type_id), Type::Unevaluated(_))
+        {
+            self.resolve_declared_type(&mut ctx.reborrow(), local_type_id)?;
+        }
+
         // projection alias roots
         if let Some(mapped_alias_target) = self.projection_substituted_alias_target_for_expression(
             &mut ctx.reborrow(),
@@ -1554,11 +1508,12 @@ impl Compiler {
         else {
             return Ok(None);
         };
-        let Some(alias_target_id) = self.projection_alias_target_type_id_for_symbol(
+        let Some(alias_target_id) = self.require_alias_target_type_id_for_symbol(
             &mut ctx.reborrow(),
             target_symbol,
             expression_id.into_any(),
-        ) else {
+        )?
+        else {
             return Ok(None);
         };
 
@@ -1934,13 +1889,13 @@ impl Compiler {
         }
 
         let mapped_alias_target = self
-            .with_module_tree_symbol_view_or_local_at_boundary(
+            .with_module_tree_symbol_view_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 target_symbol.module_id,
                 ctx.tree,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |view| -> AnalyzeResult<LocalTypeId> {
                     let owner_view =
                         TreeSymbolView::new(view.module, ctx.profile, view.tree, view.symbols);
@@ -1950,11 +1905,13 @@ impl Compiler {
                         return Ok(alias_target_id);
                     };
                     let owner_options = self.analyze_context_options_for_module(view.module.id);
-                    let mut ctx = ctx.reborrow_for_module_with_options(
+                    let mut ctx = TypeContext::new(
                         view.module,
+                        ctx.profile,
                         &owner_options,
                         view.tree,
                         view.symbols,
+                        ctx.types,
                     );
                     self.apply_projection_substitutions_from_expression(
                         &mut ctx,

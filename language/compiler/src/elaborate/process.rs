@@ -1,11 +1,11 @@
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, ProfileId};
+use destack_workspace::ProfileId;
+use std::sync::Arc;
 
-use crate::analyze::DirReadBoundary;
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, BuildKey, BuildProduct, BuildRequirementError, Compiler, ElaborateError,
-    ElaborateResult, ResolveError,
+    AnalyzeError, BuildKey, BuildRequirementError, Compiler, ElaborateError, ElaborateResult,
+    ResolveError,
 };
 use destack_dir::AnchoredGlobalNodeId;
 
@@ -62,7 +62,7 @@ impl Compiler {
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> ElaborateResult<BuildProduct> {
+    ) -> ElaborateResult<()> {
         let module_version = self.module_version(module);
         let profile_version = self.profile_version(profile);
         self.ensure_module_profile_matches::<ElaborateError>(
@@ -71,27 +71,22 @@ impl Compiler {
             profile,
             profile_version,
         )?;
-        let dir_data = self
-            .require_artifact_dir_for_boundary(module, profile, DirReadBoundary::Analyzed)
+        let mut dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
+                module, profile,
+            ))
             .map_err(|error| self.elaborate_error_from_requirement(error))?;
-        let (_, dir) = self.with_private_transient_artifact_dir(
-            module,
-            profile,
-            DirReadBoundary::Analyzed,
-            dir_data,
-            |dir| -> ElaborateResult<()> {
-                let module = self.program.modules.get(module);
-                let module = module.read();
+        {
+            let module = self.program.modules.get(module);
+            let module = module.as_ref();
+            let dir = Arc::make_mut(&mut dir);
 
-                let _timing = self.timing_scope(tags::ELABORATE_MODULE_TRANSFORM);
-                self.elaborate_module_transform(&module, profile, &dir)?;
+            let _timing = self.timing_scope(tags::ELABORATE_MODULE_TRANSFORM);
+            self.elaborate_module_transform(&module, profile, dir)?;
 
-                let _timing = self.timing_scope(tags::ELABORATE_MODULE_REIFY);
-                self.elaborate_module_reify(&module, profile, &dir)?;
-
-                Ok(())
-            },
-        )?;
+            let _timing = self.timing_scope(tags::ELABORATE_MODULE_REIFY);
+            self.elaborate_module_reify(&module, profile, dir)?;
+        }
 
         let is_code_module = self.is_code_module(module);
 
@@ -99,7 +94,11 @@ impl Compiler {
             self.stats.record_elaborate();
         }
 
-        Ok(BuildProduct::Dir(dir.to_data()))
+        self.program
+            .artifacts
+            .set_dir_elaborated(module, profile, dir);
+
+        Ok(())
     }
 
     /// Ensure elaborated DIR exists for a module.
@@ -108,9 +107,8 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::DirElaborated {
-            module,
-            profile,
-        }))
+        self.require_build_key(BuildKey::Artifact(
+            destack_workspace::ArtifactKey::DirElaborated { module, profile },
+        ))
     }
 }

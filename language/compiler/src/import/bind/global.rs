@@ -57,18 +57,18 @@ impl NodeVisitor for GlobalAugmentationVisitor<'_> {
 
 impl Compiler {
     /// Mark symbols declared within global augmentation blocks.
-    pub(super) fn mark_global_augmentation_symbols(&self, module: &Module) {
-        self.with_active_base_dir(module.id, |dir| {
-            let tree = dir.tree.read();
-            let mut symbols = dir.symbols.write();
-
-            // visit each global declaration to mark nested symbols
-            let mut visitor = GlobalAugmentationVisitor::new(&mut symbols);
-            for (declaration_id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
-                if matches!(declaration, Declaration::Global { .. }) {
-                    visitor.visit_declaration(&tree, declaration_id, declaration);
-                }
+    pub(super) fn mark_global_augmentation_symbols(
+        &self,
+        _module: &Module,
+        tree: &NodeTree,
+        symbols: &mut SymbolTable,
+    ) {
+        // visit each global declaration to mark nested symbols
+        let mut visitor = GlobalAugmentationVisitor::new(symbols);
+        for (declaration_id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
+            if matches!(declaration, Declaration::Global { .. }) {
+                visitor.visit_declaration(tree, declaration_id, &declaration);
             }
-        });
+        }
     }
 }

@@ -6,7 +6,7 @@ use destack_dir::{
     Pattern, Property, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
     SymbolType,
 };
-use destack_workspace::{DiagnosticPolicy, Module};
+use destack_workspace::{DiagnosticPolicy, ImportDir, Module};
 
 use crate::import::{SymbolDescriptor, can_merge_declarations};
 use crate::{Compiler, ImportError};
@@ -14,15 +14,15 @@ use crate::{Compiler, ImportError};
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Check for conflicting bindings in module scopes.
-    pub(super) fn validate_binding_conflicts(&self, module: &Module) {
+    pub(super) fn validate_binding_conflicts(&self, module: &Module, dir: &ImportDir) {
         // resolve local redeclaration policy by language mode
         let no_redeclare_locals = self.no_redeclared_locals_enabled(module);
         let mut reported_conflicts = HashSet::new();
 
         // load symbol tables
-        self.with_active_base_dir(module.id, |dir| {
-            let tree = dir.tree.read();
-            let symbols = dir.symbols.read();
+        {
+            let tree = &dir.tree;
+            let symbols = &dir.symbols;
 
             for scope in symbols.scopes() {
                 // group symbols by name and category to avoid O(n^2) scans
@@ -140,12 +140,13 @@ impl Compiler {
                 // validate conflicts that require ancestor scope checks
                 self.validate_ancestor_binding_conflicts(
                     module,
+                    dir,
                     &tree,
                     &symbols,
                     &mut reported_conflicts,
                 );
             }
-        });
+        }
     }
 
     /// Return true when local redeclarations should report conflicts.
@@ -414,12 +415,12 @@ impl Compiler {
     fn validate_ancestor_binding_conflicts(
         &self,
         module: &Module,
+        dir: &ImportDir,
         tree: &NodeTree,
         symbols: &SymbolTable,
         reported_conflicts: &mut HashSet<(u32, u32)>,
     ) {
-        let global_augmentation_scope =
-            self.with_active_base_dir(module.id, |dir| dir.global_augmentation_scope);
+        let global_augmentation_scope = dir.global_augmentation_scope;
 
         for scope in symbols.scopes() {
             for (key, symbol_id) in symbols.active_named_symbols(scope) {

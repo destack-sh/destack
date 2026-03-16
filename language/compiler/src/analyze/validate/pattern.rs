@@ -796,7 +796,10 @@ impl Compiler {
                 }
                 PatternField::Computed { key, pattern, .. } => {
                     let Some(key) = self.static_key_from_dynamic_key(
-                        ctx.tree_symbol_type_view(),
+                        ctx.profile,
+                        ctx.tree,
+                        ctx.symbols,
+                        ctx.types,
                         DynamicKey::Expression(*key),
                     ) else {
                         return false;
@@ -1595,7 +1598,10 @@ impl Compiler {
                     Some(StaticKey::Name(*name))
                 }
                 PatternField::Computed { key: field_key, .. } => self.static_key_from_dynamic_key(
-                    ctx.tree_symbol_type_view(),
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    ctx.types,
                     DynamicKey::Expression(*field_key),
                 ),
                 _ => None,

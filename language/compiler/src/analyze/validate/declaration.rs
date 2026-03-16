@@ -414,7 +414,13 @@ impl Compiler {
             match ctx.tree.get(*member_id) {
                 Member::Field { key, .. } => {
                     let Some(key) = key.and_then(|key| {
-                        self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key)
+                        self.static_key_from_dynamic_key(
+                            ctx.profile,
+                            ctx.tree,
+                            ctx.symbols,
+                            ctx.types,
+                            key,
+                        )
                     }) else {
                         continue;
                     };

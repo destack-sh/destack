@@ -2,9 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::resolve::AssociatedAliasProjectionRewriter;
 use crate::analyze::StaticMemberSymbolKind;
-use crate::analyze::common::{
-    DirReadBoundary, RelationMode, TreeSymbolView, TypeContext, TypeRewriteCache,
-};
+use crate::analyze::common::{RelationMode, TreeSymbolView, TypeContext, TypeRewriteCache};
 use crate::analyze::declare::StaticConstantResolutionMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
@@ -56,13 +54,13 @@ impl Compiler {
             && !member_arguments.is_empty()
         {
             let parameter_count = self
-                .with_module_tree_symbol_view_or_local_at_boundary(
+                .with_module_tree_symbol_view_or_local_for_artifact(
                     ctx.module,
                     ctx.profile,
                     target_symbol.module_id,
                     ctx.tree,
                     ctx.symbols,
-                    DirReadBoundary::Declared,
+                    destack_workspace::ArtifactKey::dir_declared,
                     |view| {
                         self.collect_static_parameter_symbols(
                             view.type_view(ctx.types),
@@ -121,17 +119,12 @@ impl Compiler {
         }
 
         // materialize associated type alias targets with merged substitutions
-        let mut alias_target_id = if let Some(alias_target_id) =
-            self.alias_target_type_id_for_symbol(&mut ctx.reborrow(), target_symbol, source_id)
-        {
-            alias_target_id
-        } else if let Some(alias_target_id) = self.projection_alias_target_type_id_for_symbol(
+        let Some(mut alias_target_id) = self.require_alias_target_type_id_for_symbol(
             &mut ctx.reborrow(),
             target_symbol,
             source_id,
-        ) {
-            alias_target_id
-        } else {
+        )?
+        else {
             return Ok(member_ty);
         };
 
@@ -194,13 +187,13 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> AnalyzeResult<bool> {
         // only associated type aliases can require projection arguments
-        self.with_module_tree_symbol_view_or_local_at_boundary(
+        self.with_module_tree_symbol_view_or_local_for_artifact(
             ctx.module,
             ctx.profile,
             symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |view| {
                 let symbol_entry = view.symbols.get_symbol(symbol.local_id);
                 if symbol_entry.ty != SymbolType::TypeAlias {

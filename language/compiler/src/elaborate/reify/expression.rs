@@ -18,19 +18,16 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &mut ModuleDir,
     ) -> ElaborateResult<()> {
         // skip non-code modules
         if !self.is_code_module(module.id) {
             return Ok(());
         }
 
-        // lock the dir tables
-        let mut tree = dir.tree.write();
-        let mut symbols = dir.symbols.write();
-        let mut types = dir.types.write();
         let ctx = ElaborateContext::new(module.id, module, profile);
-        let mut state = ElaborateState::new(ctx, &mut tree, &mut symbols, &mut types);
+        let (tree, symbols, types) = dir.tree_symbols_types_mut();
+        let mut state = ElaborateState::new(ctx, tree, symbols, types);
 
         // collect member expressions used as call or new callees
         let mut member_callees: HashSet<u32> = HashSet::new();

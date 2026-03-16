@@ -2,22 +2,23 @@ use std::collections::{HashMap, HashSet};
 
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
-    CanonicalSymbolMode, ContextualTypingMode, DirReadBoundary, InferContext, ModuleContext,
-    SymbolTypeView, TreeSymbolTypeView, TreeSymbolView, TypeContext, TypeView,
+    CanonicalSymbolMode, ContextualTypingMode, InferContext, SymbolTypeView, TreeSymbolView,
+    TypeContext, TypeView,
 };
 use crate::analyze::module::GlobalMergeCategory;
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferState};
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferState};
 use destack_dir::{
     AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DependencyItem,
     DynamicKey, EnumFieldValue, Expression, Freshness, GlobalNodeId, GlobalNodeIdAny,
     GlobalSymbolId, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny,
-    LocalSymbolId, LocalTypeId, Mutability, ScalarLiteral, StaticArgument, StaticExpression,
-    StaticKey, StaticParameter, StaticParameterKind, StaticProperty, StringId, SymbolType, Type,
-    TypeElement, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
+    LocalSymbolId, LocalTypeId, Mutability, NodeTree, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, StaticParameter, StaticParameterKind, StaticProperty, StringId,
+    SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeLiteral, TypeTable,
+    TypeUnaryOperator,
 };
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{Module, ProfileId};
 
 /// Inherited static arguments and substitutions for a type reference.
 #[derive(Debug, Clone)]
@@ -44,25 +45,24 @@ impl Compiler {
         }
 
         let owner_module = self.program.modules.get(module_id);
-        let owner_module = owner_module.read();
+        let owner_module = owner_module.as_ref();
         let owner_options = self.analyze_context_options_for_module(owner_module.id);
 
-        self.with_module_tree_symbols_at_boundary(
-            ctx.module,
+        let owner_dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                module_id,
+                ctx.profile,
+            ))
+            .map_err(AnalyzeError::from)?;
+        let mut owner_ctx = TypeContext::new(
+            owner_module,
             ctx.profile,
-            module_id,
-            DirReadBoundary::Declared,
-            |owner_module, tree, symbols| {
-                let mut owner_ctx = ctx.reborrow_for_module_with_options(
-                    owner_module,
-                    &owner_options,
-                    tree,
-                    symbols,
-                );
-                handle(&mut owner_ctx)
-            },
-        )
-        .map_err(AnalyzeError::from)?
+            &owner_options,
+            &owner_dir.tree,
+            &owner_dir.symbols,
+            ctx.types,
+        );
+        handle(&mut owner_ctx)
     }
 
     /// Resolve a static parameter symbol for a reference expression.
@@ -79,12 +79,12 @@ impl Compiler {
             return Ok(None);
         };
 
-        self.with_module_symbols_or_local_at_boundary(
+        self.with_module_symbols_or_local_for_artifact(
             ctx.module,
             ctx.profile,
             target_symbol.module_id,
             ctx.symbols,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_resolved,
             |owner_module, owner_symbols| {
                 if self.symbol_is_static_parameter(
                     SymbolTypeView::new(owner_module, ctx.profile, owner_symbols, ctx.types),
@@ -126,10 +126,8 @@ impl Compiler {
         }
 
         // otherwise, resolve the owning module and ensure the node exists there
-        let argument_snapshot = self.require_artifact_dir_for_boundary(
-            argument_node.module_id,
-            view.profile,
-            DirReadBoundary::Declared,
+        let argument_snapshot = self.require_artifact_dir(
+            destack_workspace::ArtifactKey::dir_declared(argument_node.module_id, view.profile),
         )?;
         if !argument_snapshot
             .tree
@@ -143,7 +141,7 @@ impl Compiler {
         }
 
         let argument_module = self.program.modules.get(argument_node.module_id);
-        let argument_module = argument_module.read();
+        let argument_module = argument_module.as_ref();
         let view = TreeSymbolView::new(
             &argument_module,
             view.profile,
@@ -182,10 +180,8 @@ impl Compiler {
         }
 
         // otherwise, resolve the owning module and ensure the node exists there
-        let argument_snapshot = self.require_artifact_dir_for_boundary(
-            argument_node.module_id,
-            ctx.profile,
-            DirReadBoundary::Declared,
+        let argument_snapshot = self.require_artifact_dir(
+            destack_workspace::ArtifactKey::dir_resolved(argument_node.module_id, ctx.profile),
         )?;
         if !argument_snapshot
             .tree
@@ -199,13 +195,15 @@ impl Compiler {
         }
 
         let argument_module = self.program.modules.get(argument_node.module_id);
-        let argument_module = argument_module.read();
+        let argument_module = argument_module.as_ref();
         let argument_options = self.analyze_context_options_for_module(argument_module.id);
-        let mut ctx = ctx.reborrow_for_module_with_options(
+        let mut ctx = TypeContext::new(
             &argument_module,
+            ctx.profile,
             &argument_options,
             &argument_snapshot.tree,
             &argument_snapshot.symbols,
+            ctx.types,
         );
         f(&mut ctx, argument_id).map(Some)
     }
@@ -213,7 +211,7 @@ impl Compiler {
     /// Map static argument values to parameters by name and position.
     pub(crate) fn assign_static_argument_values(
         &self,
-        call_site: ModuleContext<'_>,
+        call_site: TreeSymbolView<'_>,
         node_id: LocalNodeIdAny,
         static_arguments: &[StaticArgument],
         parameters: &[StaticParameter],
@@ -225,14 +223,8 @@ impl Compiler {
             let (argument_name, is_spread) = match argument {
                 StaticArgument::Evaluated { name, .. } => (*name, false),
                 StaticArgument::Unevaluated { node } => {
-                    let call_site_view = TreeSymbolView::new(
-                        call_site.module,
-                        call_site.profile,
-                        call_site.tree,
-                        call_site.symbols,
-                    );
                     let info = self.with_static_argument_owner_read(
-                        call_site_view,
+                        call_site,
                         *node,
                         |view, argument_id| {
                             let argument = view.tree.get(argument_id);
@@ -358,7 +350,7 @@ impl Compiler {
                     static_arguments,
                 }) => {
                     let symbol = self
-                        .remap_typevalue_symbol_to_type_space(ctx.module, ctx.profile, symbol)
+                        .remap_typevalue_symbol_to_type_space(ctx.module_symbol_view(), symbol)
                         .map_err(AnalyzeError::from)?;
                     Some((symbol, static_arguments))
                 }
@@ -819,7 +811,8 @@ impl Compiler {
     pub(crate) fn resolve_static_argument(
         &self,
         ctx: &mut TypeContext<'_>,
-        call_site: ModuleContext<'_>,
+        call_site: TreeSymbolView<'_>,
+        call_site_options: &AnalyzeOptions,
         static_parameter: &StaticParameter,
         assigned_argument: Option<StaticArgument>,
         treat_type_arguments_as_types: bool,
@@ -829,6 +822,7 @@ impl Compiler {
             let resolved_argument = self.resolve_explicit_static_argument(
                 &mut ctx.reborrow(),
                 call_site,
+                call_site_options,
                 static_parameter,
                 argument,
                 treat_type_arguments_as_types,
@@ -871,7 +865,8 @@ impl Compiler {
     fn resolve_explicit_static_argument(
         &self,
         ctx: &mut TypeContext<'_>,
-        call_site: ModuleContext<'_>,
+        call_site: TreeSymbolView<'_>,
+        call_site_options: &AnalyzeOptions,
         static_parameter: &StaticParameter,
         argument: StaticArgument,
         treat_type_arguments_as_types: bool,
@@ -882,7 +877,7 @@ impl Compiler {
                 let mut call_site_ctx = TypeContext::new(
                     call_site.module,
                     call_site.profile,
-                    call_site.options,
+                    call_site_options,
                     call_site.tree,
                     call_site.symbols,
                     ctx.types,
@@ -904,7 +899,7 @@ impl Compiler {
                 let mut call_site_ctx = TypeContext::new(
                     call_site.module,
                     call_site.profile,
-                    call_site.options,
+                    call_site_options,
                     call_site.tree,
                     call_site.symbols,
                     ctx.types,
@@ -1386,29 +1381,28 @@ impl Compiler {
         // select the module context for the enum
         let matches = if enum_symbol.module_id == ctx.module.id {
             let _ = self.enum_backing_type_for_symbol(&mut ctx.reborrow(), enum_symbol);
-            self.enum_literal_matches_symbol(ctx.tree_symbol_type_view(), enum_symbol, literal)
+            self.enum_literal_matches_symbol(ctx.tree, ctx.symbols, ctx.types, enum_symbol, literal)
         } else {
-            self.with_module_tree_symbols_types_by_id_at_boundary(
-                ctx.profile,
+            self.require_remote_artifact_dir(
+                ctx.module.id,
                 enum_symbol.module_id,
-                ctx.tree,
-                ctx.symbols,
-                ctx.types,
-                DirReadBoundary::Declared,
-                |owner_tree, owner_symbols, owner_types| {
-                    self.enum_literal_matches_symbol(
-                        TreeSymbolTypeView::new(
-                            ctx.profile,
-                            owner_tree,
-                            owner_symbols,
-                            owner_types,
-                        ),
-                        enum_symbol,
-                        literal,
-                    )
-                },
+                ctx.profile,
+                destack_workspace::ArtifactKey::dir_declared,
             )
-            .map_err(AnalyzeError::from)?
+            .map_err(AnalyzeError::from)?;
+            let snapshot = self
+                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                    enum_symbol.module_id,
+                    ctx.profile,
+                ))
+                .map_err(AnalyzeError::from)?;
+            self.enum_literal_matches_symbol(
+                &snapshot.tree,
+                &snapshot.symbols,
+                &snapshot.types,
+                enum_symbol,
+                literal,
+            )
         };
 
         Ok(matches)
@@ -1429,12 +1423,14 @@ impl Compiler {
     /// Check whether a scalar literal matches an enum field value.
     fn enum_literal_matches_symbol(
         &self,
-        ctx: TreeSymbolTypeView<'_>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         enum_symbol: GlobalSymbolId,
         literal: &ScalarLiteral,
     ) -> bool {
         // ensure the symbol refers to an enum declaration
-        let symbol_entry = ctx.symbols.get_symbol(enum_symbol.local_id);
+        let symbol_entry = symbols.get_symbol(enum_symbol.local_id);
         if symbol_entry.ty != SymbolType::Enum {
             return false;
         }
@@ -1453,13 +1449,13 @@ impl Compiler {
             let Ok(declaration_id) = declaration_id.try_into_local_typed::<Declaration>() else {
                 continue;
             };
-            let Declaration::Enum { fields, .. } = ctx.tree.get(declaration_id) else {
+            let Declaration::Enum { fields, .. } = tree.get(declaration_id) else {
                 continue;
             };
             for field_id in fields {
-                let field = ctx.tree.get(*field_id);
+                let field = tree.get(*field_id);
                 let field_symbol = field.symbol.into_global(enum_symbol.module_id);
-                let Some(value) = ctx.types.get_enum_field_value(field_symbol) else {
+                let Some(value) = types.get_enum_field_value(field_symbol) else {
                     continue;
                 };
                 if self.enum_field_value_matches_literal(value, literal) {
@@ -1926,67 +1922,94 @@ impl Compiler {
     /// Resolve the target argument mapping for an extension declaration.
     pub(crate) fn extension_target_argument_mapping(
         &self,
+        module: &Module,
         extension_symbol: GlobalSymbolId,
         extension_parameters: &[GlobalSymbolId],
         profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
     ) -> AnalyzeResult<Option<Vec<usize>>> {
-        let module = self.program.modules.get(extension_symbol.module_id);
-        let module = module.read();
-
-        self.with_module_tree_symbols_at_boundary(
-            &module,
-            profile,
+        self.require_remote_artifact_dir(
+            module.id,
             extension_symbol.module_id,
-            DirReadBoundary::Declared,
-            |_, tree, symbols| {
-                let symbol_entry = symbols.get_symbol(extension_symbol.local_id);
-                let primary_declaration = symbol_entry.primary_declaration?;
-                let declaration_id = primary_declaration
-                    .try_into_local_typed::<Declaration>()
-                    .ok()?;
-                let declaration = tree.get(declaration_id);
-                let Declaration::Extension { target_type, .. } = declaration else {
-                    return None;
-                };
+            profile,
+            destack_workspace::ArtifactKey::dir_declared,
+        )?;
 
-                // read the target type arguments
-                let target_expression = tree.get(*target_type);
-                let static_arguments = match target_expression {
-                    Expression::LocalReference {
-                        static_arguments, ..
-                    }
-                    | Expression::ModuleReference {
-                        static_arguments, ..
-                    }
-                    | Expression::GlobalReference {
-                        static_arguments, ..
-                    } => static_arguments.as_ref(),
-                    _ => None,
-                }?;
+        let remote_snapshot;
 
-                // map target arguments to extension parameter indices
-                let mut mapping = Vec::with_capacity(static_arguments.len());
-                for argument_id in static_arguments {
-                    let argument = tree.get(*argument_id);
-                    let expression_id = argument.value();
-                    let expression = tree.get(expression_id);
-                    let target_symbol = match expression {
-                        Expression::LocalReference { target_symbol, .. }
-                        | Expression::ModuleReference { target_symbol, .. }
-                        | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
-                        _ => None,
-                    }?;
+        // read local tables directly and fall back to the declared remote artifact when needed
+        let (tree, symbols) = if extension_symbol.module_id == module.id {
+            (tree, symbols)
+        } else {
+            remote_snapshot = self
+                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                    extension_symbol.module_id,
+                    profile,
+                ))
+                .map_err(AnalyzeError::from)?;
+            (
+                remote_snapshot.tree.as_ref(),
+                remote_snapshot.symbols.as_ref(),
+            )
+        };
 
-                    let parameter_index = extension_parameters
-                        .iter()
-                        .position(|parameter_symbol| *parameter_symbol == target_symbol)?;
-                    mapping.push(parameter_index);
-                }
+        let symbol_entry = symbols.get_symbol(extension_symbol.local_id);
+        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            return Ok(None);
+        };
+        let Ok(declaration_id) = primary_declaration.try_into_local_typed::<Declaration>() else {
+            return Ok(None);
+        };
+        let declaration = tree.get(declaration_id);
+        let Declaration::Extension { target_type, .. } = declaration else {
+            return Ok(None);
+        };
 
-                Some(mapping)
-            },
-        )
-        .map_err(AnalyzeError::from)
+        // read the target type arguments
+        let target_expression = tree.get(*target_type);
+        let static_arguments = match target_expression {
+            Expression::LocalReference {
+                static_arguments, ..
+            }
+            | Expression::ModuleReference {
+                static_arguments, ..
+            }
+            | Expression::GlobalReference {
+                static_arguments, ..
+            } => static_arguments.as_ref(),
+            _ => None,
+        };
+        let Some(static_arguments) = static_arguments else {
+            return Ok(None);
+        };
+
+        // map target arguments to extension parameter indices
+        let mut mapping = Vec::with_capacity(static_arguments.len());
+        for argument_id in static_arguments {
+            let argument = tree.get(*argument_id);
+            let expression_id = argument.value();
+            let expression = tree.get(expression_id);
+            let target_symbol = match expression {
+                Expression::LocalReference { target_symbol, .. }
+                | Expression::ModuleReference { target_symbol, .. }
+                | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
+                _ => None,
+            };
+            let Some(target_symbol) = target_symbol else {
+                return Ok(None);
+            };
+
+            let Some(parameter_index) = extension_parameters
+                .iter()
+                .position(|parameter_symbol| *parameter_symbol == target_symbol)
+            else {
+                return Ok(None);
+            };
+            mapping.push(parameter_index);
+        }
+
+        Ok(Some(mapping))
     }
 
     /// Resolve a static argument constraint for validation.
@@ -2260,7 +2283,8 @@ impl Compiler {
         treat_type_arguments_as_types: bool,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         // preserve caller module context for bound validation
-        let call_site = ctx.module_context();
+        let call_site = TreeSymbolView::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols);
+        let call_site_options = ctx.options;
 
         // ensure remote declarations are resolved before reading defaults
         if symbol.module_id != ctx.module.id {
@@ -2273,6 +2297,7 @@ impl Compiler {
             return self.resolve_type_reference_static_arguments_in_owner(
                 &mut ctx,
                 call_site,
+                call_site_options,
                 node_id,
                 symbol,
                 static_arguments,
@@ -2286,6 +2311,7 @@ impl Compiler {
             self.resolve_type_reference_static_arguments_in_owner(
                 owner_ctx,
                 call_site,
+                call_site_options,
                 node_id,
                 symbol,
                 static_arguments,
@@ -2300,7 +2326,8 @@ impl Compiler {
     fn resolve_type_reference_static_arguments_in_owner(
         &self,
         ctx: &mut TypeContext<'_>,
-        call_site: ModuleContext<'_>,
+        call_site: TreeSymbolView<'_>,
+        call_site_options: &AnalyzeOptions,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
@@ -2375,6 +2402,7 @@ impl Compiler {
             let resolved_argument = self.resolve_static_argument(
                 &mut ctx.reborrow(),
                 call_site,
+                call_site_options,
                 static_parameter,
                 assigned_argument,
                 treat_type_arguments_as_types,
@@ -2488,11 +2516,13 @@ impl Compiler {
 
             // validate type and value arguments against declared bounds
             let validated_type = if validate_static_argument_bounds {
-                let mut ctx = ctx.reborrow_for_module_with_options(
+                let mut ctx = TypeContext::new(
                     call_site.module,
-                    call_site.options,
+                    ctx.profile,
+                    call_site_options,
                     call_site.tree,
                     call_site.symbols,
+                    ctx.types,
                 );
                 self.validate_static_argument(
                     &mut ctx,
@@ -2622,12 +2652,12 @@ impl Compiler {
         }
 
         let symbol_info = self
-            .with_module_symbols_or_local_at_boundary(
+            .with_module_symbols_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |_, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
                     (symbol_entry.key, symbol_entry.space)

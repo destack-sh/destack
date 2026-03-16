@@ -23,13 +23,12 @@ use destack_source::{
     PackageVersion, PhysicalFileSystem, PrintOptions, ProfileStamp, ProfileVersion, Uri,
     print_diagnostics, print_diff,
 };
-use destack_vm::{Heap, Isolate, IsolateOptions, ManagedHeap, RawHeap, Value};
+use destack_vm::{Heap, Isolate, IsolateOptions, Value};
 use destack_workspace::{
     ArtifactKey, CacheMode, CacheStore, Destack, DestackJson, DestackOptions, DiskCacheStore,
-    MemoryCacheStore, Module, ModuleDir, ModuleDirData, ModuleMir, ModuleMirData, OutputFormat,
-    ProfileId, Program, Session, Target, TargetId,
+    ImportDir, MemoryCacheStore, Module, ModuleDir, ModuleMir, OutputFormat, ProfileId,
+    Program, Session, Target, TargetId,
 };
-use parking_lot::RwLock;
 use serde_json::json;
 
 use crate::{BuildKey, Compiler, CompilerOptions, Task, TaskPhase, default_workers};
@@ -219,35 +218,83 @@ impl TestIsolate {
 }
 
 impl TestProgram {
+    /// Rebuild one mutable import DIR from one published artifact for test-only inspection.
+    fn import_dir_from_artifact(dir: ModuleDir) -> ImportDir {
+        ImportDir {
+            profile_id: dir.profile_id,
+            id: dir.id,
+            version: dir.version,
+            tree: Arc::unwrap_or_clone(dir.tree),
+            symbols: Arc::unwrap_or_clone(dir.symbols),
+            types: Arc::unwrap_or_clone(dir.types),
+            captures: Arc::unwrap_or_clone(dir.captures),
+            roots: Arc::unwrap_or_clone(dir.roots),
+            anchor_node: dir.anchor_node,
+            import_meta: dir.import_meta,
+            namespace_symbol: dir.namespace_symbol,
+            namespace_scope: dir.namespace_scope,
+            global_augmentation_scope: dir.global_augmentation_scope,
+            default_symbol: dir.default_symbol,
+            export_assignment_symbol: dir.export_assignment_symbol,
+            export_assignment: dir.export_assignment,
+            namespace_exports: Arc::unwrap_or_clone(dir.namespace_exports),
+            module_bindings: Arc::unwrap_or_clone(dir.module_bindings),
+            module_binding_exports: Arc::unwrap_or_clone(dir.module_binding_exports),
+            imported_modules: Arc::unwrap_or_clone(dir.imported_modules),
+            exported_symbols: Arc::unwrap_or_clone(dir.exported_symbols),
+        }
+    }
+
     /// Return the most advanced published DIR for one module and profile when available.
     pub(crate) fn artifact_dir_data_maybe(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-    ) -> Option<ModuleDirData> {
-        // prefer the most advanced published semantic product
-        let dir = self.program.artifacts.dir_snapshot(module_id, profile);
+    ) -> Option<ModuleDir> {
+        for dir in [
+            self.program.artifacts.dir_patched(module_id, profile),
+            self.program.artifacts.dir_elaborated(module_id, profile),
+            self.program.artifacts.dir_analyzed(module_id, profile),
+            self.program.artifacts.dir_interface(module_id, profile),
+            self.program.artifacts.dir_declared(module_id, profile),
+            self.program.artifacts.dir_resolved(module_id, profile),
+            self.program.artifacts.dir_prepared(module_id, profile),
+            self.program.artifacts.dir_base(module_id),
+        ] {
+            if let Some(dir) = dir {
+                return Some(dir.as_ref().clone());
+            }
+        }
 
-        dir.map(|dir| dir.as_ref().clone())
+        None
     }
 
     /// Return the most advanced published DIR for one module and profile.
-    pub(crate) fn artifact_dir_data(
-        &self,
-        module_id: ModuleId,
-        profile: ProfileId,
-    ) -> ModuleDirData {
+    pub(crate) fn artifact_dir_data(&self, module_id: ModuleId, profile: ProfileId) -> ModuleDir {
         self.artifact_dir_data_maybe(module_id, profile)
             .unwrap_or_else(|| panic!("missing artifact dir for module {module_id:?}"))
     }
 
+    /// Return the declared DIR data for one module and profile.
+    pub(crate) fn artifact_dir_declared_data(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> ModuleDir {
+        self.program
+            .artifacts
+            .dir_declared(module_id, profile)
+            .map(|dir| dir.as_ref().clone())
+            .unwrap_or_else(|| panic!("missing declared dir for module {module_id:?}"))
+    }
+
     /// Return the most advanced published DIR for one module and profile.
-    pub(crate) fn artifact_dir(&self, module_id: ModuleId, profile: ProfileId) -> ModuleDir {
-        ModuleDir::from_data(self.artifact_dir_data(module_id, profile))
+    pub(crate) fn artifact_dir(&self, module_id: ModuleId, profile: ProfileId) -> ImportDir {
+        Self::import_dir_from_artifact(self.artifact_dir_data(module_id, profile))
     }
 
     /// Return the resolved DIR artifact for one module's default profile.
-    pub(crate) fn dir_resolved(&self, module_id: ModuleId) -> ModuleDir {
+    pub(crate) fn dir_resolved(&self, module_id: ModuleId) -> ImportDir {
         let profile = self.default_profile_id(module_id);
         let dir = self
             .program
@@ -255,22 +302,22 @@ impl TestProgram {
             .dir_resolved(module_id, profile)
             .unwrap_or_else(|| panic!("missing resolved dir for module {module_id:?}"));
 
-        ModuleDir::from_data(dir.as_ref().clone())
+        Self::import_dir_from_artifact(dir.as_ref().clone())
     }
 
     /// Return the base DIR artifact for one module.
-    pub(crate) fn dir_base(&self, module_id: ModuleId) -> ModuleDir {
+    pub(crate) fn dir_base(&self, module_id: ModuleId) -> ImportDir {
         let dir = self
             .program
             .artifacts
             .dir_base(module_id)
             .unwrap_or_else(|| panic!("missing base dir for module {module_id:?}"));
 
-        ModuleDir::from_data(dir.as_ref().clone())
+        Self::import_dir_from_artifact(dir.as_ref().clone())
     }
 
     /// Return the declared DIR artifact for one module's default profile.
-    pub(crate) fn dir_declared(&self, module_id: ModuleId) -> ModuleDir {
+    pub(crate) fn dir_declared(&self, module_id: ModuleId) -> ImportDir {
         let profile = self.default_profile_id(module_id);
         let dir = self
             .program
@@ -278,34 +325,28 @@ impl TestProgram {
             .dir_declared(module_id, profile)
             .unwrap_or_else(|| panic!("missing declared dir for module {module_id:?}"));
 
-        ModuleDir::from_data(dir.as_ref().clone())
+        Self::import_dir_from_artifact(dir.as_ref().clone())
     }
 
-    /// Return the most advanced published MIR for one module, profile, and target.
-    pub(crate) fn artifact_mir_data(
-        &self,
-        module_id: ModuleId,
-        profile: ProfileId,
-        target_id: &TargetId,
-    ) -> ModuleMirData {
-        // prefer optimized MIR when available
-        let mir = self
-            .program
-            .artifacts
-            .mir_snapshot(module_id, profile, target_id)
-            .unwrap_or_else(|| panic!("missing artifact mir for module {module_id:?}"));
-
-        mir.as_ref().clone()
-    }
-
-    /// Return the most advanced published MIR for one module, profile, and target.
+    /// Return the published MIR for one module, profile, and target.
     pub(crate) fn artifact_mir(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
         target_id: &TargetId,
     ) -> ModuleMir {
-        ModuleMir::from_data(self.artifact_mir_data(module_id, profile, target_id))
+        let mir = self
+            .program
+            .artifacts
+            .mir_optimized(module_id, profile, target_id)
+            .or_else(|| {
+                self.program
+                    .artifacts
+                    .mir_base(module_id, profile, target_id)
+            })
+            .unwrap_or_else(|| panic!("missing artifact mir for module {module_id:?}"));
+
+        mir.as_ref().clone()
     }
 
     /// Create a new TestProgram with the given options.
@@ -551,7 +592,7 @@ impl TestProgram {
     /// Get the current module version.
     pub fn module_version(&self, module_id: ModuleId) -> ModuleVersion {
         let module = self.program.modules.get(module_id);
-        module.read().version
+        module.version()
     }
 
     /// Get the current module stamp.
@@ -682,7 +723,7 @@ impl TestProgram {
     /// Uses `Target::implicit_for_name()` for known target names like "native", "js", "wasm".
     pub fn add_target(&self, module: ModuleId, name: &str) {
         let module_ref = self.program.modules.get(module);
-        let package_id = module_ref.read().package_id;
+        let package_id = module_ref.package_id;
         let target_id = TargetId::new(package_id, name);
         let target_config = Target::implicit_for_name(name)
             .unwrap_or_else(|| panic!("unknown implicit target '{name}'"));
@@ -706,7 +747,7 @@ impl TestProgram {
         configure: impl FnOnce(&mut Target),
     ) {
         let module_ref = self.program.modules.get(module);
-        let package_id = module_ref.read().package_id;
+        let package_id = module_ref.package_id;
         let target_id = TargetId::new(package_id, name);
         let target_config = Target::implicit_for_name(name)
             .unwrap_or_else(|| panic!("unknown implicit target '{name}'"));
@@ -738,7 +779,7 @@ impl TestProgram {
         };
 
         let module_ref = self.program.modules.get(module);
-        let package_id = module_ref.read().package_id;
+        let package_id = module_ref.package_id;
         let package = self.program.packages.get(package_id);
         let mut package = package.write();
         package.config = Some(config);
@@ -751,7 +792,7 @@ impl TestProgram {
     /// Enqueue Lower task for a module.
     pub fn lower_module(&self, module: ModuleId, target: &str) {
         let module_ref = self.program.modules.get(module);
-        let package_id = module_ref.read().package_id;
+        let package_id = module_ref.package_id;
         let target_id = TargetId::new(package_id, target);
         let target_config = Target::implicit_for_name(target)
             .unwrap_or_else(|| panic!("unknown implicit target '{target}'"));
@@ -769,7 +810,7 @@ impl TestProgram {
             .program
             .profile_id_for_target(module, &target_id)
             .unwrap_or_else(|| panic!("missing profile for target '{target}'"));
-        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::Mir {
+        self.enqueue_build_key(BuildKey::Artifact(ArtifactKey::MirBase {
             module,
             profile,
             target: target_id,
@@ -779,7 +820,7 @@ impl TestProgram {
     /// Enqueue Optimize task for a module.
     pub fn optimize_module(&self, module: ModuleId, target: &str) {
         let module_ref = self.program.modules.get(module);
-        let package_id = module_ref.read().package_id;
+        let package_id = module_ref.package_id;
         let target_id = TargetId::new(package_id, target);
         let profile = self
             .program
@@ -869,7 +910,7 @@ impl TestProgram {
     /// Get the file for a module.
     pub fn file(&self, module: ModuleId) -> Arc<File> {
         let module = self.program.modules.get(module);
-        self.program.files.get(module.read().file_id)
+        self.program.files.get(module.file_id)
     }
 
     /// Get the root expression ids for a module.
@@ -889,7 +930,7 @@ impl TestProgram {
         f: impl FnOnce(
             &Module,
             ProfileId,
-            &destack_workspace::ModuleDir,
+            &destack_workspace::ImportDir,
             &NodeTree,
             &SymbolTable,
             &TypeTable,
@@ -898,16 +939,11 @@ impl TestProgram {
         // load module state
         let profile = self.default_profile_id(module_id);
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let dir = self.artifact_dir(module_id, profile);
 
-        // lock dir tables
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let types = dir.types.read();
-
         // run the callback
-        f(&module, profile, &dir, &tree, &symbols, &types)
+        f(&module, profile, &dir, &dir.tree, &dir.symbols, &dir.types)
     }
 
     /// Run a closure with mutable access to a module's type table.
@@ -917,7 +953,7 @@ impl TestProgram {
         f: impl FnOnce(
             &Module,
             ProfileId,
-            &destack_workspace::ModuleDir,
+            &destack_workspace::ImportDir,
             &NodeTree,
             &SymbolTable,
             &mut TypeTable,
@@ -926,20 +962,18 @@ impl TestProgram {
         // load module state
         let profile = self.default_profile_id(module_id);
         let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = self.artifact_dir(module_id, profile);
-
-        // lock dir tables
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let mut types = dir.types.write();
+        let module = module.as_ref();
+        let mut dir = self.artifact_dir(module_id, profile);
+        let mut types = std::mem::replace(&mut dir.types, TypeTable::new(module_id));
 
         // run the callback
-        f(&module, profile, &dir, &tree, &symbols, &mut types)
+        let result = f(&module, profile, &dir, &dir.tree, &dir.symbols, &mut types);
+        dir.types = types;
+        result
     }
 
     /// Get a module by URI.
-    pub fn module(&self, module_uri: &str) -> Arc<RwLock<Module>> {
+    pub fn module(&self, module_uri: &str) -> Arc<Module> {
         self.program
             .modules
             .get_by_uri(&Uri::from_string(module_uri))
@@ -947,7 +981,7 @@ impl TestProgram {
     }
 
     /// Get a module by file.
-    pub fn module_for_file(&self, file: &File) -> Arc<RwLock<Module>> {
+    pub fn module_for_file(&self, file: &File) -> Arc<Module> {
         self.program
             .modules
             .get_by_uri(&file.uri)
@@ -1106,13 +1140,11 @@ impl TestProgram {
     /// Unbind a module's DIR back to AST and format it to a string.
     pub fn unbind_to_string(&self, module_id: ModuleId) -> String {
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let profile = self.default_profile_id(module.id);
         let dir = self.artifact_dir(module.id, profile);
 
         // unbind DIR to AST
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
         let fallback_node = dir
             .roots
             .first()
@@ -1121,8 +1153,8 @@ impl TestProgram {
             .unwrap_or(dir.anchor_node);
         let unbound = self.compiler.unbind_module_from_parts(
             &module,
-            &tree,
-            &symbols,
+            &dir.tree,
+            &dir.symbols,
             &dir.roots,
             fallback_node,
             profile,
@@ -1169,13 +1201,13 @@ impl TestProgram {
     /// Format a module's MIR to a string.
     pub fn mir_to_string(&self, module_id: ModuleId, target: &str) -> String {
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let target_id = TargetId::new(module.package_id, target);
         let profile = self.default_profile_id(module_id);
         let mir = self.artifact_mir(module_id, profile, &target_id);
-        let tree = mir.tree.read();
+        let tree = &mir.tree;
         let strings = mir.strings.clone().into_immutable();
-        format_mir(&tree, &strings, self.mir_format_options())
+        format_mir(tree, &strings, self.mir_format_options())
     }
 
     /// Format MIR options for test output.
@@ -1219,7 +1251,7 @@ impl TestProgram {
     ) -> T {
         // load the module for the target
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
 
         // build the target id
         let target_id = TargetId::new(module.package_id, target);
@@ -1227,21 +1259,21 @@ impl TestProgram {
         // load the mir module state
         let profile = self.default_profile_id(module_id);
         let mir = self.artifact_mir(module_id, profile, &target_id);
-        let tree = mir.tree.read();
+        let tree = &mir.tree;
         let strings = mir.strings.clone().into_immutable();
 
         // run the callback while the tree is held
-        f(&tree, &strings)
+        f(tree, &strings)
     }
 
     /// Create a fresh MIR interpreter for the module and target.
     pub fn mir_isolate(&self, module_id: ModuleId, target: &str) -> TestIsolate {
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let target_id = TargetId::new(module.package_id, target);
         let profile = self.default_profile_id(module_id);
         let mir = self.artifact_mir(module_id, profile, &target_id);
-        let tree = mir.tree.read().clone();
+        let tree = mir.tree.clone();
         let strings = mir.strings.clone().into_immutable();
         let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
@@ -1342,18 +1374,14 @@ impl TestProgram {
         // load module state
         let profile = self.default_profile_id(symbol_id.module_id);
         let dir = self.artifact_dir(symbol_id.module_id, profile);
-        let symbols = dir.symbols.read();
-
         // return the symbol
-        symbols.get_symbol(symbol_id.into_local()).clone()
+        dir.symbols.get_symbol(symbol_id.into_local()).clone()
     }
 
     /// Get the root expression for a bound module.
     pub fn expect_root_expression(&self, module_id: ModuleId) -> LocalNodeId<Expression> {
         // load bound module state
         let dir = self.dir_base(module_id);
-        let tree = dir.tree.read();
-
         // require a single root expression
         let roots = &dir.roots;
         if roots.len() != 1 {
@@ -1362,7 +1390,7 @@ impl TestProgram {
 
         // unwrap statement roots to their inner expression
         let root_id = roots[0];
-        let expression = tree.get(root_id);
+        let expression = dir.tree.get(root_id);
         match expression {
             Expression::Statement { statement } => *statement,
             _ => root_id,
@@ -1374,18 +1402,18 @@ impl TestProgram {
         // load the module tree and roots
         let profile = self.default_profile_id(module_id);
         let dir = self.artifact_dir(module_id, profile);
-        let tree = dir.tree.read();
+        let tree = &dir.tree;
         let roots = &dir.roots;
 
         // scan for the first function declaration
         let mut current_index = 0;
         for root_id in roots {
-            let expression = tree.get(*root_id);
+            let expression = dir.tree.get(*root_id);
 
             // select the declaration expression if present
             let declaration_id = match expression {
                 Expression::Declaration { declaration } => Some(*declaration),
-                Expression::Statement { statement } => match tree.get(*statement) {
+                Expression::Statement { statement } => match dir.tree.get(*statement) {
                     Expression::Declaration { declaration } => Some(*declaration),
                     _ => None,
                 },
@@ -1416,18 +1444,17 @@ impl TestProgram {
         // load the module tree and roots
         let profile = self.default_profile_id(module_id);
         let dir = self.artifact_dir(module_id, profile);
-        let tree = dir.tree.read();
         let roots = &dir.roots;
 
         // scan for the first let expression
         let mut current_index = 0;
         for root_id in roots {
-            let expression = tree.get(*root_id);
+            let expression = dir.tree.get(*root_id);
 
             // select the let expression if present
             let let_expression_id = match expression {
                 Expression::Let { .. } => Some(*root_id),
-                Expression::Statement { statement } => match tree.get(*statement) {
+                Expression::Statement { statement } => match dir.tree.get(*statement) {
                     Expression::Let { .. } => Some(*statement),
                     _ => None,
                 },
@@ -1438,7 +1465,7 @@ impl TestProgram {
                 continue;
             };
 
-            let Expression::Let { declarators, .. } = tree.get(let_expression_id) else {
+            let Expression::Let { declarators, .. } = dir.tree.get(let_expression_id) else {
                 continue;
             };
 
@@ -1466,16 +1493,13 @@ impl TestProgram {
         // load the module tree and symbol table
         let profile = self.default_profile_id(module_id);
         let dir = self.artifact_dir(module_id, profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-
         // resolve the interface declaration and scan members
-        let interface_entry = symbols.get_symbol(interface_symbol.local_id);
+        let interface_entry = dir.symbols.get_symbol(interface_symbol.local_id);
         let interface_declaration_id = interface_entry
             .primary_declaration
             .expect("expected interface declaration")
             .into_local_typed::<Declaration>();
-        let declaration = tree.get(interface_declaration_id);
+        let declaration = dir.tree.get(interface_declaration_id);
         let members = match declaration {
             Declaration::Interface { members, .. } => members,
             _ => panic!("expected interface declaration"),
@@ -1483,7 +1507,7 @@ impl TestProgram {
 
         // find the first matching member name
         for member_id in members {
-            let member = tree.get(*member_id);
+            let member = dir.tree.get(*member_id);
             let member_name_id = member.key().and_then(|key| match key {
                 DynamicKey::Name(name) => Some(name),
                 DynamicKey::Number(name) => Some(name),
@@ -1504,11 +1528,9 @@ impl TestProgram {
         // load the module tree
         let profile = self.default_profile_id(module_id);
         let dir = self.artifact_dir(module_id, profile);
-        let tree = dir.tree.read();
-
         // scan for the requested lambda declaration
         let mut current_index = 0;
-        for (_, declaration) in tree.iter_nodes_of_type::<Declaration>() {
+        for (_, declaration) in dir.tree.iter_nodes_of_type::<Declaration>() {
             let Declaration::Function {
                 descriptor,
                 signature,
@@ -1535,7 +1557,7 @@ impl TestProgram {
             .function_symbol_by_name(module_uri, name)
             .unwrap_or_else(|| panic!("expected {name} symbol"));
         let module = self.module(module_uri);
-        let module = module.read();
+        let module = module.as_ref();
         self.capture_set_for_symbol(module.id, symbol)
     }
 
@@ -1548,10 +1570,8 @@ impl TestProgram {
         // load capture data for the module
         let profile = self.default_profile_id(module_id);
         let dir = self.artifact_dir(module_id, profile);
-        let captures = dir.captures.read();
-
         // resolve the capture set
-        captures
+        dir.captures
             .capture_set(symbol)
             .cloned()
             .unwrap_or_else(|| panic!("expected capture set for {symbol:?}"))
@@ -1566,14 +1586,13 @@ impl TestProgram {
         // load the module symbol table
         let profile = self.default_profile_id(module_id);
         let dir = self.artifact_dir(module_id, profile);
-        let symbols = dir.symbols.read();
-
         // resolve capture names
         capture_set
             .captures
             .iter()
             .map(|binding| {
-                let name = symbols
+                let name = dir
+                    .symbols
                     .get_symbol(binding.symbol.into_local())
                     .name()
                     .unwrap_or_else(|| panic!("expected named capture"));
@@ -1588,14 +1607,13 @@ impl TestProgram {
         // load the module symbol table
         let profile = self.default_profile_id(module_id);
         let dir = self.artifact_dir(module_id, profile);
-        let symbols = dir.symbols.read();
-
         // resolve capture names
         capture_set
             .captures
             .iter()
             .map(|binding| {
-                let name = symbols
+                let name = dir
+                    .symbols
                     .get_symbol(binding.symbol.into_local())
                     .name()
                     .unwrap_or_else(|| panic!("expected named capture"));
@@ -1613,15 +1631,13 @@ impl TestProgram {
         // load the module symbol table
         let profile = self.default_profile_id(module_id);
         let dir = self.artifact_dir(module_id, profile);
-        let symbols = dir.symbols.read();
-        let captures = dir.captures.read();
-
         // resolve captured local names
-        let reference_locals = captures.reference_locals(owner_symbol).unwrap_or(&[]);
+        let reference_locals = dir.captures.reference_locals(owner_symbol).unwrap_or(&[]);
         reference_locals
             .iter()
             .map(|symbol| {
-                let name = symbols
+                let name = dir
+                    .symbols
                     .get_symbol(symbol.into_local())
                     .name()
                     .unwrap_or_else(|| panic!("expected named symbol"));
@@ -1639,14 +1655,12 @@ impl TestProgram {
 
         // load the module tree and symbols
         let module = self.module(module_uri);
-        let module = module.read();
+        let module = module.as_ref();
         let profile = self.default_profile_id(module.id);
         let dir = self.artifact_dir(module.id, profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-
+        let tree = &dir.tree;
         // resolve the declaration
-        let declaration_entry = symbols.get_symbol(declaration_symbol.into_local());
+        let declaration_entry = dir.symbols.get_symbol(declaration_symbol.into_local());
         let Some(declaration) = declaration_entry.primary_declaration else {
             panic!("expected declaration for {name}");
         };

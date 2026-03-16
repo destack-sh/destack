@@ -1,8 +1,6 @@
 use super::member::{MemberLookupMode, MemberReceiverContext};
 use crate::Compiler;
-use crate::analyze::common::{
-    CanonicalSymbolMode, DirReadBoundary, InferContext, ModuleSymbolView, TypeContext,
-};
+use crate::analyze::common::{CanonicalSymbolMode, InferContext, ModuleSymbolView, TypeContext};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, StaticKey, SymbolSpace, SymbolType, Type,
     TypeTable,
@@ -159,12 +157,12 @@ impl Compiler {
         }
 
         let space = self
-            .with_module_symbols_or_local_at_boundary(
+            .with_module_symbols_or_local_for_artifact(
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
                 ctx.symbols,
-                DirReadBoundary::Declared,
+                destack_workspace::ArtifactKey::dir_declared,
                 |_, owner_symbols| owner_symbols.get_symbol(symbol.local_id).space,
             )
             .ok();

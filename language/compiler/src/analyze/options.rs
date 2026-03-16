@@ -407,7 +407,7 @@ impl Compiler {
     /// Get the effective TS-compatible semantic options for a module.
     pub(crate) fn analyze_context_options_for_module(&self, module_id: ModuleId) -> AnalyzeOptions {
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let apply_language_defaults = |mut options: CompilerOptions| {
             // default destack modules to deep readonly unless explicitly configured
             if module.language_type.is_destack() && !options.deep_readonly_explicit {
@@ -482,7 +482,7 @@ impl Compiler {
         module_id: ModuleId,
     ) -> ModuleCheckOptions {
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
 
         // start from config defaults
         let mut options = self
@@ -551,7 +551,7 @@ impl Compiler {
     /// Check whether a module language mode is allowed by configuration.
     pub(crate) fn module_language_allowed(&self, module_id: ModuleId) -> bool {
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
 
         // skip enforcement for builtins
         if module.is_builtin() {

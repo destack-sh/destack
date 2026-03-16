@@ -4,7 +4,6 @@ use destack_dir::{
 };
 use destack_workspace::ProfileId;
 
-use crate::analyze::DirReadBoundary;
 use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
 
 use crate::lower::ModuleLowerer;
@@ -26,11 +25,10 @@ pub(crate) fn enum_field_value_for_symbol(
     node: AnchoredGlobalNodeId,
 ) -> LowerResult<Option<EnumFieldValueDescriptor>> {
     // load the analyzed dir artifact for this symbol
-    let snapshot = compiler.require_artifact_dir_for_boundary(
+    let snapshot = compiler.require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
         member_symbol.module_id,
         profile,
-        DirReadBoundary::Analyzed,
-    );
+    ));
     let snapshot = match snapshot {
         Ok(snapshot) => snapshot,
         Err(BuildRequirementError::NotReady { requirement }) => {

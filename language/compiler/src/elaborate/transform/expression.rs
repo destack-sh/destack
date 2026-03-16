@@ -17,18 +17,16 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &mut ModuleDir,
     ) -> ElaborateResult<()> {
         // ensure analysis is complete
         if !self.is_code_module(module.id) {
             return Ok(());
         }
 
-        let mut tree = dir.tree.write();
-        let mut symbols = dir.symbols.write();
-        let mut types = dir.types.write();
         let ctx = ElaborateContext::new(module.id, module, profile);
-        let mut state = ElaborateState::new(ctx, &mut tree, &mut symbols, &mut types);
+        let (tree, symbols, types) = dir.tree_symbols_types_mut();
+        let mut state = ElaborateState::new(ctx, tree, symbols, types);
 
         // 0. split multi-declarators into individual lets
         if self.options.elaborate_split_declarators {

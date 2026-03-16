@@ -1,4 +1,4 @@
-use crate::analyze::common::{DirReadBoundary, ModuleTypeView, TypeContext};
+use crate::analyze::common::{ModuleTypeView, TypeContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, Member, NodeTree, NodeVisitor, NodeVisitorOptions,
@@ -75,12 +75,10 @@ impl Compiler {
                 continue;
             }
 
-            let member_symbol = ctx.tree.get(*member_id).symbol();
-            let member_symbol_entry = ctx.symbols.get_symbol(member_symbol);
-            let member_symbol = GlobalSymbolId::new(
-                ctx.module.id,
-                member_symbol.with_type(member_symbol_entry.ty),
-            );
+            let member_symbol = ctx.tree.get(*member_id).symbol().into_global(ctx.module.id);
+            let member_symbol = self
+                .declaration_symbol_id(ctx.module_symbol_view(), member_symbol)
+                .unwrap_or(member_symbol);
             ctx.types
                 .mark_symbol_with_associated_comptime_projection_dependencies(member_symbol);
         }
@@ -103,12 +101,12 @@ impl Compiler {
         ctx: ModuleTypeView<'_>,
         symbol: GlobalSymbolId,
     ) -> AnalyzeResult<bool> {
-        self.with_module_types_or_local_at_boundary(
+        self.with_module_types_or_local_for_artifact(
             ctx.module,
             ctx.profile,
             symbol.module_id,
             ctx.types,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |_, owner_types| {
                 owner_types.symbol_has_associated_comptime_projection_dependencies(symbol)
             },

@@ -6,7 +6,7 @@ use destack_dir::{
     StringId, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType,
     TypeTable,
 };
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -117,6 +117,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
         binding: SymbolBinding,
@@ -138,6 +139,7 @@ impl Compiler {
             ast::Pattern::Must(ast_pattern_id) => Pattern::Must(self.bind_pattern(
                 module,
                 ast,
+                dir,
                 scope,
                 export,
                 binding,
@@ -157,6 +159,7 @@ impl Compiler {
                 let right = self.bind_pattern(
                     module,
                     ast,
+                    dir,
                     scope,
                     export,
                     binding,
@@ -178,6 +181,7 @@ impl Compiler {
                 let right = self.bind_pattern(
                     module,
                     ast,
+                    dir,
                     scope,
                     export,
                     binding,
@@ -202,6 +206,7 @@ impl Compiler {
                     self.bind_pattern(
                         module,
                         ast,
+                        dir,
                         scope,
                         export,
                         binding,
@@ -241,6 +246,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *value,
                     Some(pattern_id),
@@ -258,6 +264,7 @@ impl Compiler {
                         self.bind_pattern_field(
                             module,
                             ast,
+                            dir,
                             scope,
                             export,
                             binding,
@@ -277,6 +284,7 @@ impl Compiler {
                 let ty = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *ty,
                     Some(pattern_id),
@@ -291,6 +299,7 @@ impl Compiler {
                         self.bind_pattern_field(
                             module,
                             ast,
+                            dir,
                             scope,
                             export,
                             binding,
@@ -313,6 +322,7 @@ impl Compiler {
                         self.bind_pattern_field(
                             module,
                             ast,
+                            dir,
                             scope,
                             export,
                             binding,
@@ -335,6 +345,7 @@ impl Compiler {
                         self.bind_pattern_field(
                             module,
                             ast,
+                            dir,
                             scope,
                             export,
                             binding,
@@ -354,6 +365,7 @@ impl Compiler {
                 let ty = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *ty,
                     Some(pattern_id),
@@ -368,6 +380,7 @@ impl Compiler {
                         self.bind_pattern_field(
                             module,
                             ast,
+                            dir,
                             scope,
                             export,
                             binding,
@@ -390,6 +403,7 @@ impl Compiler {
                         self.bind_pattern(
                             module,
                             ast,
+                            dir,
                             scope,
                             export,
                             binding,
@@ -424,6 +438,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        _dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
         binding: SymbolBinding,
@@ -475,6 +490,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
         binding: SymbolBinding,
@@ -511,6 +527,7 @@ impl Compiler {
                     Some(self.bind_pattern(
                         module,
                         ast,
+                        dir,
                         scope,
                         export,
                         binding,
@@ -528,6 +545,7 @@ impl Compiler {
                     Some(self.bind_shorthand_named_pattern_for_field(
                         module,
                         ast,
+                        dir,
                         scope,
                         export,
                         binding,
@@ -545,6 +563,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         default,
                         Some(pattern_field_id),
@@ -571,6 +590,7 @@ impl Compiler {
                 let key = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *key,
                     Some(pattern_field_id),
@@ -583,6 +603,7 @@ impl Compiler {
                     self.bind_pattern(
                         module,
                         ast,
+                        dir,
                         scope,
                         export,
                         binding,
@@ -599,6 +620,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         default,
                         Some(pattern_field_id),
@@ -631,6 +653,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         default,
                         Some(pattern_field_id),
@@ -671,6 +694,7 @@ impl Compiler {
                 let pattern = self.bind_pattern(
                     module,
                     ast,
+                    dir,
                     scope,
                     export,
                     binding,
@@ -686,6 +710,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         default,
                         Some(pattern_field_id),
@@ -706,6 +731,7 @@ impl Compiler {
                     self.bind_pattern(
                         module,
                         ast,
+                        dir,
                         scope,
                         export,
                         binding,

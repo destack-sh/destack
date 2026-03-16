@@ -13,9 +13,9 @@ pub(super) use destack_dir::{
     Argument, BinaryOperator, Declaration, Declarator, DynamicKey, EnumFieldValue, Expression,
     ExtensionKind, FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition,
     IfKind, IntType, LocalNodeId, LocalScopeMark, LocalTypeId, MatchCase, MatchSelector, Member,
-    NodeTree, NormalizationMode, Pattern, PatternField, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
-    Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
+    NodeTree, Pattern, PatternField, PrimitiveType, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeField,
+    TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 pub(super) use destack_source::ModuleId;
 pub(super) use destack_workspace::{CompilerOptions, Module, ProfileId};
@@ -90,10 +90,10 @@ impl TestProgram {
 
         // resolve the module state
         let module = self.module(module_uri);
-        let module = module.read();
+        let module = module.as_ref();
         let profile = self.default_profile_id(module.id);
         let dir = self.artifact_dir(module.id, profile);
-        let symbols = dir.symbols.read();
+        let symbols = &dir.symbols;
 
         // resolve the canonical symbol id
         canonical_symbol_id(
@@ -114,9 +114,9 @@ impl TestProgram {
 
         // clone module dir data
         let roots = dir.roots.clone();
-        let tree = dir.tree.read().clone();
-        let symbols = dir.symbols.read().clone();
-        let types = dir.types.read().clone();
+        let tree = dir.tree.clone();
+        let symbols = dir.symbols.clone();
+        let types = dir.types.clone();
 
         TestModuleView {
             test: self,
@@ -125,6 +125,20 @@ impl TestProgram {
             tree,
             symbols,
             types,
+        }
+    }
+
+    /// Create a cached declared module view for tests.
+    pub(crate) fn declared_view(&self, module_id: ModuleId) -> TestModuleView<'_> {
+        let dir = self.dir_declared(module_id);
+
+        TestModuleView {
+            test: self,
+            module_id,
+            roots: dir.roots.clone(),
+            tree: dir.tree.clone(),
+            symbols: dir.symbols.clone(),
+            types: dir.types.clone(),
         }
     }
 }
@@ -270,6 +284,20 @@ impl<'a> TestModuleView<'a> {
         panic!("expected struct field {field_name:?} on {struct_name:?}");
     }
 
+    /// Resolve one declaration symbol by simple name from this exact view.
+    pub(crate) fn expect_declaration_symbol(&self, name: StringId) -> GlobalSymbolId {
+        for declaration_id in self.tree.iter_node_ids_of_type::<Declaration>() {
+            let descriptor = self.tree.get(declaration_id).descriptor();
+            if descriptor.name.map(|value| value.string()) != Some(name) {
+                continue;
+            }
+
+            return descriptor.symbol.into_global(self.module_id);
+        }
+
+        panic!("expected declaration symbol for {name:?}");
+    }
+
     /// Read a declared type id for a node.
     pub(crate) fn expect_declared_type_id(&self, node_id: GlobalNodeIdAny) -> LocalTypeId {
         self.types
@@ -358,7 +386,7 @@ pub(crate) fn extension_kinds_for_target(
     // load module state for extension visibility
     let profile = view.profile_id();
     let module = view.test.program.modules.get(view.module_id);
-    let module = module.read();
+    let module = module.as_ref();
 
     // collect visible extensions for the target symbol
     let extension_symbols = view

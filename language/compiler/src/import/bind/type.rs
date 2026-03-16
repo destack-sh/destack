@@ -5,7 +5,7 @@ use destack_dir::{
     NodeTree, SymbolSpace, SymbolSpaceOrder, SymbolTable, Type, TypeKind, TypeMappedModifiers,
     TypeModifier, TypeTable, VarianceBound,
 };
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -14,6 +14,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         ast_expression_id: ast::LocalNodeId<ast::Expression>,
         parent_id: Option<LocalNodeIdAny>,
@@ -24,6 +25,7 @@ impl Compiler {
         let expression_id = self.bind_expression(
             module,
             ast,
+            dir,
             scope,
             ast_expression_id,
             parent_id,
@@ -88,6 +90,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         generics: &ast::Generics,
         parent_id: Option<LocalNodeIdAny>,
@@ -105,6 +108,7 @@ impl Compiler {
                         self.bind_parameter(
                             module,
                             ast,
+                            dir,
                             scope,
                             SymbolSpace::Type,
                             *static_parameter,
@@ -125,6 +129,7 @@ impl Compiler {
                     self.bind_where_clause(
                         module,
                         ast,
+                        dir,
                         scope,
                         *where_clause,
                         parent_id,
@@ -147,6 +152,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         heritage: &ast::Heritage,
         parent_id: Option<LocalNodeIdAny>,
@@ -161,6 +167,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         *extends_type,
                         parent_id,
@@ -180,6 +187,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         *implements_type,
                         parent_id,

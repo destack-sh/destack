@@ -1,4 +1,5 @@
-use crate::analyze::DirReadBoundary;
+use std::sync::Arc;
+
 use crate::analyze::common::TypeContext;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementError, Compiler};
@@ -13,14 +14,6 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
-        // current local build frame already satisfies analyzed reads
-        if self
-            .current_active_dir_frame(module, profile, DirReadBoundary::Analyzed)
-            .is_some()
-        {
-            return Ok(());
-        }
-
         self.require_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
             module,
             profile,
@@ -30,7 +23,7 @@ impl Compiler {
     /// Final pass: run validation checks over committed semantics.
     pub(crate) fn analyze_module_validate(
         &self,
-        dir: &ModuleDir,
+        dir: &mut ModuleDir,
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
@@ -45,9 +38,8 @@ impl Compiler {
         )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_VALIDATE);
 
-        // update signature for non-code modules and skip validation
+        // skip validation for non-code modules
         if !self.is_code_module(module_id) {
-            self.update_module_signature(module_id, profile, module_version, profile_version)?;
             return Ok(());
         }
 
@@ -58,7 +50,7 @@ impl Compiler {
 
         // decide whether declaration modules should skip validation
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let should_skip_declaration_validation = if module.language_type.is_declaration() {
             let module_checks = self.module_check_options_for_module(module_id);
             module_checks.skip_lib_check || matches!(module.source, ModuleSource::Builtin(_))
@@ -71,7 +63,6 @@ impl Compiler {
             && analyze_options.no_untrusted_declarations;
 
         if should_skip_declaration_validation && !should_check_untrusted_declarations {
-            self.update_module_signature(module_id, profile, module_version, profile_version)?;
             return Ok(());
         }
 
@@ -80,12 +71,17 @@ impl Compiler {
             self.cache_handle_for_module(module_id, Some(profile), None, CacheKind::DirAnalyzed);
 
         let module = self.program.modules.get(module_id);
-        let module = module.read();
+        let module = module.as_ref();
         let mut should_return_after_validation = false;
         {
-            let tree = dir.tree.read();
-            let symbols = dir.symbols.read();
-            let mut types = dir.types.write();
+            let ModuleDir {
+                tree,
+                symbols,
+                types,
+                ..
+            } = dir;
+            let tree = tree.as_ref();
+            let symbols = symbols.as_ref();
 
             // reject untrusted declaration files when configured
             if should_check_untrusted_declarations {
@@ -99,14 +95,9 @@ impl Compiler {
             if should_skip_declaration_validation {
                 should_return_after_validation = true;
             } else {
-                let mut ctx = TypeContext::new(
-                    &module,
-                    profile,
-                    &analyze_options,
-                    &tree,
-                    &symbols,
-                    &mut types,
-                );
+                let types = Arc::make_mut(types);
+                let mut ctx =
+                    TypeContext::new(&module, profile, &analyze_options, tree, symbols, types);
 
                 // NOTE #Performance: validation still runs as multiple passes over the tree
                 // validate binding identifiers
@@ -181,17 +172,12 @@ impl Compiler {
         }
 
         if should_return_after_validation {
-            self.update_module_signature(module_id, profile, module_version, profile_version)?;
             return Ok(());
         }
 
-        // update module signature after validation
-        self.update_module_signature(module_id, profile, module_version, profile_version)?;
-
         // write analyzed DIR to cache
         if let Some(cache) = cache_handle.as_ref() {
-            let payload = dir.to_data();
-            if let Err(error) = cache.write_dir_analyzed(payload) {
+            if let Err(error) = cache.write_dir_analyzed(dir.clone()) {
                 tracing::debug!(?module_id, ?profile, ?error, "analyze.module.cache.write");
             }
         }

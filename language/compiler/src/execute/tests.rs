@@ -6,7 +6,7 @@ fn builtin_module_id_with_uri_suffix(test: &TestProgram, suffix: &str) -> Module
         .modules
         .iter()
         .find_map(|module| {
-            let module = module.read();
+            let module = module.as_ref();
             module.uri.as_ref().ends_with(suffix).then_some(module.id)
         })
         .unwrap_or_else(|| panic!("missing builtin module ending with {suffix}"))

@@ -150,6 +150,9 @@ impl Compiler {
 
         // map inherited arguments to extension parameters using the target type argument order
         let mut positional_arguments = self.map_extension_inherited_arguments(
+            ctx.module,
+            ctx.tree,
+            ctx.symbols,
             extension_symbol,
             &extension_parameters,
             inherited_arguments,
@@ -194,6 +197,9 @@ impl Compiler {
     /// Map receiver static arguments into extension parameter order.
     pub(crate) fn map_extension_inherited_arguments(
         &self,
+        module: &Module,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         extension_symbol: GlobalSymbolId,
         extension_parameters: &[GlobalSymbolId],
         inherited_arguments: &[StaticArgument],
@@ -206,9 +212,12 @@ impl Compiler {
 
         // resolve the target type argument mapping from the extension declaration
         let target_mapping = self.extension_target_argument_mapping(
+            module,
             extension_symbol,
             extension_parameters,
             profile,
+            tree,
+            symbols,
         )?;
         let Some(target_mapping) = target_mapping else {
             return Ok(Vec::new());
@@ -250,12 +259,12 @@ impl Compiler {
         member_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // locate the scope owner for the member symbol
-        self.with_module_symbols_or_local_at_boundary(
+        self.with_module_symbols_or_local_for_artifact(
             view.module,
             view.profile,
             member_symbol.module_id,
             view.symbols,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |owner_module, owner_symbols| {
                 let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
                 let scope = owner_symbols.get_scope_by_id(member_entry.scope.0);

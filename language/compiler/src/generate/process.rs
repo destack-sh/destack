@@ -53,7 +53,7 @@ impl Compiler {
         // look up target from module's package
         let target = {
             let module = self.program.modules.get(module_id);
-            let module = module.read();
+            let module = module.as_ref();
             let package = self.program.packages.get(module.package_id);
             let package = package.read();
             package.targets.get(target_id).cloned()

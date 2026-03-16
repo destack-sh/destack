@@ -1,5 +1,5 @@
 use crate::analyze::common::{
-    DirReadBoundary, ModuleTypeView, SymbolTypeView, TreeSymbolView, TypeContext, TypeView,
+    ModuleTypeView, SymbolTypeView, TreeSymbolView, TypeContext, TypeView,
 };
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
@@ -223,32 +223,24 @@ impl Compiler {
             ));
         }
 
-        self.with_module_symbols_at_boundary(
-            ctx.module,
-            ctx.profile,
-            target_symbol.module_id,
-            DirReadBoundary::Declared,
-            |owner_module, owner_symbols| {
-                let owner_snapshot = self
-                    .require_artifact_dir_for_boundary(
-                        target_symbol.module_id,
-                        ctx.profile,
-                        DirReadBoundary::Declared,
-                    )
-                    .ok()?;
-                self.enum_field_value_for_symbol_reference_read(
-                    SymbolTypeView::new(
-                        owner_module,
-                        ctx.profile,
-                        owner_symbols,
-                        &owner_snapshot.types,
-                    ),
-                    enum_symbol,
-                    target_symbol,
-                )
-            },
-        )
-        .map_err(AnalyzeError::from)
+        let owner_dir = self
+            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
+                target_symbol.module_id,
+                ctx.profile,
+            ))
+            .map_err(AnalyzeError::from)?;
+        let owner_module = self.program.modules.get(target_symbol.module_id);
+        let owner_module = owner_module.as_ref();
+        Ok(self.enum_field_value_for_symbol_reference_read(
+            SymbolTypeView::new(
+                &owner_module,
+                ctx.profile,
+                &owner_dir.symbols,
+                &owner_dir.types,
+            ),
+            enum_symbol,
+            target_symbol,
+        ))
     }
 
     /// Resolve an enum field value from symbol ctx and immutable type ctx.
@@ -333,19 +325,13 @@ impl Compiler {
 
         // consume already published values from remote modules
         if enum_symbol.module_id != ctx.module.id {
-            let remote_backing = self
-                .with_module_types_at_boundary(
-                    ctx.module,
-                    ctx.profile,
-                    enum_symbol.module_id,
-                    DirReadBoundary::Declared,
-                    |_owner_module, owner_types| owner_types.get_enum_backing_type(enum_symbol),
-                )
-                .map_err(AnalyzeError::from);
-            match remote_backing {
-                Ok(backing) => return backing,
+            let remote_dir = self.require_artifact_dir(
+                destack_workspace::ArtifactKey::dir_declared(enum_symbol.module_id, ctx.profile),
+            );
+            match remote_dir {
+                Ok(remote_dir) => return remote_dir.types.get_enum_backing_type(enum_symbol),
                 Err(error) => {
-                    self.error(error);
+                    self.error(AnalyzeError::from(error));
                     return None;
                 }
             }
@@ -446,13 +432,13 @@ impl Compiler {
         ctx: TypeView<'_>,
         enum_symbol: GlobalSymbolId,
     ) -> Vec<GlobalSymbolId> {
-        self.with_module_tree_symbol_view_or_local_at_boundary(
+        self.with_module_tree_symbol_view_or_local_for_artifact(
             ctx.module,
             ctx.profile,
             enum_symbol.module_id,
             ctx.tree,
             ctx.symbols,
-            DirReadBoundary::Declared,
+            destack_workspace::ArtifactKey::dir_declared,
             |view| {
                 let fields = self.enum_fields_for_symbol_in_tree(view, enum_symbol);
                 fields
@@ -526,15 +512,20 @@ impl Compiler {
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve fields in remote modules when needed
         if enum_symbol.module_id != ctx.module.id {
-            return self
-                .with_module_tree_symbol_view_at_boundary(
-                    ctx.module,
-                    ctx.profile,
+            let module = self.program.modules.get(enum_symbol.module_id);
+            let module = module.as_ref();
+            let dir = self
+                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
                     enum_symbol.module_id,
-                    DirReadBoundary::Declared,
-                    |view| self.enum_field_symbol_for_name_in_tree(view, enum_symbol, field_name),
-                )
-                .map_err(AnalyzeError::from);
+                    ctx.profile,
+                ))
+                .map_err(AnalyzeError::from)?;
+
+            return Ok(self.enum_field_symbol_for_name_in_tree(
+                TreeSymbolView::new(module, ctx.profile, &dir.tree, &dir.symbols),
+                enum_symbol,
+                field_name,
+            ));
         }
 
         Ok(

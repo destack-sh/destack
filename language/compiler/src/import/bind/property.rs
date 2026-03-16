@@ -5,7 +5,7 @@ use destack_dir::{
     NodeTree, NodeType, Property, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
     SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable, Visibility,
 };
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -47,6 +47,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         ast_property_id: ast::LocalNodeId<ast::Property>,
         parent_id: Option<LocalNodeIdAny>,
@@ -74,6 +75,7 @@ impl Compiler {
                     self.bind_key(
                         module,
                         ast,
+                        dir,
                         scope,
                         key,
                         Some(property_id),
@@ -86,6 +88,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         value,
                         Some(property_id),
@@ -99,6 +102,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         default,
                         Some(property_id),
@@ -145,6 +149,7 @@ impl Compiler {
                     self.bind_key(
                         module,
                         ast,
+                        dir,
                         scope,
                         key,
                         Some(property_id),
@@ -170,6 +175,7 @@ impl Compiler {
                 let signature = self.bind_function_signature(
                     module,
                     ast,
+                    dir,
                     method_scope,
                     signature,
                     Some(property_id),
@@ -181,6 +187,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         (method_scope_id, symbols.get_scope_mark(method_scope_id)),
                         body,
                         Some(property_id),
@@ -213,6 +220,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *value,
                     Some(property_id),
@@ -238,6 +246,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         ast_member_id: ast::LocalNodeId<ast::Member>,
         parent_id: Option<LocalNodeIdAny>,
@@ -269,6 +278,7 @@ impl Compiler {
                             self.bind_parameter(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 SymbolSpace::Type,
                                 *parameter,
@@ -292,6 +302,7 @@ impl Compiler {
                             self.bind_where_clause(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 *where_clause,
                                 Some(member_id),
@@ -307,6 +318,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         ty,
                         Some(member_id),
@@ -320,6 +332,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         value,
                         Some(member_id),
@@ -373,6 +386,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         ty,
                         Some(member_id),
@@ -386,6 +400,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         value,
                         Some(member_id),
@@ -437,6 +452,7 @@ impl Compiler {
                     self.bind_key(
                         module,
                         ast,
+                        dir,
                         scope,
                         key,
                         Some(member_id),
@@ -450,6 +466,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         value,
                         Some(member_id),
@@ -463,6 +480,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         default,
                         Some(member_id),
@@ -517,6 +535,7 @@ impl Compiler {
                     self.bind_key(
                         module,
                         ast,
+                        dir,
                         scope,
                         key,
                         Some(member_id),
@@ -543,6 +562,7 @@ impl Compiler {
                 let signature = self.bind_function_signature(
                     module,
                     ast,
+                    dir,
                     method_scope,
                     signature,
                     Some(member_id),
@@ -554,6 +574,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         (method_scope_id, symbols.get_scope_mark(method_scope_id)),
                         body,
                         Some(member_id),
@@ -589,6 +610,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *value,
                     Some(member_id),
@@ -622,6 +644,7 @@ impl Compiler {
                 let body = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *body,
                     Some(member_id),
@@ -654,6 +677,7 @@ impl Compiler {
                 let body = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *body,
                     Some(member_id),

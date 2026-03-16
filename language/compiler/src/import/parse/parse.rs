@@ -4,7 +4,7 @@ use crate::{Compiler, ImportError, ImportResult};
 use destack_core::StringPool;
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{CacheKind, File, FileType, LanguageType, ModuleId, ModuleVersion, Span};
-use destack_workspace::{Loader, ModuleAst, ModuleContent};
+use destack_workspace::{Loader, ModuleAst};
 
 impl Compiler {
     /// Parse a module (load file and parse into AST).
@@ -21,14 +21,10 @@ impl Compiler {
 
         // get module info and check if already loaded
         let (file_id, path, uri, package_id, loader, needs_load) = {
-            let module = module.read();
+            let module = module.as_ref();
 
             // check if already parsed/loaded based on module type
-            let needs_load = match &module.content {
-                ModuleContent::Code(code) => code.ast.is_none(),
-                ModuleContent::Unloaded => true,
-                _ => false, // Data, Text, Binary already loaded
-            };
+            let needs_load = self.program.artifacts.ast(module_id).is_none();
             if !needs_load {
                 return Ok(());
             }
@@ -102,8 +98,6 @@ impl Compiler {
         uri: destack_source::Uri,
         package_id: destack_source::PackageId,
     ) -> ImportResult<()> {
-        let module = self.program.modules.get(module_id);
-
         // load file if not already loaded
         let file = self.program.files.get(file_id);
         let file = if file.is_loaded() {
@@ -142,12 +136,9 @@ impl Compiler {
             if let Ok(Some(entry)) = cache.read_ast() {
                 // skip stale tasks before applying cached data
                 self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-                let mut ast = ModuleAst::from_data(entry.payload);
+                let mut ast = entry.payload;
                 ast.ensure_anchor_expression(file_id);
-                let mut module = module.write();
-                self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
-                module.code_mut().ast = Some(ast);
-                drop(module);
+                self.program.artifacts.set_ast(module_id, ast);
                 self.program.refresh_module_semantics(module_id);
                 tracing::trace!(?module_id, "import.module.parse.code.cache");
                 return Ok(());
@@ -192,10 +183,8 @@ impl Compiler {
             .record_lines(package_id, file.line_count() as usize);
         self.stats.record_module_for_package(package_id);
 
-        // update module with AST
+        // publish committed AST truth
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut module = module.write();
-        self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         let (tokens, side_tokens) = parser.take_tokens();
         let strings = StringPool::from_local(parser.strings);
         let mut ast = ModuleAst::from_tree(
@@ -208,18 +197,14 @@ impl Compiler {
             side_tokens,
         );
         ast.ensure_anchor_expression(file_id);
-        module.code_mut().ast = Some(ast);
-        drop(module);
+        self.program.artifacts.set_ast(module_id, ast.clone());
         self.program.refresh_module_semantics(module_id);
 
         // write AST to cache
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        if let Some(cache) = cache_handle.as_ref()
-            && let Some(ast) = self.program.modules.get(module_id).read().ast_maybe()
-        {
-            let payload = ast.to_data();
+        if let Some(cache) = cache_handle.as_ref() {
             let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_CACHE_WRITE);
-            if let Err(error) = cache.write_ast(payload) {
+            if let Err(error) = cache.write_ast(ast) {
                 tracing::debug!(?module_id, ?error, "import.module.parse.cache.write");
             }
         }
@@ -294,16 +279,12 @@ impl Compiler {
         let mut ast = ModuleAst::new(module_id, module_version);
         ast.ensure_anchor_expression(file_id);
 
-        // update module content
+        // attach parsed data to the parse artifact
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut module = module.write();
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
-        module.content = ModuleContent::Data {
-            source: content,
-            value,
-            ast,
-        };
-        drop(module);
+        ast.data_value = Some(value);
+
+        self.program.artifacts.set_ast(module_id, ast);
 
         tracing::trace!(?module_id, "import.module.parse.json");
         Ok(())
@@ -346,16 +327,12 @@ impl Compiler {
         let mut ast = ModuleAst::new(module_id, module_version);
         ast.ensure_anchor_expression(file_id);
 
-        // update module content
+        // attach parsed data to the parse artifact
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut module = module.write();
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
-        module.content = ModuleContent::Data {
-            source: content,
-            value,
-            ast,
-        };
-        drop(module);
+        ast.data_value = Some(value);
+
+        self.program.artifacts.set_ast(module_id, ast);
 
         tracing::trace!(?module_id, "import.module.parse.toml");
         Ok(())
@@ -398,16 +375,12 @@ impl Compiler {
         let mut ast = ModuleAst::new(module_id, module_version);
         ast.ensure_anchor_expression(file_id);
 
-        // update module content
+        // attach parsed data to the parse artifact
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut module = module.write();
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
-        module.content = ModuleContent::Data {
-            source: content,
-            value,
-            ast,
-        };
-        drop(module);
+        ast.data_value = Some(value);
+
+        self.program.artifacts.set_ast(module_id, ast);
 
         tracing::trace!(?module_id, "import.module.parse.yaml");
         Ok(())
@@ -422,11 +395,9 @@ impl Compiler {
         path: Option<std::path::PathBuf>,
         uri: destack_source::Uri,
     ) -> ImportResult<()> {
-        let module = self.program.modules.get(module_id);
-
         // load file content
         let file = self.program.files.get(file_id);
-        let content = if file.is_loaded() {
+        let _content = if file.is_loaded() {
             file.text().to_string()
         } else {
             let path = path.ok_or_else(|| ImportError::ModuleNotFound {
@@ -447,12 +418,7 @@ impl Compiler {
         let mut ast = ModuleAst::new(module_id, module_version);
         ast.ensure_anchor_expression(file_id);
 
-        // update module content
-        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut module = module.write();
-        self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
-        module.content = ModuleContent::Text { content, ast };
-        drop(module);
+        self.program.artifacts.set_ast(module_id, ast);
 
         tracing::trace!(?module_id, "import.module.parse.text");
         Ok(())
@@ -467,14 +433,12 @@ impl Compiler {
         path: Option<std::path::PathBuf>,
         uri: destack_source::Uri,
     ) -> ImportResult<()> {
-        let module = self.program.modules.get(module_id);
-
         // load file content as bytes (always from filesystem)
         let path = path.ok_or_else(|| ImportError::ModuleNotFound {
             target: self.program.strings.intern(uri.as_ref()),
             error: None,
         })?;
-        let bytes = self.program.fs.read(&path).map_err(|_| {
+        let _bytes = self.program.fs.read(&path).map_err(|_| {
             let path_str = path.to_string_lossy();
             ImportError::ModuleNotFound {
                 target: self.program.strings.intern(path_str.as_ref()),
@@ -487,12 +451,7 @@ impl Compiler {
         let mut ast = ModuleAst::new(module_id, module_version);
         ast.ensure_anchor_expression(file_id);
 
-        // update module content
-        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut module = module.write();
-        self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
-        module.content = ModuleContent::Binary { bytes, ast };
-        drop(module);
+        self.program.artifacts.set_ast(module_id, ast);
 
         tracing::trace!(?module_id, "import.module.parse.binary");
         Ok(())
@@ -510,8 +469,6 @@ impl Compiler {
         use base64::Engine;
         use base64::engine::general_purpose::STANDARD;
 
-        let module = self.program.modules.get(module_id);
-
         // load file content as bytes (always from filesystem)
         let path = path.ok_or_else(|| ImportError::ModuleNotFound {
             target: self.program.strings.intern(uri.as_ref()),
@@ -526,19 +483,14 @@ impl Compiler {
         })?;
 
         // encode as base64 string
-        let content = STANDARD.encode(&bytes);
+        let _content = STANDARD.encode(&bytes);
 
         // create the anchor AST for the text module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut ast = ModuleAst::new(module_id, module_version);
         ast.ensure_anchor_expression(file_id);
 
-        // update module content (stored as Text since it produces a string)
-        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let mut module = module.write();
-        self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
-        module.content = ModuleContent::Text { content, ast };
-        drop(module);
+        self.program.artifacts.set_ast(module_id, ast);
 
         tracing::trace!(?module_id, "import.module.parse.base64");
         Ok(())

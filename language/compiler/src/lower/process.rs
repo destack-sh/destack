@@ -2,13 +2,11 @@ use std::mem;
 use std::str::FromStr;
 
 use crate::timing::tags;
-use crate::{
-    BuildKey, BuildProduct, BuildRequirementError, Compiler, LowerError, LowerResult, ModuleLowerer,
-};
+use crate::{BuildKey, BuildRequirementError, Compiler, LowerError, LowerResult, ModuleLowerer};
 
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
-    ArtifactKey, ModuleMirData, OutputFormat, ProfileId, Target, TargetArch, TargetId,
+    ArtifactKey, ModuleMir, OutputFormat, ProfileId, Target, TargetArch, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -19,7 +17,7 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
-    ) -> LowerResult<BuildProduct> {
+    ) -> LowerResult<()> {
         let module_version = self.module_version(module);
         let profile_version = self.profile_version(profile);
         self.ensure_module_profile_matches::<LowerError>(
@@ -28,13 +26,22 @@ impl Compiler {
             profile,
             profile_version,
         )?;
-        let product =
-            self.lower_module(module, profile, module_version, profile_version, target)?;
+        let payload = self.lower_module(
+            module,
+            profile,
+            module_version,
+            profile_version,
+            target.clone(),
+        )?;
         if self.is_code_module(module) {
             self.stats.record_lower();
         }
 
-        Ok(product)
+        self.program
+            .artifacts
+            .set_mir_base(module, profile, target, payload);
+
+        Ok(())
     }
 
     /// Lower a module.
@@ -45,7 +52,7 @@ impl Compiler {
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
         target_id: TargetId,
-    ) -> LowerResult<BuildProduct> {
+    ) -> LowerResult<ModuleMir> {
         let resolved_profile = self
             .program
             .profile_id_for_target(module_id, &target_id)
@@ -80,7 +87,7 @@ impl Compiler {
                 profile_version,
             )?;
             tracing::trace!(?module_id, ?target_id, "lower.module.cache");
-            return Ok(BuildProduct::Mir(entry.payload));
+            return Ok(entry.payload);
         }
 
         self.require_dir_elaborated(module_id, profile)?;
@@ -97,7 +104,7 @@ impl Compiler {
         // resolve target configuration
         let target = {
             let module = self.program.modules.get(module_id);
-            let module = module.read();
+            let module = module.as_ref();
             let package = self.program.packages.get(module.package_id);
             let package = package.read();
             package
@@ -123,7 +130,7 @@ impl Compiler {
         // lower the module
         let (mir_tree, mir_strings) = {
             let module = self.program.modules.get(module_id);
-            let module = module.read();
+            let module = module.as_ref();
             let pointer_bytes = self.pointer_bytes_for_target_config(module_id, &target)?;
 
             let mut lowerer = ModuleLowerer::new(
@@ -143,7 +150,7 @@ impl Compiler {
             lowerer.finish()
         };
 
-        let payload = ModuleMirData {
+        let payload = ModuleMir {
             id: module_id,
             version: module_version,
             target: target_id.clone(),
@@ -159,7 +166,7 @@ impl Compiler {
             }
         }
 
-        Ok(BuildProduct::Mir(payload))
+        Ok(payload)
     }
 
     /// Ensure MIR exists for one module and target.
@@ -169,7 +176,7 @@ impl Compiler {
         profile: ProfileId,
         target: &TargetId,
     ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::Mir {
+        self.require_build_key(BuildKey::Artifact(ArtifactKey::MirBase {
             module,
             profile,
             target: target.clone(),
@@ -186,7 +193,7 @@ impl Compiler {
         // resolve target configuration
         let target = {
             let module = self.program.modules.get(module_id);
-            let module = module.read();
+            let module = module.as_ref();
             let package = self.program.packages.get(module.package_id);
             let package = package.read();
 

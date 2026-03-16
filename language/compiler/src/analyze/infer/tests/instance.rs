@@ -1213,7 +1213,7 @@ let value = derived.map<string>();
     // analyze
     test.analyze_module_and_check_clean(main_id);
     let main_view = test.view(main_id);
-    let lib_view = test.view(lib_id);
+    let lib_view = test.declared_view(lib_id);
 
     // read
     let value_name = test.program.strings.intern("value");

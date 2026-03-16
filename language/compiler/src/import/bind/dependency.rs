@@ -8,7 +8,7 @@ use destack_dir::{
 
 use crate::Compiler;
 
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -49,6 +49,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         source: DependencySource,
         kind: ast::DependencyKind,
@@ -106,6 +107,7 @@ impl Compiler {
                 let value_id = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     ast_value_id,
                     Some(item_id),

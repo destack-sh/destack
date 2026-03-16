@@ -82,7 +82,7 @@ const raw: int32 = status;
     let view = test.view(module_id);
     let options = test.compiler.analyze_context_options_for_module(module_id);
     let module = test.program.modules.get(module_id);
-    let module = module.read();
+    let module = module.as_ref();
     let profile = view.profile_id();
 
     // resolve the binding symbols
@@ -353,7 +353,7 @@ const status = Status.Active;
     // resolve the enum value type
     let enum_symbol = test.canonical_symbol_for_path("test.ds", "Status");
     let enum_module = test.module("test.ds");
-    let enum_module = enum_module.read();
+    let enum_module = enum_module.as_ref();
 
     // confirm the binding value type is the nominal enum reference
     let status_symbol = canonical_symbol_id(

@@ -445,9 +445,9 @@ impl Compiler {
             };
 
             // resolve static member keys only
-            let Some(member_key) = key
-                .and_then(|key| self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key))
-            else {
+            let Some(member_key) = key.and_then(|key| {
+                self.static_key_from_dynamic_key(ctx.profile, ctx.tree, ctx.symbols, ctx.types, key)
+            }) else {
                 continue;
             };
 
@@ -601,9 +601,9 @@ impl Compiler {
             }
 
             // record static keys only
-            let Some(key) = (*key)
-                .and_then(|key| self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key))
-            else {
+            let Some(key) = (*key).and_then(|key| {
+                self.static_key_from_dynamic_key(ctx.profile, ctx.tree, ctx.symbols, ctx.types, key)
+            }) else {
                 continue;
             };
 

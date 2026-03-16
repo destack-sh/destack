@@ -6,7 +6,7 @@ use destack_dir::{
     LocalScopeMark, Mutability, NodeTree, NodeType, Parameter, StaticKey, SymbolBinding,
     SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing, TypeTable, VarianceModifier, Visibility,
 };
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -76,6 +76,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         symbol_space: SymbolSpace,
         ast_parameter_id: ast::LocalNodeId<ast::Parameter>,
@@ -115,6 +116,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         default,
                         Some(parameter_id),
@@ -148,6 +150,7 @@ impl Compiler {
                     let ty = self.bind_expression_to_type(
                         module,
                         ast,
+                        dir,
                         constraint_scope,
                         *ty,
                         Some(parameter_id.into()),
@@ -173,6 +176,7 @@ impl Compiler {
                 let pattern = self.bind_pattern(
                     module,
                     ast,
+                    dir,
                     scope,
                     None,
                     SymbolBinding::Runtime,
@@ -188,6 +192,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         default,
                         Some(parameter_id),
@@ -214,6 +219,7 @@ impl Compiler {
                     let ty = self.bind_expression_to_type(
                         module,
                         ast,
+                        dir,
                         constraint_scope,
                         *ty,
                         Some(parameter_id.into()),
@@ -259,6 +265,7 @@ impl Compiler {
                     let ty = self.bind_expression_to_type(
                         module,
                         ast,
+                        dir,
                         constraint_scope,
                         *ty,
                         Some(parameter_id.into()),
@@ -283,6 +290,7 @@ impl Compiler {
                 let pattern = self.bind_pattern(
                     module,
                     ast,
+                    dir,
                     scope,
                     None,
                     SymbolBinding::Runtime,
@@ -310,6 +318,7 @@ impl Compiler {
                     let ty = self.bind_expression_to_type(
                         module,
                         ast,
+                        dir,
                         constraint_scope,
                         *ty,
                         Some(parameter_id.into()),
@@ -329,6 +338,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         ast_argument_id: ast::LocalNodeId<ast::Argument>,
         parent_id: Option<LocalNodeIdAny>,
@@ -356,6 +366,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *value,
                     Some(argument_id),
@@ -379,6 +390,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *value,
                     Some(argument_id),
@@ -402,6 +414,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *value,
                     Some(argument_id),
@@ -431,6 +444,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *value,
                     Some(argument_id),
@@ -477,7 +491,7 @@ type Wrapper<T = Foo> = T;
 
         // load bound tree
         let dir = test.dir_base(module_id);
-        let tree = dir.tree.read();
+        let tree = &dir.tree;
 
         // select the root expression
         let root_id = test.expect_root_expression(module_id);

@@ -86,7 +86,10 @@ impl Compiler {
                     _ => (None, None),
                 };
                 let static_key = self.static_key_from_dynamic_key(
-                    ctx.tree_symbol_type_view(),
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    ctx.types,
                     DynamicKey::Expression(index_id),
                 );
                 (
@@ -105,7 +108,10 @@ impl Compiler {
             && let Some(index_id) = index_id
         {
             let static_key = self.static_key_from_dynamic_key(
-                ctx.tree_symbol_type_view(),
+                ctx.profile,
+                ctx.tree,
+                ctx.symbols,
+                ctx.types,
                 DynamicKey::Expression(index_id),
             );
             if static_key.is_none() {
@@ -326,7 +332,10 @@ impl Compiler {
                     _ => (None, None),
                 };
                 let static_key = self.static_key_from_dynamic_key(
-                    ctx.tree_symbol_type_view(),
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    ctx.types,
                     DynamicKey::Expression(*index_id),
                 );
                 (
@@ -364,7 +373,10 @@ impl Compiler {
             && let Some(index_id) = *index_id
         {
             let static_key = self.static_key_from_dynamic_key(
-                ctx.tree_symbol_type_view(),
+                ctx.profile,
+                ctx.tree,
+                ctx.symbols,
+                ctx.types,
                 DynamicKey::Expression(index_id),
             );
             if static_key.is_none() {

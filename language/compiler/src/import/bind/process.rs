@@ -1,6 +1,8 @@
 use crate::timing::tags;
 use crate::{Compiler, ImportError, ImportResult};
+use destack_dir::{NodeTree, SymbolTable, TypeTable};
 use destack_source::{ModuleId, ModuleVersion};
+use destack_workspace::{ImportDir, ModuleAst};
 
 impl Compiler {
     /// Bind a module's AST to DIR (create symbols, scopes, and base DIR).
@@ -8,6 +10,8 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         module_version: ModuleVersion,
+        ast: &ModuleAst,
+        dir: &mut ImportDir,
     ) -> ImportResult<()> {
         // skip stale tasks
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -19,37 +23,44 @@ impl Compiler {
         }
 
         let module = self.program.modules.get(module_id);
+        let mut tree = std::mem::replace(&mut dir.tree, NodeTree::new(module_id));
+        let mut symbols = std::mem::replace(&mut dir.symbols, SymbolTable::new(module_id));
+        let mut types = std::mem::replace(&mut dir.types, TypeTable::new(module_id));
 
         // bind module roots
         let roots = {
-            let module = module.read();
-            self.bind_module_roots(&module, module.ast())
+            let module = module.as_ref();
+            self.bind_module_roots(&module, ast, dir, &mut tree, &mut symbols, &mut types)
         };
-        self.with_active_base_dir_mut(module_id, |dir| {
-            dir.roots.extend(roots);
-        });
+        dir.roots.extend(roots);
 
         // attach annotations
         {
-            let module = module.read();
-            let ast = module.ast();
-            self.with_active_base_dir(module_id, |dir| {
-                let mut tree = dir.tree.write();
-                let mut symbols = dir.symbols.write();
-                let mut types = dir.types.write();
-                let scope = (
-                    dir.namespace_scope,
-                    symbols.get_scope_mark(dir.namespace_scope),
-                );
-                self.attach_annotations(&module, ast, scope, &mut tree, &mut symbols, &mut types);
-            });
+            let module = module.as_ref();
+            let scope = (
+                dir.namespace_scope,
+                symbols.get_scope_mark(dir.namespace_scope),
+            );
+            self.attach_annotations(
+                &module,
+                ast,
+                dir,
+                scope,
+                &mut tree,
+                &mut symbols,
+                &mut types,
+            );
         }
 
         // mark global augmentations (for declaration merging)
         {
-            let module = module.read();
-            self.mark_global_augmentation_symbols(&module);
+            let module = module.as_ref();
+            self.mark_global_augmentation_symbols(&module, &tree, &mut symbols);
         }
+
+        dir.tree = tree;
+        dir.symbols = symbols;
+        dir.types = types;
 
         Ok(())
     }

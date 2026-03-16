@@ -5,7 +5,7 @@ use destack_dir::{
     DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Name, NodeTree, SymbolSpaceOrder,
     SymbolTable, TypeTable,
 };
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -28,6 +28,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         key: ast::Key,
         parent_id: Option<LocalNodeIdAny>,
@@ -58,6 +59,7 @@ impl Compiler {
                 let expression = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     expression,
                     parent_id,
@@ -73,6 +75,7 @@ impl Compiler {
                 let key = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     key,
                     parent_id,

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_ast::StringId;
 use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
-use destack_workspace::{CheckFailurePolicy, Module, ModuleDirData, ProfileId, TargetId};
+use destack_workspace::{CheckFailurePolicy, Module, ModuleDir, ProfileId, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::{
@@ -21,7 +21,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-    ) -> ExecuteResult<Arc<ModuleDirData>> {
+    ) -> ExecuteResult<Arc<ModuleDir>> {
         self.require_artifact_dir_elaborated(module_id, profile)
             .map_err(|error| match error {
                 crate::BuildRequirementError::NotReady { requirement } => {
@@ -36,13 +36,13 @@ impl Compiler {
     /// Lower a module to MIR for comptime execution.
     pub(crate) fn lower_comptime_module(
         &self,
-        module: &std::sync::Arc<parking_lot::RwLock<Module>>,
+        module: &Arc<Module>,
         profile: ProfileId,
         target_id: &TargetId,
     ) -> ExecuteResult<(mir::NodeTree, destack_core::StringPool)> {
         // snapshot dir inputs for lowering
-        let module_guard = module.read();
-        let module_id = module_guard.id;
+        let module = module.as_ref();
+        let module_id = module.id;
         let dir = self.require_dir_elaborated_data(module_id, profile)?;
 
         // FUGU #Performance: avoid cloning whole node dir tree for comptime
@@ -63,7 +63,7 @@ impl Compiler {
             })?;
         let mut lowerer = ModuleLowerer::new(
             self,
-            &module_guard,
+            module,
             profile,
             &dir_tree,
             &dir_roots,
@@ -133,7 +133,7 @@ struct ComptimeLowerer<'a> {
     /// The profile used to resolve module context.
     profile: ProfileId,
     /// The elaborated DIR snapshot for the module.
-    dir: Arc<ModuleDirData>,
+    dir: Arc<ModuleDir>,
     /// DIR tree for the module.
     /// MIR builder for the comptime module.
     builder: mir::ModuleBuilder,

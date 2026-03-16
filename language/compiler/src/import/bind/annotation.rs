@@ -4,7 +4,7 @@ use destack_dir::{
     Annotation, AnnotationPosition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
     NodeTree, NodeType, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -13,6 +13,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -26,6 +27,7 @@ impl Compiler {
             self.bind_annotation(
                 module,
                 ast,
+                dir,
                 scope,
                 ast_annotation_id,
                 dir_parent_id,
@@ -70,6 +72,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         ast_annotation_id: ast::LocalNodeId<ast::Annotation>,
         parent_id: Option<LocalNodeIdAny>,
@@ -93,6 +96,7 @@ impl Compiler {
                 let expression = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     decorator.expression,
                     Some(annotation_id),

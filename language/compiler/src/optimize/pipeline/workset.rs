@@ -4,6 +4,7 @@ use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::{ModuleMir, TargetId};
+use parking_lot::RwLock;
 
 use crate::optimize::{OptimizationLevel, PipelineOptions};
 
@@ -14,8 +15,8 @@ pub struct ModuleWorkItem {
     module_id: ModuleId,
     /// The target id for this work item.
     target_id: TargetId,
-    /// The committed MIR product for this work item.
-    mir: Arc<ModuleMir>,
+    /// The local mutable MIR state for this work item.
+    mir: Arc<RwLock<ModuleMir>>,
     /// The pipeline options for this module.
     options: PipelineOptions,
 }
@@ -31,7 +32,7 @@ impl ModuleWorkItem {
         Self {
             module_id,
             target_id,
-            mir: Arc::new(mir),
+            mir: Arc::new(RwLock::new(mir)),
             options,
         }
     }
@@ -53,53 +54,44 @@ impl ModuleWorkItem {
 
     /// Read the MIR tree for this module.
     pub fn with_tree<T>(&self, f: impl FnOnce(&mir::NodeTree) -> T) -> T {
-        // access the mir tree
-        self.with_mir(|mir| {
-            // lock the tree for reading
-            let tree = mir.tree.read();
-
-            f(&tree)
-        })
+        let mir = self.mir.read();
+        f(&mir.tree)
     }
 
     /// Mutate the MIR tree for this module.
     pub fn with_tree_mut<T>(&self, f: impl FnOnce(&mut mir::NodeTree) -> T) -> T {
-        // access the mir tree
-        self.with_mir(|mir| {
-            // lock the tree for writing
-            let mut tree = mir.tree.write();
-
-            f(&mut tree)
-        })
+        let mut mir = self.mir.write();
+        f(&mut mir.tree)
     }
 
     /// Access the module string pool.
     pub fn with_strings<T>(&self, f: impl FnOnce(&StringPool) -> T) -> T {
-        // access the mir strings
-        self.with_mir(|mir| f(&mir.strings))
+        let mir = self.mir.read();
+        f(&mir.strings)
     }
 
     /// Clone the module string pool.
     pub fn clone_strings(&self) -> StringPool {
-        // clone the mir strings
-        self.with_mir(|mir| mir.strings.clone())
+        let mir = self.mir.read();
+        mir.strings.clone()
     }
 
     /// Access the profile data for this module.
     pub fn with_profile<T>(&self, f: impl FnOnce(Option<&mir::ProfileTable>) -> T) -> T {
-        // access the mir profile
-        self.with_mir(|mir| f(mir.profile()))
+        let mir = self.mir.read();
+        f(mir.profile())
     }
 
     /// Clone the profile data for this module.
     pub fn clone_profile(&self) -> Option<Arc<mir::ProfileTable>> {
-        // clone the mir profile
-        self.with_mir(|mir| mir.profile.clone())
+        let mir = self.mir.read();
+        mir.profile.clone()
     }
 
     /// Access the module MIR data.
     pub fn with_mir<T>(&self, f: impl FnOnce(&destack_workspace::ModuleMir) -> T) -> T {
-        f(&self.mir)
+        let mir = self.mir.read();
+        f(&mir)
     }
 }
 

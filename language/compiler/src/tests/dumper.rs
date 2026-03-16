@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use destack_dir::{Dumper, NodeVisitor};
 use destack_parser::colorize_source;
-use destack_workspace::{Module, ModuleDir};
-use parking_lot::RwLock;
+use destack_workspace::Module;
 
 use crate::TestProgram;
 
@@ -39,8 +38,8 @@ impl TestProgram {
     }
 
     /// Dump the file representation of a single module.
-    pub fn dump_module_file(&self, module: &Arc<RwLock<Module>>) {
-        let module = module.read();
+    pub fn dump_module_file(&self, module: &Arc<Module>) {
+        let module = module.as_ref();
         let file = self.program.files.get(module.file_id);
         println!("{}", "=".repeat(80));
         println!("{} [FILE]", module.uri);
@@ -49,43 +48,41 @@ impl TestProgram {
     }
 
     /// Dump the node representation of a single module.
-    pub fn dump_module_nodes(&self, module: &Arc<RwLock<Module>>) {
+    pub fn dump_module_nodes(&self, module: &Arc<Module>) {
         let strings = (*self.program.strings).clone().into_immutable();
-        let module = module.read();
+        let module = module.as_ref();
         let profile = self.program.default_profile_id_for_module(module.id);
-        let Some(dir_data) = self.artifact_dir_data_maybe(module.id, profile) else {
+        let Some(dir) = self.artifact_dir_data_maybe(module.id, profile) else {
             return;
         };
-        let dir = ModuleDir::from_data(dir_data);
-        let tree = dir.tree.read();
-        let mut dumper = Dumper::new(&strings, &tree, self.dumper_options);
+        let tree = &*dir.tree;
+        let mut dumper = Dumper::new(&strings, tree, self.dumper_options);
         println!("{}", "=".repeat(80));
         println!("{} [NODE]", module.uri);
         println!("{}", "=".repeat(80));
-        for expression_id in &dir.roots {
-            let expression = tree.get(*expression_id);
-            dumper.visit_expression(&tree, *expression_id, expression);
+        for expression_id in dir.roots.iter().copied() {
+            let expression = tree.get(expression_id);
+            dumper.visit_expression(tree, expression_id, expression);
         }
         println!("{}", dumper.finish());
     }
 
     /// Dump the symbol representation of a single module.
-    pub fn dump_module_symbols(&self, module: &Arc<RwLock<Module>>) {
+    pub fn dump_module_symbols(&self, module: &Arc<Module>) {
         let strings = (*self.program.strings).clone().into_immutable();
-        let module = module.read();
+        let module = module.as_ref();
         let profile = self.program.default_profile_id_for_module(module.id);
-        let Some(dir_data) = self.artifact_dir_data_maybe(module.id, profile) else {
+        let Some(dir) = self.artifact_dir_data_maybe(module.id, profile) else {
             return;
         };
-        let dir = ModuleDir::from_data(dir_data);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let mut dumper = Dumper::new(&strings, &tree, self.dumper_options);
+        let tree = &*dir.tree;
+        let symbols = &*dir.symbols;
+        let mut dumper = Dumper::new(&strings, tree, self.dumper_options);
         println!("{}", "=".repeat(80));
         println!("{} [SYMBOL]", module.uri);
         println!("{}", "=".repeat(80));
         let scope = symbols.get_scope_by_id(dir.namespace_scope);
-        dumper.visit_scope(&tree, &symbols, dir.namespace_scope, scope);
+        dumper.visit_scope(tree, symbols, dir.namespace_scope, scope);
         println!("{}", dumper.finish());
     }
 }

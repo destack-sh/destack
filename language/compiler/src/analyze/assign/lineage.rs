@@ -62,26 +62,16 @@ impl Compiler {
         }
 
         // step 2: check visible extensions that add implements clauses
-        let extension_symbols = match self.visible_extension_symbols_for_target(ctx, source_symbol)
-        {
-            Ok(symbols) => symbols,
-            Err(AnalyzeError::Yield { .. }) => return false,
-            Err(error) => {
-                self.error(error);
-                return false;
-            }
+        let Some(extension_symbols) =
+            self.query_visible_extension_symbols_for_target(ctx, source_symbol)
+        else {
+            return false;
         };
         for extension_symbol in extension_symbols {
-            let lineage = match self
-                .extension_lineage_for_symbol_in_module(ctx.module_type_view(), extension_symbol)
-            {
-                Ok(lineage) => lineage,
-                Err(AnalyzeError::Yield { .. }) => return false,
-                Err(error) => {
-                    self.error(error);
-                    return false;
-                }
-            };
+            let lineage = self.query_extension_lineage_for_symbol_in_module(
+                ctx.module_type_view(),
+                extension_symbol,
+            );
             let Some(lineage) = lineage else {
                 continue;
             };
@@ -106,21 +96,12 @@ impl Compiler {
         ctx: ModuleTypeView<'_>,
         symbol: GlobalSymbolId,
     ) -> Option<Lineage> {
-        if let Some(lineage) = ctx.types.get_lineage_for_symbol(symbol) {
-            return Some(lineage.clone());
-        }
-
-        // bail when the symbol is in the same module (lineage above is already cached)
-        if symbol.module_id == ctx.module.id {
-            return None;
-        }
-
-        self.with_module_types_at_boundary(
+        self.lineage_for_symbol_or_local_for_artifact(
             ctx.module,
             ctx.profile,
-            symbol.module_id,
-            DirReadBoundary::Declared,
-            |_, remote_types| remote_types.get_lineage_for_symbol(symbol).cloned(),
+            symbol,
+            ctx.types,
+            destack_workspace::ArtifactKey::dir_declared,
         )
         .ok()
         .flatten()

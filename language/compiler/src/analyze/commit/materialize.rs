@@ -112,9 +112,9 @@ impl Compiler {
         let mut materialize_cache = TypeRewriteCache::new();
 
         // commit one stable published surface per local symbol
-        for (symbol_index, symbol) in ctx.module.symbols.symbols().enumerate() {
+        for (symbol_index, symbol) in ctx.symbols.symbols().enumerate() {
             let symbol_id = GlobalSymbolId::new(
-                ctx.module.module.id,
+                ctx.module.id,
                 LocalSymbolId::new_typed(symbol_index as u32, symbol.ty),
             );
             let is_published_symbol = symbol.export.is_some()
@@ -187,7 +187,7 @@ impl Compiler {
             .collect::<Vec<_>>();
         resolution_entries.sort_by_key(|(node_id, _)| *node_id);
         for (node_id, resolution) in resolution_entries {
-            if node_id.module_id == ctx.module.module.id {
+            if node_id.module_id == ctx.module.id {
                 let resolution_id = ctx.types.insert_resolution(resolution.clone());
                 ctx.types.set_resolution_for_node(node_id, resolution_id);
             }
@@ -197,7 +197,7 @@ impl Compiler {
         let mut instance_entries = infer.iter_provisional_instance_nodes().collect::<Vec<_>>();
         instance_entries.sort_by_key(|(node_id, _)| *node_id);
         for (node_id, instance_id) in instance_entries {
-            if node_id.module_id == ctx.module.module.id {
+            if node_id.module_id == ctx.module.id {
                 ctx.types.set_instance_for_node(node_id, instance_id);
             }
         }

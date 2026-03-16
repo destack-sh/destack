@@ -9,10 +9,10 @@ impl TestProgram {
     /// Resolve a symbol path in a module.
     pub fn resolve_to_symbol(&self, module_uri: &str, path: &str) -> Option<GlobalSymbolId> {
         let module = self.module(module_uri);
-        let module = module.read();
+        let module = module.as_ref();
         let profile = self.default_profile_id(module.id);
         let dir = self.artifact_dir(module.id, profile);
-        let symbols = dir.symbols.read();
+        let symbols = &dir.symbols;
 
         let segments: Vec<&str> = path.split('.').collect();
         if segments.is_empty() {
@@ -48,10 +48,10 @@ impl TestProgram {
     ) -> Option<(GlobalSymbolId, GlobalNodeIdAny)> {
         let symbol_id = self.resolve_to_symbol(module_uri, path)?;
         let module = self.module(module_uri);
-        let module = module.read();
+        let module = module.as_ref();
         let profile = self.default_profile_id(module.id);
         let dir = self.artifact_dir(module.id, profile);
-        let symbols = dir.symbols.read();
+        let symbols = &dir.symbols;
         let symbol = symbols.get_symbol(symbol_id.into_local());
         Some((symbol_id, symbol.primary_declaration?))
     }
@@ -70,10 +70,10 @@ impl TestProgram {
     pub fn function_symbol_by_name(&self, module_uri: &str, name: &str) -> Option<GlobalSymbolId> {
         // load module state
         let module = self.module(module_uri);
-        let module = module.read();
+        let module = module.as_ref();
         let profile = self.default_profile_id(module.id);
         let dir = self.artifact_dir(module.id, profile);
-        let tree = dir.tree.read();
+        let tree = &dir.tree;
 
         // scan declarations for a matching function name
         let name_id = self.program.strings.intern(name);
@@ -100,10 +100,10 @@ impl TestProgram {
     ) -> Option<GlobalSymbolId> {
         // load module state
         let module = self.module(module_uri);
-        let module = module.read();
+        let module = module.as_ref();
         let profile = self.default_profile_id(module.id);
         let dir = self.artifact_dir(module.id, profile);
-        let tree = dir.tree.read();
+        let tree = &dir.tree;
 
         // scan declarations for a matching name
         let name_id = self.program.strings.intern(name);
@@ -175,10 +175,10 @@ impl TestProgram {
     /// Resolve a label symbol by name.
     pub fn resolve_label_symbol(&self, module_uri: &str, name: &str) -> Option<GlobalSymbolId> {
         let module = self.module(module_uri);
-        let module = module.read();
+        let module = module.as_ref();
         let profile = self.default_profile_id(module.id);
         let dir = self.artifact_dir(module.id, profile);
-        let symbols = dir.symbols.read();
+        let symbols = &dir.symbols;
         let name_id = self.program.strings.intern(name);
 
         // search all symbols for a matching label symbol

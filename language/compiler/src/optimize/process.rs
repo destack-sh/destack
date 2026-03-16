@@ -1,15 +1,11 @@
+use crate::timing::tags;
+use crate::{BuildKey, BuildRequirementError, Compiler, OptimizeError, OptimizeResult};
 use std::mem;
 use std::str::FromStr;
-use std::sync::Arc;
-
-use crate::timing::tags;
-use crate::{
-    BuildKey, BuildProduct, BuildRequirementError, Compiler, OptimizeError, OptimizeResult,
-};
 
 use destack_source::{ModuleId, ModuleVersion, PackageId, ProfileVersion};
 use destack_workspace::{
-    ArtifactKey, DebugMode, Module, ModuleMirData, OptimizeLevel as WorkspaceOptimizeLevel,
+    ArtifactKey, DebugMode, Module, ModuleMir, OptimizeLevel as WorkspaceOptimizeLevel,
     OutputFormat, ProfileId, Target, TargetArch, TargetId,
 };
 use target_lexicon::Triple;
@@ -26,7 +22,7 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
-    ) -> OptimizeResult<BuildProduct> {
+    ) -> OptimizeResult<()> {
         let module_stamp = self.module_stamp(module);
         let profile_stamp = self.profile_stamp(profile);
         self.ensure_module_profile_matches::<OptimizeError>(
@@ -41,13 +37,18 @@ impl Compiler {
         self.require_mir(module_stamp.id, profile_stamp.id, &target)?;
 
         // optimize the module
-        self.optimize_module(
+        let payload = self.optimize_module(
             module_stamp.id,
             profile_stamp.id,
             module_stamp.version,
             profile_stamp.version,
             &target,
-        )
+        )?;
+        self.program
+            .artifacts
+            .set_mir_optimized(module, profile, target, payload);
+
+        Ok(())
     }
 
     /// Ensure optimized MIR exists for one module and target.
@@ -82,7 +83,7 @@ impl Compiler {
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
         target: &TargetId,
-    ) -> OptimizeResult<BuildProduct> {
+    ) -> OptimizeResult<ModuleMir> {
         // skip stale tasks
         self.ensure_module_profile_matches::<OptimizeError>(
             module,
@@ -121,18 +122,15 @@ impl Compiler {
         let mir = self
             .program
             .artifacts
-            .mir(module, profile, target)
+            .mir_base(module, profile, target)
             .unwrap_or_else(|| unreachable!("missing MIR artifact for target '{target}'"));
         let mut tree = mir.tree.clone();
         let strings = mir.strings.clone();
-        let profile_data = mir
-            .profile
-            .as_ref()
-            .map(|profile: &destack_mir::ProfileTable| Arc::new(profile.clone()));
+        let profile_data = mir.profile.clone();
 
         // resolve pipeline options
         let module_ref = self.program.modules.get(module);
-        let module_guard = module_ref.read();
+        let module_guard = module_ref.as_ref();
         let options = self.pipeline_options_for_module(&module_guard, &target_config, level);
 
         // count mir size before optimization
@@ -160,14 +158,13 @@ impl Compiler {
         let after = count_mir_size(&tree);
 
         // freeze optimized MIR
-        let payload = ModuleMirData {
+        let payload = ModuleMir {
             id: module,
             version: module_version,
             target: target.clone(),
             tree,
             strings,
-            profile: profile_data
-                .map(|profile: Arc<destack_mir::ProfileTable>| profile.as_ref().clone()),
+            profile: profile_data,
         };
 
         // record metrics
@@ -180,7 +177,7 @@ impl Compiler {
             after.blocks,
         );
 
-        Ok(BuildProduct::Mir(payload))
+        Ok(payload)
     }
 
     /// Resolve the optimization level for a target configuration.
@@ -331,7 +328,7 @@ impl Compiler {
     fn target_for_module(&self, module: ModuleId, target: &TargetId) -> OptimizeResult<Target> {
         // resolve module package
         let module_ref = self.program.modules.get(module);
-        let module_guard = module_ref.read();
+        let module_guard = module_ref.as_ref();
         let package_id = module_guard.package_id;
 
         // resolve target configuration

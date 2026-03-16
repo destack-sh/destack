@@ -198,7 +198,7 @@ impl Compiler {
         // detect declaration import sites: they should keep type targets in declaration space
         let source_is_declaration = source_module.is_some_and(|source_module_id| {
             let source_module = self.program.modules.get(source_module_id);
-            source_module.read().language_type.is_declaration()
+            source_module.language_type.is_declaration()
         });
 
         // resolve value and type targets through standard resolver options
@@ -271,7 +271,7 @@ impl Compiler {
     ) -> Option<ModuleId> {
         // get source module URI
         let source = self.program.modules.get(source_module);
-        let source_uri = source.read().uri.clone();
+        let source_uri = source.uri.clone();
         let source_str: &str = source_uri.as_ref();
 
         // check if source is a builtin module
@@ -550,7 +550,7 @@ impl Compiler {
             .program
             .workspace_module_version_for_id(module_id, file_version);
         let mut module = module;
-        module.version = module_version;
+        module.state.get_mut().version = module_version;
         self.program.modules.insert(module);
 
         // mark as registered
@@ -630,10 +630,9 @@ impl Compiler {
 
         // read source module identity
         let source_module = self.program.modules.get(source_module_id);
-        let source_module = source_module.read();
+        let source_module = source_module.as_ref();
         let package_id = source_module.package_id;
-        let tsconfig_id = source_module.tsconfig_id;
-        drop(source_module);
+        let tsconfig_id = source_module.tsconfig_id();
 
         // prefer package config ownership over tsconfig fallbacks
         let package = self.program.packages.get(package_id);
@@ -680,7 +679,7 @@ impl Compiler {
     ) -> Option<LanguageType> {
         source_module.map(|module_id| {
             let module = self.program.modules.get(module_id);
-            module.read().language_type
+            module.language_type
         })
     }
 
@@ -690,7 +689,7 @@ impl Compiler {
         value_module_id: ModuleId,
     ) -> Option<ModuleTarget> {
         let value_module = self.program.modules.get(value_module_id);
-        let value_module = value_module.read();
+        let value_module = value_module.as_ref();
         let value_path = value_module.path.as_ref()?;
 
         let companion_path = declaration_companion_path_for_module_path(value_path)?;
@@ -721,7 +720,7 @@ impl Compiler {
         // keep declaration targets as-is
         if let Some(ModuleTarget::Module(type_module_id)) = type_target {
             let type_module = self.program.modules.get(type_module_id);
-            if type_module.read().language_type.is_declaration() {
+            if type_module.language_type.is_declaration() {
                 return Some(ModuleTarget::Module(type_module_id));
             }
 
@@ -749,7 +748,7 @@ impl Compiler {
     pub(super) fn get_resolve_directory(&self, source_module: Option<ModuleId>) -> PathBuf {
         if let Some(module_id) = source_module {
             let module = self.program.modules.get(module_id);
-            let module_file = self.program.files.get(module.read().file_id);
+            let module_file = self.program.files.get(module.file_id);
             module_file
                 .uri
                 .to_path_buf()
@@ -910,7 +909,7 @@ impl Compiler {
         let mut fallback = None;
         for module_id in module_ids {
             let module = modules.get(*module_id);
-            let module = module.read();
+            let module = module.as_ref();
             let uri = module.uri.as_ref();
             if uri.ends_with("/index.d.ts")
                 || uri.ends_with("/index.d.ds")

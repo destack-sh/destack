@@ -1,6 +1,8 @@
-use destack_dir::{Expression, LocalNodeId, LocalScopeMark, SymbolSpaceOrder};
+use destack_dir::{
+    Expression, LocalNodeId, LocalScopeMark, NodeTree, SymbolSpaceOrder, SymbolTable, TypeTable,
+};
 
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 use crate::Compiler;
 
@@ -10,28 +12,28 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        types: &mut TypeTable,
     ) -> Vec<LocalNodeId<Expression>> {
-        self.with_active_base_dir(module.id, |dir| {
-            let mut tree = dir.tree.write();
-            let mut symbols = dir.symbols.write();
-            let mut types = dir.types.write();
-            let scope = (dir.namespace_scope, LocalScopeMark::end());
-            ast.roots
-                .iter()
-                .map(|expression| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        scope,
-                        *expression,
-                        None,
-                        &mut tree,
-                        &mut symbols,
-                        &mut types,
-                        SymbolSpaceOrder::ValueThenType,
-                    )
-                })
-                .collect()
-        })
+        let scope = (dir.namespace_scope, LocalScopeMark::end());
+        ast.roots
+            .iter()
+            .map(|expression| {
+                self.bind_expression(
+                    module,
+                    ast,
+                    dir,
+                    scope,
+                    *expression,
+                    None,
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::ValueThenType,
+                )
+            })
+            .collect()
     }
 }

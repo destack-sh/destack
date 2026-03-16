@@ -7,7 +7,7 @@ use destack_dir::{
     SymbolType, Type, TypeMappedParameterExpression, TypePredicateSubject, TypeTable,
     YieldCardinality,
 };
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{ImportDir, Module, ModuleAst};
 
 use crate::Compiler;
 
@@ -112,6 +112,7 @@ impl Compiler {
             &self,
             module: &Module,
             ast: &ModuleAst,
+            dir: &mut ImportDir,
             scope: (LocalScopeId, LocalScopeMark),
             ast_expression_id: ast::LocalNodeId<ast::Expression>,
             parent_id: Option<LocalNodeIdAny>,
@@ -134,6 +135,7 @@ impl Compiler {
                 let block_id = self.bind_block(
                     module,
                     ast,
+                    dir,
                     scope,
                     *block_id,
                     Some(expression_id),
@@ -155,6 +157,7 @@ impl Compiler {
                 let declaration_id = self.bind_declaration(
                     module,
                     ast,
+                    dir,
                     declaration_scope,
                     *declaration_id,
                     is_statement_declaration,
@@ -171,6 +174,7 @@ impl Compiler {
                 let inner_expression_id = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *inner_expression_id,
                     Some(expression_id),
@@ -201,6 +205,7 @@ impl Compiler {
                 let body_id = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *body,
                     Some(expression_id),
@@ -232,6 +237,7 @@ impl Compiler {
                         let target = self.bind_expression(
                             module,
                             ast,
+                            dir,
                             scope,
                             *target,
                             Some(expression_id),
@@ -254,6 +260,7 @@ impl Compiler {
                         self.bind_dependency_item(
                             module,
                             ast,
+                            dir,
                             scope,
                             source,
                             *kind,
@@ -274,6 +281,7 @@ impl Compiler {
                             self.bind_argument(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 *argument,
                                 Some(expression_id),
@@ -315,6 +323,7 @@ impl Compiler {
                             self.bind_dependency_item(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 DependencySource::ExportStatement,
                                 *kind,
@@ -335,6 +344,7 @@ impl Compiler {
                                 self.bind_argument(
                                     module,
                                     ast,
+                                    dir,
                                     scope,
                                     *argument,
                                     Some(expression_id),
@@ -366,6 +376,7 @@ impl Compiler {
                                 self.bind_dependency_item(
                                     module,
                                     ast,
+                                    dir,
                                     scope,
                                     DependencySource::ValueExpression,
                                     *kind,
@@ -425,6 +436,7 @@ impl Compiler {
                         let declarator = self.bind_declarator(
                             module,
                             ast,
+                            dir,
                             declarator_scope,
                             descriptor.export,
                             binding,
@@ -487,6 +499,7 @@ impl Compiler {
                         let declarator = self.bind_declarator(
                             module,
                             ast,
+                            dir,
                             declarator_scope,
                             descriptor.export,
                             binding,
@@ -521,6 +534,7 @@ impl Compiler {
                 let right = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *right,
                     Some(expression_id),
@@ -542,6 +556,7 @@ impl Compiler {
                 let right = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *right,
                     Some(expression_id),
@@ -564,6 +579,7 @@ impl Compiler {
                 let right = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *right,
                     Some(expression_id),
@@ -588,6 +604,7 @@ impl Compiler {
                 let right = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *right,
                     Some(expression_id),
@@ -607,6 +624,7 @@ impl Compiler {
                 let right = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *right,
                     Some(expression_id),
@@ -625,6 +643,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -636,6 +655,7 @@ impl Compiler {
                 let right = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *right,
                     Some(expression_id),
@@ -659,6 +679,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -670,6 +691,7 @@ impl Compiler {
                 let right = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *right,
                     Some(expression_id),
@@ -694,6 +716,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -707,6 +730,7 @@ impl Compiler {
                 let right = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     type_scope,
                     *right,
                     Some(expression_id),
@@ -719,6 +743,7 @@ impl Compiler {
                 let then_type = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     type_scope,
                     *then_type,
                     Some(expression_id),
@@ -730,6 +755,7 @@ impl Compiler {
                 let else_type = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *else_type,
                     Some(expression_id),
@@ -757,6 +783,7 @@ impl Compiler {
                 let constraint = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     parameter.constraint,
                     Some(expression_id),
@@ -786,6 +813,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         parameter_scope,
                         key_remap,
                         Some(expression_id),
@@ -805,6 +833,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     parameter_scope,
                     *value,
                     Some(expression_id),
@@ -823,6 +852,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -834,6 +864,7 @@ impl Compiler {
                 let index = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *index,
                     Some(expression_id),
@@ -855,6 +886,7 @@ impl Compiler {
                         self.bind_expression(
                             module,
                             ast,
+                            dir,
                             scope,
                             *span,
                             Some(expression_id),
@@ -879,6 +911,7 @@ impl Compiler {
                         self.bind_argument(
                             module,
                             ast,
+                            dir,
                             scope,
                             *argument,
                             Some(expression_id),
@@ -897,6 +930,7 @@ impl Compiler {
                         self.bind_expression(
                             module,
                             ast,
+                            dir,
                             scope,
                             *target,
                             Some(expression_id),
@@ -910,6 +944,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         *target,
                         Some(expression_id),
@@ -934,6 +969,7 @@ impl Compiler {
                             self.bind_argument(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 *argument,
                                 Some(expression_id),
@@ -958,6 +994,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         constraint,
                         Some(expression_id),
@@ -998,6 +1035,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         target,
                         Some(expression_id),
@@ -1021,6 +1059,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -1032,6 +1071,7 @@ impl Compiler {
                 let right = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *right,
                     Some(expression_id),
@@ -1060,6 +1100,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -1081,6 +1122,7 @@ impl Compiler {
                             self.bind_argument(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 *argument,
                                 Some(expression_id),
@@ -1106,6 +1148,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -1127,6 +1170,7 @@ impl Compiler {
                             self.bind_argument(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 *argument,
                                 Some(expression_id),
@@ -1153,6 +1197,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -1173,6 +1218,7 @@ impl Compiler {
                             self.bind_argument(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 *argument,
                                 Some(expression_id),
@@ -1190,6 +1236,7 @@ impl Compiler {
                         self.bind_argument(
                             module,
                             ast,
+                            dir,
                             scope,
                             *argument,
                             Some(expression_id),
@@ -1214,6 +1261,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -1229,6 +1277,7 @@ impl Compiler {
                             self.bind_argument(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 *argument,
                                 Some(expression_id),
@@ -1246,6 +1295,7 @@ impl Compiler {
                         self.bind_argument(
                             module,
                             ast,
+                            dir,
                             scope,
                             *argument,
                             Some(expression_id),
@@ -1266,6 +1316,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *value,
                     Some(expression_id),
@@ -1284,6 +1335,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -1296,6 +1348,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         index,
                         Some(expression_id),
@@ -1314,6 +1367,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -1333,6 +1387,7 @@ impl Compiler {
                         self.bind_argument(
                             module,
                             ast,
+                            dir,
                             scope,
                             *argument,
                             Some(expression_id),
@@ -1352,6 +1407,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -1366,6 +1422,7 @@ impl Compiler {
                 let left = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *left,
                     Some(expression_id),
@@ -1389,6 +1446,7 @@ impl Compiler {
                             self.bind_argument(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 *argument,
                                 Some(expression_id),
@@ -1418,6 +1476,7 @@ impl Compiler {
                 let value = self.bind_template_literal(
                     module,
                     ast,
+                    dir,
                     scope,
                     value,
                     Some(expression_id),
@@ -1431,6 +1490,7 @@ impl Compiler {
                 let tag = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *tag,
                     Some(expression_id),
@@ -1442,6 +1502,7 @@ impl Compiler {
                 let value = self.bind_template_literal(
                     module,
                     ast,
+                    dir,
                     scope,
                     value,
                     Some(expression_id),
@@ -1462,6 +1523,7 @@ impl Compiler {
                         self.bind_property(
                             module,
                             ast,
+                            dir,
                             scope,
                             *property,
                             Some(expression_id),
@@ -1475,6 +1537,7 @@ impl Compiler {
                     let ty = self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         *ty_id,
                         Some(expression_id),
@@ -1495,6 +1558,7 @@ impl Compiler {
                         self.bind_argument(
                             module,
                             ast,
+                            dir,
                             scope,
                             *element,
                             Some(expression_id),
@@ -1514,6 +1578,7 @@ impl Compiler {
                         self.bind_expression(
                             module,
                             ast,
+                            dir,
                             scope,
                             *expr_id,
                             Some(expression_id),
@@ -1533,6 +1598,7 @@ impl Compiler {
                         self.bind_argument(
                             module,
                             ast,
+                            dir,
                             scope,
                             *element,
                             Some(expression_id),
@@ -1554,6 +1620,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         left,
                         Some(expression_id),
@@ -1570,6 +1637,7 @@ impl Compiler {
                             self.bind_argument(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 *argument,
                                 Some(expression_id),
@@ -1588,6 +1656,7 @@ impl Compiler {
                             self.bind_argument(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 *element,
                                 Some(expression_id),
@@ -1609,6 +1678,7 @@ impl Compiler {
                 let expression = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *expression,
                     Some(expression_id),
@@ -1632,6 +1702,7 @@ impl Compiler {
                         let condition = self.bind_expression(
                             module,
                             ast,
+                            dir,
                             scope,
                             *condition,
                             Some(expression_id),
@@ -1643,6 +1714,7 @@ impl Compiler {
                         let then_expression = self.bind_expression(
                             module,
                             ast,
+                            dir,
                             scope,
                             *then_expression,
                             Some(expression_id),
@@ -1655,6 +1727,7 @@ impl Compiler {
                             self.bind_expression(
                                 module,
                                 ast,
+                                dir,
                                 scope,
                                 else_expression,
                                 Some(expression_id),
@@ -1684,6 +1757,7 @@ impl Compiler {
                         let declarator = self.bind_declarator(
                             module,
                             ast,
+                            dir,
                             if_scope,
                             None,
                             SymbolBinding::Runtime,
@@ -1699,6 +1773,7 @@ impl Compiler {
                         let then_expression = self.bind_expression(
                             module,
                             ast,
+                            dir,
                             if_scope,
                             *then_expression,
                             Some(expression_id),
@@ -1714,6 +1789,7 @@ impl Compiler {
                             self.bind_expression(
                                 module,
                                 ast,
+                                dir,
                                 else_scope,
                                 else_expression,
                                 Some(expression_id),
@@ -1752,6 +1828,7 @@ impl Compiler {
                 let condition = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *condition,
                     Some(expression_id),
@@ -1771,6 +1848,7 @@ impl Compiler {
                 let body = self.bind_block(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
                     Some(expression_id),
@@ -1801,6 +1879,7 @@ impl Compiler {
                 let iterator = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *iterator,
                     Some(expression_id),
@@ -1829,6 +1908,7 @@ impl Compiler {
                         let pattern = self.bind_pattern(
                             module,
                             ast,
+                            dir,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             None,
                             SymbolBinding::Runtime,
@@ -1849,6 +1929,7 @@ impl Compiler {
                         let pattern = self.bind_pattern(
                             module,
                             ast,
+                            dir,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             None,
                             SymbolBinding::Runtime,
@@ -1869,6 +1950,7 @@ impl Compiler {
                 let body = self.bind_block(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
                     Some(expression_id),
@@ -1904,6 +1986,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         initialization,
                         Some(expression_id),
@@ -1917,6 +2000,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         condition,
                         Some(expression_id),
@@ -1930,6 +2014,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         increment,
                         Some(expression_id),
@@ -1942,6 +2027,7 @@ impl Compiler {
                 let body = self.bind_block(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
                     Some(expression_id),
@@ -1970,6 +2056,7 @@ impl Compiler {
                 let body = self.bind_block(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
                     Some(expression_id),
@@ -2003,6 +2090,7 @@ impl Compiler {
                 let try_expression = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *try_expression,
                     Some(expression_id),
@@ -2015,6 +2103,7 @@ impl Compiler {
                     self.bind_pattern(
                         module,
                         ast,
+                        dir,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         None,
                         SymbolBinding::Runtime,
@@ -2031,6 +2120,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         catch_ty,
                         Some(expression_id),
@@ -2044,6 +2134,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         catch_expression,
                         Some(expression_id),
@@ -2057,6 +2148,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         finally_expression,
                         Some(expression_id),
@@ -2080,6 +2172,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *value,
                     Some(expression_id),
@@ -2102,6 +2195,7 @@ impl Compiler {
                         self.bind_match_case(
                             module,
                             ast,
+                            dir,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *case,
                             Some(expression_id),
@@ -2132,6 +2226,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         value,
                         Some(expression_id),
@@ -2171,6 +2266,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         value,
                         Some(expression_id),
@@ -2186,6 +2282,7 @@ impl Compiler {
                 let expression = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *expression,
                     Some(expression_id),
@@ -2200,6 +2297,7 @@ impl Compiler {
                 let expression = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *expression,
                     Some(expression_id),
@@ -2214,6 +2312,7 @@ impl Compiler {
                 let body = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *body,
                     Some(expression_id),
@@ -2233,6 +2332,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
+                        dir,
                         scope,
                         value,
                         Some(expression_id),
@@ -2248,6 +2348,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
+                    dir,
                     scope,
                     *value,
                     Some(expression_id),
@@ -2285,6 +2386,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &ModuleAst,
+        dir: &mut ImportDir,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
         binding: SymbolBinding,
@@ -2304,6 +2406,7 @@ impl Compiler {
         let pattern = self.bind_pattern(
             module,
             ast,
+            dir,
             scope,
             export,
             binding,
@@ -2319,6 +2422,7 @@ impl Compiler {
             self.bind_expression(
                 module,
                 ast,
+                dir,
                 scope,
                 ty_id,
                 Some(declarator_id),
@@ -2340,6 +2444,7 @@ impl Compiler {
             self.bind_expression(
                 module,
                 ast,
+                dir,
                 value_scope,
                 v,
                 Some(declarator_id),
@@ -2472,7 +2577,7 @@ let Foo: Foo = Foo;
 
         // load bound tree
         let dir = test.dir_base(module_id);
-        let tree = dir.tree.read();
+        let tree = &dir.tree;
 
         // select the root expression
         let root_id = test.expect_root_expression(module_id);
@@ -2534,7 +2639,7 @@ let Foo: Foo = Foo;
         test.check_clean();
 
         let dir = test.dir_base(main_id);
-        let symbols = dir.symbols.read();
+        let symbols = &dir.symbols;
         let name = test.program.strings.intern("Foo");
         let key = StaticKey::Name(name);
         let (type_count, value_count, type_value_count) = count_symbol_spaces(&symbols, key);

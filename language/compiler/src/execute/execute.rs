@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use crate::{BuildRequirementCollector, Compiler, ExecuteError, ExecuteResult};
 
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ComptimeOutput, ModuleDirData, ProfileId, TrustPolicy};
+use destack_workspace::{ComptimeOutput, ModuleDir, ProfileId, TrustPolicy};
 
 use super::{ComptimePatch, collect_comptime_dependencies};
 use vm::{Heap, MemoryContext, SharedSpace};
@@ -20,7 +20,7 @@ impl Compiler {
         profile_id: ProfileId,
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
-    ) -> Result<ModuleDirData, ExecuteError> {
+    ) -> Result<ModuleDir, ExecuteError> {
         // skip stale tasks
         self.ensure_module_profile_matches::<ExecuteError>(
             module_id,
@@ -116,7 +116,8 @@ impl Compiler {
             .as_ref()
             .clone();
         for patch in patches {
-            self.apply_comptime_patch(module_id, profile_id, &mut payload.tree, patch);
+            let tree = payload.tree_mut();
+            self.apply_comptime_patch(module_id, profile_id, tree, patch);
         }
 
         // write executed DIR to cache
@@ -188,7 +189,7 @@ impl Compiler {
         let result = {
             // get the comptime expression
             let module = self.program.modules.get(module_id);
-            let module = module.read();
+            let module = module.as_ref();
             let dir = self.require_dir_elaborated_data(module_id, profile_id)?;
             let tree = &dir.tree;
             let expression = tree.get(expression_id);
