@@ -27,6 +27,21 @@ pub trait VmAggregateCodec: Copy {
     ) -> RuntimeResult<vm::Value>;
 }
 
+/// Storage strategy for VM collection elements.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VmCollectionStorage {
+    /// Store elements as packed VM values.
+    Values,
+    /// Store elements as raw bytes.
+    Bytes,
+}
+
+/// Collection element codec for VM slices and arrays.
+pub trait VmCollectionElement: VmAggregateCodec {
+    /// The storage strategy for this element type inside VM collections.
+    const STORAGE: VmCollectionStorage = VmCollectionStorage::Values;
+}
+
 impl<T: VmValueCodec> VmAggregateCodec for T {
     fn decode_with_context(
         _context: &vm::ExternalCallContext<'_>,
@@ -227,3 +242,31 @@ impl VmValueCodec for vm::StringHandle {
         self.value()
     }
 }
+
+macro_rules! value_collection_elements {
+    ($($type:ty),+ $(,)?) => {
+        $(
+            impl VmCollectionElement for $type {}
+        )+
+    };
+}
+
+value_collection_elements!(
+    bool,
+    i8,
+    i16,
+    i32,
+    i64,
+    u16,
+    u32,
+    u64,
+    f32,
+    f64,
+    vm::StringHandle,
+);
+
+impl VmCollectionElement for u8 {
+    const STORAGE: VmCollectionStorage = VmCollectionStorage::Bytes;
+}
+
+impl<T: VmCollectionElement> VmCollectionElement for Option<T> {}

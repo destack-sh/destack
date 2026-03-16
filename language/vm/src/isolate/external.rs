@@ -172,6 +172,13 @@ impl<'ctx> ExternalCallContext<'ctx> {
             .ok_or(Error::InvalidManagedReference)
     }
 
+    /// Read the raw byte length for one pointer.
+    pub fn raw_byte_len(&self, pointer: RawPointer) -> Result<usize, Error> {
+        self.heap_ref()
+            .raw_byte_len(pointer)
+            .ok_or(Error::InvalidManagedReference)
+    }
+
     /// Read raw packed values from one pointer.
     pub fn raw_values(&self, pointer: RawPointer) -> Result<Vec<Value>, Error> {
         self.heap_ref()

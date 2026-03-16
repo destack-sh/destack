@@ -7,7 +7,9 @@ use crate::platform::fs::{
     OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytes, PathBytesAbi, PathBytesVm,
     PathUtf16, PathUtf16Abi, PathUtf16Vm, core as core_fs,
 };
-use crate::platform::{NativeArray, PlatformError, VmAggregateCodec, VmArray, VmSlice};
+use crate::platform::{
+    NativeArray, PlatformError, VmAggregateCodec, VmArray, VmCollectionElement, VmSlice,
+};
 use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
 use destack_vm as vm;
 
@@ -164,7 +166,7 @@ pub(crate) fn optional_store_bytes_from_vm(
 }
 
 /// Read one VM value slice and store it in binding-local slice storage.
-pub(crate) fn store_values_from_vm<T: Copy + VmAggregateCodec + 'static>(
+pub(crate) fn store_values_from_vm<T: Copy + VmAggregateCodec + VmCollectionElement + 'static>(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     value: VmSlice<T>,
@@ -186,7 +188,9 @@ pub(crate) fn store_bytes_array_from_vm(
 }
 
 /// Read one VM value array and store it in binding-local array storage.
-pub(crate) fn store_values_array_from_vm<T: Copy + VmAggregateCodec + 'static>(
+pub(crate) fn store_values_array_from_vm<
+    T: Copy + VmAggregateCodec + VmCollectionElement + 'static,
+>(
     binding: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     value: VmArray<T>,
@@ -233,7 +237,7 @@ pub(crate) fn bytes_array_array_to_vm(
 }
 
 /// Encode one native value slice as one VM value slice.
-pub(crate) fn values_to_vm<T: Copy + VmAggregateCodec>(
+pub(crate) fn values_to_vm<T: Copy + VmAggregateCodec + VmCollectionElement>(
     context: &mut vm::ExternalCallContext<'_>,
     value: NativeSlice<T>,
 ) -> RuntimeResult<VmSlice<T>> {
@@ -243,7 +247,7 @@ pub(crate) fn values_to_vm<T: Copy + VmAggregateCodec>(
 }
 
 /// Encode one native value array as one VM value array.
-pub(crate) fn values_array_to_vm<T: Copy + VmAggregateCodec>(
+pub(crate) fn values_array_to_vm<T: Copy + VmAggregateCodec + VmCollectionElement>(
     context: &mut vm::ExternalCallContext<'_>,
     value: NativeArray<T>,
 ) -> RuntimeResult<VmArray<T>> {
@@ -259,7 +263,7 @@ pub(crate) fn map_native_slice_to_vm<T, U>(
     mut map: impl FnMut(&mut vm::ExternalCallContext<'_>, &T) -> RuntimeResult<U>,
 ) -> RuntimeResult<VmSlice<U>>
 where
-    U: Copy + VmAggregateCodec,
+    U: Copy + VmAggregateCodec + VmCollectionElement,
 {
     let values = unsafe { values.as_slice()? };
     let mut encoded = Vec::with_capacity(values.len());
@@ -279,7 +283,7 @@ pub(crate) fn map_native_array_to_vm<T, U>(
     mut map: impl FnMut(&mut vm::ExternalCallContext<'_>, &T) -> RuntimeResult<U>,
 ) -> RuntimeResult<VmArray<U>>
 where
-    U: Copy + VmAggregateCodec,
+    U: Copy + VmAggregateCodec + VmCollectionElement,
 {
     let values = unsafe { values.as_slice()? };
     let mut encoded = Vec::with_capacity(values.len());

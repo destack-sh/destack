@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError, VmAggregateCodec, VmSlice};
+use crate::platform::{PlatformError, VmAggregateCodec, VmCollectionElement, VmSlice};
 
 /// FFI array for raw native bindings.
 #[repr(C)]
@@ -148,7 +148,7 @@ impl<T> VmArray<T> {
     }
 }
 
-impl<T: VmAggregateCodec> VmArray<T> {
+impl<T: VmCollectionElement> VmArray<T> {
     /// Allocate a VM array from decoded values.
     pub fn from_values(
         context: &mut vm::ExternalCallContext<'_>,
@@ -203,6 +203,8 @@ impl<T: Copy> VmAggregateCodec for VmArray<T> {
         self.to_value(context)
     }
 }
+
+impl<T: Copy> VmCollectionElement for VmArray<T> {}
 
 impl VmArray<u8> {
     /// Allocate a VM array from raw bytes.

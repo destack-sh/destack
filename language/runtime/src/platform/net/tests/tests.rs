@@ -771,7 +771,7 @@ fn socket_address_vm_from_host_port(
     family: SocketFamily,
 ) -> RuntimeResult<SocketAddressVm> {
     let address = socket_address_native_from_host_port(binding, host, port, family)?;
-    let bytes = VmArray::from_values(context, address.bytes()).map_err(|error| {
+    let bytes = VmArray::from_bytes(context, address.bytes()).map_err(|error| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "address.bytes",
             format!("failed to encode vm byte array: {error}"),
