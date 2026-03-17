@@ -5,9 +5,9 @@ use std::thread;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
-    MidiInputRecordValue, MidiPortDescriptorValue, read_queued_batch, read_queued_item,
-    remove_midi_input_resource, resolve_descriptor_open_transport, surface_terminal_error,
-    try_read_queued_batch, try_read_queued_item, validate_record_shape,
+    MidiInputRecordValue, MidiPortDescriptorValue, input_queue_capacity, read_queued_batch,
+    read_queued_item, remove_midi_input_resource, resolve_descriptor_open_transport,
+    surface_terminal_error, try_read_queued_batch, try_read_queued_item, validate_record_shape,
 };
 use crate::platform::midi::{
     MidiDataFormat, MidiEventSource, MidiInputPortOpenOptions, MidiPortDirection,
@@ -22,9 +22,8 @@ use super::core::{
     AlsaInputSession, AlsaInputSessionKind, AlsaInputTerminalError, alsa_record_framing,
     create_midi_parser, create_queue, create_simple_port, default_port_type,
     enable_port_realtime_timestamps, hidden_destination_port_capability,
-    input_event_received_at_ns, input_queue_capacity, insert_input_resource,
-    native_optional_string, native_string, open_sequencer_handle, subscribe_from_with_timestamps,
-    virtual_destination_port_capability,
+    input_event_received_at_ns, insert_input_resource, native_optional_string, native_string,
+    open_sequencer_handle, subscribe_from_with_timestamps, virtual_destination_port_capability,
 };
 use super::descriptor::{
     endpoint_address, filtered_descriptors, resolve_endpoint, virtual_input_descriptor,
@@ -482,7 +481,7 @@ fn spawn_input_reader(
                         data_format: MidiDataFormat::Midi1Bytes,
                         protocol: Some(MidiProtocol::Midi1),
                         framing,
-                        data: buffer,
+                        data: buffer.into(),
                     });
                 }
             }

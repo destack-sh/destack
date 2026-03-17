@@ -14,21 +14,9 @@ mod backend;
     windows
 ))]
 mod descriptor;
-#[cfg(any(
-    target_os = "android",
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows
-))]
+#[cfg_attr(target_os = "android", allow(dead_code))]
 mod event;
-#[cfg(any(
-    target_os = "android",
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows
-))]
+#[cfg_attr(target_os = "android", allow(dead_code))]
 mod queue;
 #[cfg(windows)]
 pub(crate) use descriptor::descriptor_matches_list_flags;
@@ -41,15 +29,10 @@ pub(crate) use descriptor::resolve_descriptor_row;
 #[cfg(any(target_os = "linux", windows))]
 pub(crate) use descriptor::resolve_direction_descriptor_row;
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "ios", windows))]
-pub(crate) use event::{collect_live_event_sessions, push_backend_disconnected_event};
-#[cfg(any(
-    target_os = "android",
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows
-))]
-pub(crate) use event::{refresh_snapshot_event_subscription, snapshot_key};
+pub(crate) use event::collect_live_event_sessions;
+pub(crate) use event::{
+    push_backend_disconnected_event, refresh_snapshot_event_subscription, snapshot_key,
+};
 #[cfg(any(
     target_os = "android",
     target_os = "linux",
@@ -69,7 +52,13 @@ mod store;
 mod validate;
 mod value;
 
-#[cfg(any(target_os = "android", target_os = "macos", target_os = "ios", windows))]
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "ios",
+    windows
+))]
 pub(crate) use crate::platform::core::monotonic_now_ns as binding_timestamp_now;
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "ios", windows))]
 pub(crate) use backend::single_midi_backend_metadata;
@@ -86,22 +75,15 @@ pub(crate) use backend::{
 };
 #[cfg(any(target_os = "linux", windows))]
 pub(crate) use queue::surface_terminal_error;
-#[cfg(any(
-    target_os = "android",
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows
-))]
 pub(crate) use queue::{
     event_poll_interval, event_queue_capacity, input_queue_capacity,
-    push_event_with_overflow_policy, require_queued_event, require_queued_event_batch,
-    try_pop_queued_event, try_pop_queued_event_batch,
+    push_event_with_overflow_policy, read_queued_event, read_queued_event_batch,
+    require_queued_event, require_queued_event_batch, try_pop_queued_event,
+    try_pop_queued_event_batch,
 };
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "ios", windows))]
 pub(crate) use queue::{
-    read_queued_batch, read_queued_event, read_queued_event_batch, read_queued_item,
-    try_read_queued_batch, try_read_queued_item,
+    read_queued_batch, read_queued_item, try_read_queued_batch, try_read_queued_item,
 };
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "ios", windows))]
 pub(crate) use resource::remove_labeled_resource;

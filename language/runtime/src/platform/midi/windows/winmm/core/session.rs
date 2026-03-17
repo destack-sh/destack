@@ -3,9 +3,9 @@ use std::mem::size_of;
 use std::ptr::addr_of;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::time::Duration;
 
 use parking_lot::Mutex;
+use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
 use windows_sys::Win32::Media::Audio::{
     HMIDIIN, HMIDIOUT, MIDIHDR, midiInClose, midiInReset, midiInStop, midiInUnprepareHeader,
     midiOutClose, midiOutReset,
@@ -20,6 +20,7 @@ use crate::platform::midi::{
     MidiPortDirection, MidiPortDirectionFlags, MidiProtocol,
 };
 use crate::runtime::control::queue::BoundedQueue;
+use crate::runtime::process::service::executor::periodic::PeriodicTaskHandle;
 
 use super::super::service::WinMmService;
 use super::native::release_input_callback_context;
@@ -140,6 +141,8 @@ pub(crate) struct WinMmOutputSession {
     pub(crate) protocol: Option<MidiProtocol>,
     /// Raw WinMM output handle.
     pub(crate) handle: HMIDIOUT,
+    /// Win32 event signaled by WinMM output completion callbacks.
+    pub(crate) completion_event: HANDLE,
 }
 
 /// One opened WinMM event subscription.
@@ -153,10 +156,8 @@ pub(crate) struct WinMmEventSession {
     pub(crate) flags: MidiEventSubscriptionFlags,
     /// Overflow policy.
     pub(crate) overflow_policy: MidiEventOverflowPolicy,
-    /// Poll interval for synthetic snapshots.
-    pub(crate) poll_interval: Duration,
-    /// Last snapshot refresh.
-    pub(crate) last_poll_at: Option<std::time::Instant>,
+    /// Registered synthetic poll task.
+    pub(crate) poll_task: Option<Arc<PeriodicTaskHandle>>,
     /// Pending event queue.
     pub(crate) queue: Arc<BoundedQueue<MidiEventValue>>,
     /// Next sequence number.
@@ -227,9 +228,17 @@ impl Drop for WinMmInputSession {
 impl Drop for WinMmOutputSession {
     /// Release WinMM output resources on drop.
     fn drop(&mut self) {
+        // stop backend delivery before releasing native resources
         unsafe {
             let _ = midiOutReset(self.handle);
             let _ = midiOutClose(self.handle);
+        }
+
+        // release the session completion event
+        if self.completion_event != 0 {
+            unsafe {
+                let _ = CloseHandle(self.completion_event);
+            }
         }
     }
 }

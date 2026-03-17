@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::sync::{Arc, Weak};
+use std::time::Duration;
 
 use parking_lot::Mutex;
 
@@ -21,6 +21,7 @@ use crate::platform::midi::{
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
+use crate::runtime::process::service::executor::periodic::periodic_service_executor;
 
 use super::abi::{
     K_MIDI_MSG_IO_ERROR, K_MIDI_MSG_OBJECT_ADDED, K_MIDI_MSG_OBJECT_REMOVED,
@@ -106,6 +107,45 @@ fn queue_backend_disconnected_event(
         source,
         flags,
     )
+}
+
+/// Register one synthetic poll delivery for one CoreMIDI event subscription.
+fn register_poll_event_session(
+    service: &Arc<CoreMidiService>,
+    session: &Arc<Mutex<CoreMidiEventSession>>,
+    poll_interval: Duration,
+) -> RuntimeResult<Arc<crate::runtime::process::service::executor::periodic::PeriodicTaskHandle>> {
+    let executor = periodic_service_executor()?;
+    let service = service.clone();
+    let session = Arc::downgrade(session);
+    let is_failed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let failure_state = is_failed.clone();
+
+    let task = executor.register(poll_interval, move || {
+        if failure_state.load(std::sync::atomic::Ordering::Acquire) {
+            return Ok(());
+        }
+
+        let Some(session) = Weak::upgrade(&session) else {
+            return Ok(());
+        };
+
+        let refresh_result = {
+            let mut session = session.lock();
+            refresh_poll_event_subscription(&service, &mut session)
+        };
+
+        if refresh_result.is_err() {
+            let mut session = session.lock();
+            let _ =
+                queue_backend_disconnected_event(&mut session, MidiEventSource::SyntheticPoll, 0);
+            failure_state.store(true, std::sync::atomic::Ordering::Release);
+        }
+
+        Ok(())
+    })?;
+
+    Ok(Arc::new(task))
 }
 
 /// Pop one queued event after honoring deferred overflow errors.
@@ -241,6 +281,7 @@ pub(crate) fn midi_event_open(
         overflow_policy: options.overflow_policy,
         poll_interval: event_poll_interval(options.poll_interval_ns),
         delivery_kind,
+        poll_task: None,
         queue: Arc::new(BoundedQueue::new(event_queue_capacity(
             options.queue_capacity,
         ))),
@@ -251,6 +292,10 @@ pub(crate) fn midi_event_open(
     if options.delivery_mode != MidiEventDeliveryMode::PollOnly {
         let delivery_kind = register_native_event_session(&service, &session);
         session.lock().delivery_kind = delivery_kind;
+    } else {
+        let poll_interval = session.lock().poll_interval;
+        let poll_task = register_poll_event_session(&service, &session, poll_interval)?;
+        session.lock().poll_task = Some(poll_task);
     }
 
     Ok(insert_event_resource(binding, session))
@@ -277,11 +322,6 @@ pub(crate) fn midi_event_read(
     handle: resource::MidiEventHandle,
     timeout_ns: u64,
 ) -> RuntimeResult<MidiEventValue> {
-    let service = binding
-        .agent()
-        .platform_state
-        .midi
-        .core_midi_service("destack.midi.event.read")?;
     let session = event_resource(binding, handle, "destack.midi.event.read")?;
 
     // native feeds block directly on the shared queue
@@ -304,48 +344,13 @@ pub(crate) fn midi_event_read(
         );
     }
 
-    let deadline = core_platform::timeout_deadline(timeout_ns);
-
-    loop {
-        // return any queued event before polling again
-        if let Some(event) = {
-            let session = session.lock();
-            try_pop_session_event(&session, "destack.midi.event.read")?
-        } {
-            return Ok(event);
-        }
-
-        // refresh the synthetic snapshot and consume any new queued event
-        {
-            let mut session = session.lock();
-            refresh_poll_event_subscription(&service, &mut session)?;
-
-            if let Some(event) = try_pop_session_event(&session, "destack.midi.event.read")? {
-                return Ok(event);
-            }
-        }
-
-        // stop once the caller timeout expires
-        let now = Instant::now();
-        if deadline.is_some_and(|deadline| now >= deadline) {
-            return Err(core_platform::io_would_block(
-                "destack.midi.event.read",
-                "midi event queue is empty",
-            ));
-        }
-
-        // otherwise sleep for the requested poll cadence
-        let sleep_duration = {
-            let session = session.lock();
-            match deadline {
-                Some(deadline) => session
-                    .poll_interval
-                    .min(deadline.saturating_duration_since(now)),
-                None => session.poll_interval,
-            }
-        };
-        std::thread::sleep(sleep_duration);
-    }
+    let session = session.lock();
+    read_queued_event(
+        &session.queue,
+        timeout_ns,
+        "destack.midi.event.read",
+        "midi event queue is empty",
+    )
 }
 
 /// Wait for one CoreMIDI event batch.
@@ -355,11 +360,6 @@ pub(crate) fn midi_event_read_batch(
     max_events: u32,
     timeout_ns: u64,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
-    let service = binding
-        .agent()
-        .platform_state
-        .midi
-        .core_midi_service("destack.midi.event.readBatch")?;
     let session = event_resource(binding, handle, "destack.midi.event.readBatch")?;
 
     // native feeds block directly on the shared queue
@@ -383,57 +383,14 @@ pub(crate) fn midi_event_read_batch(
         );
     }
 
-    let deadline = core_platform::timeout_deadline(timeout_ns);
-
-    loop {
-        // return any queued batch before polling again
-        let batch = {
-            let session = session.lock();
-            try_pop_session_event_batch(
-                &session,
-                max_events.max(1) as usize,
-                "destack.midi.event.readBatch",
-            )?
-        };
-        if !batch.is_empty() {
-            return Ok(batch);
-        }
-
-        // refresh the synthetic snapshot and consume any queued batch
-        {
-            let mut session = session.lock();
-            refresh_poll_event_subscription(&service, &mut session)?;
-            let batch = try_pop_session_event_batch(
-                &session,
-                max_events.max(1) as usize,
-                "destack.midi.event.readBatch",
-            )?;
-            if !batch.is_empty() {
-                return Ok(batch);
-            }
-        }
-
-        // stop once the caller timeout expires
-        let now = Instant::now();
-        if deadline.is_some_and(|deadline| now >= deadline) {
-            return Err(core_platform::io_would_block(
-                "destack.midi.event.readBatch",
-                "midi event queue is empty",
-            ));
-        }
-
-        // otherwise sleep for the requested poll cadence
-        let sleep_duration = {
-            let session = session.lock();
-            match deadline {
-                Some(deadline) => session
-                    .poll_interval
-                    .min(deadline.saturating_duration_since(now)),
-                None => session.poll_interval,
-            }
-        };
-        std::thread::sleep(sleep_duration);
-    }
+    let session = session.lock();
+    read_queued_event_batch(
+        &session.queue,
+        max_events.max(1) as usize,
+        timeout_ns,
+        "destack.midi.event.readBatch",
+        "midi event queue is empty",
+    )
 }
 
 /// Poll one CoreMIDI event.
@@ -441,18 +398,8 @@ pub(crate) fn midi_event_try_read(
     binding: &BindingCallContext,
     handle: resource::MidiEventHandle,
 ) -> RuntimeResult<MidiEventValue> {
-    let service = binding
-        .agent()
-        .platform_state
-        .midi
-        .core_midi_service("destack.midi.event.tryRead")?;
     let session = event_resource(binding, handle, "destack.midi.event.tryRead")?;
-
-    // refresh synthetic subscriptions before peeking the queue
-    let mut session = session.lock();
-    if matches!(session.delivery_kind, CoreMidiEventDeliveryKind::Poll) {
-        refresh_poll_event_subscription(&service, &mut session)?;
-    }
+    let session = session.lock();
 
     require_queued_event(
         try_pop_session_event(&session, "destack.midi.event.tryRead")?,
@@ -467,18 +414,8 @@ pub(crate) fn midi_event_try_read_batch(
     handle: resource::MidiEventHandle,
     max_events: u32,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
-    let service = binding
-        .agent()
-        .platform_state
-        .midi
-        .core_midi_service("destack.midi.event.tryReadBatch")?;
     let session = event_resource(binding, handle, "destack.midi.event.tryReadBatch")?;
-
-    // refresh synthetic subscriptions before peeking the queue
-    let mut session = session.lock();
-    if matches!(session.delivery_kind, CoreMidiEventDeliveryKind::Poll) {
-        refresh_poll_event_subscription(&service, &mut session)?;
-    }
+    let session = session.lock();
 
     let batch = try_pop_session_event_batch(
         &session,
@@ -521,6 +458,7 @@ mod tests {
             overflow_policy: MidiEventOverflowPolicy::DropOldest,
             poll_interval: Duration::from_millis(1),
             delivery_kind: CoreMidiEventDeliveryKind::Poll,
+            poll_task: None,
             queue: queue.clone(),
             next_sequence: 1,
             snapshot: BTreeMap::new(),

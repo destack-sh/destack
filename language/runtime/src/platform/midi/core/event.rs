@@ -1,21 +1,6 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
-#[cfg(any(
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows,
-    test
-))]
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows,
-    test
-))]
 use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
@@ -153,14 +138,6 @@ where
     Ok(())
 }
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows,
-    test
-))]
-#[cfg_attr(target_os = "android", allow(dead_code))]
 /// Push one backend-disconnected event into one queue.
 pub(crate) fn push_backend_disconnected_event(
     queue: &Arc<BoundedQueue<MidiEventValue>>,
@@ -186,14 +163,6 @@ pub(crate) fn push_backend_disconnected_event(
     )
 }
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows,
-    test
-))]
-#[cfg_attr(target_os = "android", allow(dead_code))]
 /// Collect all live weakly held event sessions and prune stale ids.
 pub(crate) fn collect_live_event_sessions<S>(
     sessions: &mut BTreeMap<u64, Weak<Mutex<S>>>,

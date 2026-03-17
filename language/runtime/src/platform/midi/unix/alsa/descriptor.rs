@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
     MidiPortDescriptorValue, filter_direction_descriptor_rows, resolve_direction_descriptor_row,
 };

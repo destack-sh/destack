@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::sync::{Arc, Weak};
 
 use parking_lot::Mutex;
 
@@ -9,9 +8,10 @@ use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
     MidiEventValue, MidiPortDescriptorValue, collect_live_event_sessions, direction_mask_includes,
     event_poll_interval, event_queue_capacity, event_snapshot_list_flags,
-    push_backend_disconnected_event as push_backend_disconnected_midi_event,
-    refresh_snapshot_event_subscription, remove_midi_event_resource, require_queued_event,
-    require_queued_event_batch, snapshot_key, try_pop_queued_event, try_pop_queued_event_batch,
+    push_backend_disconnected_event as push_backend_disconnected_midi_event, read_queued_event,
+    read_queued_event_batch, refresh_snapshot_event_subscription, remove_midi_event_resource,
+    require_queued_event, require_queued_event_batch, snapshot_key, try_pop_queued_event,
+    try_pop_queued_event_batch,
 };
 use crate::platform::midi::{
     MidiEventDeliveryMode, MidiEventSource, MidiEventSubscriptionFlags,
@@ -20,6 +20,7 @@ use crate::platform::midi::{
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
+use crate::runtime::process::service::executor::periodic::periodic_service_executor;
 
 use super::core::{
     AlsaEventDeliveryKind, AlsaEventSession, AlsaTopologyState, SnapshotKey, insert_event_resource,
@@ -99,6 +100,45 @@ fn queue_backend_disconnected_event(
         source,
         flags,
     )
+}
+
+/// Register one synthetic poll delivery for one ALSA event subscription.
+fn register_poll_event_session(
+    service: &Arc<AlsaService>,
+    session: &Arc<Mutex<AlsaEventSession>>,
+    poll_interval: Duration,
+) -> RuntimeResult<Arc<crate::runtime::process::service::executor::periodic::PeriodicTaskHandle>> {
+    let executor = periodic_service_executor()?;
+    let service = service.clone();
+    let session = Arc::downgrade(session);
+    let is_failed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let failure_state = is_failed.clone();
+
+    let task = executor.register(poll_interval, move || {
+        if failure_state.load(std::sync::atomic::Ordering::Acquire) {
+            return Ok(());
+        }
+
+        let Some(session) = Weak::upgrade(&session) else {
+            return Ok(());
+        };
+
+        let refresh_result = {
+            let mut session = session.lock();
+            refresh_poll_event_subscription(&service, &mut session)
+        };
+
+        if refresh_result.is_err() {
+            let mut session = session.lock();
+            let _ =
+                queue_backend_disconnected_event(&mut session, MidiEventSource::SyntheticPoll, 0);
+            failure_state.store(true, std::sync::atomic::Ordering::Release);
+        }
+
+        Ok(())
+    })?;
+
+    Ok(Arc::new(task))
 }
 
 /// Pop one queued event after honoring deferred overflow errors.
@@ -204,6 +244,7 @@ pub(crate) fn midi_event_open(
         overflow_policy: options.overflow_policy,
         poll_interval: event_poll_interval(options.poll_interval_ns),
         delivery_kind,
+        poll_task: None,
         queue: Arc::new(BoundedQueue::new(event_queue_capacity(
             options.queue_capacity,
         ))),
@@ -215,6 +256,10 @@ pub(crate) fn midi_event_open(
     if options.delivery_mode != MidiEventDeliveryMode::PollOnly {
         let delivery_kind = register_native_event_session(&service, &session);
         session.lock().delivery_kind = delivery_kind;
+    } else {
+        let poll_interval = session.lock().poll_interval;
+        let poll_task = register_poll_event_session(&service, &session, poll_interval)?;
+        session.lock().poll_task = Some(poll_task);
     }
 
     Ok(insert_event_resource(binding, session))
@@ -240,55 +285,14 @@ pub(crate) fn midi_event_read(
     timeout_ns: u64,
 ) -> RuntimeResult<MidiEventValue> {
     let session = event_resource(binding, handle, "destack.midi.event.read")?;
-    let mut session = session.lock();
+    let session = session.lock();
 
-    // synthetic polling
-    if matches!(session.delivery_kind, AlsaEventDeliveryKind::Poll) {
-        let service = binding
-            .agent()
-            .platform_state
-            .midi
-            .alsa_service("destack.midi.event.read")?;
-        let deadline = core_platform::timeout_deadline(timeout_ns);
-
-        loop {
-            refresh_poll_event_subscription(&service, &mut session)?;
-
-            if let Some(event) = try_pop_session_event(&session, "destack.midi.event.read")? {
-                return Ok(event);
-            }
-
-            if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
-                return Err(core_platform::io_would_block(
-                    "destack.midi.event.read",
-                    "no queued MIDI topology event is available",
-                ));
-            }
-
-            std::thread::sleep(session.poll_interval);
-        }
-    }
-
-    drop(session);
-
-    let deadline = core_platform::timeout_deadline(timeout_ns);
-
-    loop {
-        let session = event_resource(binding, handle, "destack.midi.event.read")?;
-        let session = session.lock();
-        if let Some(event) = try_pop_session_event(&session, "destack.midi.event.read")? {
-            return Ok(event);
-        }
-
-        if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
-            return Err(core_platform::io_would_block(
-                "destack.midi.event.read",
-                "no queued MIDI topology event is available",
-            ));
-        }
-
-        std::thread::sleep(Duration::from_millis(1));
-    }
+    read_queued_event(
+        &session.queue,
+        timeout_ns,
+        "destack.midi.event.read",
+        "no queued MIDI topology event is available",
+    )
 }
 
 /// Read one ALSA sequencer event batch.
@@ -299,65 +303,15 @@ pub(crate) fn midi_event_read_batch(
     timeout_ns: u64,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
     let session = event_resource(binding, handle, "destack.midi.event.readBatch")?;
-    let mut session = session.lock();
+    let session = session.lock();
 
-    // synthetic polling
-    if matches!(session.delivery_kind, AlsaEventDeliveryKind::Poll) {
-        let service = binding
-            .agent()
-            .platform_state
-            .midi
-            .alsa_service("destack.midi.event.readBatch")?;
-        let deadline = core_platform::timeout_deadline(timeout_ns);
-
-        loop {
-            refresh_poll_event_subscription(&service, &mut session)?;
-
-            let events = try_pop_session_event_batch(
-                &session,
-                max_events as usize,
-                "destack.midi.event.readBatch",
-            )?;
-            if !events.is_empty() {
-                return Ok(events);
-            }
-
-            if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
-                return Err(core_platform::io_would_block(
-                    "destack.midi.event.readBatch",
-                    "no queued MIDI topology events are available",
-                ));
-            }
-
-            std::thread::sleep(session.poll_interval);
-        }
-    }
-
-    drop(session);
-
-    let deadline = core_platform::timeout_deadline(timeout_ns);
-
-    loop {
-        let session = event_resource(binding, handle, "destack.midi.event.readBatch")?;
-        let session = session.lock();
-        let events = try_pop_session_event_batch(
-            &session,
-            max_events as usize,
-            "destack.midi.event.readBatch",
-        )?;
-        if !events.is_empty() {
-            return Ok(events);
-        }
-
-        if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
-            return Err(core_platform::io_would_block(
-                "destack.midi.event.readBatch",
-                "no queued MIDI topology events are available",
-            ));
-        }
-
-        std::thread::sleep(Duration::from_millis(1));
-    }
+    read_queued_event_batch(
+        &session.queue,
+        max_events.max(1) as usize,
+        timeout_ns,
+        "destack.midi.event.readBatch",
+        "no queued MIDI topology events are available",
+    )
 }
 
 /// Poll one ALSA sequencer event without blocking.
@@ -366,17 +320,7 @@ pub(crate) fn midi_event_try_read(
     handle: resource::MidiEventHandle,
 ) -> RuntimeResult<MidiEventValue> {
     let session = event_resource(binding, handle, "destack.midi.event.tryRead")?;
-    let mut session = session.lock();
-
-    // synthetic polling
-    if matches!(session.delivery_kind, AlsaEventDeliveryKind::Poll) {
-        let service = binding
-            .agent()
-            .platform_state
-            .midi
-            .alsa_service("destack.midi.event.tryRead")?;
-        refresh_poll_event_subscription(&service, &mut session)?;
-    }
+    let session = session.lock();
 
     require_queued_event(
         try_pop_session_event(&session, "destack.midi.event.tryRead")?,
@@ -392,17 +336,7 @@ pub(crate) fn midi_event_try_read_batch(
     max_events: u32,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
     let session = event_resource(binding, handle, "destack.midi.event.tryReadBatch")?;
-    let mut session = session.lock();
-
-    // synthetic polling
-    if matches!(session.delivery_kind, AlsaEventDeliveryKind::Poll) {
-        let service = binding
-            .agent()
-            .platform_state
-            .midi
-            .alsa_service("destack.midi.event.tryReadBatch")?;
-        refresh_poll_event_subscription(&service, &mut session)?;
-    }
+    let session = session.lock();
 
     let events = try_pop_session_event_batch(
         &session,
@@ -444,6 +378,7 @@ mod tests {
             overflow_policy: MidiEventOverflowPolicy::DropOldest,
             poll_interval: Duration::from_millis(1),
             delivery_kind: AlsaEventDeliveryKind::Poll,
+            poll_task: None,
             queue: queue.clone(),
             next_sequence: 1,
             snapshot: BTreeMap::new(),

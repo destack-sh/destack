@@ -88,13 +88,6 @@ pub(crate) fn try_pop_queued_event_batch<T>(
     Ok(queue.try_pop_batch(max_items))
 }
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows,
-    test
-))]
 /// Read one queued event after surfacing deferred overflow.
 pub(crate) fn read_queued_event<T>(
     queue: &BoundedQueue<T>,
@@ -110,13 +103,6 @@ pub(crate) fn read_queued_event<T>(
     }
 }
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows,
-    test
-))]
 /// Read one queued event batch after surfacing deferred overflow.
 pub(crate) fn read_queued_event_batch<T>(
     queue: &BoundedQueue<T>,
@@ -187,13 +173,6 @@ pub(crate) fn event_queue_capacity(queue_capacity: u32) -> usize {
     queue_capacity as usize
 }
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows,
-    test
-))]
 /// Read one queued item or surface one deferred backend failure before reporting would-block.
 pub(crate) fn read_queued_item<T>(
     queue: &BoundedQueue<T>,
@@ -209,13 +188,6 @@ pub(crate) fn read_queued_item<T>(
     })
 }
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows,
-    test
-))]
 /// Read one queued batch or surface one deferred backend failure before reporting would-block.
 pub(crate) fn read_queued_batch<T>(
     queue: &BoundedQueue<T>,
@@ -232,13 +204,6 @@ pub(crate) fn read_queued_batch<T>(
     })
 }
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows,
-    test
-))]
 /// Poll one queued item or surface one deferred backend failure before reporting would-block.
 pub(crate) fn try_read_queued_item<T>(
     queue: &BoundedQueue<T>,
@@ -253,13 +218,6 @@ pub(crate) fn try_read_queued_item<T>(
     })
 }
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "ios",
-    windows,
-    test
-))]
 /// Poll one queued batch or surface one deferred backend failure before reporting would-block.
 pub(crate) fn try_read_queued_batch<T>(
     queue: &BoundedQueue<T>,
