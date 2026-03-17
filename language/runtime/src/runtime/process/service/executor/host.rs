@@ -178,12 +178,9 @@ impl HostLoopExecutor {
         let (result_tx, result_rx) = sync_channel::<RuntimeResult<R>>(1);
 
         // queue one callback for the bound windows message loop
-        {
-            let mut callbacks = self.windows_queue.callbacks.lock();
-            callbacks.push_back(Box::new(move || {
-                let _result_delivered = result_tx.send(callback()).is_ok();
-            }));
-        }
+        self.windows_queue.enqueue_callback(Box::new(move || {
+            let _result_delivered = result_tx.send(callback()).is_ok();
+        }));
 
         // wake the bound message loop thread to service the callback
         let dispatched = unsafe {

@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use parking_lot::Mutex;
 
-use crate::platform::ResourceId;
 use crate::platform::midi::core::{
     MidiEventValue, MidiPortDescriptorValue, define_backend_midi_resource_inserters,
 };
@@ -14,6 +13,7 @@ use crate::platform::midi::{
     MidiProtocol, MidiProtocolFlags,
 };
 use crate::runtime::control::queue::BoundedQueue;
+use crate::runtime::process::RuntimeScheduledCallbackHandle;
 
 /// One resolved Android backend description.
 #[derive(Clone, Copy, Debug)]
@@ -77,7 +77,7 @@ pub(crate) struct AndroidEventSession {
     /// Synthetic poll interval.
     pub(crate) poll_interval: Duration,
     /// Registered synthetic poll callback.
-    pub(crate) poll_callback: Option<ResourceId>,
+    pub(crate) poll_callback: Option<RuntimeScheduledCallbackHandle>,
     /// Pending event queue.
     pub(crate) queue: Arc<BoundedQueue<MidiEventValue>>,
     /// Next sequence number.

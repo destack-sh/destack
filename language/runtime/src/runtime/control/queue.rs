@@ -111,7 +111,6 @@ impl<T> BoundedQueue<T> {
     }
 
     /// Pop one item, waiting up to one timeout.
-    #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
     pub(crate) fn pop_with_timeout(&self, timeout: Duration) -> Option<T> {
         if let Some(item) = self.try_pop() {
             return Some(item);
@@ -133,13 +132,6 @@ impl<T> BoundedQueue<T> {
         state.items.pop_front()
     }
 
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "macos",
-        target_os = "ios",
-        windows,
-        test
-    ))]
     /// Pop one item, waiting up to one timeout, or defer to one caller-supplied fallback.
     pub(crate) fn pop_with_timeout_or_else<E>(
         &self,
@@ -153,7 +145,6 @@ impl<T> BoundedQueue<T> {
     }
 
     /// Pop up to one batch, waiting up to one timeout.
-    #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
     pub(crate) fn pop_batch_with_timeout(&self, max_items: usize, timeout: Duration) -> Vec<T> {
         let batch = self.try_pop_batch(max_items);
         if !batch.is_empty() {
@@ -178,13 +169,6 @@ impl<T> BoundedQueue<T> {
         state.items.drain(..count).collect()
     }
 
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "macos",
-        target_os = "ios",
-        windows,
-        test
-    ))]
     /// Pop up to one batch, waiting up to one timeout, or defer to one caller-supplied fallback.
     pub(crate) fn pop_batch_with_timeout_or_else<E>(
         &self,
@@ -200,13 +184,6 @@ impl<T> BoundedQueue<T> {
         on_empty()
     }
 
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "macos",
-        target_os = "ios",
-        windows,
-        test
-    ))]
     /// Pop one item immediately or defer to one caller-supplied fallback.
     pub(crate) fn try_pop_or_else<E>(
         &self,
@@ -218,13 +195,6 @@ impl<T> BoundedQueue<T> {
         }
     }
 
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "macos",
-        target_os = "ios",
-        windows,
-        test
-    ))]
     /// Pop up to one batch immediately or defer to one caller-supplied fallback.
     pub(crate) fn try_pop_batch_or_else<E>(
         &self,
@@ -240,7 +210,6 @@ impl<T> BoundedQueue<T> {
     }
 
     /// Close the queue and wake waiters.
-    #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
     pub(crate) fn close(&self) {
         let mut state = self.state.lock();
         state.is_closed = true;

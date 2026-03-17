@@ -10,7 +10,7 @@ mod backend;
 mod clock;
 mod codec;
 mod convert;
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(any(unix, target_os = "windows"))]
 mod dll;
 mod errno;
 mod error;
@@ -24,25 +24,28 @@ pub(crate) use abi_generated::*;
 pub(crate) use backend::{
     aggregate_backend_support, backend_support_error, backend_support_from_check,
 };
-pub(crate) use clock::monotonic_now_ns;
+pub(crate) use clock::{monotonic_now_ns, timeout_deadline};
 pub(crate) use codec::*;
-#[cfg(unix)]
-pub(crate) use convert::duration_from_option_ns;
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
+pub(crate) use convert::option_u64_or_min;
 #[cfg(target_os = "macos")]
 pub(crate) use convert::u32_to_isize;
-#[cfg(any(target_os = "linux", target_os = "macos", windows))]
-pub(crate) use convert::{option_u64_or_min, option_u64_to_usize_or_min, u32_to_usize};
 pub(crate) use convert::{
     option_u64_to_u32, option_u64_to_usize, u32_to_nonzero_usize, u64_to_usize,
     u64_to_usize_with_message, usize_to_u64,
 };
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
+pub(crate) use convert::{option_u64_to_usize_or_min, u32_to_usize};
+#[cfg(any(target_os = "android", target_os = "linux"))]
+pub(crate) use dll::load_dll_api_bytes;
 #[cfg(target_os = "linux")]
 pub(crate) use dll::load_dll_api_named;
-#[cfg(any(target_os = "linux", target_os = "android"))]
-pub(crate) use dll::{DynamicLibrary, load_dll_api_bytes, load_library_with_api};
+#[cfg(any(unix, target_os = "windows"))]
+pub(crate) use dll::{DynamicLibrary, load_library_with_api};
 #[cfg(unix)]
 pub(crate) use errno::{get_errno, set_errno};
-#[cfg(target_os = "linux")]
+#[cfg_attr(target_os = "android", allow(unused_imports))]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use error::invalid_state;
 #[cfg(any(target_os = "linux", target_os = "macos", windows))]
 pub(crate) use error::io_busy;
@@ -52,18 +55,21 @@ pub(crate) use error::{
 };
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use unix::io_error_with_errno;
-#[cfg(target_os = "linux")]
-pub(crate) use unix::load_dynamic_symbol_named;
 #[cfg(all(unix, not(target_vendor = "apple")))]
 pub(crate) use unix::unix_process_monotonic_nanos;
+#[cfg(target_os = "macos")]
+pub(crate) use unix::{
+    DispatchBound, apple_dispatch_queue, apple_serial_dispatch_queue, nsdata_to_vec,
+    nsstring_to_string,
+};
+#[cfg(unix)]
+pub(crate) use unix::{UnixSemaphoreWaitStatus, unix_semaphore_wait_timed};
 #[cfg(target_vendor = "apple")]
 pub(crate) use unix::{apple_host_time_resolution_nanos, apple_process_monotonic_nanos};
 #[cfg(target_vendor = "apple")]
 pub(crate) use unix::{apple_host_time_to_process_nanos, apple_process_nanos_to_host_time};
 #[cfg(target_os = "linux")]
 pub(crate) use unix::{c_string_from_str, string_from_c_str};
-#[cfg(any(target_os = "linux", target_os = "android"))]
-pub(crate) use unix::{close_dynamic_library, load_dynamic_symbol, open_dynamic_library};
 #[cfg(unix)]
 pub(crate) use unix::{io_error, net_error};
 pub(crate) use value::{NativeAbiCodec, VmAbiCodec};
@@ -71,9 +77,10 @@ pub(crate) use value::{NativeAbiCodec, VmAbiCodec};
 pub(crate) use windows::{
     COM_IID_IUNKNOWN, WaitStatus, callback_boundary, com_guid_equals, com_non_null_from_raw,
     com_release_with, decode_wait_for_single_object_status, define_com_callback_vtable,
-    define_com_iunknown_methods, ensure_winsock, error_message, io_error, io_error_with_code,
-    last_error_code, last_wsa_error_code, net_error_with_code, pathbuf_from_utf8,
-    pathbuf_from_utf16, qpc_hundred_nanos_to_process_nanos, qpc_process_monotonic_nanos,
-    qpc_process_nanos_to_hundred_nanos, string_from_utf8, string_from_wide, wide_from_str,
-    wide_from_utf8, wide_from_utf16, wide_with_nul,
+    define_com_iunknown_methods, ensure_winsock, error_message, guid_to_string, hstring_to_string,
+    io_error, io_error_with_code, last_error_code, last_wsa_error_code, net_error_with_code,
+    pathbuf_from_utf8, pathbuf_from_utf16, qpc_hundred_nanos_to_process_nanos,
+    qpc_process_monotonic_nanos, qpc_process_nanos_to_hundred_nanos, string_from_utf8,
+    string_from_wide, wide_from_str, wide_from_utf8, wide_from_utf16, wide_with_nul,
+    winrt_io_error,
 };

@@ -330,7 +330,7 @@ export newtype BluetoothSessionEvent =
     | BluetoothSessionGattDatabaseChangedEvent;
 
 /// GATT service metadata.
-export struct BluetoothGattServiceInfo {
+export struct BluetoothGattService {
     /// Stable service identifier within this device session.
     id: string;
     /// Service UUID.
@@ -342,7 +342,7 @@ export struct BluetoothGattServiceInfo {
 }
 
 /// GATT characteristic metadata.
-export struct BluetoothGattCharacteristicInfo {
+export struct BluetoothGattCharacteristic {
     /// Stable characteristic identifier within this device session.
     id: string;
     /// Parent service identifier.
@@ -354,7 +354,7 @@ export struct BluetoothGattCharacteristicInfo {
 }
 
 /// GATT descriptor metadata.
-export struct BluetoothGattDescriptorInfo {
+export struct BluetoothGattDescriptor {
     /// Stable descriptor identifier within this device session.
     id: string;
     /// Parent service identifier.
@@ -911,7 +911,7 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function bluetoothGattServiceList(handle: BluetoothDeviceHandle): Result<Slice<BluetoothGattServiceInfo>, PlatformError>;
+    export function bluetoothGattServiceList(handle: BluetoothDeviceHandle): Result<Slice<BluetoothGattService>, PlatformError>;
 
     /// List discovered GATT characteristics for one service.
     ///
@@ -943,7 +943,7 @@ declare namespace device {
     export function bluetoothGattCharacteristicList(
         handle: BluetoothDeviceHandle,
         serviceId: string,
-    ): Result<Slice<BluetoothGattCharacteristicInfo>, PlatformError>;
+    ): Result<Slice<BluetoothGattCharacteristic>, PlatformError>;
 
     /// List discovered GATT descriptors for one characteristic.
     ///
@@ -975,7 +975,7 @@ declare namespace device {
     export function bluetoothGattDescriptorList(
         handle: BluetoothDeviceHandle,
         characteristicId: string,
-    ): Result<Slice<BluetoothGattDescriptorInfo>, PlatformError>;
+    ): Result<Slice<BluetoothGattDescriptor>, PlatformError>;
 
     /// Read one GATT descriptor value.
     ///

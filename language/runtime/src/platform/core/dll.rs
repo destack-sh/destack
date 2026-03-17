@@ -1,12 +1,20 @@
 #[cfg(target_os = "linux")]
-use crate::platform::core::load_dynamic_symbol_named;
-use crate::platform::core::{close_dynamic_library, load_dynamic_symbol, open_dynamic_library};
+use super::unix::load_dynamic_symbol_named;
+#[cfg(unix)]
+use super::unix::{close_dynamic_library, load_dynamic_symbol, open_dynamic_library};
+#[cfg(windows)]
+use super::windows::wide_from_str;
+
+#[cfg(windows)]
+use windows_sys::Win32::Foundation::{FreeLibrary, HMODULE};
+#[cfg(windows)]
+use windows_sys::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
 
 use std::ffi::{CStr, c_void};
 use std::fmt::{Debug, Formatter};
 
 /// Build one typed API table from one byte-string symbol map.
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(any(target_os = "android", target_os = "linux"))]
 macro_rules! load_dll_api_bytes {
     (
         $library:expr,
@@ -23,7 +31,7 @@ macro_rules! load_dll_api_bytes {
     }};
 }
 
-/// Build one typed API table from one UTF-8 symbol-name map.
+/// Build one typed API table from one named symbol map.
 #[cfg(target_os = "linux")]
 macro_rules! load_dll_api_named {
     (
@@ -41,7 +49,7 @@ macro_rules! load_dll_api_named {
     }};
 }
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(any(target_os = "android", target_os = "linux"))]
 pub(crate) use load_dll_api_bytes;
 #[cfg(target_os = "linux")]
 pub(crate) use load_dll_api_named;
@@ -55,9 +63,26 @@ pub(crate) struct DynamicLibrary {
 impl DynamicLibrary {
     /// Open one dynamic library by one file name.
     pub(crate) fn open(name: &str) -> Result<Self, String> {
-        let handle = open_dynamic_library(name)?;
+        #[cfg(windows)]
+        {
+            let wide = wide_from_str("name", name)
+                .map_err(|error| format!("invalid library name {name}: {error}"))?;
+            let handle = unsafe { LoadLibraryW(wide.as_ptr()) };
+            if handle == 0 {
+                return Err(format!("LoadLibraryW failed for {name}"));
+            }
 
-        Ok(Self { handle })
+            return Ok(Self {
+                handle: handle as *mut c_void,
+            });
+        }
+
+        #[cfg(unix)]
+        {
+            let handle = open_dynamic_library(name)?;
+
+            Ok(Self { handle })
+        }
     }
 
     /// Return one typed symbol from this loaded library.
@@ -65,7 +90,28 @@ impl DynamicLibrary {
     where
         T: Copy,
     {
-        load_dynamic_symbol(self.handle, name)
+        #[cfg(windows)]
+        {
+            if name.last().copied() != Some(0) {
+                return Err(String::from(
+                    "dynamic symbol name must be one NUL-terminated byte string",
+                ));
+            }
+
+            let symbol = unsafe { GetProcAddress(self.handle as HMODULE, name.as_ptr()) };
+            let Some(symbol) = symbol else {
+                return Err(String::from(
+                    "GetProcAddress failed without one loader diagnostic",
+                ));
+            };
+
+            return Ok(unsafe { std::mem::transmute_copy(&symbol) });
+        }
+
+        #[cfg(unix)]
+        {
+            load_dynamic_symbol(self.handle, name)
+        }
     }
 
     /// Return one required typed symbol with one candidate-qualified diagnostic.
@@ -117,6 +163,14 @@ impl Debug for DynamicLibrary {
 
 impl Drop for DynamicLibrary {
     fn drop(&mut self) {
+        #[cfg(windows)]
+        unsafe {
+            if !self.handle.is_null() {
+                let _ = FreeLibrary(self.handle as HMODULE);
+            }
+        }
+
+        #[cfg(unix)]
         close_dynamic_library(self.handle);
     }
 }

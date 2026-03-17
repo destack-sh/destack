@@ -19,6 +19,7 @@ use crate::platform::midi::{
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
+use crate::runtime::process::RuntimeScheduledCallbackHandle;
 
 use super::backend::resolve_backend;
 use super::core::{
@@ -98,7 +99,7 @@ fn register_poll_event_session(
     binding: &BindingCallContext,
     session: &Arc<Mutex<AndroidEventSession>>,
     poll_interval_ns: u64,
-) -> RuntimeResult<crate::platform::ResourceId> {
+) -> RuntimeResult<RuntimeScheduledCallbackHandle> {
     let session = session.clone();
 
     binding.agent().schedule_runtime_callback(

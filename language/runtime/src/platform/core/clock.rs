@@ -1,4 +1,3 @@
-#[cfg(not(any(unix, windows)))]
 use std::time::Instant;
 
 /// Return the current process-relative monotonic time in nanoseconds.
@@ -34,4 +33,9 @@ pub(crate) fn monotonic_now_ns() -> u64 {
 
         u64::try_from(elapsed).unwrap_or(u64::MAX)
     }
+}
+
+/// Return one monotonic timeout deadline when it fits in `u64`.
+pub(crate) fn timeout_deadline(timeout_ns: u64) -> Option<Instant> {
+    Instant::now().checked_add(std::time::Duration::from_nanos(timeout_ns))
 }

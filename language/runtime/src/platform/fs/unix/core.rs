@@ -202,37 +202,32 @@ pub(super) fn file_mode_u32(mode: libc::mode_t) -> u32 {
     }
 }
 
-/// Convert one host link-count value into the ABI width.
+/// Convert one Android link-count value into the ABI width.
+#[cfg(target_os = "android")]
 pub(super) fn file_nlink_u32(link_count: libc::nlink_t) -> u32 {
-    #[cfg(any(target_os = "android", target_os = "linux"))]
-    {
-        link_count
-    }
+    link_count
+}
 
-    #[cfg(any(
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "ios",
-        target_os = "macos",
-        target_os = "netbsd",
-        target_os = "openbsd"
-    ))]
-    {
-        u32::from(link_count)
-    }
-
+/// Convert one Linux link-count value into the ABI width.
+#[cfg(target_os = "linux")]
+pub(super) fn file_nlink_u32(link_count: libc::nlink_t) -> u32 {
     // clamp wider host link counts to the ABI width
-    #[cfg(not(any(
-        target_os = "android",
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "ios",
-        target_os = "macos",
-        target_os = "netbsd",
-        target_os = "openbsd"
-    )))]
-    u32::try_from(link_count).unwrap_or(u32::MAX)
+    if link_count > u32::MAX as libc::nlink_t {
+        u32::MAX
+    } else {
+        link_count as u32
+    }
+}
+
+/// Convert one host link-count value into the ABI width.
+#[cfg(not(any(target_os = "android", target_os = "linux")))]
+pub(super) fn file_nlink_u32(link_count: libc::nlink_t) -> u32 {
+    // clamp wider host link counts to the ABI width
+    if link_count > u32::MAX as libc::nlink_t {
+        u32::MAX
+    } else {
+        link_count as u32
+    }
 }
 
 /// Map a libc dirent type to our dirent kind.
