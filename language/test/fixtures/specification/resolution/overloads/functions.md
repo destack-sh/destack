@@ -23,7 +23,7 @@ result satisfies number;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 
@@ -45,7 +45,7 @@ export function parse(value: number): number {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 
@@ -142,7 +142,7 @@ export function parse(value: string): number {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 
@@ -175,6 +175,6 @@ export function parse(value: string): number;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

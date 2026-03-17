@@ -19,7 +19,7 @@ function unused_local(): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUnusedLocals": true } }
 ```
 
@@ -40,7 +40,7 @@ function unused_local(): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUnusedLocals": false } }
 ```
 
@@ -60,7 +60,7 @@ function unused_param(value: int32): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUnusedParameters": true } }
 ```
 
@@ -80,7 +80,7 @@ function unused_param(value: int32): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUnusedParameters": false } }
 ```
 
@@ -103,7 +103,7 @@ function unusedLabel(): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowUnusedLabels": false } }
 ```
 
@@ -126,7 +126,7 @@ function unusedLabel(): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowUnusedLabels": true } }
 ```
 
@@ -147,7 +147,7 @@ function unusedLabel_warn(): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowUnusedLabels": "warn" } }
 ```
 
@@ -170,7 +170,7 @@ function unreachable(): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowUnreachableCode": false } }
 ```
 
@@ -191,7 +191,7 @@ function unreachable(): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowUnreachableCode": true } }
 ```
 
@@ -210,7 +210,7 @@ function unreachableWarn(): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowUnreachableCode": "warn" } }
 ```
 
@@ -237,7 +237,7 @@ function fallthrough(value: int32) {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noFallthroughCasesInSwitch": true } }
 ```
 
@@ -261,7 +261,7 @@ function missingReturn(flag: boolean): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitReturns": true } }
 ```
 
@@ -284,7 +284,7 @@ function missingReturn(flag: boolean): int32 | void {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitReturns": false } }
 ```
 
@@ -307,7 +307,7 @@ function fallthrough(value: int32) {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noFallthroughCasesInSwitch": false } }
 ```
 
@@ -329,7 +329,7 @@ function redeclared(): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noRedeclaredLocals": true } }
 ```
 
@@ -351,7 +351,7 @@ function redeclared(): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noRedeclaredLocals": false } }
 ```
 
@@ -371,6 +371,6 @@ function shadowed(): int32 {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noRedeclaredLocals": false } }
 ```

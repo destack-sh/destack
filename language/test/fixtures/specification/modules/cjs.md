@@ -111,7 +111,7 @@ cjs.buildValue();
 
 > `compilerOptions.esModuleInterop` allows default imports to bind to the CommonJS namespace shape.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "esModuleInterop": true } }
 ```
 
@@ -133,7 +133,7 @@ cjs.buildValue();
 
 > `compilerOptions.allowSyntheticDefaultImports` allows default imports to bind to the CommonJS namespace shape.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowSyntheticDefaultImports": true } }
 ```
 

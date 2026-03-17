@@ -82,7 +82,7 @@ let f = (this: string) => {}
 
 > Not all code paths return a value when implicit returns are disabled.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitReturns": true } }
 ```
 
@@ -101,7 +101,7 @@ function example(value: number): number {
 
 > Implicit return expressions satisfy the return requirement.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitReturns": true } }
 ```
 
@@ -118,7 +118,7 @@ function example(value: number): number {
 
 > Missing return paths are allowed when noImplicitReturns is false.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitReturns": false } }
 ```
 
@@ -136,7 +136,7 @@ function example(value: number): number | void {
 
 > Parameters without annotations or defaults are implicit any when strict checking is enabled.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitAny": true } }
 ```
 
@@ -151,7 +151,7 @@ function handle(value) {
 
 > Defaults provide an inferred parameter type.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitAny": true } }
 ```
 
@@ -165,7 +165,7 @@ function handle(value = 1) {
 
 > Bindings without annotations or initializers are implicit any.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitAny": true } }
 ```
 
@@ -181,7 +181,7 @@ let pending;
 
 > `this` inside functions requires an explicit `this` parameter in strict mode.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitThis": true } }
 ```
 
@@ -197,7 +197,7 @@ function counter() {
 
 > Explicit `this` parameters provide a concrete type.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitThis": true } }
 ```
 
@@ -211,7 +211,7 @@ function counter(this: { value: number }) {
 
 > Member methods have an implicit `this` binding even in strict mode.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitThis": true } }
 ```
 
@@ -229,7 +229,7 @@ class Counter {
 
 > Lambdas inside methods capture the lexical `this`.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitThis": true } }
 ```
 
@@ -247,7 +247,7 @@ class Counter {
 
 > Lambdas outside methods require an explicit `this` parameter to use `this`.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitThis": true } }
 ```
 
@@ -285,7 +285,7 @@ add satisfies (a: number, b: number) => number;
 
 > Function values expose Function prototype members.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -397,7 +397,7 @@ let wide: FnWide = narrow
 
 ### strictFunctionTypes false allows bivariant parameters
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictFunctionTypes": false } }
 ```
 

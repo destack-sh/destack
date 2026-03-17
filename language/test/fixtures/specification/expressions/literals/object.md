@@ -108,7 +108,7 @@ value satisfies { a: number, b: string, c: boolean };
 
 > Any spreads preserve the any type.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 

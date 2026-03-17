@@ -150,7 +150,7 @@ callIt({
 });
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -170,7 +170,7 @@ callIt({
 });
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -196,7 +196,7 @@ const output = build({
 output satisfies string;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -216,7 +216,7 @@ build({
 });
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -248,7 +248,7 @@ const output = make({
 output satisfies string;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -267,7 +267,7 @@ const head = mapOne(tuple, input => input[0]);
 head satisfies 1;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -284,7 +284,7 @@ const head = mapOne(values, input => input[0]);
 head satisfies number;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -301,7 +301,7 @@ const head = mapOne(values, input => input[0]);
 head satisfies 1;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -328,7 +328,7 @@ const head = runOne(tuple, input => input[0]);
 head satisfies 1;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -348,7 +348,7 @@ const output = withValue("ready", read => read());
 output satisfies string;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -365,7 +365,7 @@ declare function withValue<T>(
 withValue("ready", read => read().toFixed());
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -392,7 +392,7 @@ const output = wire({
 output satisfies string;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -412,7 +412,7 @@ wire({
 });
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 

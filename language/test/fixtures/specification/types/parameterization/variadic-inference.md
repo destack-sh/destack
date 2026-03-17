@@ -66,6 +66,6 @@ value[0] satisfies "x";
 
 - contains: not assignable
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

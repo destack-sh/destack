@@ -482,7 +482,7 @@ abstract class Counter {
 
 > Abstract methods can only appear in abstract classes.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictPropertyInitialization": false } }
 ```
 
@@ -562,7 +562,7 @@ class Counter extends Base {
 
 > Abstract fields only appear in abstract classes.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictPropertyInitialization": false } }
 ```
 
@@ -578,7 +578,7 @@ class Counter {
 
 > Private fields cannot be abstract.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictPropertyInitialization": false } }
 ```
 
@@ -594,7 +594,7 @@ abstract class Counter {
 
 > Auto accessors cannot combine with readonly modifiers.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictPropertyInitialization": false } }
 ```
 
@@ -610,7 +610,7 @@ class Counter {
 
 > Declared fields cannot be abstract.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictPropertyInitialization": false } }
 ```
 

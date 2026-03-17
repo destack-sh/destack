@@ -17,7 +17,7 @@ The "annoying" part of module resolution is that specifiers mean different thing
 | browser field rewrites | `./platform` | Swap package-internal targets for browser builds. |
 | extension aliases | `./widget.js` | Probe alternate file extensions such as `.js -> .ts`. |
 
-`dsconfig.json` is separate from ordinary module resolution.
+`destack.json` is separate from ordinary module resolution.
 It is package or workspace metadata that some callers want alongside resolution, not part of the core path-selection algorithm.
 
 ## Examples

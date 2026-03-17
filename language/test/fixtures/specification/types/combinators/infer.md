@@ -69,6 +69,6 @@ declare const nondistributed: NonDist<"a" | "b">;
 nondistributed satisfies `s:${"a" | "b"}`;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

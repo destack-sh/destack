@@ -50,7 +50,7 @@ declare let value: AnyLetters;
 let ok: number = value;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -548,7 +548,7 @@ declare let value: AnyValue;
 let ok: string = value;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -636,6 +636,6 @@ declare let value: AnyLetters;
 let ok: string = value;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```

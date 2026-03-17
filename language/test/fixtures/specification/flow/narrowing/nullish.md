@@ -173,7 +173,7 @@ if (null !== value) {
 
 ### strictNullChecks false still narrows explicit null unions
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictNullChecks": false } }
 ```
 
@@ -188,7 +188,7 @@ if (value != null) {
 
 ### strictNullChecks false still narrows explicit undefined unions
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictNullChecks": false } }
 ```
 

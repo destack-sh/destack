@@ -59,7 +59,7 @@ async function read(): Promise<number> {
 ### await preserves any values
 
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 

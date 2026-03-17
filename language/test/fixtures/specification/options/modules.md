@@ -16,7 +16,7 @@ const value: string = "ok";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": false } }
 ```
 
@@ -34,7 +34,7 @@ const value: string = "ok";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true } }
 ```
 
@@ -52,7 +52,7 @@ const value = "ok";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowJs": false } }
 ```
 
@@ -70,7 +70,7 @@ const value = "ok";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowJs": true } }
 ```
 
@@ -88,7 +88,7 @@ const value: string = 123;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": false } }
 ```
 
@@ -104,7 +104,7 @@ const value: string = 123;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 
@@ -125,7 +125,7 @@ value();
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowJs": true, "checkJs": false } }
 ```
 
@@ -142,7 +142,7 @@ value();
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowJs": true, "checkJs": true } }
 ```
 
@@ -162,7 +162,7 @@ declare const value;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "skipLibCheck": true } }
 ```
 
@@ -178,7 +178,7 @@ declare const value;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "skipLibCheck": false } }
 ```
 
@@ -198,7 +198,7 @@ export const value: string;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUntrustedDeclarations": true } }
 ```
 
@@ -216,7 +216,7 @@ export const value: string;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUntrustedDeclarations": false } }
 ```
 
@@ -236,7 +236,7 @@ function dup(value: number, value: number) {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "alwaysStrict": false } }
 ```
 
@@ -262,7 +262,7 @@ export const value = 1;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "allowTs": true,
@@ -287,7 +287,7 @@ import "./missing-side-effect";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "allowTs": true,
@@ -311,7 +311,7 @@ import "./missing-side-effect";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "allowTs": true,
@@ -337,7 +337,7 @@ import "./dep";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "allowTs": true,
@@ -368,7 +368,7 @@ user satisfies User;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "allowTs": true,

@@ -75,6 +75,6 @@ type Value = RoutedBox<"ok">["value"];
 const value: Value = "ok";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

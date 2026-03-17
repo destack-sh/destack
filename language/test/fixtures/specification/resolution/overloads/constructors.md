@@ -28,7 +28,7 @@ fromString.value satisfies string | number;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 
@@ -54,7 +54,7 @@ export class Box {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 
@@ -80,7 +80,7 @@ export class Box {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 
@@ -112,7 +112,7 @@ fromNumber.value satisfies string | number;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 
@@ -138,7 +138,7 @@ new Box(true);
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 

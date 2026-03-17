@@ -160,7 +160,7 @@ let value: number = values[0];
 
 > Arrays expose filter with typed results.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -174,7 +174,7 @@ filtered satisfies number[];
 
 > Arrays expose findIndex.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 

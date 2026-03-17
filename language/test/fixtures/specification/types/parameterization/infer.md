@@ -50,7 +50,7 @@ let ok: ReturnOf<() => string> = "ok";
 ok satisfies string;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -64,7 +64,7 @@ type ReturnOf<T> = T extends (...args: any[]) => infer R ? R : never;
 let bad: ReturnOf<() => string> = 1;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -439,7 +439,7 @@ let okString: string = value;
 let okNumber: number = value;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -457,7 +457,7 @@ const bad: Result = 3;
 
 - contains: not assignable
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 

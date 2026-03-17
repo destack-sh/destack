@@ -78,7 +78,7 @@ type AnyString = `${any}`;
 let ok: AnyString = "value";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 

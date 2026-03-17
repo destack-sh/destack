@@ -102,7 +102,7 @@ declare let value: AnyString;
 let ok: string = value;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 

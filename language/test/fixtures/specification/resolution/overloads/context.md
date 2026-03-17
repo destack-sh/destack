@@ -140,7 +140,7 @@ const selected = choose({
 selected satisfies "generic-first";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -167,7 +167,7 @@ const selected = choose({
 selected satisfies "string-second";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -221,7 +221,7 @@ const selected = pick({
 selected satisfies "generic-first";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 
@@ -256,7 +256,7 @@ const selected = pick({
 selected satisfies "string-second";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "lib": ["es5"] } }
 ```
 

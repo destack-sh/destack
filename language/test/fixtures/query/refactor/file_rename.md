@@ -49,7 +49,7 @@ Rename should update alias and package specifiers when targets move.
 
 The workspace config defines the `@/` alias.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"] } } }
 ```
 
