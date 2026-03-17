@@ -24,8 +24,8 @@ pub enum FileUpdate {
 pub enum InvalidationKind {
     /// Source module content changed.
     ModuleSource,
-    /// Package dsconfig changed.
-    DsConfig,
+    /// Package config changed.
+    Destack,
     /// Tsconfig changed.
     TsConfig,
     /// Package manifest changed.
@@ -103,13 +103,13 @@ impl Program {
 
         // detect config file names for fallback invalidation
         let file = self.files.get(file_id);
-        let is_dsconfig = file.name == "dsconfig.json"
+        let is_destack_config = file.name == "destack.json"
             || file
                 .path
                 .as_ref()
                 .and_then(|path| path.file_name())
                 .and_then(|name| name.to_str())
-                .is_some_and(|name| name == "dsconfig.json");
+                .is_some_and(|name| name == "destack.json");
         let is_package_manifest = file.name == "package.json"
             || file
                 .path
@@ -133,14 +133,14 @@ impl Program {
             packages.insert(module.read().package_id);
         }
 
-        // map file id to dsconfig invalidation
-        let dsconfig_packages = self.packages_for_dsconfig_file(file_id);
-        if !dsconfig_packages.is_empty() {
-            kinds.insert(InvalidationKind::DsConfig);
-            packages.extend(dsconfig_packages.iter().copied());
+        // map file id to config invalidation
+        let destack_config_packages = self.packages_for_destack_config_file(file_id);
+        if !destack_config_packages.is_empty() {
+            kinds.insert(InvalidationKind::Destack);
+            packages.extend(destack_config_packages.iter().copied());
 
             // collect modules for config invalidation
-            let config_modules = self.modules_for_packages(&dsconfig_packages);
+            let config_modules = self.modules_for_packages(&destack_config_packages);
             modules.extend(config_modules.iter().copied());
             self.refresh_module_semantics_for_modules(&config_modules);
 
@@ -148,9 +148,9 @@ impl Program {
             let config_profiles = self.invalidate_profile_data_for_modules(&config_modules);
             profiles.extend(config_profiles.iter().copied());
             graphs_dropped.extend(config_profiles);
-        } else if is_dsconfig {
+        } else if is_destack_config {
             // fall back to invalidating all modules for workspace configs
-            kinds.insert(InvalidationKind::DsConfig);
+            kinds.insert(InvalidationKind::Destack);
             let mut config_modules = Vec::new();
             for module in self.modules.iter() {
                 config_modules.push(module.read().id);
@@ -485,16 +485,16 @@ impl Program {
         self.artifacts.module_ids_for_profiles(profiles)
     }
 
-    /// Find packages that own the given dsconfig file id.
-    fn packages_for_dsconfig_file(&self, file_id: FileId) -> Vec<PackageId> {
-        // collect packages that reference the dsconfig file id
+    /// Find packages that own the given config file id.
+    fn packages_for_destack_config_file(&self, file_id: FileId) -> Vec<PackageId> {
+        // collect packages that reference the config file id
         let mut packages = Vec::new();
         for package in self.packages.iter() {
             let package = package.read();
-            let Some(dsconfig) = package.dsconfig.as_ref() else {
+            let Some(config) = package.config.as_ref() else {
                 continue;
             };
-            if dsconfig.file_id == file_id {
+            if config.file_id == file_id {
                 packages.push(package.id);
             }
         }
@@ -636,7 +636,7 @@ mod tests {
     };
 
     use crate::{
-        DsConfig, EnvSnapshot, Loader, Module, ModuleAst, ModuleDetection, ModuleDir, ModuleFormat,
+        Destack, EnvSnapshot, Loader, Module, ModuleAst, ModuleDetection, ModuleDir, ModuleFormat,
         ModuleSource, ModuleTarget, OutputFormat, Package, PackageKind, PackageManifest, Platform,
         ProfileFlags, ProfileId, ProfileKey, Program, Runtime, SourceType, TsConfig,
     };
@@ -725,22 +725,22 @@ mod tests {
         let package_a_path = PathBuf::from("/workspace/pkg-a");
         let package_b_path = PathBuf::from("/workspace/pkg-b");
 
-        let dsconfig_file_id = files.next_id();
-        let dsconfig_path = package_a_path.join("dsconfig.json");
-        let (ds_name, ds_uri) = Uri::from_path_with_name(&dsconfig_path);
-        let dsconfig_file = File::from_text_as_jsonc(
-            dsconfig_file_id,
+        let destack_config_file_id = files.next_id();
+        let destack_config_path = package_a_path.join("destack.json");
+        let (ds_name, ds_uri) = Uri::from_path_with_name(&destack_config_path);
+        let destack_config_file = File::from_text_as_jsonc(
+            destack_config_file_id,
             ds_name,
             ds_uri,
-            Some(dsconfig_path),
+            Some(destack_config_path),
             FileType::Json,
             "{}".to_string(),
         )
-        .unwrap_or_else(|error| panic!("failed to build dsconfig: {error}"));
-        files.insert(dsconfig_file);
-        let dsconfig_file = files.get(dsconfig_file_id);
-        let dsconfig = DsConfig::parse(&dsconfig_file)
-            .unwrap_or_else(|error| panic!("failed to parse dsconfig: {error}"));
+        .unwrap_or_else(|error| panic!("failed to build config: {error}"));
+        files.insert(destack_config_file);
+        let destack_config_file = files.get(destack_config_file_id);
+        let config = Destack::parse(&destack_config_file)
+            .unwrap_or_else(|error| panic!("failed to parse config: {error}"));
 
         let package_a = Package {
             id: package_a_id,
@@ -751,7 +751,7 @@ mod tests {
             name: Some("pkg-a".to_string()),
             version: Some("0.1.0".to_string()),
             manifest: None,
-            dsconfig: Some(dsconfig),
+            config: Some(config),
             tsconfig: None,
             targets: IndexMap::new(),
         };
@@ -764,7 +764,7 @@ mod tests {
             name: Some("pkg-b".to_string()),
             version: Some("0.1.0".to_string()),
             manifest: None,
-            dsconfig: None,
+            config: None,
             tsconfig: None,
             targets: IndexMap::new(),
         };
@@ -821,10 +821,10 @@ mod tests {
                 .is_some()
         );
 
-        // invalidate the dsconfig file and expect shared profile data to drop
+        // invalidate the config file and expect shared profile data to drop
         program
-            .invalidate_file(dsconfig_file_id, FileUpdate::Touch)
-            .unwrap_or_else(|error| panic!("failed to invalidate dsconfig: {error}"));
+            .invalidate_file(destack_config_file_id, FileUpdate::Touch)
+            .unwrap_or_else(|error| panic!("failed to invalidate config: {error}"));
 
         // check that the profile data is cleared
         assert!(
@@ -878,7 +878,7 @@ mod tests {
             name: Some("pkg".to_string()),
             version: Some("0.1.0".to_string()),
             manifest: Some(package_manifest),
-            dsconfig: None,
+            config: None,
             tsconfig: None,
             targets: IndexMap::new(),
         };
@@ -956,7 +956,7 @@ mod tests {
             name: Some("pkg".to_string()),
             version: Some("0.1.0".to_string()),
             manifest: None,
-            dsconfig: None,
+            config: None,
             tsconfig: None,
             targets: IndexMap::new(),
         };

@@ -52,7 +52,7 @@ jobs:
         with:
           name: ${{ inputs.artifact_prefix }}-schemas-${{ github.sha }}
           path: |
-            workspace/generated/dsconfig.schema.json
+            workspace/generated/destack.schema.json
             app/cli/generated/cli-report.schema.json
           if-no-files-found: error
 

@@ -112,13 +112,13 @@ impl LanguageService {
     ) -> Vec<WorkspaceMessage> {
         let mut messages = Vec::new();
 
-        // reload workspace level dsconfig
+        // reload the workspace config
         let workspace_root = self.session.workspace_root();
-        match resolver.read_dsconfig(&workspace_root, CachePolicy::Reload) {
-            Ok(dsconfig) => {
-                self.session.update_workspace_config(Some(dsconfig));
+        match resolver.read_destack_config(&workspace_root, CachePolicy::Reload) {
+            Ok(config) => {
+                self.session.update_workspace_config(Some(config));
             }
-            Err(ResolveError::DsConfigNotFound { .. }) => {
+            Err(ResolveError::DestackNotFound { .. }) => {
                 self.session.update_workspace_config(None);
             }
             Err(error) => {
@@ -129,7 +129,7 @@ impl LanguageService {
             }
         }
 
-        // reload package level dsconfigs and rebuild package targets
+        // reload package configs and rebuild package targets
         for package in program.packages.iter() {
             let package_guard = package.read();
             let package_id = package_guard.id;
@@ -140,9 +140,10 @@ impl LanguageService {
                 continue;
             };
 
-            let next_dsconfig = match resolver.read_dsconfig(&package_path, CachePolicy::Reload) {
-                Ok(dsconfig) => Some(dsconfig),
-                Err(ResolveError::DsConfigNotFound { .. }) => None,
+            let next_config = match resolver.read_destack_config(&package_path, CachePolicy::Reload)
+            {
+                Ok(config) => Some(config),
+                Err(ResolveError::DestackNotFound { .. }) => None,
                 Err(error) => {
                     messages.push(warning_message(
                         "config_reload_package_failed",
@@ -157,10 +158,10 @@ impl LanguageService {
 
             let package = program.packages.get(package_id);
             let mut package = package.write();
-            package.dsconfig = next_dsconfig.clone();
+            package.config = next_config.clone();
             package.targets.clear();
-            if let Some(dsconfig) = next_dsconfig {
-                for (name, options) in dsconfig.options.targets.iter() {
+            if let Some(config) = next_config {
+                for (name, options) in config.options.targets.iter() {
                     let target = options.to_target(name);
                     let target_id = TargetId::new(package_id, name);
                     package.targets.insert(target_id, target);
@@ -253,7 +254,7 @@ impl LanguageService {
             return false;
         };
 
-        if file_name == "dsconfig.json" {
+        if file_name == "destack.json" {
             return true;
         }
 
@@ -262,20 +263,20 @@ impl LanguageService {
 
     /// Check if a config file is already tracked by this program.
     fn is_tracked_config_path(&self, program: &Program, path: &Path) -> bool {
-        // check workspace level dsconfig
+        // check workspace level config
         if let Some(workspace_config) = self.session.workspace_config()
             && workspace_config.path.as_path() == path
         {
             return true;
         }
 
-        // check package level dsconfig files
+        // check package level config files
         for package in program.packages.iter() {
             let package = package.read();
-            let Some(dsconfig) = package.dsconfig.as_ref() else {
+            let Some(config) = package.config.as_ref() else {
                 continue;
             };
-            if dsconfig.path.as_path() == path {
+            if config.path.as_path() == path {
                 return true;
             }
         }
@@ -299,12 +300,11 @@ impl LanguageService {
         path: &Path,
     ) -> bool {
         // refresh when invalidation already reports config kinds
-        if invalidation.kinds.iter().any(|kind| {
-            matches!(
-                kind,
-                InvalidationKind::DsConfig | InvalidationKind::TsConfig
-            )
-        }) {
+        if invalidation
+            .kinds
+            .iter()
+            .any(|kind| matches!(kind, InvalidationKind::Destack | InvalidationKind::TsConfig))
+        {
             return true;
         }
 

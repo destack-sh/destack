@@ -158,7 +158,7 @@ impl Resolver {
             return Ok(None);
         };
 
-        self.ensure_package_dsconfig(package_id, CachePolicy::UseCache)?;
+        self.ensure_package_destack_config(package_id, CachePolicy::UseCache)?;
         Ok(Some(package_id))
     }
 

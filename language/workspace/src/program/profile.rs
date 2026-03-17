@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use dashmap::DashMap;
 
 use crate::{
-    DsConfigCompilerOptions, OutputFormat, Platform, Runtime, TargetArch, TargetEnv, TargetVendor,
+    CompilerOptions, OutputFormat, Platform, Runtime, TargetArch, TargetEnv, TargetVendor,
 };
 
 // Re-export ProfileId and ProfileVersion from destack_source
@@ -237,8 +237,8 @@ impl EnvSnapshot {
     }
 }
 
-impl From<&DsConfigCompilerOptions> for ProfileFlags {
-    fn from(options: &DsConfigCompilerOptions) -> Self {
+impl From<&CompilerOptions> for ProfileFlags {
+    fn from(options: &CompilerOptions) -> Self {
         Self {
             no_any: !options.no_any.is_allow(),
             no_unknown: !options.no_unknown.is_allow(),

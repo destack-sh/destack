@@ -9,8 +9,8 @@ use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, MemoryFileSystem, ModuleId, Uri,
 };
 use destack_workspace::{
-    ArtifactKey, DsConfig, DsConfigOptions, DsConfigTargetOptions, MemoryCacheStore, OutputFormat,
-    Program, Session, TargetId,
+    ArtifactKey, Destack, DestackOptions, MemoryCacheStore, OutputFormat, Program, Session,
+    TargetId, TargetOptions,
 };
 
 /// Outcome of checking a file for conformance testing.
@@ -254,25 +254,25 @@ fn parse_file_with_parser(
     }
 }
 
-/// Apply a default dsconfig for conformance runs.
-fn apply_default_dsconfig(program: &Program, module_id: ModuleId, root: &Path) {
-    // build a default dsconfig to enable early checks for JS/TS
+/// Apply a default config for conformance runs.
+fn apply_default_destack_config(program: &Program, module_id: ModuleId, root: &Path) {
+    // build a default config to enable early checks for JS and TS
     let file_id = program.files.next_id();
-    let mut options = DsConfigOptions::default();
+    let mut options = DestackOptions::default();
     options.compiler.check_ts = true;
     options.compiler.check_js = true;
-    let target = DsConfigTargetOptions {
+    let target = TargetOptions {
         output: OutputFormat::Js,
         ..Default::default()
     };
     options.targets.insert("default".to_string(), target);
     options.default_target = Some("default".to_string());
 
-    // attach the dsconfig to the owning package
-    let dsconfig_path = root.join("dsconfig.json");
-    let dsconfig = DsConfig {
+    // attach the config to the owning package
+    let destack_config_path = root.join("destack.json");
+    let config = Destack {
         file_id,
-        path: dsconfig_path,
+        path: destack_config_path,
         directory: root.to_path_buf(),
         options,
         content: Default::default(),
@@ -284,9 +284,9 @@ fn apply_default_dsconfig(program: &Program, module_id: ModuleId, root: &Path) {
     };
     let package = program.packages.get(package_id);
     let mut package = package.write();
-    package.dsconfig = Some(dsconfig.clone());
+    package.config = Some(config.clone());
     package.targets.clear();
-    for (name, options) in dsconfig.options.targets.iter() {
+    for (name, options) in config.options.targets.iter() {
         let target = options.to_target(name);
         let target_id = TargetId::new(package_id, name);
         package.targets.insert(target_id, target);
@@ -318,7 +318,7 @@ fn parse_file_with_compiler(
     let module_id = program.register_inline_module(uri, content.to_string(), file_type);
 
     // ensure conformance runs check JS/TS analyze errors
-    apply_default_dsconfig(&program, module_id, &root);
+    apply_default_destack_config(&program, module_id, &root);
 
     // create compiler and compile the module
     let compiler = Compiler::new(

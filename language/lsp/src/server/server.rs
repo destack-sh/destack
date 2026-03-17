@@ -3388,7 +3388,7 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
 
-        // get formatter options from program (respects dsconfig.json)
+        // get formatter options from program (respects destack.json)
         let Some(path) = file.path.as_ref() else {
             return Ok(None);
         };

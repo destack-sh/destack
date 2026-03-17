@@ -180,7 +180,7 @@ impl Rule {
 
         if let Some(access) = rule.access {
             rules.push(Self {
-                id: RuleId(format!("dsconfig.runtime.rule.{index}.access")),
+                id: RuleId(format!("destack.runtime.rule.{index}.access")),
                 enabled: true,
                 when: Some(rule.when.clone()),
                 action: Effect::SetAccess { access },
@@ -190,7 +190,7 @@ impl Rule {
 
         if let Some(world) = rule.world {
             rules.push(Self {
-                id: RuleId(format!("dsconfig.runtime.rule.{index}.world")),
+                id: RuleId(format!("destack.runtime.rule.{index}.world")),
                 enabled: true,
                 when: Some(rule.when.clone()),
                 action: Effect::SetWorld { world },
@@ -200,7 +200,7 @@ impl Rule {
 
         if let Some(payload) = rule.replay {
             rules.push(Self {
-                id: RuleId(format!("dsconfig.runtime.rule.{index}.replay")),
+                id: RuleId(format!("destack.runtime.rule.{index}.replay")),
                 enabled: true,
                 when: Some(rule.when.clone()),
                 action: Effect::SetReplay { payload },

@@ -51,20 +51,20 @@ pub enum ResolveError {
         paths: Vec<PathBuf>,
     },
 
-    /// DsConfig not found.
-    DsConfigNotFound {
+    /// Destack not found.
+    DestackNotFound {
         /// The missing config path.
         path: PathBuf,
     },
 
-    /// Invalid dsconfig.
-    DsConfigInvalid {
+    /// Invalid Destack config.
+    DestackInvalid {
         /// The invalid config path.
         path: PathBuf,
     },
 
-    /// Circular dsconfig extends.
-    DsConfigCircular {
+    /// Circular Destack config extends.
+    DestackCircular {
         /// The cycle of config paths.
         paths: Vec<PathBuf>,
     },
@@ -206,9 +206,9 @@ impl ResolveError {
             Self::TsConfigInvalid { .. } => 5,
             Self::TsConfigSelfReference { .. } => 5,
             Self::TsConfigCircular { .. } => 6,
-            Self::DsConfigNotFound { .. } => 21,
-            Self::DsConfigInvalid { .. } => 22,
-            Self::DsConfigCircular { .. } => 23,
+            Self::DestackNotFound { .. } => 21,
+            Self::DestackInvalid { .. } => 22,
+            Self::DestackCircular { .. } => 23,
             #[cfg(not(target_arch = "wasm32"))]
             Self::FailedToFindYarnPnpManifest { .. } => 24,
             #[cfg(not(target_arch = "wasm32"))]
@@ -247,10 +247,10 @@ impl ResolveError {
             Self::TsConfigCircular { paths } => {
                 format!("tsconfig extends configs circularly: {paths:?}")
             }
-            Self::DsConfigNotFound { path } => format!("dsconfig '{path:?}' not found"),
-            Self::DsConfigInvalid { path } => format!("invalid dsconfig '{path:?}'"),
-            Self::DsConfigCircular { paths } => {
-                format!("dsconfig extends configs circularly: {paths:?}")
+            Self::DestackNotFound { path } => format!("destack config '{path:?}' not found"),
+            Self::DestackInvalid { path } => format!("invalid destack config '{path:?}'"),
+            Self::DestackCircular { paths } => {
+                format!("destack config extends configs circularly: {paths:?}")
             }
             #[cfg(not(target_arch = "wasm32"))]
             Self::FailedToFindYarnPnpManifest { cwd } => {

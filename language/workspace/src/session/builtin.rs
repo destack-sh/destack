@@ -118,7 +118,7 @@ impl Builtins {
             name: Some(BUILTIN_PACKAGE_NAME.to_string()),
             version: None,
             manifest: None,
-            dsconfig: None,
+            config: None,
             tsconfig: None,
             targets: Default::default(),
         };

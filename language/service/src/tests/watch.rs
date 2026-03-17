@@ -23,10 +23,10 @@ fn test_workspace_service_watch_events_update_diagnostics() {
 fn test_workspace_service_watch_events_include_config_updates() {
     let test = TestLanguageService::new("workspace_service_watch_config");
     let source = r#"{
-    "extends": "./missing.dsconfig.json"
+    "extends": "./missing.destack.json"
 }
 "#;
-    let path = test.write_text("dsconfig.json", source);
+    let path = test.write_text("destack.json", source);
 
     let result = test.apply_watch_modified(&path);
 

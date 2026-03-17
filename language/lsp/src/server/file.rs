@@ -17,7 +17,7 @@ use destack_workspace::{FormatterOptions, Session};
 use {destack_lsp_types as lsp, destack_query as query};
 
 /// Globs for config files tracked by the LSP.
-pub(super) const CONFIG_GLOBS: [&str; 2] = ["**/dsconfig.json", "**/tsconfig*.json"];
+pub(super) const CONFIG_GLOBS: [&str; 2] = ["**/destack.json", "**/tsconfig*.json"];
 
 /// Upsert a file in the session registry from a snapshot.
 pub(super) fn upsert_file_from_snapshot(
@@ -118,7 +118,7 @@ fn is_config_json_snapshot(snapshot: &FileSnapshot) -> bool {
         .and_then(|name| name.to_str())
         .unwrap_or(snapshot.name.as_str());
 
-    if name == "dsconfig.json" || name == "jsconfig.json" {
+    if name == "destack.json" || name == "jsconfig.json" {
         return true;
     }
 

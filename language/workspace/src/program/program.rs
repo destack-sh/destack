@@ -12,12 +12,12 @@ use indexmap::IndexMap;
 use parking_lot::RwLock;
 
 use crate::{
-    ArtifactRegistry, Builtins, DsConfigCompilerOptions, DsConfigOptions, DsPathAliases,
-    EnvSnapshot, FormatterOptions, LinterOptions, Loader, Module, ModuleAst, ModuleDetection,
-    ModuleFormat, ModuleGraphKey, ModuleGraphStamp, ModuleGraphVersion, ModuleRegistry,
-    ModuleSource, OutputRegistry, Package, PackageKind, PackageRegistry, Platform, Profile,
-    ProfileConfig, ProfileEnv, ProfileFlags, ProfileId, ProfileKey, ProfileRegistry, ProgramIndex,
-    Runtime, SourceType, Target, TargetId, TsConfig, TsConfigId, TsConfigOptions, TsConfigRegistry,
+    ArtifactRegistry, Builtins, CompilerOptions, DestackOptions, DsPathAliases, EnvSnapshot,
+    FormatterOptions, LinterOptions, Loader, Module, ModuleAst, ModuleDetection, ModuleFormat,
+    ModuleGraphKey, ModuleGraphStamp, ModuleGraphVersion, ModuleRegistry, ModuleSource,
+    OutputRegistry, Package, PackageKind, PackageRegistry, Platform, Profile, ProfileConfig,
+    ProfileEnv, ProfileFlags, ProfileId, ProfileKey, ProfileRegistry, ProgramIndex, Runtime,
+    SourceType, Target, TargetId, TsConfig, TsConfigId, TsConfigOptions, TsConfigRegistry,
     WorkspaceFileEntry, WorkspaceIndexSnapshot, WorkspaceModuleEntry,
     builtin_libs_for_type_entries, discover_typescript_type_entries,
     normalize_typescript_lib_names, normalize_typescript_type_entries, payload_hash_from_bytes,
@@ -267,7 +267,7 @@ impl Program {
             name: Some("<root>".to_string()),
             version: None,
             manifest: None,
-            dsconfig: None,
+            config: None,
             tsconfig: None,
             targets: IndexMap::new(),
         };
@@ -676,25 +676,25 @@ impl Program {
         Some(f(&tsconfig.read().options))
     }
 
-    /// Access dsconfig options for a module via closure.
-    pub fn with_dsconfig_options<T>(
+    /// Access package config options for a module via closure.
+    pub fn with_config_options<T>(
         &self,
         module: &Module,
-        f: impl FnOnce(&DsConfigOptions) -> T,
+        f: impl FnOnce(&DestackOptions) -> T,
     ) -> Option<T> {
         let package = self.packages.get(module.package_id);
         let package_guard = package.read();
-        let dsconfig = package_guard.dsconfig.as_ref()?;
-        Some(f(&dsconfig.options))
+        let config = package_guard.config.as_ref()?;
+        Some(f(&config.options))
     }
 
-    /// Get effective linter options for a module (package dsconfig > program defaults).
+    /// Get effective linter options for a module.
     pub fn get_linter_options(&self, module_id: ModuleId) -> LinterOptions {
         let module = self.modules.get(module_id);
         let module = module.read();
 
-        // try package dsconfig first
-        if let Some(options) = self.with_dsconfig_options(&module, |ds| ds.linter.clone()) {
+        // try package config first
+        if let Some(options) = self.with_config_options(&module, |ds| ds.linter.clone()) {
             return options;
         }
 
@@ -707,16 +707,16 @@ impl Program {
         &self,
         package: &Package,
         module: &Module,
-    ) -> (DsConfigCompilerOptions, Option<ModuleTsConfigContext>) {
-        // start from package compiler options when dsconfig exists
+    ) -> (CompilerOptions, Option<ModuleTsConfigContext>) {
+        // start from package compiler options when config exists
         let mut compiler_options = package
-            .dsconfig
+            .config
             .as_ref()
-            .map(|dsconfig| dsconfig.options.compiler.clone())
+            .map(|config| config.options.compiler.clone())
             .unwrap_or_default();
 
-        // only use tsconfig when no package dsconfig exists
-        let tsconfig_context = if package.dsconfig.is_none() {
+        // only use tsconfig when no package config exists
+        let tsconfig_context = if package.config.is_none() {
             self.with_tsconfig(module, |tsconfig| ModuleTsConfigContext {
                 options: tsconfig.options.clone(),
                 directory: tsconfig.directory.clone(),
@@ -725,7 +725,7 @@ impl Program {
             None
         };
 
-        // use tsconfig defaults when dsconfig is absent
+        // use tsconfig defaults when package config is absent
         if let Some(tsconfig_context) = tsconfig_context.as_ref() {
             Self::apply_tsconfig_profile_overrides(
                 &mut compiler_options,
@@ -743,7 +743,7 @@ impl Program {
 
     /// Apply tsconfig settings that affect profile and resolution behavior.
     fn apply_tsconfig_profile_overrides(
-        compiler_options: &mut DsConfigCompilerOptions,
+        compiler_options: &mut CompilerOptions,
         tsconfig_options: &TsConfigOptions,
     ) {
         let ts_compiler_options = &tsconfig_options.compiler;
@@ -776,7 +776,7 @@ impl Program {
     fn apply_tsconfig_implicit_type_overrides(
         &self,
         module: &Module,
-        compiler_options: &mut DsConfigCompilerOptions,
+        compiler_options: &mut CompilerOptions,
         tsconfig_context: &ModuleTsConfigContext,
     ) {
         // skip when tsconfig types are explicit
@@ -819,14 +819,14 @@ impl Program {
         let package = self.packages.get(module.package_id);
         let package = package.read();
 
-        // derive profile compiler options from dsconfig or tsconfig
+        // derive profile compiler options from package config or tsconfig
         let (compiler_options, tsconfig_context) =
             self.profile_compiler_options_for_module(&package, &module);
 
-        // get target and profile config from package dsconfig
-        let (target, profile_config) = if let Some(dsconfig) = package.dsconfig.as_ref() {
+        // get target and profile config from the package config
+        let (target, profile_config) = if let Some(config) = package.config.as_ref() {
             // resolve the configured or fallback target
-            let target = dsconfig
+            let target = config
                 .options
                 .default_target
                 .as_ref()
@@ -840,10 +840,10 @@ impl Program {
             let profile_config = compiler_options
                 .profile
                 .as_ref()
-                .and_then(|name| dsconfig.options.profiles.get(name));
+                .and_then(|name| config.options.profiles.get(name));
             (target, profile_config)
         } else {
-            // pick a target based on the module language when no dsconfig exists
+            // pick a target based on the module language when no package config exists
             (self.fallback_target_for_module(&module), None)
         };
 
@@ -878,8 +878,8 @@ impl Program {
         }
 
         // resolve base target for diagnostics
-        let base_target = if let Some(dsconfig) = package.dsconfig.as_ref() {
-            dsconfig
+        let base_target = if let Some(config) = package.config.as_ref() {
+            config
                 .options
                 .default_target
                 .as_ref()
@@ -943,12 +943,12 @@ impl Program {
 
         let (compiler_options, tsconfig_context) =
             self.profile_compiler_options_for_module(&package, &module);
-        let profile_config = package.dsconfig.as_ref().and_then(|dsconfig| {
+        let profile_config = package.config.as_ref().and_then(|config| {
             target
                 .profile
                 .as_ref()
                 .or(compiler_options.profile.as_ref())
-                .and_then(|name| dsconfig.options.profiles.get(name))
+                .and_then(|name| config.options.profiles.get(name))
         });
 
         let key = Self::profile_key_for_target(
@@ -974,7 +974,7 @@ impl Program {
     /// Collect additive library types for a target.
     fn collect_types_for_target(
         target: &Target,
-        compiler_options: &DsConfigCompilerOptions,
+        compiler_options: &CompilerOptions,
         profile_config: Option<&ProfileConfig>,
     ) -> Vec<String> {
         let mut type_entries = Vec::new();
@@ -1001,7 +1001,7 @@ impl Program {
     /// Build the effective library set for one target profile.
     fn effective_libs_for_target_profile(
         target: &Target,
-        compiler_options: &DsConfigCompilerOptions,
+        compiler_options: &CompilerOptions,
         profile_config: Option<&ProfileConfig>,
         tsconfig_options: Option<&TsConfigOptions>,
         runtime: Runtime,
@@ -1065,7 +1065,7 @@ impl Program {
     /// Build a profile key for a target.
     fn profile_key_for_target(
         target: &Target,
-        compiler_options: &DsConfigCompilerOptions,
+        compiler_options: &CompilerOptions,
         profile_config: Option<&ProfileConfig>,
         tsconfig_options: Option<&TsConfigOptions>,
     ) -> ProfileKey {
@@ -1123,8 +1123,8 @@ impl Program {
     /// Build compiler options for a target, applying derived restrictions.
     pub fn compiler_options_for_target(
         target: &Target,
-        compiler_options: &DsConfigCompilerOptions,
-    ) -> DsConfigCompilerOptions {
+        compiler_options: &CompilerOptions,
+    ) -> CompilerOptions {
         let mut options = compiler_options.clone();
         let is_native_output = target.output.is_wasm() || target.output.is_native();
 
@@ -1265,13 +1265,13 @@ mod tests {
             ..Target::default()
         };
 
-        let compiler_options = DsConfigCompilerOptions {
+        let compiler_options = CompilerOptions {
             types: vec![
                 "node".to_string(),
                 "dom".to_string(),
                 "vitest/globals".to_string(),
             ],
-            ..DsConfigCompilerOptions::default()
+            ..CompilerOptions::default()
         };
 
         let profile_config = ProfileConfig {
@@ -1300,7 +1300,7 @@ mod tests {
     #[test]
     fn test_profile_key_for_target_uses_tsconfig_default_libs() {
         let target = Target::js("default");
-        let compiler_options = DsConfigCompilerOptions::default();
+        let compiler_options = CompilerOptions::default();
 
         let mut tsconfig_options = TsConfigOptions::default();
         tsconfig_options.compiler.es_target = EsTarget::Es2022;
@@ -1323,7 +1323,7 @@ mod tests {
     #[test]
     fn test_profile_key_for_target_honors_tsconfig_no_lib() {
         let target = Target::js("default");
-        let compiler_options = DsConfigCompilerOptions::default();
+        let compiler_options = CompilerOptions::default();
 
         let mut tsconfig_options = TsConfigOptions::default();
         tsconfig_options.compiler.no_lib = true;
@@ -1349,7 +1349,7 @@ mod tests {
         ];
 
         // apply tsconfig profile overrides
-        let mut compiler_options = DsConfigCompilerOptions::default();
+        let mut compiler_options = CompilerOptions::default();
         Program::apply_tsconfig_profile_overrides(&mut compiler_options, &tsconfig_options);
 
         // keep normalized type entries for downstream resolution
@@ -1362,7 +1362,7 @@ mod tests {
     #[test]
     fn test_profile_key_for_target_normalizes_tsconfig_lib_names() {
         let target = Target::js("default");
-        let compiler_options = DsConfigCompilerOptions::default();
+        let compiler_options = CompilerOptions::default();
 
         let mut tsconfig_options = TsConfigOptions::default();
         tsconfig_options.compiler.lib = vec!["DOM".to_string(), "lib.ES2022.d.ts".to_string()];
@@ -1383,7 +1383,7 @@ mod tests {
     #[test]
     fn test_profile_key_for_target_uses_only_explicit_tsconfig_libs() {
         let target = Target::js("default");
-        let compiler_options = DsConfigCompilerOptions::default();
+        let compiler_options = CompilerOptions::default();
 
         let mut tsconfig_options = TsConfigOptions::default();
         tsconfig_options.compiler.lib = vec!["ESNext".to_string(), "DOM".to_string()];
@@ -1403,7 +1403,7 @@ mod tests {
     #[test]
     fn test_native_target_forces_strict_mode() {
         // set non-strict options to false to verify enforcement
-        let compiler_options = DsConfigCompilerOptions {
+        let compiler_options = CompilerOptions {
             strict: false,
             always_strict: false,
             no_implicit_any: DiagnosticPolicy::Allow,
@@ -1414,7 +1414,7 @@ mod tests {
             strict_builtin_iterator_return: false,
             strict_property_initialization: false,
             use_unknown_in_catch_variables: false,
-            ..DsConfigCompilerOptions::default()
+            ..CompilerOptions::default()
         };
 
         // enforce soundness defaults for native output

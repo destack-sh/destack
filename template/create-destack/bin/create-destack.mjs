@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const DEFAULT_TEMPLATE = "app";
 const DEFAULT_TARGET_DIRECTORY = "destack-app";
 const TEMPLATES = new Map([
-    ["app", "Application starter with src/main.ds and dsconfig.json"],
+    ["app", "Application starter with src/main.ds and destack.json"],
     ["blank", "Minimal starter with package and source folder"],
 ]);
 
@@ -314,6 +314,23 @@ async function writePackageName(projectDirectory, packageName) {
 
     // persist normalized package json with trailing newline
     await writeFile(packageJsonPath, `${JSON.stringify(packageData, null, 2)}\n`, "utf8");
+
+    // sync destack json when the template ships one
+    const destackJsonPath = path.join(projectDirectory, "destack.json");
+    try {
+        await access(destackJsonPath, fsConstants.F_OK);
+    }
+    catch {
+        return;
+    }
+
+    // load destack json and rewrite the name field
+    const destackJson = await readFile(destackJsonPath, "utf8");
+    const destackData = JSON.parse(destackJson);
+    destackData.name = packageName;
+
+    // persist normalized destack json with trailing newline
+    await writeFile(destackJsonPath, `${JSON.stringify(destackData, null, 2)}\n`, "utf8");
 }
 
 /**

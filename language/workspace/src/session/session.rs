@@ -7,9 +7,9 @@ use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
 use parking_lot::RwLock;
 
 use crate::{
-    Builtins, CacheStore, DiskCacheStore, DsConfig, FormatterOptions, LinterOptions,
-    ModuleRegistry, PackageRegistry, ProfileKey, Program, SessionOptions, TsConfigRegistry,
-    Workspace, resolve_workspace_cache_root,
+    Builtins, CacheStore, Destack, DiskCacheStore, FormatterOptions, LinterOptions, ModuleRegistry,
+    PackageRegistry, ProfileKey, Program, SessionOptions, TsConfigRegistry, Workspace,
+    resolve_workspace_cache_root,
 };
 
 /// A session is the persistent state for a workspace.
@@ -184,12 +184,12 @@ impl Session {
     }
 
     /// Return the current workspace config.
-    pub fn workspace_config(&self) -> Option<Arc<DsConfig>> {
+    pub fn workspace_config(&self) -> Option<Arc<Destack>> {
         self.workspace.read().config.clone()
     }
 
     /// Update the workspace configuration.
-    pub fn update_workspace_config(&self, config: Option<DsConfig>) {
+    pub fn update_workspace_config(&self, config: Option<Destack>) {
         // update the workspace config in place
         let mut workspace = self.workspace.write();
         workspace.config = config.map(Arc::new);
