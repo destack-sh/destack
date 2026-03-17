@@ -35,38 +35,6 @@ export enum MidiEventSource {
     SyntheticPoll = 2,
 }
 
-/// MIDI port-added event payload.
-export struct MidiPortAddedPayload {
-    /// Direction for the added endpoint.
-    direction: MidiPortDirection;
-    /// Added endpoint descriptor.
-    descriptor: MidiPortDescriptor;
-}
-
-/// MIDI port-removed event payload.
-export struct MidiPortRemovedPayload {
-    /// Direction for the removed endpoint.
-    direction: MidiPortDirection;
-    /// Stable runtime endpoint identifier.
-    id: string;
-    /// Stable runtime group identifier when still known.
-    groupId: string | void;
-}
-
-/// MIDI port-changed event payload.
-export struct MidiPortChangedPayload {
-    /// Direction for the changed endpoint.
-    direction: MidiPortDirection;
-    /// Updated endpoint descriptor.
-    descriptor: MidiPortDescriptor;
-}
-
-/// MIDI backend-disconnected event payload.
-export struct MidiBackendDisconnectedPayload {
-    /// Reserved for future backend-specific detail flags.
-    flags: uint32;
-}
-
 /// Shared metadata for all MIDI topology events.
 export struct MidiEventMetadata {
     /// Event timestamp in nanoseconds.
@@ -87,8 +55,10 @@ export struct MidiPortAddedEvent {
     kind: "portAdded";
     /// Shared event metadata.
     metadata: MidiEventMetadata;
-    /// Port-added payload.
-    payload: MidiPortAddedPayload;
+    /// Direction for the added endpoint.
+    direction: MidiPortDirection;
+    /// Added endpoint descriptor.
+    descriptor: MidiPortDescriptor;
 }
 
 /// MIDI port-removed event.
@@ -97,8 +67,12 @@ export struct MidiPortRemovedEvent {
     kind: "portRemoved";
     /// Shared event metadata.
     metadata: MidiEventMetadata;
-    /// Port-removed payload.
-    payload: MidiPortRemovedPayload;
+    /// Direction for the removed endpoint.
+    direction: MidiPortDirection;
+    /// Stable runtime endpoint identifier.
+    id: string;
+    /// Stable runtime group identifier when still known.
+    groupId: string | void;
 }
 
 /// MIDI port-changed event.
@@ -107,8 +81,10 @@ export struct MidiPortChangedEvent {
     kind: "portChanged";
     /// Shared event metadata.
     metadata: MidiEventMetadata;
-    /// Port-changed payload.
-    payload: MidiPortChangedPayload;
+    /// Direction for the changed endpoint.
+    direction: MidiPortDirection;
+    /// Updated endpoint descriptor.
+    descriptor: MidiPortDescriptor;
 }
 
 /// MIDI backend-disconnected event.
@@ -117,8 +93,8 @@ export struct MidiBackendDisconnectedEvent {
     kind: "backendDisconnected";
     /// Shared event metadata.
     metadata: MidiEventMetadata;
-    /// Backend-disconnected payload.
-    payload: MidiBackendDisconnectedPayload;
+    /// Reserved for future backend-specific detail flags.
+    flags: uint32;
 }
 
 /// MIDI event subscription options.
