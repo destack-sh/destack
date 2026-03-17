@@ -601,7 +601,7 @@ impl From<ImportSortOrderJson> for ImportSortOrder {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigFormatterJson {
+pub struct FormatterJson {
     /// Line ending style: "lf", "crlf", or "cr".
     #[serde(alias = "endOfLine")]
     pub line_ending: Option<LineEndingJson>,
@@ -642,7 +642,7 @@ pub struct DsConfigFormatterJson {
     pub import_sort_order: Option<ImportSortOrderJson>,
 }
 
-impl DsConfigFormatterJson {
+impl FormatterJson {
     /// Apply formatter options to a FormatterOptions struct.
     pub fn apply(&self, options: &mut FormatterOptions) {
         // layout

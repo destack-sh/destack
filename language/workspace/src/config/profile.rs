@@ -36,7 +36,7 @@ impl ProfileConfig {
     }
 }
 
-/// Profile configuration JSON (from dsconfig.json).
+/// Profile configuration JSON (from destack.json).
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]

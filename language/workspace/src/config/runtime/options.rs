@@ -491,16 +491,14 @@ pub struct RuntimeOptions {
     /// Platform-specific host runtime overrides.
     pub platform: PlatformOptions,
 }
-pub(crate) fn runtime_options_from_json(
-    json: Option<&DsConfigRuntimeOptionsJson>,
-) -> RuntimeOptions {
+pub(crate) fn runtime_options_from_json(json: Option<&RuntimeOptionsJson>) -> RuntimeOptions {
     runtime_options_with_base(&RuntimeOptions::default(), json)
 }
 
 /// Derive runtime options from a base set of options plus overrides.
 pub(crate) fn runtime_options_with_base(
     base: &RuntimeOptions,
-    overrides: Option<&DsConfigRuntimeOptionsJson>,
+    overrides: Option<&RuntimeOptionsJson>,
 ) -> RuntimeOptions {
     // start from the base options
     let mut options = base.clone();
@@ -517,7 +515,7 @@ pub(crate) fn runtime_options_with_base(
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigRuntimeOptionsJson {
+pub struct RuntimeOptionsJson {
     /// Stable runtime name for policy selection.
     pub name: Option<String>,
     /// Runtime labels for policy selection.
@@ -614,7 +612,7 @@ impl RuntimeAgentOptionsJson {
     }
 }
 
-impl DsConfigRuntimeOptionsJson {
+impl RuntimeOptionsJson {
     /// Apply runtime option overrides to a base set of options.
     pub fn apply_to(&self, options: &mut RuntimeOptions) {
         // apply runtime identity overrides
@@ -791,14 +789,14 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        DsConfigRuntimeOptionsJson, ExecutionMode, ReplayPayloadMode, RuntimeAccess,
-        RuntimeSelector, RuntimeWorld,
+        ExecutionMode, ReplayPayloadMode, RuntimeAccess, RuntimeOptionsJson, RuntimeSelector,
+        RuntimeWorld,
     };
 
     /// Ensure runtime options apply shorthand and object selector rules.
     #[test]
     fn test_runtime_options_apply_parses_shorthand_and_object_rules() {
-        let runtime_json: DsConfigRuntimeOptionsJson = serde_json::from_value(json!({
+        let runtime_json: RuntimeOptionsJson = serde_json::from_value(json!({
             "rules": [
                 {
                     "when": "destack.net.*",
@@ -849,7 +847,7 @@ mod tests {
     /// Ensure runtime selector execution accepts one mode and many modes.
     #[test]
     fn test_runtime_options_apply_parses_execution_string_or_array() {
-        let runtime_json: DsConfigRuntimeOptionsJson = serde_json::from_value(json!({
+        let runtime_json: RuntimeOptionsJson = serde_json::from_value(json!({
             "rules": [
                 {
                     "when": { "binding": "destack.net.*", "execution": "record" },

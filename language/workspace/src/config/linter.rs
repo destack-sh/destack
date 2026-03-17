@@ -660,12 +660,12 @@ impl std::fmt::Display for LintSeverity {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigLinterJson {
+pub struct LinterJson {
     /// Whether linting is enabled. Default: true.
     pub enabled: Option<bool>,
     /// Rule configuration.
     #[serde(default)]
-    pub rules: DsConfigLinterRulesJson,
+    pub rules: LinterRulesJson,
 
     // complexity thresholds
     /// Maximum boolean parameters or fields.
@@ -750,10 +750,10 @@ pub struct DsConfigLinterJson {
     pub warning_comment_terms: Option<Vec<String>>,
     /// Module boundary constraints for module boundary aware lint rules.
     #[serde(alias = "architecture")]
-    pub module_boundaries: Option<DsConfigLinterModuleBoundariesJson>,
+    pub module_boundaries: Option<LinterModuleBoundariesJson>,
 }
 
-impl DsConfigLinterJson {
+impl LinterJson {
     /// Apply linter options to a LinterOptions struct.
     pub fn apply(&self, options: &mut LinterOptions) {
         if let Some(enabled) = self.enabled {
@@ -923,18 +923,18 @@ impl DsConfigLinterJson {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigLinterModuleBoundariesJson {
+pub struct LinterModuleBoundariesJson {
     /// Policy for modules that do not match any configured component.
     pub unknown_component_policy: Option<DiagnosticPolicyJson>,
     /// Declared module components.
-    pub components: Option<Vec<DsConfigLinterModuleComponentJson>>,
+    pub components: Option<Vec<LinterModuleComponentJson>>,
     /// Allowed component to component dependency rules.
-    pub rules: Option<Vec<DsConfigLinterModuleDependencyRuleJson>>,
+    pub rules: Option<Vec<LinterModuleDependencyRuleJson>>,
     /// Explicit dependency exceptions.
-    pub exceptions: Option<Vec<DsConfigLinterModuleDependencyExceptionJson>>,
+    pub exceptions: Option<Vec<LinterModuleDependencyExceptionJson>>,
 }
 
-impl DsConfigLinterModuleBoundariesJson {
+impl LinterModuleBoundariesJson {
     /// Apply module boundary options to one linter module boundary options struct.
     pub fn apply(&self, options: &mut LintModuleBoundariesOptions) {
         if let Some(unknown_component_policy) = self.unknown_component_policy {
@@ -959,7 +959,7 @@ impl DsConfigLinterModuleBoundariesJson {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigLinterModuleComponentJson {
+pub struct LinterModuleComponentJson {
     /// The unique component name.
     pub name: String,
     /// Glob patterns used to map modules into this component.
@@ -967,8 +967,8 @@ pub struct DsConfigLinterModuleComponentJson {
     pub path_patterns: Vec<String>,
 }
 
-impl From<&DsConfigLinterModuleComponentJson> for LintModuleComponent {
-    fn from(value: &DsConfigLinterModuleComponentJson) -> Self {
+impl From<&LinterModuleComponentJson> for LintModuleComponent {
+    fn from(value: &LinterModuleComponentJson) -> Self {
         Self {
             name: value.name.clone(),
             path_patterns: value.path_patterns.clone(),
@@ -980,7 +980,7 @@ impl From<&DsConfigLinterModuleComponentJson> for LintModuleComponent {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigLinterModuleDependencyRuleJson {
+pub struct LinterModuleDependencyRuleJson {
     /// The source component name.
     pub from: String,
     /// The list of allowed destination component names.
@@ -988,8 +988,8 @@ pub struct DsConfigLinterModuleDependencyRuleJson {
     pub allow: Vec<String>,
 }
 
-impl From<&DsConfigLinterModuleDependencyRuleJson> for LintModuleDependencyRule {
-    fn from(value: &DsConfigLinterModuleDependencyRuleJson) -> Self {
+impl From<&LinterModuleDependencyRuleJson> for LintModuleDependencyRule {
+    fn from(value: &LinterModuleDependencyRuleJson) -> Self {
         Self {
             from: value.from.clone(),
             allow: value.allow.clone(),
@@ -1001,7 +1001,7 @@ impl From<&DsConfigLinterModuleDependencyRuleJson> for LintModuleDependencyRule 
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigLinterModuleDependencyExceptionJson {
+pub struct LinterModuleDependencyExceptionJson {
     /// The source component name.
     pub from: String,
     /// The destination component name.
@@ -1013,8 +1013,8 @@ pub struct DsConfigLinterModuleDependencyExceptionJson {
     pub reason: Option<String>,
 }
 
-impl From<&DsConfigLinterModuleDependencyExceptionJson> for LintModuleDependencyException {
-    fn from(value: &DsConfigLinterModuleDependencyExceptionJson) -> Self {
+impl From<&LinterModuleDependencyExceptionJson> for LintModuleDependencyException {
+    fn from(value: &LinterModuleDependencyExceptionJson) -> Self {
         Self {
             from: value.from.clone(),
             to: value.to.clone(),
@@ -1028,7 +1028,7 @@ impl From<&DsConfigLinterModuleDependencyExceptionJson> for LintModuleDependency
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigLinterRulesJson {
+pub struct LinterRulesJson {
     /// Preset: "none", "recommended", "strict", or "all".
     pub preset: Option<String>,
     /// Enable the recommended rule set (shorthand for preset: "recommended").
@@ -1042,7 +1042,7 @@ pub struct DsConfigLinterRulesJson {
     pub overrides: IndexMap<String, RuleSeverityJson>,
 }
 
-impl DsConfigLinterRulesJson {
+impl LinterRulesJson {
     /// Apply rules configuration to LinterOptions.
     pub fn apply(&self, options: &mut LinterOptions) {
         // preset field takes precedence

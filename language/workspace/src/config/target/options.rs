@@ -1,8 +1,9 @@
 use std::path::{Path, PathBuf};
 
+use indexmap::IndexMap;
 use serde::Deserialize;
 
-use crate::config::policy::{
+use super::super::policy::{
     BoundsCheckPolicy, BoundsCheckPolicyJson, CheckFailurePolicy, CheckFailurePolicyJson,
     DivisionCheckPolicy, DivisionCheckPolicyJson, ExecutionMode, ExecutionModeJson,
     FloatMathPolicy, FloatMathPolicyJson, NullCheckPolicy, NullCheckPolicyJson,
@@ -10,10 +11,10 @@ use crate::config::policy::{
     SafetyPresetJson, SandboxPolicy, SandboxPolicyJson, ShiftCheckPolicy, ShiftCheckPolicyJson,
     TrustPolicy, TrustPolicyJson, UnwindFormat, UnwindFormatJson,
 };
-use crate::config::runtime::{
-    DsConfigRuntimeOptionsJson, RuntimeAppDeclaration, RuntimeOptions, runtime_options_with_base,
+use super::super::runtime::{
+    RuntimeAppDeclaration, RuntimeOptions, RuntimeOptionsJson, runtime_options_with_base,
 };
-use crate::config::tsconfig::{EsTarget, ModuleTarget};
+use super::super::tsconfig::{EsTarget, ModuleTarget};
 
 use super::app::*;
 use super::execution::*;
@@ -25,8 +26,8 @@ pub const DEFAULT_OUT_DIR: &str = "dist";
 
 /// A build target configuration.
 ///
-/// Can be constructed from dsconfig.json or programmatically.
-/// This is the type used by compiler/codegen - independent of dsconfig parsing.
+/// Can be constructed from `destack.json` or programmatically.
+/// This is the type used by compiler/codegen, independent of config parsing.
 #[derive(Debug, Clone, Hash, Default)]
 pub struct Target {
     /// Target name (e.g., "npm", "wasm", "dev").
@@ -743,8 +744,10 @@ impl Target {
 mod tests {
     use serde_json::json;
 
+    use super::super::super::runtime::{
+        RuntimeAppBackgroundMode, RuntimeAppForegroundMode, RuntimeAppPermission,
+    };
     use super::*;
-    use crate::config::runtime::RuntimeAppPermission;
 
     /// Safety presets map to runtime check policies.
     #[test]
@@ -772,7 +775,7 @@ mod tests {
     /// Target app declarations seed runtime host app availability state.
     #[test]
     fn test_target_app_declaration_seeds_runtime_options() {
-        let json: DsConfigTargetJson = serde_json::from_value(json!({
+        let json: TargetJson = serde_json::from_value(json!({
             "platform": "ios",
             "app": {
                 "permissions": {
@@ -828,8 +831,7 @@ mod tests {
         .expect("target json should parse");
 
         // derive one normalized target
-        let target =
-            DsConfigTargetOptions::from_json_with_runtime(&json, &RuntimeOptions::default());
+        let target = TargetOptions::from_json_with_runtime(&json, &RuntimeOptions::default());
 
         // carry target app declarations into runtime options
         assert!(
@@ -875,7 +877,7 @@ mod tests {
                 .app
                 .background
                 .modes
-                .contains(&crate::config::runtime::RuntimeAppBackgroundMode::Audio)
+                .contains(&RuntimeAppBackgroundMode::Audio)
         );
         assert!(
             target
@@ -883,7 +885,7 @@ mod tests {
                 .app
                 .services
                 .foreground_modes
-                .contains(&crate::config::runtime::RuntimeAppForegroundMode::DataSync)
+                .contains(&RuntimeAppForegroundMode::DataSync)
         );
         assert!(
             target
@@ -909,11 +911,47 @@ mod tests {
                 .allows_background_updates
         );
     }
+
+    /// Target metadata is preserved across JSON normalization.
+    #[test]
+    fn test_target_metadata_roundtrip() {
+        let json: TargetJson = serde_json::from_value(json!({
+            "labels": {
+                "destack.sh/component": "web"
+            },
+            "annotations": {
+                "ops.destack.sh/owner": "commerce-platform"
+            }
+        }))
+        .expect("target json should parse");
+
+        let target = TargetOptions::from_json_with_runtime(&json, &RuntimeOptions::default());
+
+        assert_eq!(
+            target
+                .labels
+                .get("destack.sh/component")
+                .map(String::as_str),
+            Some("web")
+        );
+        assert_eq!(
+            target
+                .annotations
+                .get("ops.destack.sh/owner")
+                .map(String::as_str),
+            Some("commerce-platform")
+        );
+    }
 }
 
-/// Normalized Destack build target options (from dsconfig.json).
+/// Normalized Destack build target options.
 #[derive(Debug, Clone)]
-pub struct DsConfigTargetOptions {
+pub struct TargetOptions {
+    /// Selection labels.
+    pub labels: IndexMap<String, String>,
+    /// Non-identifying metadata.
+    pub annotations: IndexMap<String, String>,
+
     // discovery
     /// How modules are discovered for this target.
     pub discovery: TargetDiscovery,
@@ -1047,9 +1085,11 @@ pub struct DsConfigTargetOptions {
     pub allocator: Allocator,
 }
 
-impl Default for DsConfigTargetOptions {
+impl Default for TargetOptions {
     fn default() -> Self {
         Self {
+            labels: IndexMap::new(),
+            annotations: IndexMap::new(),
             discovery: TargetDiscovery::default(),
             entry: Vec::new(),
             include: Vec::new(),
@@ -1114,7 +1154,7 @@ impl Default for DsConfigTargetOptions {
     }
 }
 
-impl DsConfigTargetOptions {
+impl TargetOptions {
     /// Derive the output mode from the target configuration.
     pub fn output_mode(&self) -> OutputMode {
         if self.out_file.is_some() || self.output.is_single_file() {
@@ -1203,10 +1243,7 @@ impl DsConfigTargetOptions {
     }
 
     /// Derive target options from JSON and base runtime options.
-    pub fn from_json_with_runtime(
-        json: &DsConfigTargetJson,
-        base_runtime: &RuntimeOptions,
-    ) -> Self {
+    pub fn from_json_with_runtime(json: &TargetJson, base_runtime: &RuntimeOptions) -> Self {
         // derive entry points
         let entry: Vec<PathBuf> = json
             .entry
@@ -1222,7 +1259,8 @@ impl DsConfigTargetOptions {
         };
 
         // apply runtime overrides on top of the base runtime options
-        let mut runtime_options = runtime_options_with_base(base_runtime, json.runtime.as_ref());
+        let mut runtime_options =
+            runtime_options_with_base(base_runtime, json.runtime_options.as_ref());
 
         // align execution mode field with runtime options
         if let Some(execution_mode) = json.execution.map(ExecutionMode::from) {
@@ -1248,13 +1286,15 @@ impl DsConfigTargetOptions {
             .unwrap_or_default();
 
         Self {
+            labels: json.labels.clone().unwrap_or_default(),
+            annotations: json.annotations.clone().unwrap_or_default(),
             discovery,
             entry,
             include: json.include.clone().unwrap_or_default(),
             exclude: json.exclude.clone().unwrap_or_default(),
             output: json.output.map(OutputFormat::from).unwrap_or_default(),
             runtime: json
-                .runtime_environment
+                .runtime
                 .as_deref()
                 .and_then(Runtime::parse)
                 .unwrap_or_default(),
@@ -1378,17 +1418,25 @@ impl DsConfigTargetOptions {
     }
 }
 
-impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
-    fn from(json: &DsConfigTargetJson) -> Self {
+impl From<&TargetJson> for TargetOptions {
+    fn from(json: &TargetJson) -> Self {
         Self::from_json_with_runtime(json, &RuntimeOptions::default())
     }
 }
 
-/// Destack build target configuration.
+/// A build artifact node.
+///
+/// Inputs: source discovery, build settings, runtime selection, and packaging declarations.
+/// Outputs: built artifacts and target metadata consumed by stacks.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigTargetJson {
+pub struct TargetJson {
+    /// Selection labels.
+    pub labels: Option<IndexMap<String, String>>,
+    /// Non-identifying metadata.
+    pub annotations: Option<IndexMap<String, String>>,
+
     // discovery
     /// Entry points for entry-based discovery (bundled/executable targets).
     /// If set, discovery mode is Entry; otherwise it's Include.
@@ -1401,11 +1449,11 @@ pub struct DsConfigTargetJson {
     // output format
     /// Output format (e.g., JavaScript, TypeScript, WebAssembly, Native).
     pub output: Option<OutputFormatJson>,
-    /// Runtime environment (e.g., Browser, Node, Deno, Bun, Worker, Workerd).
-    pub runtime_environment: Option<String>,
+    /// Runtime for the built artifact (e.g., browser, node, edge, worker, native).
+    pub runtime: Option<String>,
     /// Runtime version for selecting versioned libs.
     pub runtime_version: Option<String>,
-    /// Target platform / operating system.
+    /// Host platform or packaging surface (e.g., browser, ios, android, macos, linux, windows).
     pub platform: Option<String>,
     /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
     pub target_triple: Option<String>,
@@ -1498,7 +1546,7 @@ pub struct DsConfigTargetJson {
     #[serde(alias = "execution_mode")]
     pub execution: Option<ExecutionModeJson>,
     /// Runtime options overrides for this target.
-    pub runtime: Option<DsConfigRuntimeOptionsJson>,
+    pub runtime_options: Option<RuntimeOptionsJson>,
     /// Trust policy for runtime execution.
     pub trust_policy: Option<TrustPolicyJson>,
     /// Sandbox policy for runtime isolation.

@@ -22,7 +22,7 @@ pub enum RuntimeAccess {
     /// Deny the binding call.
     Deny,
 }
-/// Static runtime rule for dsconfig.
+/// Static runtime rule for the Destack config.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RuntimeRule {
     /// Rule filter clause.
