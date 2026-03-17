@@ -36,7 +36,7 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Platform**](platform/README.md): First-party site, apps, and services (hosting the above).
 
 The structure of Destack is more "do-it-yourself software" than it is "ready-to-wear software".
-We do provide common apps built on top of our incrementally granular [building blocks]([foundational building blocks](https://caseymuratori.com/blog_0016)), but the entire Destack is optimized for programmers building their _own_ software processes in one correct, optimal, integrated system.
+We do provide common apps built on top of our [incrementally granular building blocks](https://caseymuratori.com/blog_0016), but the entire Destack is optimized for programmers building their _own_ software processes in one correct, optimal, integrated system.
 Aspiritionally, Destack is intended as a meta framework for developing and maintaining custom software stacks for correct, optimal, integrated software production.
 
 ---
@@ -47,10 +47,9 @@ It has been more than 50 years since [C introduced higher order programming](htt
 Our tools are a little fancier, sure: new GUIs, new languages, new libraries, new SaaS, and .. that's it - fundamentally, we're still punching keys, making the unit tests turn green, and then shipping without any [_real_ confidence](https://apple.github.io/foundationdb/architecture.html).
 We've just grown accustomed to software being clunky, broken, and slow.
 
-The field of software "engineering" bears little resemblence to real engineering: 
+Software "engineering" bears little resemblence to real engineering: 
 we routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it is not well integrated with other software.
-The inscrutability, inefficiency, and instability of software can only be solved by reimagining software production end-to-end;
-in the limit, that means unifying all the disparate parts of software development that have remained separate purely by historical circumstance.
+The inscrutability, inefficiency, and instability of software must be solved by reimagining software production end-to-end across all the disparate processes that have remained separate purely by historical circumstance.
 
 Software is very useful, we have a lot of it, and there is about to be much, much more, with exciting new possibilities to integrate symbolic and probabilistic computation.
 The more we can express in software, the higher order the tasks we can program -
