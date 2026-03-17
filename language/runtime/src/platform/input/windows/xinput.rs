@@ -1,4 +1,8 @@
 use std::mem::MaybeUninit;
+use std::sync::Arc;
+use std::time::Duration;
+
+use parking_lot::{Condvar, Mutex};
 
 use windows_sys::Win32::Foundation::{ERROR_DEVICE_NOT_CONNECTED, ERROR_SUCCESS};
 use windows_sys::Win32::UI::Input::XboxController::{
@@ -25,6 +29,10 @@ use crate::platform::input::{
 };
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
+use crate::runtime::process::service::executor::periodic::{
+    PeriodicTaskHandle, periodic_service_executor,
+};
+use crate::runtime::process::service::global_service;
 
 /// Prefix for stable xinput device identifiers.
 pub(super) const XINPUT_DEVICE_ID_PREFIX: &str = "xinput:";
@@ -34,10 +42,176 @@ const XINPUT_USER_SLOT_COUNT: u8 = 4;
 const XINPUT_STANDARD_AXIS_COUNT: u16 = 4;
 /// Standardized gamepad button count in this runtime contract.
 const XINPUT_STANDARD_BUTTON_COUNT: u16 = 17;
+/// Poll interval for the shared XInput packet watcher.
+const XINPUT_POLL_INTERVAL: Duration = Duration::from_millis(4);
+
+/// One sampled XInput slot state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct XInputSlotState {
+    /// Whether this slot is currently connected.
+    connected: bool,
+    /// Last observed packet number for this slot.
+    packet_number: u32,
+}
+
+/// One synchronized XInput packet state snapshot.
+#[derive(Debug)]
+struct WindowsXInputSharedState {
+    /// Last observed state for each fixed user slot.
+    slots: Mutex<[XInputSlotState; XINPUT_USER_SLOT_COUNT as usize]>,
+    /// Wake handle for blocking XInput event reads.
+    wake: Condvar,
+}
+
+/// One process-global XInput packet polling service.
+#[derive(Debug)]
+pub(crate) struct WindowsXInputService {
+    /// Shared packet state for blocking reads.
+    state: Arc<WindowsXInputSharedState>,
+    /// Registered periodic polling task.
+    _task: PeriodicTaskHandle,
+}
+
+impl WindowsXInputSharedState {
+    /// Build one shared XInput state snapshot.
+    fn new() -> Self {
+        Self {
+            slots: Mutex::new(sample_xinput_slots()),
+            wake: Condvar::new(),
+        }
+    }
+}
+
+impl WindowsXInputService {
+    /// Build one process-global XInput packet polling service.
+    fn new() -> RuntimeResult<Self> {
+        let state = Arc::new(WindowsXInputSharedState::new());
+        let executor = periodic_service_executor()?;
+        let poll_state = Arc::clone(&state);
+
+        // keep one shared packet snapshot current for all XInput readers
+        let task = executor.register(XINPUT_POLL_INTERVAL, move || {
+            refresh_xinput_slot_state(&poll_state);
+
+            Ok(())
+        })?;
+
+        Ok(Self { state, _task: task })
+    }
+
+    /// Wait for one packet-number change on one user slot.
+    pub(crate) fn wait_for_packet_change(
+        &self,
+        user_index: u8,
+        current_packet_number: u32,
+        nonblocking: bool,
+        operation: &'static str,
+    ) -> RuntimeResult<u32> {
+        let slot_index = usize::from(user_index);
+        let mut slots = self.state.slots.lock();
+
+        loop {
+            let slot = slots[slot_index];
+
+            // surface host disconnects loudly instead of silently spinning
+            if !slot.connected {
+                return Err(xinput_error(
+                    operation,
+                    "XInputGetState",
+                    ERROR_DEVICE_NOT_CONNECTED,
+                    "controller disconnected",
+                ));
+            }
+
+            // return the next observed packet edge
+            if slot.packet_number != current_packet_number {
+                return Ok(slot.packet_number);
+            }
+
+            // nonblocking reads stop when no packet edge is pending
+            if nonblocking {
+                return Err(core_platform::io_would_block(
+                    operation,
+                    "input queue is empty",
+                ));
+            }
+
+            // otherwise wait for the shared poller to publish the next change
+            self.state.wake.wait(&mut slots);
+        }
+    }
+}
+
+/// Return one process-global XInput polling service.
+pub(crate) fn windows_xinput_service(
+    operation: &'static str,
+) -> RuntimeResult<Arc<WindowsXInputService>> {
+    global_service(WindowsXInputService::new).map_err(|error| {
+        core_platform::io_operation_error(
+            operation,
+            None,
+            format!("failed to initialize windows xinput service: {error}"),
+        )
+    })
+}
 
 /// Read one monotonic timestamp from the shared runtime clock domain.
 fn now_timestamp_ns() -> u64 {
     core_platform::monotonic_now_ns()
+}
+
+/// Sample one XInput slot without promoting disconnects into runtime errors.
+fn sample_xinput_slot_state(user_index: u8) -> XInputSlotState {
+    let mut state = MaybeUninit::<XINPUT_STATE>::zeroed();
+    let status = unsafe { XInputGetState(u32::from(user_index), state.as_mut_ptr()) };
+
+    // disconnected slots are expected in the fixed XInput namespace
+    if status == ERROR_DEVICE_NOT_CONNECTED {
+        return XInputSlotState {
+            connected: false,
+            packet_number: 0,
+        };
+    }
+
+    // invalid slot indices are impossible here, so any other failure is treated as absent
+    if status != ERROR_SUCCESS {
+        return XInputSlotState {
+            connected: false,
+            packet_number: 0,
+        };
+    }
+
+    let state = unsafe { state.assume_init() };
+
+    XInputSlotState {
+        connected: true,
+        packet_number: state.dwPacketNumber,
+    }
+}
+
+/// Sample all fixed XInput user slots.
+fn sample_xinput_slots() -> [XInputSlotState; XINPUT_USER_SLOT_COUNT as usize] {
+    let mut slots = [XInputSlotState::default(); XINPUT_USER_SLOT_COUNT as usize];
+
+    for user_index in 0..XINPUT_USER_SLOT_COUNT {
+        slots[usize::from(user_index)] = sample_xinput_slot_state(user_index);
+    }
+
+    slots
+}
+
+/// Refresh one shared XInput packet snapshot and wake blocked readers on change.
+fn refresh_xinput_slot_state(state: &Arc<WindowsXInputSharedState>) {
+    let next_slots = sample_xinput_slots();
+    let mut slots = state.slots.lock();
+
+    // avoid waking readers when the shared snapshot has not changed
+    if *slots == next_slots {
+        return;
+    }
+
+    *slots = next_slots;
+    state.wake.notify_all();
 }
 
 /// Return one stable runtime xinput device identifier for one user index.

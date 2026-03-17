@@ -28,13 +28,13 @@ pub(super) const INPUT_RESOURCE_LABEL: &str = "input.device";
 /// Canonical tty path used for terminal-backed input streams.
 pub(super) const UNIX_INPUT_TTY_PATH: &str = "/dev/tty";
 /// Stable runtime identifier for tty-backed input streams.
-const UNIX_INPUT_TTY_ID: &str = "tty:stdin";
+pub(super) const UNIX_INPUT_TTY_ID: &str = "tty:stdin";
 /// Alias accepted for tty-backed input streams.
 const UNIX_INPUT_TTY_ALIAS: &str = "tty";
 /// Alias accepted for stdin-backed input streams.
 const UNIX_INPUT_STDIN_ALIAS: &str = "stdin";
 /// Display name for tty-backed input streams.
-const UNIX_INPUT_TTY_NAME: &str = "unix terminal input";
+pub(super) const UNIX_INPUT_TTY_NAME: &str = "unix terminal input";
 /// Empty text payload for non-text events.
 pub(super) const UNIX_INPUT_EMPTY_TEXT: &str = "";
 

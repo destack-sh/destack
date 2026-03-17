@@ -2,8 +2,6 @@ use super::{core as input_core, raw as raw_input, xinput as xinput_input};
 use std::collections::VecDeque;
 use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::thread;
-use std::time::Duration;
 
 use windows_sys::Win32::Foundation::HANDLE;
 use windows_sys::Win32::System::Console::{
@@ -895,23 +893,19 @@ pub(super) fn read_event(
                 let Some(user_index) = resolved.xinput_user_index else {
                     return Err(input_core::input_not_found(operation, handle));
                 };
+                let service = binding
+                    .agent()
+                    .platform_state
+                    .input
+                    .windows_xinput_service(operation)?;
 
-                // poll xinput packet updates until one delta is observed or nonblocking exits
-                let next_packet = loop {
-                    let packet = xinput_input::xinput_packet_number(user_index, operation)?;
-                    if packet != resolved.xinput_packet_number {
-                        break packet;
-                    }
-
-                    if nonblocking {
-                        return Err(input_core::io_would_block(
-                            operation,
-                            "input queue is empty",
-                        ));
-                    }
-
-                    thread::sleep(Duration::from_millis(1));
-                };
+                // wait for the next packet edge through the shared XInput service
+                let next_packet = service.wait_for_packet_change(
+                    user_index,
+                    resolved.xinput_packet_number,
+                    nonblocking,
+                    operation,
+                )?;
 
                 // publish one gamepad-change event keyed by packet-number deltas
                 let mut payload = input_core::empty_event_payload(binding);

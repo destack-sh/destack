@@ -1,36 +1,42 @@
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(any(unix, windows))]
 use std::sync::{Arc, OnceLock};
 
 use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(any(unix, windows))]
 use crate::diagnostic::RuntimeResult;
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(any(unix, windows))]
 use crate::runtime::BindingCallContext;
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(any(unix, windows))]
 use crate::runtime::process::service::CachedServiceHandle;
 
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
 use super::host::{
     UnixInputMonitorRuntimeState, UnixInputMonitorService, unix_input_monitor_service,
 };
 #[cfg(windows)]
-use super::host::{WindowsRawInputRuntimeState, WindowsRawInputService, windows_raw_input_service};
+use super::host::{
+    WindowsRawInputRuntimeState, WindowsRawInputService, WindowsXInputService,
+    windows_raw_input_service, windows_xinput_service,
+};
 
 /// Agent-owned input module state.
 #[derive(Default)]
 pub(crate) struct PlatformInputState {
     /// Shared unix input-monitor service handle for this agent.
-    #[cfg(target_os = "linux")]
+    #[cfg(unix)]
     unix_input_monitor_service: CachedServiceHandle<UnixInputMonitorService>,
     /// Agent-owned unix input-monitor state.
-    #[cfg(target_os = "linux")]
+    #[cfg(unix)]
     unix_input_monitor_runtime_state: OnceLock<Arc<UnixInputMonitorRuntimeState>>,
     /// Shared windows raw-input service handle for this agent.
     #[cfg(windows)]
     windows_raw_input_service: CachedServiceHandle<WindowsRawInputService>,
+    /// Shared windows xinput packet service handle for this agent.
+    #[cfg(windows)]
+    windows_xinput_service: CachedServiceHandle<WindowsXInputService>,
     /// Agent-owned windows raw-input state.
     #[cfg(windows)]
     windows_raw_input_runtime_state: OnceLock<Arc<WindowsRawInputRuntimeState>>,
@@ -47,7 +53,7 @@ impl std::fmt::Debug for PlatformInputState {
 impl PlatformInputState {
     /// Return whether any agent-owned input state is active.
     fn has_runtime_state(&self) -> bool {
-        #[cfg(target_os = "linux")]
+        #[cfg(unix)]
         if self.unix_input_monitor_runtime_state.get().is_some() {
             return true;
         }
@@ -75,7 +81,7 @@ impl PlatformInputState {
     }
 
     /// Return one shared unix input-monitor service handle for this agent.
-    #[cfg(target_os = "linux")]
+    #[cfg(unix)]
     pub(crate) fn unix_input_monitor_service(
         &self,
         operation: &'static str,
@@ -85,7 +91,7 @@ impl PlatformInputState {
     }
 
     /// Return one agent-owned unix input-monitor state.
-    #[cfg(target_os = "linux")]
+    #[cfg(unix)]
     pub(crate) fn unix_input_monitor_runtime_state(
         &self,
         ctx: &BindingCallContext,
@@ -104,6 +110,16 @@ impl PlatformInputState {
     ) -> RuntimeResult<Arc<WindowsRawInputService>> {
         self.windows_raw_input_service
             .get_or_try_init(|| windows_raw_input_service(operation))
+    }
+
+    /// Return one shared windows xinput packet service handle for this agent.
+    #[cfg(windows)]
+    pub(crate) fn windows_xinput_service(
+        &self,
+        operation: &'static str,
+    ) -> RuntimeResult<Arc<WindowsXInputService>> {
+        self.windows_xinput_service
+            .get_or_try_init(|| windows_xinput_service(operation))
     }
 
     /// Return one agent-owned windows raw-input state.
