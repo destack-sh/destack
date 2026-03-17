@@ -18,12 +18,13 @@ use crate::platform::os::{
     LifecycleForegroundEventValue, LifecycleLaunchEventValue, LifecycleLowMemoryEventValue,
     LifecycleLowMemoryPayload, LifecycleLowPowerModeChangedEventValue, LifecycleLowPowerPayload,
     LifecyclePauseEventValue, LifecycleResumeEventValue, LifecycleState,
-    LifecycleTerminateEventValue, NotificationPermissionState, Permission, PermissionEntry,
-    PermissionState,
+    LifecycleTerminateEventValue, NetworkEvent, NetworkState, NotificationPermissionState,
+    Permission, PermissionEntry, PermissionState,
 };
 use crate::platform::resource::{self, ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, fs};
 use crate::runtime::BindingCallContext;
+use crate::runtime::process::RuntimeScheduledCallbackHandle;
 
 /// Maximum wait slice used while a lifecycle read services runtime ingress.
 const LIFECYCLE_WAIT_SLICE_NS: u64 = 10_000_000;
@@ -54,6 +55,10 @@ pub(crate) struct OsRuntimeState {
     intent_streams: Mutex<Vec<Weak<IntentEventStream>>>,
     /// Open lifecycle event streams.
     lifecycle_streams: Mutex<Vec<Weak<LifecycleEventStream>>>,
+    /// Open network watch streams.
+    network_watch_streams: Mutex<Vec<Weak<NetworkWatchStream>>>,
+    /// Active network poll callback handle when one is registered.
+    network_watch_callback: Mutex<Option<RuntimeScheduledCallbackHandle>>,
 }
 
 /// One queued intent event inside runtime-owned stream state.
@@ -137,6 +142,21 @@ pub(crate) struct LifecycleEventStream {
     next_sequence: AtomicU64,
 }
 
+/// Runtime-owned network watch stream.
+#[derive(Debug)]
+pub(crate) struct NetworkWatchStream {
+    /// Last emitted network snapshot.
+    last_state: Mutex<NetworkState>,
+    /// Pending network events for this stream.
+    events: Mutex<VecDeque<NetworkEvent>>,
+    /// Wake primitive for blocking reads.
+    wake: Condvar,
+    /// Whether this stream has been closed.
+    is_closed: AtomicBool,
+    /// Sequence number for the next event in this stream.
+    next_sequence: AtomicU64,
+}
+
 impl OsRuntimeState {
     /// Create one empty OS runtime state.
     pub(crate) fn new() -> Self {
@@ -147,6 +167,8 @@ impl OsRuntimeState {
             permission_states: RwLock::new(HashMap::new()),
             intent_streams: Mutex::new(Vec::new()),
             lifecycle_streams: Mutex::new(Vec::new()),
+            network_watch_streams: Mutex::new(Vec::new()),
+            network_watch_callback: Mutex::new(None),
         }
     }
 
@@ -165,6 +187,47 @@ impl OsRuntimeState {
     pub(crate) fn register_intent_stream(&self, stream: Arc<IntentEventStream>) {
         let mut intent_streams = self.intent_streams.lock();
         intent_streams.push(Arc::downgrade(&stream));
+    }
+
+    /// Register one network watch stream.
+    pub(crate) fn register_network_watch_stream(&self, stream: Arc<NetworkWatchStream>) {
+        let mut network_watch_streams = self.network_watch_streams.lock();
+        network_watch_streams.push(Arc::downgrade(&stream));
+    }
+
+    /// Resolve every live network watch stream and prune dead entries.
+    pub(crate) fn network_watch_streams(&self) -> Vec<Arc<NetworkWatchStream>> {
+        let mut network_watch_streams = self.network_watch_streams.lock();
+        let mut resolved_streams = Vec::new();
+
+        network_watch_streams.retain(|stream| {
+            let Some(stream) = stream.upgrade() else {
+                return false;
+            };
+
+            resolved_streams.push(stream);
+            true
+        });
+
+        resolved_streams
+    }
+
+    /// Return the active network watch callback handle when one exists.
+    pub(crate) fn network_watch_callback(&self) -> Option<RuntimeScheduledCallbackHandle> {
+        *self.network_watch_callback.lock()
+    }
+
+    /// Store one network watch callback handle.
+    pub(crate) fn set_network_watch_callback(&self, handle: RuntimeScheduledCallbackHandle) {
+        *self.network_watch_callback.lock() = Some(handle);
+    }
+
+    /// Clear one registered network watch callback handle.
+    pub(crate) fn clear_network_watch_callback(&self, handle: RuntimeScheduledCallbackHandle) {
+        let mut callback = self.network_watch_callback.lock();
+        if callback.is_some_and(|current| current == handle) {
+            *callback = None;
+        }
     }
 
     /// Reconcile current lifecycle state from already queued host events.
@@ -500,6 +563,70 @@ impl LifecycleEventStream {
 
     /// Wait once for queued events or timeout.
     fn wait_once(&self, duration: Duration) {
+        let mut events = self.events.lock();
+
+        if events.is_empty() {
+            self.wake.wait_for(&mut events, duration);
+        }
+    }
+}
+
+impl NetworkWatchStream {
+    /// Create one network watch stream seeded from the current snapshot.
+    pub(crate) fn new(initial_state: NetworkState) -> Self {
+        Self {
+            last_state: Mutex::new(initial_state),
+            events: Mutex::new(VecDeque::new()),
+            wake: Condvar::new(),
+            is_closed: AtomicBool::new(false),
+            next_sequence: AtomicU64::new(0),
+        }
+    }
+
+    /// Publish one changed network snapshot to this stream.
+    pub(crate) fn publish_state(&self, next_state: NetworkState) {
+        if self.is_closed() {
+            return;
+        }
+
+        let mut last_state = self.last_state.lock();
+        if *last_state == next_state {
+            return;
+        }
+
+        let timestamp_ns = monotonic_now_ns();
+        let sequence = self.next_sequence.fetch_add(1, Ordering::Relaxed);
+        *last_state = next_state;
+
+        let mut events = self.events.lock();
+        events.push_back(NetworkEvent {
+            timestamp_ns,
+            sequence,
+            state: next_state,
+        });
+        self.wake.notify_all();
+    }
+
+    /// Try to take one queued network event.
+    pub(crate) fn try_take(&self) -> Option<NetworkEvent> {
+        let mut events = self.events.lock();
+
+        events.pop_front()
+    }
+
+    /// Return whether this stream is closed.
+    pub(crate) fn is_closed(&self) -> bool {
+        self.is_closed.load(Ordering::Relaxed)
+    }
+
+    /// Close this stream and wake blocked readers.
+    pub(crate) fn close(&self) {
+        self.is_closed.store(true, Ordering::Relaxed);
+        self.wake.notify_all();
+    }
+
+    /// Wait once for queued events or timeout.
+    pub(crate) fn wait_once(&self, duration: Duration) {
         let mut events = self.events.lock();
 
         if events.is_empty() {
