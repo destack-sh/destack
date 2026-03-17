@@ -18,14 +18,14 @@ static SERVICE_REGISTRY: OnceLock<ServiceRegistry> = OnceLock::new();
 
 /// One agent-local cached handle for one typed platform service.
 #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
-pub(crate) struct CachedServiceHandle<S> {
+pub(crate) struct ServiceHandle<S> {
     /// Cached typed service handle.
     service: OnceLock<Arc<S>>,
 }
 
 #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
-impl<S> Default for CachedServiceHandle<S> {
-    /// Create one empty cached service handle.
+impl<S> Default for ServiceHandle<S> {
+    /// Create one empty service handle.
     fn default() -> Self {
         Self {
             service: OnceLock::new(),
@@ -34,13 +34,13 @@ impl<S> Default for CachedServiceHandle<S> {
 }
 
 #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
-impl<S> CachedServiceHandle<S> {
-    /// Return one cached typed service handle from one infallible builder.
+impl<S> ServiceHandle<S> {
+    /// Return one typed service handle from one infallible builder.
     pub(crate) fn get_or_init(&self, builder: impl FnOnce() -> Arc<S>) -> Arc<S> {
         self.service.get_or_init(builder).clone()
     }
 
-    /// Return one cached typed service handle from one fallible builder.
+    /// Return one typed service handle from one fallible builder.
     pub(crate) fn get_or_try_init(
         &self,
         builder: impl FnOnce() -> RuntimeResult<Arc<S>>,

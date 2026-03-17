@@ -33,7 +33,7 @@ use crate::platform::resource::ResourceFinalizer;
 ))]
 use crate::runtime::BindingCallContext;
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "ios", windows))]
-use crate::runtime::process::service::CachedServiceHandle;
+use crate::runtime::process::service::ServiceHandle;
 
 /// Agent-owned MIDI module state.
 #[derive(Default)]
@@ -45,22 +45,22 @@ pub(crate) struct PlatformMidiState {
     android_backend_description: std::sync::OnceLock<AndroidBackendDescription>,
     /// Shared ALSA service handle for this agent.
     #[cfg(target_os = "linux")]
-    alsa_service: CachedServiceHandle<AlsaService>,
+    alsa_service: ServiceHandle<AlsaService>,
     /// Shared JACK service handle for this agent.
     #[cfg(target_os = "linux")]
-    jack_service: CachedServiceHandle<JackService>,
+    jack_service: ServiceHandle<JackService>,
     /// Shared CoreMIDI service handle for this agent.
     #[cfg(any(target_os = "macos", target_os = "ios"))]
-    core_midi_service: CachedServiceHandle<CoreMidiService>,
+    core_midi_service: ServiceHandle<CoreMidiService>,
     /// Shared WinRT service handle for this agent.
     #[cfg(windows)]
-    winrt_service: CachedServiceHandle<WinRtService>,
+    winrt_service: ServiceHandle<WinRtService>,
     /// Shared Windows MIDI service handle for this agent.
     #[cfg(windows)]
-    windows_midi_service: CachedServiceHandle<WindowsMidiService>,
+    windows_midi_service: ServiceHandle<WindowsMidiService>,
     /// Shared WinMM service handle for this agent.
     #[cfg(windows)]
-    winmm_service: CachedServiceHandle<WinMmService>,
+    winmm_service: ServiceHandle<WinMmService>,
 }
 
 impl std::fmt::Debug for PlatformMidiState {

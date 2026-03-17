@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-use crate::runtime::process::service::CachedServiceHandle;
+use crate::runtime::process::service::ServiceHandle;
 
 #[cfg(target_os = "macos")]
 use super::unix::{AppKitDisplayService, AppKitRuntimeState};
@@ -20,7 +20,7 @@ use super::windows::{Win32DisplayService, Win32RuntimeState};
 pub(crate) struct PlatformDisplayState {
     /// Shared Win32 display service handle for this agent.
     #[cfg(windows)]
-    win32_service: CachedServiceHandle<Win32DisplayService>,
+    win32_service: ServiceHandle<Win32DisplayService>,
     /// Agent-owned Win32 display runtime state.
     #[cfg(windows)]
     win32_runtime_state: std::sync::OnceLock<Arc<Win32RuntimeState>>,
@@ -29,16 +29,16 @@ pub(crate) struct PlatformDisplayState {
     x11_runtime_state: std::sync::OnceLock<Arc<X11RuntimeState>>,
     /// Shared linux x11 display service handle for this agent.
     #[cfg(target_os = "linux")]
-    x11_service: CachedServiceHandle<X11DisplayService>,
+    x11_service: ServiceHandle<X11DisplayService>,
     /// Agent-owned linux wayland runtime state.
     #[cfg(target_os = "linux")]
     wayland_runtime_state: std::sync::OnceLock<Arc<WaylandRuntimeState>>,
     /// Shared linux wayland display service handle for this agent.
     #[cfg(target_os = "linux")]
-    wayland_service: CachedServiceHandle<WaylandDisplayService>,
+    wayland_service: ServiceHandle<WaylandDisplayService>,
     /// Shared AppKit display service handle for this agent.
     #[cfg(target_os = "macos")]
-    appkit_service: CachedServiceHandle<AppKitDisplayService>,
+    appkit_service: ServiceHandle<AppKitDisplayService>,
     /// Agent-owned AppKit runtime state.
     #[cfg(target_os = "macos")]
     appkit_runtime_state: std::sync::OnceLock<Arc<AppKitRuntimeState>>,

@@ -12,7 +12,7 @@ pub(crate) mod unix;
 #[cfg(windows)]
 pub(crate) mod windows;
 
-pub(crate) use registry::{CachedServiceHandle, global_service};
+pub(crate) use registry::{ServiceHandle, global_service};
 
 /// Process-global weak subscriber registry keyed by one stable runtime or agent id.
 #[derive(Debug)]

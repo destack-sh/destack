@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
 use crate::runtime::BindingCallContext;
-use crate::runtime::process::service::CachedServiceHandle;
+use crate::runtime::process::service::ServiceHandle;
 
 use super::core::monitor::{AudioMonitorService, audio_monitor_service};
 use super::core::runtime::AudioRuntimeState;
@@ -14,7 +14,7 @@ use super::core::runtime::AudioRuntimeState;
 #[derive(Default)]
 pub(crate) struct PlatformAudioState {
     /// Shared audio monitor service handle for this agent.
-    monitor_service: CachedServiceHandle<AudioMonitorService>,
+    monitor_service: ServiceHandle<AudioMonitorService>,
     /// Agent-owned shared audio event state.
     runtime_state: OnceLock<Arc<AudioRuntimeState>>,
 }
