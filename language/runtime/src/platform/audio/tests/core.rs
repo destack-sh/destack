@@ -733,7 +733,7 @@ fn native_event_row(value: &AudioEvent) -> (u64, u64, AudioEventKind, u64, Audio
             value.metadata.sequence,
             value.metadata.dropped_count,
             AudioEventKind::StreamXRun,
-            value.payload.xrun_count_delta,
+            value.xrun_count_delta,
             value.metadata.source,
         ),
     }
@@ -837,7 +837,7 @@ fn vm_event_row(value: &AudioEventVm) -> (u64, u64, AudioEventKind, u64, AudioEv
             value.metadata.sequence,
             value.metadata.dropped_count,
             AudioEventKind::StreamXRun,
-            value.payload.xrun_count_delta,
+            value.xrun_count_delta,
             value.metadata.source,
         ),
     }

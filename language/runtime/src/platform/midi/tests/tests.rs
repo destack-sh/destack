@@ -1163,23 +1163,23 @@ pub(crate) fn decode_event(
             MidiEvent::MidiPortAddedEvent(event) => Ok(DecodedMidiEvent {
                 kind: unsafe { event.kind.as_str()? }.to_string(),
                 source: event.metadata.source,
-                direction: Some(event.payload.direction),
-                id: Some(unsafe { event.payload.descriptor.id.as_str()? }.to_string()),
-                is_virtual: Some(event.payload.descriptor.is_virtual),
+                direction: Some(event.direction),
+                id: Some(unsafe { event.descriptor.id.as_str()? }.to_string()),
+                is_virtual: Some(event.descriptor.is_virtual),
             }),
             MidiEvent::MidiPortRemovedEvent(event) => Ok(DecodedMidiEvent {
                 kind: unsafe { event.kind.as_str()? }.to_string(),
                 source: event.metadata.source,
-                direction: Some(event.payload.direction),
-                id: Some(unsafe { event.payload.id.as_str()? }.to_string()),
+                direction: Some(event.direction),
+                id: Some(unsafe { event.id.as_str()? }.to_string()),
                 is_virtual: None,
             }),
             MidiEvent::MidiPortChangedEvent(event) => Ok(DecodedMidiEvent {
                 kind: unsafe { event.kind.as_str()? }.to_string(),
                 source: event.metadata.source,
-                direction: Some(event.payload.direction),
-                id: Some(unsafe { event.payload.descriptor.id.as_str()? }.to_string()),
-                is_virtual: Some(event.payload.descriptor.is_virtual),
+                direction: Some(event.direction),
+                id: Some(unsafe { event.descriptor.id.as_str()? }.to_string()),
+                is_virtual: Some(event.descriptor.is_virtual),
             }),
             MidiEvent::MidiBackendDisconnectedEvent(event) => Ok(DecodedMidiEvent {
                 kind: unsafe { event.kind.as_str()? }.to_string(),
@@ -1205,15 +1205,15 @@ pub(crate) fn decode_event(
                         .as_str()
                         .to_string(),
                     source: event.metadata.source,
-                    direction: Some(event.payload.direction),
+                    direction: Some(event.direction),
                     id: Some(
                         vm_context
-                            .string_ref(event.payload.descriptor.id)
+                            .string_ref(event.descriptor.id)
                             .map_err(|error| RuntimeError::from(error).boxed())?
                             .as_str()
                             .to_string(),
                     ),
-                    is_virtual: Some(event.payload.descriptor.is_virtual),
+                    is_virtual: Some(event.descriptor.is_virtual),
                 }),
                 MidiEventVm::MidiPortRemovedEvent(event) => Ok(DecodedMidiEvent {
                     kind: vm_context
@@ -1222,10 +1222,10 @@ pub(crate) fn decode_event(
                         .as_str()
                         .to_string(),
                     source: event.metadata.source,
-                    direction: Some(event.payload.direction),
+                    direction: Some(event.direction),
                     id: Some(
                         vm_context
-                            .string_ref(event.payload.id)
+                            .string_ref(event.id)
                             .map_err(|error| RuntimeError::from(error).boxed())?
                             .as_str()
                             .to_string(),
@@ -1239,15 +1239,15 @@ pub(crate) fn decode_event(
                         .as_str()
                         .to_string(),
                     source: event.metadata.source,
-                    direction: Some(event.payload.direction),
+                    direction: Some(event.direction),
                     id: Some(
                         vm_context
-                            .string_ref(event.payload.descriptor.id)
+                            .string_ref(event.descriptor.id)
                             .map_err(|error| RuntimeError::from(error).boxed())?
                             .as_str()
                             .to_string(),
                     ),
-                    is_virtual: Some(event.payload.descriptor.is_virtual),
+                    is_virtual: Some(event.descriptor.is_virtual),
                 }),
                 MidiEventVm::MidiBackendDisconnectedEvent(event) => Ok(DecodedMidiEvent {
                     kind: vm_context
