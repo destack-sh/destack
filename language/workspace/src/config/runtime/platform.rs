@@ -5,42 +5,34 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PlatformOptions {
     /// Android runtime host overrides.
-    pub android: PlatformAndroidOptions,
+    pub android: PlatformHostOptions,
     /// DragonFly BSD runtime host overrides.
-    pub dragonfly: PlatformDragonflyOptions,
+    pub dragonfly: PlatformHostOptions,
     /// FreeBSD runtime host overrides.
-    pub freebsd: PlatformFreeBsdOptions,
+    pub freebsd: PlatformHostOptions,
     /// Haiku runtime host overrides.
-    pub haiku: PlatformHaikuOptions,
+    pub haiku: PlatformHostOptions,
     /// illumos runtime host overrides.
-    pub illumos: PlatformIllumosOptions,
+    pub illumos: PlatformHostOptions,
     /// iOS runtime host overrides.
-    pub ios: PlatformIosOptions,
+    pub ios: PlatformHostOptions,
     /// Linux runtime host overrides.
-    pub linux: PlatformLinuxOptions,
+    pub linux: PlatformHostOptions,
     /// macOS runtime host overrides.
-    pub macos: PlatformMacosOptions,
+    pub macos: PlatformHostOptions,
     /// NetBSD runtime host overrides.
-    pub netbsd: PlatformNetBsdOptions,
+    pub netbsd: PlatformHostOptions,
     /// OpenBSD runtime host overrides.
-    pub openbsd: PlatformOpenBsdOptions,
+    pub openbsd: PlatformHostOptions,
     /// Solaris runtime host overrides.
-    pub solaris: PlatformSolarisOptions,
+    pub solaris: PlatformHostOptions,
     /// Windows runtime host overrides.
     pub windows: PlatformWindowsOptions,
 }
 
-/// Host integration options shared across platform runtime configuration.
+/// Host runtime options shared across platform runtime configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PlatformHostOptions {
-    /// Whether host lifecycle events are enabled.
-    pub enable_lifecycle_events: bool,
-    /// Whether host window events are enabled.
-    pub enable_window_events: bool,
-    /// Whether host permission events are enabled.
-    pub enable_permission_events: bool,
-    /// Whether host interruption events are enabled.
-    pub enable_interruption_events: bool,
     /// Queue capacity for host events before drop behavior applies.
     pub event_queue_capacity: Option<u64>,
 }
@@ -48,10 +40,6 @@ pub struct PlatformHostOptions {
 impl Default for PlatformHostOptions {
     fn default() -> Self {
         Self {
-            enable_lifecycle_events: true,
-            enable_window_events: true,
-            enable_permission_events: true,
-            enable_interruption_events: true,
             event_queue_capacity: None,
         }
     }
@@ -247,39 +235,6 @@ pub struct PlatformThreadOptions {}
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PlatformTtyOptions {}
 
-/// Android runtime host overrides.
-pub type PlatformAndroidOptions = PlatformHostOptions;
-
-/// DragonFly BSD runtime host overrides.
-pub type PlatformDragonflyOptions = PlatformHostOptions;
-
-/// FreeBSD runtime host overrides.
-pub type PlatformFreeBsdOptions = PlatformHostOptions;
-
-/// Haiku runtime host overrides.
-pub type PlatformHaikuOptions = PlatformHostOptions;
-
-/// illumos runtime host overrides.
-pub type PlatformIllumosOptions = PlatformHostOptions;
-
-/// iOS runtime host overrides.
-pub type PlatformIosOptions = PlatformHostOptions;
-
-/// Linux runtime host overrides.
-pub type PlatformLinuxOptions = PlatformHostOptions;
-
-/// macOS runtime host overrides.
-pub type PlatformMacosOptions = PlatformHostOptions;
-
-/// NetBSD runtime host overrides.
-pub type PlatformNetBsdOptions = PlatformHostOptions;
-
-/// OpenBSD runtime host overrides.
-pub type PlatformOpenBsdOptions = PlatformHostOptions;
-
-/// Solaris runtime host overrides.
-pub type PlatformSolarisOptions = PlatformHostOptions;
-
 /// Windows packet backend selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum PlatformWindowsPacketBackend {
@@ -295,14 +250,6 @@ pub enum PlatformWindowsPacketBackend {
 /// Windows runtime host overrides.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PlatformWindowsOptions {
-    /// Whether host lifecycle events are enabled.
-    pub enable_lifecycle_events: bool,
-    /// Whether host window events are enabled.
-    pub enable_window_events: bool,
-    /// Whether host permission events are enabled.
-    pub enable_permission_events: bool,
-    /// Whether host interruption events are enabled.
-    pub enable_interruption_events: bool,
     /// Queue capacity for host events before drop behavior applies.
     pub event_queue_capacity: Option<u64>,
     /// Optional POSIX domain SID for uid or gid mapping.
@@ -314,10 +261,6 @@ pub struct PlatformWindowsOptions {
 impl Default for PlatformWindowsOptions {
     fn default() -> Self {
         Self {
-            enable_lifecycle_events: true,
-            enable_window_events: true,
-            enable_permission_events: true,
-            enable_interruption_events: true,
             event_queue_capacity: None,
             posix_domain_sid: None,
             net_packet_backend: PlatformWindowsPacketBackend::Disabled,
@@ -326,13 +269,9 @@ impl Default for PlatformWindowsOptions {
 }
 
 impl PlatformWindowsOptions {
-    /// Build host integration options from Windows runtime host overrides.
+    /// Build host runtime options from Windows runtime host overrides.
     pub fn host_options(&self) -> PlatformHostOptions {
         PlatformHostOptions {
-            enable_lifecycle_events: self.enable_lifecycle_events,
-            enable_window_events: self.enable_window_events,
-            enable_permission_events: self.enable_permission_events,
-            enable_interruption_events: self.enable_interruption_events,
             event_queue_capacity: self.event_queue_capacity,
         }
     }
@@ -343,27 +282,27 @@ impl PlatformWindowsOptions {
 #[serde(rename_all = "camelCase")]
 pub struct PlatformOptionsJson {
     /// Android-specific runtime host overrides.
-    pub android: Option<PlatformAndroidOptionsJson>,
+    pub android: Option<PlatformHostOptionsJson>,
     /// DragonFly BSD-specific runtime host overrides.
-    pub dragonfly: Option<PlatformDragonflyOptionsJson>,
+    pub dragonfly: Option<PlatformHostOptionsJson>,
     /// FreeBSD-specific runtime host overrides.
-    pub freebsd: Option<PlatformFreeBsdOptionsJson>,
+    pub freebsd: Option<PlatformHostOptionsJson>,
     /// Haiku-specific runtime host overrides.
-    pub haiku: Option<PlatformHaikuOptionsJson>,
+    pub haiku: Option<PlatformHostOptionsJson>,
     /// illumos-specific runtime host overrides.
-    pub illumos: Option<PlatformIllumosOptionsJson>,
+    pub illumos: Option<PlatformHostOptionsJson>,
     /// iOS-specific runtime host overrides.
-    pub ios: Option<PlatformIosOptionsJson>,
+    pub ios: Option<PlatformHostOptionsJson>,
     /// Linux-specific runtime host overrides.
-    pub linux: Option<PlatformLinuxOptionsJson>,
+    pub linux: Option<PlatformHostOptionsJson>,
     /// macOS-specific runtime host overrides.
-    pub macos: Option<PlatformMacosOptionsJson>,
+    pub macos: Option<PlatformHostOptionsJson>,
     /// NetBSD-specific runtime host overrides.
-    pub netbsd: Option<PlatformNetBsdOptionsJson>,
+    pub netbsd: Option<PlatformHostOptionsJson>,
     /// OpenBSD-specific runtime host overrides.
-    pub openbsd: Option<PlatformOpenBsdOptionsJson>,
+    pub openbsd: Option<PlatformHostOptionsJson>,
     /// Solaris-specific runtime host overrides.
-    pub solaris: Option<PlatformSolarisOptionsJson>,
+    pub solaris: Option<PlatformHostOptionsJson>,
     /// Windows-specific runtime host overrides.
     pub windows: Option<PlatformWindowsOptionsJson>,
 }
@@ -433,39 +372,6 @@ impl PlatformOptionsJson {
     }
 }
 
-/// Android runtime host overrides.
-pub type PlatformAndroidOptionsJson = PlatformHostOptionsJson;
-
-/// DragonFly BSD runtime host overrides.
-pub type PlatformDragonflyOptionsJson = PlatformHostOptionsJson;
-
-/// FreeBSD runtime host overrides.
-pub type PlatformFreeBsdOptionsJson = PlatformHostOptionsJson;
-
-/// Haiku runtime host overrides.
-pub type PlatformHaikuOptionsJson = PlatformHostOptionsJson;
-
-/// illumos runtime host overrides.
-pub type PlatformIllumosOptionsJson = PlatformHostOptionsJson;
-
-/// iOS runtime host overrides.
-pub type PlatformIosOptionsJson = PlatformHostOptionsJson;
-
-/// Linux runtime host overrides.
-pub type PlatformLinuxOptionsJson = PlatformHostOptionsJson;
-
-/// macOS runtime host overrides.
-pub type PlatformMacosOptionsJson = PlatformHostOptionsJson;
-
-/// NetBSD runtime host overrides.
-pub type PlatformNetBsdOptionsJson = PlatformHostOptionsJson;
-
-/// OpenBSD runtime host overrides.
-pub type PlatformOpenBsdOptionsJson = PlatformHostOptionsJson;
-
-/// Solaris runtime host overrides.
-pub type PlatformSolarisOptionsJson = PlatformHostOptionsJson;
-
 /// Windows packet backend selection for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -508,14 +414,6 @@ impl From<PlatformWindowsPacketBackend> for PlatformWindowsPacketBackendJson {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct PlatformWindowsOptionsJson {
-    /// Whether host lifecycle events are enabled.
-    pub enable_lifecycle_events: Option<bool>,
-    /// Whether host window events are enabled.
-    pub enable_window_events: Option<bool>,
-    /// Whether host permission events are enabled.
-    pub enable_permission_events: Option<bool>,
-    /// Whether host interruption events are enabled.
-    pub enable_interruption_events: Option<bool>,
     /// Queue capacity for host events before drop behavior applies.
     pub event_queue_capacity: Option<u64>,
     /// Optional POSIX domain SID for uid or gid mapping.
@@ -527,26 +425,6 @@ pub struct PlatformWindowsOptionsJson {
 impl PlatformWindowsOptionsJson {
     /// Apply windows host overrides to a base set of options.
     pub fn apply_to(&self, options: &mut PlatformWindowsOptions) {
-        // apply host lifecycle override
-        if let Some(enable_lifecycle_events) = self.enable_lifecycle_events {
-            options.enable_lifecycle_events = enable_lifecycle_events;
-        }
-
-        // apply host window-event override
-        if let Some(enable_window_events) = self.enable_window_events {
-            options.enable_window_events = enable_window_events;
-        }
-
-        // apply host permission-event override
-        if let Some(enable_permission_events) = self.enable_permission_events {
-            options.enable_permission_events = enable_permission_events;
-        }
-
-        // apply host interruption-event override
-        if let Some(enable_interruption_events) = self.enable_interruption_events {
-            options.enable_interruption_events = enable_interruption_events;
-        }
-
         // apply host queue-capacity override
         if let Some(event_queue_capacity) = self.event_queue_capacity {
             options.event_queue_capacity = Some(event_queue_capacity);
@@ -1133,46 +1011,18 @@ impl PlatformTtyOptionsJson {
     pub fn apply_to(&self, _options: &mut PlatformTtyOptions) {}
 }
 
-/// Host integration options.
+/// Host runtime options.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct PlatformHostOptionsJson {
-    /// Whether host lifecycle events are enabled.
-    pub enable_lifecycle_events: Option<bool>,
-    /// Whether host window events are enabled.
-    pub enable_window_events: Option<bool>,
-    /// Whether host permission events are enabled.
-    pub enable_permission_events: Option<bool>,
-    /// Whether host interruption events are enabled.
-    pub enable_interruption_events: Option<bool>,
     /// Queue capacity for host events before drop behavior applies.
     pub event_queue_capacity: Option<u64>,
 }
 
 impl PlatformHostOptionsJson {
-    /// Apply host integration overrides to a base set of options.
+    /// Apply host runtime overrides to a base set of options.
     pub fn apply_to(&self, options: &mut PlatformHostOptions) {
-        // apply lifecycle event overrides
-        if let Some(enable_lifecycle_events) = self.enable_lifecycle_events {
-            options.enable_lifecycle_events = enable_lifecycle_events;
-        }
-
-        // apply window event overrides
-        if let Some(enable_window_events) = self.enable_window_events {
-            options.enable_window_events = enable_window_events;
-        }
-
-        // apply permission event overrides
-        if let Some(enable_permission_events) = self.enable_permission_events {
-            options.enable_permission_events = enable_permission_events;
-        }
-
-        // apply interruption event overrides
-        if let Some(enable_interruption_events) = self.enable_interruption_events {
-            options.enable_interruption_events = enable_interruption_events;
-        }
-
         // apply host event queue capacity overrides
         if let Some(event_queue_capacity) = self.event_queue_capacity {
             options.event_queue_capacity = Some(event_queue_capacity);
