@@ -13,6 +13,15 @@ use super::config::{TsConfigJson, TsConfigOptions};
 /// <https://github.com/microsoft/TypeScript/pull/58042>
 const TEMPLATE_VARIABLE: &str = "${configDir}";
 
+/// Default include pattern when neither `files` nor `include` is specified.
+const TSCONFIG_ALL_PATTERN: &str = "**/*";
+
+/// TypeScript source file extensions recognized by tsconfig project matching.
+const TYPESCRIPT_EXTENSIONS: [&str; 4] = ["ts", "tsx", "mts", "cts"];
+
+/// JavaScript source file extensions recognized when `allowJs` is enabled.
+const JAVASCRIPT_EXTENSIONS: [&str; 4] = ["js", "jsx", "mjs", "cjs"];
+
 /// Unique identifier for TsConfigs.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -113,6 +122,11 @@ impl TsConfig {
             .base_url
             .as_deref()
             .unwrap_or_else(|| &self.directory)
+    }
+
+    /// Refresh derived options after content changes.
+    pub fn refresh_options(&mut self) {
+        self.options = TsConfigOptions::from(&self.content);
     }
 
     /// Inherits settings from the given tsconfig into `self`.
@@ -352,6 +366,47 @@ impl TsConfig {
         }
     }
 
+    /// Return whether this tsconfig applies to one source path.
+    pub fn applies_to_path(&self, path: &Path) -> bool {
+        let normalized_path = path.normalize();
+
+        // files take precedence over excludes
+        if self.content.files.as_ref().is_some_and(|files| {
+            files
+                .iter()
+                .any(|file| self.matches_tsconfig_file(file, &normalized_path))
+        }) {
+            return true;
+        }
+
+        // include defaults to all supported source files unless files is set
+        let is_included = self.content.include.as_ref().map_or_else(
+            || {
+                if self.content.files.is_some() {
+                    false
+                } else {
+                    self.matches_tsconfig_pattern(TSCONFIG_ALL_PATTERN, &normalized_path)
+                }
+            },
+            |include| {
+                include
+                    .iter()
+                    .any(|pattern| self.matches_tsconfig_pattern(pattern, &normalized_path))
+            },
+        );
+
+        if !is_included {
+            return false;
+        }
+
+        // excludes only apply after the path was included
+        self.content.exclude.as_ref().is_none_or(|exclude| {
+            !exclude
+                .iter()
+                .any(|pattern| self.matches_tsconfig_pattern(pattern, &normalized_path))
+        })
+    }
+
     /// Resolves the given `specifier` within the project configured by this
     /// tsconfig, relative to the given `path`.
     pub fn resolve(
@@ -387,6 +442,201 @@ impl TsConfig {
                 .to_string_lossy()
                 .to_string();
         }
+    }
+
+    /// Return whether one `files` entry matches the given path exactly.
+    fn matches_tsconfig_file(&self, file: &str, path: &Path) -> bool {
+        self.resolve_tsconfig_path(file) == path
+    }
+
+    /// Return whether one include or exclude pattern matches the given path.
+    fn matches_tsconfig_pattern(&self, pattern: &str, path: &Path) -> bool {
+        if !self.is_supported_tsconfig_input(path) {
+            return false;
+        }
+
+        let Some(relative_path) = path
+            .strip_prefix(&self.directory)
+            .ok()
+            .map(Self::normalize_tsconfig_path)
+        else {
+            return false;
+        };
+
+        let normalized_pattern = self.resolve_tsconfig_pattern(pattern);
+        if normalized_pattern == relative_path {
+            return true;
+        }
+
+        if normalized_pattern.contains('*') || normalized_pattern.contains('?') {
+            return Self::tsconfig_glob_matches_pattern(&normalized_pattern, &relative_path);
+        }
+
+        relative_path == normalized_pattern
+            || relative_path.starts_with(&format!("{normalized_pattern}/"))
+    }
+
+    /// Resolve one tsconfig relative file entry to an absolute normalized path.
+    fn resolve_tsconfig_path(&self, path: &str) -> PathBuf {
+        let path = self.resolve_template_variable(path);
+        let path = PathBuf::from(path);
+        if path.is_absolute() {
+            path.normalize()
+        } else {
+            self.directory.normalize_with(path)
+        }
+    }
+
+    /// Resolve one tsconfig pattern into a normalized relative or absolute pattern.
+    fn resolve_tsconfig_pattern(&self, pattern: &str) -> String {
+        let pattern = self.resolve_template_variable(pattern);
+        let pattern = pattern.replace('\\', "/");
+        let path = PathBuf::from(&pattern);
+
+        if path.is_absolute() {
+            path.normalize().to_string_lossy().to_string()
+        } else {
+            Self::normalize_tsconfig_path(Path::new(&pattern))
+        }
+    }
+
+    /// Resolve the `${configDir}` template variable in one tsconfig path value.
+    fn resolve_template_variable(&self, path: &str) -> String {
+        path.strip_prefix(TEMPLATE_VARIABLE).map_or_else(
+            || path.to_string(),
+            |stripped_path| {
+                self.directory
+                    .join(stripped_path.trim_start_matches('/'))
+                    .to_string_lossy()
+                    .to_string()
+            },
+        )
+    }
+
+    /// Normalize one path for tsconfig glob matching.
+    fn normalize_tsconfig_path(path: &Path) -> String {
+        path.normalize()
+            .to_string_lossy()
+            .replace('\\', "/")
+            .trim_start_matches("./")
+            .trim_start_matches('/')
+            .to_string()
+    }
+
+    /// Return whether one tsconfig input path has a supported source extension.
+    fn is_supported_tsconfig_input(&self, path: &Path) -> bool {
+        let allow_js = self
+            .content
+            .compiler_options
+            .allow_js
+            .is_some_and(|allow_js| allow_js);
+        path.extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| {
+                TYPESCRIPT_EXTENSIONS.contains(&extension)
+                    || allow_js && JAVASCRIPT_EXTENSIONS.contains(&extension)
+            })
+    }
+
+    /// Return whether one normalized path matches one normalized tsconfig glob.
+    fn tsconfig_glob_matches_pattern(pattern: &str, path: &str) -> bool {
+        let pattern_segments = Self::tsconfig_path_segments(pattern);
+        let path_segments = Self::tsconfig_path_segments(path);
+        Self::tsconfig_glob_matches_segments(&pattern_segments, &path_segments)
+    }
+
+    /// Split one normalized path into path segments.
+    fn tsconfig_path_segments(path: &str) -> Vec<&str> {
+        path.split('/')
+            .filter(|segment| !segment.is_empty())
+            .collect()
+    }
+
+    /// Return whether one normalized path segment list matches one tsconfig glob.
+    fn tsconfig_glob_matches_segments(pattern_segments: &[&str], path_segments: &[&str]) -> bool {
+        if pattern_segments.is_empty() {
+            return path_segments.is_empty();
+        }
+
+        // let `**` consume zero or more path segments
+        if pattern_segments[0] == "**" {
+            let mut rest_pattern_segments = &pattern_segments[1..];
+            while rest_pattern_segments
+                .first()
+                .is_some_and(|segment| *segment == "**")
+            {
+                rest_pattern_segments = &rest_pattern_segments[1..];
+            }
+
+            if rest_pattern_segments.is_empty() {
+                return true;
+            }
+
+            if Self::tsconfig_glob_matches_segments(rest_pattern_segments, path_segments) {
+                return true;
+            }
+
+            if path_segments.is_empty() {
+                return false;
+            }
+
+            return Self::tsconfig_glob_matches_segments(pattern_segments, &path_segments[1..]);
+        }
+
+        if path_segments.is_empty() {
+            return false;
+        }
+
+        if !Self::tsconfig_segment_matches_pattern(pattern_segments[0], path_segments[0]) {
+            return false;
+        }
+
+        Self::tsconfig_glob_matches_segments(&pattern_segments[1..], &path_segments[1..])
+    }
+
+    /// Return whether one path segment matches one tsconfig wildcard pattern.
+    fn tsconfig_segment_matches_pattern(pattern_segment: &str, text_segment: &str) -> bool {
+        let pattern_bytes = pattern_segment.as_bytes();
+        let text_bytes = text_segment.as_bytes();
+        let pattern_length = pattern_bytes.len();
+        let text_length = text_bytes.len();
+
+        let mut pattern_index = 0;
+        let mut text_index = 0;
+        let mut star_index = None;
+        let mut match_index = 0;
+
+        while text_index < text_length {
+            if pattern_index < pattern_length
+                && (pattern_bytes[pattern_index] == b'?'
+                    || pattern_bytes[pattern_index] == text_bytes[text_index])
+            {
+                pattern_index += 1;
+                text_index += 1;
+                continue;
+            }
+
+            if pattern_index < pattern_length && pattern_bytes[pattern_index] == b'*' {
+                star_index = Some(pattern_index);
+                pattern_index += 1;
+                match_index = text_index;
+                continue;
+            }
+
+            let Some(star_index) = star_index else {
+                return false;
+            };
+
+            pattern_index = star_index + 1;
+            match_index += 1;
+            text_index = match_index;
+        }
+
+        while pattern_index < pattern_length && pattern_bytes[pattern_index] == b'*' {
+            pattern_index += 1;
+        }
+
+        pattern_index == pattern_length
     }
 }
 
