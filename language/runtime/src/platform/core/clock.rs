@@ -1,4 +1,5 @@
-use std::time::{Duration, Instant};
+#[cfg(not(any(unix, windows)))]
+use std::time::Instant;
 
 /// Return the current process-relative monotonic time in nanoseconds.
 pub(crate) fn monotonic_now_ns() -> u64 {
@@ -33,11 +34,4 @@ pub(crate) fn monotonic_now_ns() -> u64 {
 
         u64::try_from(elapsed).unwrap_or(u64::MAX)
     }
-}
-
-/// Build one safe poll deadline for one timeout duration.
-pub(crate) fn timeout_deadline(timeout_ns: u64) -> Option<Instant> {
-    let timeout = Duration::from_nanos(timeout_ns);
-
-    Instant::now().checked_add(timeout)
 }

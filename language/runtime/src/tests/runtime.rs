@@ -148,6 +148,14 @@ impl TestRuntime {
         run(&call_context)
     }
 
+    /// Drain queued host events for deterministic test setup.
+    pub(crate) fn drain_host_events(&self) {
+        // clear bootstrap host events before targeted assertions begin
+        self.host
+            .poll_events(Some(0))
+            .expect("host events should drain");
+    }
+
     /// Execute a VM binding within a runtime call context.
     pub(crate) fn with_vm_call_context<T>(
         &self,

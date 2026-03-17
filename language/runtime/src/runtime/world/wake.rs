@@ -48,7 +48,7 @@ impl Wake {
     /// Return the final deterministic tie-break rank.
     const fn local_rank(&self) -> u64 {
         match self {
-            Self::AgentTimer { timer, .. } => timer.handle.0,
+            Self::AgentTimer { timer, .. } => timer.handle.sort_key(),
         }
     }
 

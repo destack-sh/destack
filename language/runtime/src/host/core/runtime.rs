@@ -89,18 +89,6 @@ impl std::fmt::Debug for HostSession {
                 &self.session_capabilities().len(),
             )
             .field(
-                "enable_lifecycle_events",
-                &self.host_options.enable_lifecycle_events,
-            )
-            .field(
-                "enable_permission_events",
-                &self.host_options.enable_permission_events,
-            )
-            .field(
-                "enable_interruption_events",
-                &self.host_options.enable_interruption_events,
-            )
-            .field(
                 "event_queue_capacity",
                 &self.host_options.event_queue_capacity,
             )
@@ -211,8 +199,10 @@ impl HostSession {
 
     /// Poll host events using the active host.
     pub fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
+        // drain the queued host event stream directly
         let events = self.queue.poll_events(timeout_nanos)?;
-        let events = self.filter_events(events);
+
+        // report queue pressure independently from the drained event batch
         let dropped_event_count = self.queue.take_dropped_event_count();
 
         Ok(HostPollOutcome {
@@ -306,30 +296,6 @@ impl HostSession {
             windows,
         )))]
         return (Platform::Universal, Arc::new(UnsupportedHost::new()), None);
-    }
-
-    /// Filter one host event vector with host integration options.
-    fn filter_events(&self, events: Vec<HostEvent>) -> Vec<HostEvent> {
-        let mut filtered_events = Vec::with_capacity(events.len());
-
-        for event in events {
-            let is_enabled = match event {
-                HostEvent::Lifecycle(_) => self.host_options.enable_lifecycle_events,
-                HostEvent::Intent(_) => true,
-                HostEvent::Permission(_) => self.host_options.enable_permission_events,
-                HostEvent::Interruption(_) => self.host_options.enable_interruption_events,
-                HostEvent::MemoryPressure(_) => self.host_options.enable_interruption_events,
-                HostEvent::ThermalState(_) => self.host_options.enable_interruption_events,
-                HostEvent::PowerMode(_) => self.host_options.enable_interruption_events,
-                HostEvent::WallClock(_) => self.host_options.enable_lifecycle_events,
-            };
-
-            if is_enabled {
-                filtered_events.push(event);
-            }
-        }
-
-        filtered_events
     }
 }
 

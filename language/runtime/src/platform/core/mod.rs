@@ -24,7 +24,7 @@ pub(crate) use abi_generated::*;
 pub(crate) use backend::{
     aggregate_backend_support, backend_support_error, backend_support_from_check,
 };
-pub(crate) use clock::{monotonic_now_ns, timeout_deadline};
+pub(crate) use clock::monotonic_now_ns;
 pub(crate) use codec::*;
 #[cfg(unix)]
 pub(crate) use convert::duration_from_option_ns;

@@ -200,7 +200,7 @@ fn schedule_timer_state(
     }
 
     context.event_loop().schedule_timer(EventLoopTimer {
-        handle: handle.0,
+        handle: handle.0.into(),
         deadline: TimerDeadline {
             clock: state.clock,
             at: state.next_deadline,
