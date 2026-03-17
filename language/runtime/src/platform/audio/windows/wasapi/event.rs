@@ -1,21 +1,20 @@
 use std::ffi::c_void;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::mpsc::{self, SyncSender};
-use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::sync::atomic::AtomicU32;
 
 use super::abi::{
     imm_device_enumerator_register_endpoint_notification_callback,
     imm_device_enumerator_unregister_endpoint_notification_callback,
 };
 use super::constants::{HRESULT_OK, IID_IMM_NOTIFICATION_CLIENT};
+use super::core::{ComApartment, ComPointer};
 use super::host::{create_device_enumerator, failed, hresult_error, initialize_com};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::core as audio_core;
 use crate::platform::audio::core::monitor::AudioMonitorHandle;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, core as core_platform};
+use crate::runtime::process::service::affinity::{ServiceAffinity, ServiceThreadBootstrap};
+use crate::runtime::process::service::executor::dedicated::DedicatedThreadExecutor;
 
 use crate::platform::audio as audio_types;
 use windows_sys::Win32::Media::Audio::{EDataFlow, ERole, IMMDeviceEnumerator};
@@ -23,19 +22,45 @@ use windows_sys::Win32::UI::Shell::PropertiesSystem::PROPERTYKEY;
 use windows_sys::core::{GUID, HRESULT, PCWSTR};
 
 /// One persistent native monitor state for WASAPI endpoint notifications.
-#[derive(Debug)]
+struct WasapiMonitorState {
+    /// COM apartment lifetime for this monitor thread.
+    _apartment: ComApartment,
+    /// Owned device enumerator for callback registration.
+    enumerator: ComPointer,
+    /// Registered COM notification callback object.
+    callback_pointer: *mut c_void,
+}
+
+impl Drop for WasapiMonitorState {
+    /// Unregister the endpoint notification callback before teardown.
+    fn drop(&mut self) {
+        let enumerator_raw = self.enumerator.raw() as IMMDeviceEnumerator;
+
+        let _ = unsafe {
+            imm_device_enumerator_unregister_endpoint_notification_callback(
+                enumerator_raw,
+                self.callback_pointer,
+            )
+        };
+
+        release_notification_client(self.callback_pointer);
+    }
+}
+
+/// One native WASAPI monitor handle backed by a dedicated service thread.
 struct WasapiDeviceMonitor {
-    /// Signal used to stop the monitor thread.
-    stop: Arc<AtomicBool>,
-    /// Running monitor thread.
-    handle: JoinHandle<()>,
+    /// Dedicated executor that owns the monitor apartment and callback registration.
+    _executor: DedicatedThreadExecutor<WasapiMonitorState>,
+}
+
+impl WasapiDeviceMonitor {
+    /// Required service affinity for the WASAPI monitor.
+    const AFFINITY: ServiceAffinity =
+        ServiceAffinity::DedicatedThread(ServiceThreadBootstrap::WindowsMta);
 }
 
 impl AudioMonitorHandle for WasapiDeviceMonitor {
-    fn stop(self: Box<Self>) {
-        self.stop.store(true, Ordering::Relaxed);
-        let _ = self.handle.join();
-    }
+    fn stop(self: Box<Self>) {}
 }
 
 /// Return one startup error payload for WASAPI native monitor initialization.
@@ -53,48 +78,27 @@ fn startup_error(message: impl Into<String>) -> Box<RuntimeError> {
 
 /// Start one WASAPI native device-event monitor.
 pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<Box<dyn AudioMonitorHandle>> {
-    let stop = Arc::new(AtomicBool::new(false));
-    let stop_signal = Arc::clone(&stop);
-    let poll_interval_ns = audio_core::resolved_event_monitor_poll_interval_ns(50_000_000);
-    let sleep_interval = Duration::from_nanos(poll_interval_ns);
-    let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
-    let handle =
-        thread::spawn(move || run_device_monitor_thread(stop_signal, ready_sender, sleep_interval));
+    let ServiceAffinity::DedicatedThread(thread_bootstrap) = WasapiDeviceMonitor::AFFINITY else {
+        return Err(startup_error(
+            "WASAPI native event monitor requires dedicated thread affinity",
+        ));
+    };
 
-    let ready_result = ready_receiver.recv().map_err(|_| {
-        startup_error("WASAPI native event monitor exited before startup completed")
-    })?;
-    if let Err(error) = ready_result {
-        stop.store(true, Ordering::Relaxed);
-        let _ = handle.join();
-        return Err(error);
-    }
+    let executor = DedicatedThreadExecutor::spawn(
+        "destack-audio-wasapi-monitor",
+        thread_bootstrap,
+        build_monitor_state,
+    )?;
 
-    Ok(Box::new(WasapiDeviceMonitor { stop, handle }))
+    Ok(Box::new(WasapiDeviceMonitor {
+        _executor: executor,
+    }))
 }
 
-/// Run one WASAPI native device-event monitor thread.
-fn run_device_monitor_thread(
-    stop: Arc<AtomicBool>,
-    ready_sender: SyncSender<RuntimeResult<()>>,
-    sleep_interval: Duration,
-) {
-    let apartment = match initialize_com() {
-        Ok(apartment) => apartment,
-        Err(error) => {
-            let _ = ready_sender.send(Err(error));
-            return;
-        }
-    };
-
-    let enumerator = match create_device_enumerator() {
-        Ok(enumerator) => enumerator,
-        Err(error) => {
-            let _ = ready_sender.send(Err(error));
-            drop(apartment);
-            return;
-        }
-    };
+/// Build one live WASAPI monitor state on the dedicated service thread.
+fn build_monitor_state() -> RuntimeResult<WasapiMonitorState> {
+    let apartment = initialize_com()?;
+    let enumerator = create_device_enumerator()?;
     let enumerator_raw = enumerator.raw() as IMMDeviceEnumerator;
 
     let callback_pointer = create_notification_client();
@@ -106,31 +110,19 @@ fn run_device_monitor_thread(
     };
     if failed(register_status) {
         release_notification_client(callback_pointer);
-        let _ = ready_sender.send(Err(hresult_error(
+
+        return Err(hresult_error(
             "destack.audio.event.open",
             register_status,
             "failed to register WASAPI endpoint notification callback",
-        )));
-        drop(enumerator);
-        drop(apartment);
-        return;
+        ));
     }
 
-    let _ = ready_sender.send(Ok(()));
-
-    while !stop.load(Ordering::Relaxed) {
-        thread::sleep(sleep_interval);
-    }
-
-    let _ = unsafe {
-        imm_device_enumerator_unregister_endpoint_notification_callback(
-            enumerator_raw,
-            callback_pointer,
-        )
-    };
-    release_notification_client(callback_pointer);
-    drop(enumerator);
-    drop(apartment);
+    Ok(WasapiMonitorState {
+        _apartment: apartment,
+        enumerator,
+        callback_pointer,
+    })
 }
 
 /// One COM notification callback object for WASAPI endpoint changes.

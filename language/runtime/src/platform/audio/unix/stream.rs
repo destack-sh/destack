@@ -1,4 +1,3 @@
-use std::thread;
 use std::time::Duration;
 
 use super::core as audio_platform_core;
@@ -1511,11 +1510,12 @@ pub(crate) unsafe fn destack_audio_stream_write_at(
         "destack.audio.stream.writeAt",
     )?;
 
-    let now = binding.world().mono_nanos();
-    if presentationtimens > now {
-        let sleep_ns = presentationtimens - now;
-        thread::sleep(Duration::from_nanos(sleep_ns));
-    }
+    audio_core::wait_for_stream_presentation_time(
+        binding,
+        &resolved_binding,
+        "destack.audio.stream.writeAt",
+        presentationtimens,
+    )?;
 
     unsafe { destack_audio_stream_write(binding, out, handle, data) }
 }

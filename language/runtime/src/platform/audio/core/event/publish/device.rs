@@ -20,37 +20,27 @@ use crate::runtime::BindingCallContext;
 
 use super::core::publish_device_event;
 
-/// Return active streams that request native device events for one backend.
-pub(crate) fn active_native_device_publish_streams(
+/// Return active streams that accept one device event source for one backend.
+fn active_device_publish_streams(
     runtime_state: &AudioRuntimeState,
     backend: AudioBackend,
+    source: AudioEventSource,
 ) -> Vec<Arc<AudioEventStream>> {
     event_streams_snapshot(runtime_state)
         .into_iter()
         .filter(|stream| {
             stream.options.backend == backend
-                && stream.options.delivery_mode != AudioEventDeliveryMode::PollOnly
                 && tracks_device_events(stream.options)
+                && match source {
+                    AudioEventSource::Native => {
+                        stream.options.delivery_mode != AudioEventDeliveryMode::PollOnly
+                    }
+                    AudioEventSource::SyntheticPoll => {
+                        stream.options.delivery_mode != AudioEventDeliveryMode::NativeOnly
+                    }
+                }
         })
         .collect()
-}
-
-/// Return whether one backend device-monitor refresh is due.
-fn device_monitor_refresh_due(
-    runtime_state: &AudioRuntimeState,
-    backend: AudioBackend,
-    poll_interval_ns: u64,
-    now: u64,
-) -> bool {
-    let monitor_states = runtime_state
-        .device_monitor_baselines
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    let Some(monitor_state) = monitor_states.get(&backend) else {
-        return true;
-    };
-
-    now.saturating_sub(monitor_state.last_refresh_ns) >= poll_interval_ns.max(1)
 }
 
 /// Publish device deltas from one backend snapshot.
@@ -61,6 +51,11 @@ pub(crate) fn publish_device_events_from_snapshot(
     now: u64,
     source: AudioEventSource,
 ) {
+    let streams = active_device_publish_streams(runtime_state, backend, source);
+    if streams.is_empty() {
+        return;
+    }
+
     let mut monitor_states = runtime_state
         .device_monitor_baselines
         .lock()
@@ -82,11 +77,9 @@ pub(crate) fn publish_device_events_from_snapshot(
     for id in &snapshot.ids {
         // new devices
         if !previous_state.previous_signatures.contains_key(id)
-            && active_native_device_publish_streams(runtime_state, backend)
-                .iter()
-                .any(|stream| {
-                    event_subscription_enabled(stream.options, EVENT_SUBSCRIBE_DEVICE_HOTPLUG)
-                })
+            && streams.iter().any(|stream| {
+                event_subscription_enabled(stream.options, EVENT_SUBSCRIBE_DEVICE_HOTPLUG)
+            })
         {
             publish_device_event(
                 runtime_state,
@@ -101,12 +94,9 @@ pub(crate) fn publish_device_events_from_snapshot(
 
         // changed devices
         if previous_state.previous_signatures.get(id) != snapshot.signatures.get(id) {
-            if active_native_device_publish_streams(runtime_state, backend)
-                .iter()
-                .any(|stream| {
-                    event_subscription_enabled(stream.options, EVENT_SUBSCRIBE_FORMAT_CHANGE)
-                })
-            {
+            if streams.iter().any(|stream| {
+                event_subscription_enabled(stream.options, EVENT_SUBSCRIBE_FORMAT_CHANGE)
+            }) {
                 publish_device_event(
                     runtime_state,
                     AudioEventKind::DeviceFormatChanged,
@@ -117,7 +107,7 @@ pub(crate) fn publish_device_events_from_snapshot(
                 );
             }
 
-            if active_native_device_publish_streams(runtime_state, backend)
+            if streams
                 .iter()
                 .any(|stream| event_subscription_enabled(stream.options, EVENT_SUBSCRIBE_REROUTE))
             {
@@ -142,11 +132,9 @@ pub(crate) fn publish_device_events_from_snapshot(
 
     for id in &previous_ids {
         if !snapshot.ids.contains(id)
-            && active_native_device_publish_streams(runtime_state, backend)
-                .iter()
-                .any(|stream| {
-                    event_subscription_enabled(stream.options, EVENT_SUBSCRIBE_DEVICE_HOTPLUG)
-                })
+            && streams.iter().any(|stream| {
+                event_subscription_enabled(stream.options, EVENT_SUBSCRIBE_DEVICE_HOTPLUG)
+            })
         {
             publish_device_event(
                 runtime_state,
@@ -161,7 +149,7 @@ pub(crate) fn publish_device_events_from_snapshot(
 
     // default route changes
     if previous_state.previous_default_playback != snapshot.default_playback
-        && active_native_device_publish_streams(runtime_state, backend)
+        && streams
             .iter()
             .any(|stream| event_subscription_enabled(stream.options, EVENT_SUBSCRIBE_DEFAULT_ROUTE))
     {
@@ -176,7 +164,7 @@ pub(crate) fn publish_device_events_from_snapshot(
     }
 
     if previous_state.previous_default_capture != snapshot.default_capture
-        && active_native_device_publish_streams(runtime_state, backend)
+        && streams
             .iter()
             .any(|stream| event_subscription_enabled(stream.options, EVENT_SUBSCRIBE_DEFAULT_ROUTE))
     {
@@ -191,7 +179,7 @@ pub(crate) fn publish_device_events_from_snapshot(
     }
 
     if previous_state.previous_default_loopback != snapshot.default_loopback
-        && active_native_device_publish_streams(runtime_state, backend)
+        && streams
             .iter()
             .any(|stream| event_subscription_enabled(stream.options, EVENT_SUBSCRIBE_DEFAULT_ROUTE))
     {
@@ -210,39 +198,6 @@ pub(crate) fn publish_device_events_from_snapshot(
     previous_state.previous_default_capture = snapshot.default_capture.clone();
     previous_state.previous_default_loopback = snapshot.default_loopback.clone();
     previous_state.last_refresh_ns = now;
-}
-
-/// Refresh synthetic device events for one stream when polling is enabled.
-pub(crate) fn refresh_device_events_for_stream(
-    runtime_state: &AudioRuntimeState,
-    stream: &Arc<AudioEventStream>,
-    now: u64,
-) -> RuntimeResult<()> {
-    // ignore streams that do not request device tracking
-    if !tracks_device_events(stream.options) {
-        return Ok(());
-    }
-
-    // skip refresh when the baseline is still fresh
-    if !device_monitor_refresh_due(
-        runtime_state,
-        stream.options.backend,
-        stream.options.poll_interval_ns,
-        now,
-    ) {
-        return Ok(());
-    }
-
-    let snapshot = monitor_snapshot(stream.options.backend)?;
-    publish_device_events_from_snapshot(
-        runtime_state,
-        stream.options.backend,
-        &snapshot,
-        now,
-        AudioEventSource::SyntheticPoll,
-    );
-
-    Ok(())
 }
 
 /// Publish one backend-native device snapshot diff to the live monitor service.

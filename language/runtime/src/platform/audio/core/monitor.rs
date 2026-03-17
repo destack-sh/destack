@@ -1,12 +1,12 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
-use std::time::Duration;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::{
     AudioBackend, AudioEventDeliveryMode, AudioEventSource, backend as audio_backend,
+};
+use crate::runtime::process::service::executor::periodic::{
+    PeriodicTaskHandle, periodic_service_executor,
 };
 use crate::runtime::process::service::global_service;
 #[cfg(any(target_os = "linux", target_os = "macos", windows))]
@@ -27,16 +27,13 @@ pub(crate) trait AudioMonitorHandle: Send + Sync {
 
 /// One synthetic monitor worker owned by the shared backend monitor.
 struct SyntheticAudioMonitorHandle {
-    /// Stop signal for the polling thread.
-    stop: Arc<AtomicBool>,
-    /// Running synthetic polling thread.
-    handle: JoinHandle<()>,
+    /// Registered periodic task.
+    task: PeriodicTaskHandle,
 }
 
 impl AudioMonitorHandle for SyntheticAudioMonitorHandle {
     fn stop(self: Box<Self>) {
-        self.stop.store(true, Ordering::Relaxed);
-        let _ = self.handle.join();
+        drop(self.task);
     }
 }
 
@@ -182,7 +179,7 @@ impl AudioMonitorService {
 
         // start requested synthetic worker
         if let Some(interval_ns) = pending_synthetic_start {
-            let handle = start_synthetic_monitor_worker(Arc::clone(self), backend, interval_ns);
+            let handle = start_synthetic_monitor_worker(Arc::clone(self), backend, interval_ns)?;
             let mut backends = self
                 .backends
                 .lock()
@@ -386,10 +383,20 @@ fn runtime_backend_monitor_demand(
             continue;
         }
 
-        let wants_native_delivery =
-            stream.options.delivery_mode != AudioEventDeliveryMode::PollOnly;
-        wants_native_events |= wants_native_delivery && supports_native_monitor;
-        if stream.options.delivery_mode == AudioEventDeliveryMode::NativeOnly {
+        // use native backend monitors when the backend can provide them and the
+        // subscription accepts native delivery
+        if supports_native_monitor
+            && stream.options.delivery_mode != AudioEventDeliveryMode::PollOnly
+        {
+            wants_native_events = true;
+        }
+
+        // fall back to shared synthetic polling when native device ingress is
+        // unavailable or when the subscription explicitly requests poll-only delivery
+        if stream.options.delivery_mode == AudioEventDeliveryMode::PollOnly
+            || (!supports_native_monitor
+                && stream.options.delivery_mode != AudioEventDeliveryMode::NativeOnly)
+        {
             wants_synthetic_worker = true;
             synthetic_interval_ns = synthetic_interval_ns.min(stream.options.poll_interval_ns);
         }
@@ -442,48 +449,40 @@ fn start_synthetic_monitor_worker(
     service: Arc<AudioMonitorService>,
     backend: AudioBackend,
     poll_interval_ns: u64,
-) -> Box<dyn AudioMonitorHandle> {
-    let stop = Arc::new(AtomicBool::new(false));
-    let stop_signal = Arc::clone(&stop);
-    let sleep_interval = Duration::from_nanos(poll_interval_ns.max(1));
-    let handle = thread::spawn(move || {
-        loop {
-            // stop when the shared monitor tears the worker down
-            if stop_signal.load(Ordering::Relaxed) {
-                return;
-            }
+) -> RuntimeResult<Box<dyn AudioMonitorHandle>> {
+    let executor = periodic_service_executor()?;
+    let interval = std::time::Duration::from_nanos(poll_interval_ns.max(1));
 
-            // publish one fresh synthetic snapshot pass
-            let now = host_monotonic_nanos();
-            let snapshot = monitor_snapshot(backend);
-            if let Ok(snapshot) = snapshot {
-                let runtimes = {
-                    let mut backends = service
-                        .backends
-                        .lock()
-                        .unwrap_or_else(|error| error.into_inner());
-                    let Some(monitor) = backends.get_mut(&backend) else {
-                        thread::sleep(sleep_interval);
-                        continue;
-                    };
-
-                    monitor.live_runtime_states()
+    let task = executor.register(interval, move || {
+        // publish one fresh synthetic snapshot pass
+        let now = host_monotonic_nanos();
+        let snapshot = monitor_snapshot(backend);
+        if let Ok(snapshot) = snapshot {
+            let runtimes = {
+                let mut backends = service
+                    .backends
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner());
+                let Some(monitor) = backends.get_mut(&backend) else {
+                    return Ok(());
                 };
 
-                for runtime_state in &runtimes {
-                    publish_device_events_from_snapshot(
-                        runtime_state,
-                        backend,
-                        &snapshot,
-                        now,
-                        AudioEventSource::SyntheticPoll,
-                    );
-                }
+                monitor.live_runtime_states()
+            };
+
+            for runtime_state in &runtimes {
+                publish_device_events_from_snapshot(
+                    runtime_state,
+                    backend,
+                    &snapshot,
+                    now,
+                    AudioEventSource::SyntheticPoll,
+                );
             }
-
-            thread::sleep(sleep_interval);
         }
-    });
 
-    Box::new(SyntheticAudioMonitorHandle { stop, handle })
+        Ok(())
+    })?;
+
+    Ok(Box::new(SyntheticAudioMonitorHandle { task }))
 }

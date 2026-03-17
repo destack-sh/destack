@@ -1,4 +1,3 @@
-use std::thread;
 use std::time::Duration;
 
 use super::core as audio_platform_core;
@@ -15,6 +14,7 @@ use crate::platform::audio::core::{
     stream_device_from_state, stream_shutdown_error, stream_state_is_terminal,
     stream_state_snapshot, stream_timing_snapshot, validate_stream_config,
     validate_stream_open_options, validate_stream_open_options_for_backend,
+    wait_for_stream_presentation_time,
 };
 use crate::platform::audio::{
     AudioEventKind, AudioStreamAvailability, AudioStreamConfig, AudioStreamDescriptor,
@@ -1478,11 +1478,12 @@ pub(crate) unsafe fn destack_audio_stream_write_at(
         "destack.audio.stream.writeAt",
     )?;
 
-    let now = binding.world().mono_nanos();
-    if presentationtimens > now {
-        let sleep_ns = presentationtimens - now;
-        thread::sleep(Duration::from_nanos(sleep_ns));
-    }
+    wait_for_stream_presentation_time(
+        binding,
+        &resolved_binding,
+        "destack.audio.stream.writeAt",
+        presentationtimens,
+    )?;
 
     unsafe { destack_audio_stream_write(binding, out, handle, data) }
 }

@@ -513,7 +513,7 @@ fn spawn_worker(
             // sleep while the stream is not actively running
             if !state.running || state.paused {
                 drop(state);
-                std::thread::sleep(runtime.poll_period);
+                audio_core::wait_for_worker_period(&binding, runtime.poll_period);
                 continue;
             }
 

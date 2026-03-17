@@ -4,10 +4,11 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{AudioEvent, AudioEventDeliveryMode, AudioEventSubscriptionOptions};
 use crate::platform::resource::{AudioEventHandle, ResourceEntry, ResourceKind};
 use crate::platform::{NativeSlice, PlatformError, core as core_platform};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, RuntimeScheduledCallbackControl};
 
 use super::super::constants::{
-    AUDIO_EVENT_RESOURCE_LABEL, MAX_EVENT_POLL_INTERVAL_NS, MIN_EVENT_POLL_INTERVAL_NS,
+    AUDIO_EVENT_RESOURCE_LABEL, EVENT_SUBSCRIBE_BACKEND, EVENT_SUBSCRIBE_INTERRUPTION,
+    EVENT_SUBSCRIBE_STREAM, MAX_EVENT_POLL_INTERVAL_NS, MIN_EVENT_POLL_INTERVAL_NS,
     host_monotonic_nanos, resolved_default_event_poll_interval_ns,
     resolved_default_event_queue_capacity,
 };
@@ -18,7 +19,7 @@ use super::super::model::{
 };
 use super::super::stream::stream_state_snapshot;
 use super::codec::abi_event;
-use super::publish::{refresh_device_events_for_stream, refresh_stream_events_for_stream};
+use super::publish::refresh_stream_events_for_stream;
 use super::queue::{
     next_audio_event, next_event_stream_id, register_event_stream, trim_event_log,
     unregister_event_stream,
@@ -166,19 +167,59 @@ fn ensure_event_stream_baselines(
     Ok(())
 }
 
-/// Refresh one event stream according to its delivery mode.
-fn refresh_event_stream_for_delivery_mode(
+/// Return whether one subscription still needs synthetic stream polling.
+fn needs_stream_poll_callback(stream: &AudioEventStream) -> bool {
+    let tracks_stream_events = if stream.options.flags.0 == 0 {
+        true
+    } else {
+        (stream.options.flags.0
+            & (EVENT_SUBSCRIBE_STREAM.0
+                | EVENT_SUBSCRIBE_INTERRUPTION.0
+                | EVENT_SUBSCRIBE_BACKEND.0))
+            != 0
+    };
+
+    stream.options.stream.is_some()
+        && tracks_stream_events
+        && stream.options.delivery_mode != AudioEventDeliveryMode::NativeOnly
+}
+
+/// Register one synthetic stream poll callback on the owning runtime thread.
+fn register_stream_poll_callback(
     ctx: &BindingCallContext,
-    runtime_state: &AudioRuntimeState,
+    runtime_state: &Arc<AudioRuntimeState>,
     stream: &Arc<AudioEventStream>,
 ) -> RuntimeResult<()> {
-    if stream.options.delivery_mode == AudioEventDeliveryMode::NativeOnly {
+    if !needs_stream_poll_callback(stream) {
         return Ok(());
     }
 
-    let now = host_monotonic_nanos();
-    refresh_device_events_for_stream(runtime_state, stream, now)?;
-    refresh_stream_events_for_stream(ctx, runtime_state, stream, now)?;
+    let poll_interval_ns = stream.options.poll_interval_ns.max(1);
+    let runtime_state = Arc::clone(runtime_state);
+    let live_stream = Arc::clone(stream);
+    let weak_stream = Arc::downgrade(stream);
+    let callback = ctx.agent().schedule_runtime_callback(
+        ctx,
+        poll_interval_ns,
+        Some(poll_interval_ns),
+        move |binding| {
+            let Some(stream) = weak_stream.upgrade() else {
+                return Ok(RuntimeScheduledCallbackControl::Cancel);
+            };
+
+            let now = host_monotonic_nanos();
+            refresh_stream_events_for_stream(binding, &runtime_state, &stream, now)?;
+
+            Ok(RuntimeScheduledCallbackControl::Keep)
+        },
+    )?;
+
+    // store the callback handle after successful registration
+    let mut state = live_stream
+        .state
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    state.poll_callback = Some(callback);
 
     Ok(())
 }
@@ -190,8 +231,6 @@ fn next_event_for_stream(
     stream: &Arc<AudioEventStream>,
     operation: &'static str,
 ) -> RuntimeResult<Option<AudioEvent>> {
-    refresh_event_stream_for_delivery_mode(ctx, runtime_state, stream)?;
-
     if let Some(event) = next_audio_event(runtime_state, stream, operation)? {
         return Ok(Some(abi_event(ctx, event)));
     }
@@ -207,8 +246,6 @@ fn drain_events_for_stream(
     maxevents: usize,
     operation: &'static str,
 ) -> RuntimeResult<Vec<AudioEvent>> {
-    refresh_event_stream_for_delivery_mode(ctx, runtime_state, stream)?;
-
     let mut events = Vec::new();
 
     while events.len() < maxevents {
@@ -262,9 +299,30 @@ pub(crate) unsafe fn open_event_stream(
     );
     register_event_stream(&runtime_state, Arc::clone(&stream));
 
+    // register synthetic stream polling after the stream becomes visible
+    if let Err(error) = register_stream_poll_callback(ctx, &runtime_state, &stream) {
+        unregister_event_stream(&runtime_state, stream.stream_id);
+        let _ = ctx
+            .agent()
+            .resources
+            .remove(ctx.world(), handle, Some(ctx.engine()));
+        return Err(error);
+    }
+
     // refresh backend monitor demand after the new stream is visible
     let monitor_service = ctx.agent().platform_state.audio.monitor_service();
     if let Err(error) = monitor_service.refresh_runtime(&runtime_state, options.backend) {
+        let poll_callback = {
+            let mut state = stream
+                .state
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            state.poll_callback.take()
+        };
+        if let Some(poll_callback) = poll_callback {
+            let _ = ctx.agent().cancel_runtime_callback(ctx, poll_callback);
+        }
+
         unregister_event_stream(&runtime_state, stream.stream_id);
         let _ = ctx
             .agent()
@@ -288,6 +346,18 @@ pub(crate) unsafe fn close_event_stream(
     let stream = resolve_event_stream(ctx, handle, "destack.audio.event.close")?;
     let runtime_state = runtime_state(ctx);
     let backend = stream.options.backend;
+
+    // cancel one synthetic stream poll callback before dropping the stream
+    let poll_callback = {
+        let mut state = stream
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        state.poll_callback.take()
+    };
+    if let Some(poll_callback) = poll_callback {
+        ctx.agent().cancel_runtime_callback(ctx, poll_callback)?;
+    }
 
     unregister_event_stream(&runtime_state, stream.stream_id);
     trim_event_log(&runtime_state);
