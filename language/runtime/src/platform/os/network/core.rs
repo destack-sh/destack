@@ -1,9 +1,6 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::thread;
 
 use destack_vm as vm;
-use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::NativeArray;
@@ -15,7 +12,9 @@ use crate::platform::net::{
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeAbiCodec, resource};
 use crate::runtime::BindingCallContext;
+use crate::runtime::process::RuntimeScheduledCallbackControl;
 
+use crate::platform::os::core::{NetworkWatchStream, OsRuntimeState, runtime_state};
 use crate::platform::os::network::backend;
 use crate::platform::os::{
     NetworkConnectionType, NetworkEvent, NetworkEventVm, NetworkState, NetworkStateVm,
@@ -23,38 +22,6 @@ use crate::platform::os::{
 
 /// Maximum wait slice used while one network watch polls host state.
 const NETWORK_WATCH_SLICE_NS: u64 = 100_000_000;
-
-/// Runtime-owned network watch state.
-#[derive(Debug)]
-struct NetworkWatchState {
-    /// Last emitted network snapshot.
-    last_state: Mutex<NetworkState>,
-    /// Whether this watch has been closed.
-    is_closed: AtomicBool,
-    /// Sequence number for the next emitted event.
-    next_sequence: AtomicU64,
-}
-
-impl NetworkWatchState {
-    /// Create one network watch seeded from the current snapshot.
-    fn new(initial_state: NetworkState) -> Self {
-        Self {
-            last_state: Mutex::new(initial_state),
-            is_closed: AtomicBool::new(false),
-            next_sequence: AtomicU64::new(0),
-        }
-    }
-
-    /// Return whether this watch has been closed.
-    fn is_closed(&self) -> bool {
-        self.is_closed.load(Ordering::Relaxed)
-    }
-
-    /// Close this watch.
-    fn close(&self) {
-        self.is_closed.store(true, Ordering::Relaxed);
-    }
-}
 
 /// Read one point-in-time host network state snapshot.
 pub(crate) fn state(binding: &BindingCallContext) -> RuntimeResult<NetworkState> {
@@ -113,7 +80,10 @@ pub(crate) fn watch_open(
     binding: &BindingCallContext,
 ) -> RuntimeResult<resource::NetworkWatchHandle> {
     let initial_state = state(binding)?;
-    let watch_state = Arc::new(NetworkWatchState::new(initial_state));
+    let runtime_state = runtime_state(binding)?;
+    let watch_state = Arc::new(NetworkWatchStream::new(initial_state));
+    runtime_state.register_network_watch_stream(watch_state.clone());
+    ensure_network_watch_callback(binding)?;
     let entry = ResourceEntry::new(ResourceKind::NetworkWatch)
         .with_label("os.network.watch")
         .with_payload(watch_state);
@@ -141,7 +111,7 @@ pub(crate) fn watch_close(
     let Some(payload) = entry.payload else {
         return Err(invalid_network_watch_handle());
     };
-    let Ok(watch_state) = payload.downcast::<Arc<NetworkWatchState>>() else {
+    let Ok(watch_state) = payload.downcast::<Arc<NetworkWatchStream>>() else {
         return Err(invalid_network_watch_handle());
     };
 
@@ -165,8 +135,14 @@ pub(crate) fn watch_read(
         "timed out waiting for network event",
         deadline_ns,
         NETWORK_WATCH_SLICE_NS,
-        || try_next_event(binding, &watch_state),
-        thread::sleep,
+        || {
+            if watch_state.is_closed() {
+                return Err(invalid_network_watch_handle());
+            }
+
+            Ok(watch_state.try_take())
+        },
+        |duration| watch_state.wait_once(duration),
     )
 }
 
@@ -176,7 +152,9 @@ pub(crate) fn watch_try_read(
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<NetworkEvent> {
     let watch_state = resolve_watch_state(binding, handle)?;
-    let Some(event) = try_next_event(binding, &watch_state)? else {
+    binding.service_runtime_ingress()?;
+
+    let Some(event) = watch_state.try_take() else {
         return Err(io_would_block(
             "destack.os.network.watchTryRead",
             "no network event is currently queued",
@@ -324,42 +302,58 @@ fn classify_connection_type(name: &str) -> NetworkConnectionType {
 fn resolve_watch_state(
     binding: &BindingCallContext,
     handle: resource::NetworkWatchHandle,
-) -> RuntimeResult<Arc<NetworkWatchState>> {
+) -> RuntimeResult<Arc<NetworkWatchStream>> {
     let resolved = binding.agent().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
-            .and_then(|payload| payload.downcast_ref::<Arc<NetworkWatchState>>())
+            .and_then(|payload| payload.downcast_ref::<Arc<NetworkWatchStream>>())
             .map(Arc::clone)
     });
 
     resolved.flatten().ok_or_else(invalid_network_watch_handle)
 }
 
-/// Try to produce the next network event when the host snapshot changed.
-fn try_next_event(
+/// Ensure one shared network watch callback is registered for this agent.
+fn ensure_network_watch_callback(binding: &BindingCallContext) -> RuntimeResult<()> {
+    let runtime_state = runtime_state(binding)?;
+    if runtime_state.network_watch_callback().is_some() {
+        return Ok(());
+    }
+
+    let callback_runtime_state = runtime_state.clone();
+    let callback_handle = binding.agent().schedule_runtime_callback(
+        binding,
+        NETWORK_WATCH_SLICE_NS,
+        Some(NETWORK_WATCH_SLICE_NS),
+        move |binding| service_network_watch_callback(binding, &callback_runtime_state),
+    )?;
+    runtime_state.set_network_watch_callback(callback_handle);
+
+    Ok(())
+}
+
+/// Service one shared network watch callback tick.
+fn service_network_watch_callback(
     binding: &BindingCallContext,
-    watch_state: &Arc<NetworkWatchState>,
-) -> RuntimeResult<Option<NetworkEvent>> {
-    if watch_state.is_closed() {
-        return Err(invalid_network_watch_handle());
+    runtime_state: &Arc<OsRuntimeState>,
+) -> RuntimeResult<RuntimeScheduledCallbackControl> {
+    let streams = runtime_state.network_watch_streams();
+    if streams.is_empty() {
+        if let Some(handle) = runtime_state.network_watch_callback() {
+            runtime_state.clear_network_watch_callback(handle);
+        }
+
+        return Ok(RuntimeScheduledCallbackControl::Cancel);
     }
 
     let next_state = state(binding)?;
-    let mut last_state = watch_state.last_state.lock();
-    if *last_state == next_state {
-        return Ok(None);
+
+    for stream in streams {
+        stream.publish_state(next_state);
     }
 
-    let timestamp_ns = monotonic_now_ns();
-    let sequence = watch_state.next_sequence.fetch_add(1, Ordering::Relaxed);
-    *last_state = next_state;
-
-    Ok(Some(NetworkEvent {
-        timestamp_ns,
-        sequence,
-        state: next_state,
-    }))
+    Ok(RuntimeScheduledCallbackControl::Keep)
 }
 
 /// Build one invalid network-watch handle error.
