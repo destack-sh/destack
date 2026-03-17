@@ -13,7 +13,6 @@ use crate::host::{
 };
 use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
-use destack_workspace::RuntimeOptions;
 
 #[path = "harness.generated.rs"]
 mod harness;
@@ -129,84 +128,13 @@ impl VmOsHarness {
     }
 }
 
-/// Build one deterministic os test runtime with host lifecycle ingress disabled.
+/// Build one deterministic os test runtime.
 fn os_test_runtime() -> TestRuntime {
-    TestRuntime::deterministic_random_with_options(disable_host_lifecycle_ingress)
-}
+    // keep os harness expectations focused on injected events
+    let runtime = TestRuntime::deterministic_random();
+    runtime.drain_host_events();
 
-/// Disable host lifecycle ingress so tests only observe injected lifecycle events.
-fn disable_host_lifecycle_ingress(options: &mut RuntimeOptions) {
-    #[cfg(target_os = "android")]
-    {
-        options.platform.android.enable_lifecycle_events = false;
-        options.platform.android.enable_interruption_events = false;
-    }
-
-    #[cfg(target_os = "dragonfly")]
-    {
-        options.platform.dragonfly.enable_lifecycle_events = false;
-        options.platform.dragonfly.enable_interruption_events = false;
-    }
-
-    #[cfg(target_os = "freebsd")]
-    {
-        options.platform.freebsd.enable_lifecycle_events = false;
-        options.platform.freebsd.enable_interruption_events = false;
-    }
-
-    #[cfg(target_os = "haiku")]
-    {
-        options.platform.haiku.enable_lifecycle_events = false;
-        options.platform.haiku.enable_interruption_events = false;
-    }
-
-    #[cfg(target_os = "illumos")]
-    {
-        options.platform.illumos.enable_lifecycle_events = false;
-        options.platform.illumos.enable_interruption_events = false;
-    }
-
-    #[cfg(target_os = "ios")]
-    {
-        options.platform.ios.enable_lifecycle_events = false;
-        options.platform.ios.enable_interruption_events = false;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        options.platform.linux.enable_lifecycle_events = false;
-        options.platform.linux.enable_interruption_events = false;
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        options.platform.macos.enable_lifecycle_events = false;
-        options.platform.macos.enable_interruption_events = false;
-    }
-
-    #[cfg(target_os = "netbsd")]
-    {
-        options.platform.netbsd.enable_lifecycle_events = false;
-        options.platform.netbsd.enable_interruption_events = false;
-    }
-
-    #[cfg(target_os = "openbsd")]
-    {
-        options.platform.openbsd.enable_lifecycle_events = false;
-        options.platform.openbsd.enable_interruption_events = false;
-    }
-
-    #[cfg(target_os = "solaris")]
-    {
-        options.platform.solaris.enable_lifecycle_events = false;
-        options.platform.solaris.enable_interruption_events = false;
-    }
-
-    #[cfg(windows)]
-    {
-        options.platform.windows.enable_lifecycle_events = false;
-        options.platform.windows.enable_interruption_events = false;
-    }
+    runtime
 }
 
 /// Shared mutex that serializes os harness tests.

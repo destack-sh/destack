@@ -31,18 +31,10 @@ pub struct PlatformOptions {
 }
 
 /// Host runtime options shared across platform runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PlatformHostOptions {
     /// Queue capacity for host events before drop behavior applies.
     pub event_queue_capacity: Option<u64>,
-}
-
-impl Default for PlatformHostOptions {
-    fn default() -> Self {
-        Self {
-            event_queue_capacity: None,
-        }
-    }
 }
 
 /// Crypto runtime options shared across platform runtime configuration.
