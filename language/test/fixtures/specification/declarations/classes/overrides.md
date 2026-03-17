@@ -12,7 +12,7 @@ Tests for override modifiers and `noImplicitOverride`.
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitOverride": true } }
 ```
 
@@ -36,7 +36,7 @@ class Derived extends Base {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitOverride": true } }
 ```
 
@@ -58,7 +58,7 @@ class Derived extends Base {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitOverride": false } }
 ```
 
@@ -82,7 +82,7 @@ class Derived extends Base {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitOverride": false } }
 ```
 
@@ -104,7 +104,7 @@ class Derived extends Base {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitOverride": true } }
 ```
 

@@ -68,7 +68,7 @@ let ok: Strip<any> = "no";
 let ok2: Strip<any> = "value";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -82,7 +82,7 @@ type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
 let bad: Strip<any> = 1;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 

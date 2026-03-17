@@ -224,7 +224,7 @@ function run(): void {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "borrowMode": "hint" } }
 ```
 
@@ -256,7 +256,7 @@ function run(): void {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "borrowMode": "strict" } }
 ```
 

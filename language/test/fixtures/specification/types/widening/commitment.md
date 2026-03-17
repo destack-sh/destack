@@ -81,6 +81,6 @@ const value = { kind: "ready" as const, payload: "ok", extra: true };
 accept(value);
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

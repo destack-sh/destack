@@ -13,7 +13,7 @@ Strict bind, call, and apply checking should apply to `this` parameter overloads
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -38,7 +38,7 @@ selected satisfies "broad";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -65,7 +65,7 @@ selected satisfies "narrow";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -91,7 +91,7 @@ selected satisfies "broad";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -113,7 +113,7 @@ use.call({ kind: 1 }, 1);
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -138,7 +138,7 @@ selected satisfies "broad";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 

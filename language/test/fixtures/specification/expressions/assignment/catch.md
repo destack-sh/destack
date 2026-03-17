@@ -36,7 +36,7 @@ try {
 
 > Catch binding mutability is independent from unknown catch variable typing.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "useUnknownInCatchVariables": true } }
 ```
 

@@ -53,6 +53,6 @@ config.env.mode satisfies "dev";
 
 - contains: not assignable
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

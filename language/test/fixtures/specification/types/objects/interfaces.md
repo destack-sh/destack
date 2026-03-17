@@ -85,7 +85,7 @@ const value: Target = { value: undefined }
 
 ### exactOptionalPropertyTypes false allows undefined assignment
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "exactOptionalPropertyTypes": false } }
 ```
 

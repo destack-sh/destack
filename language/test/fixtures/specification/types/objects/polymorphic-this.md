@@ -75,6 +75,6 @@ run.call({ tag: "bad" }, 1);
 
 - contains: not assignable
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "noImplicitThis": true } }
 ```

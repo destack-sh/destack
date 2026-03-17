@@ -65,7 +65,7 @@ x satisfies number;
 
 > String literals expose String prototype members.
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 

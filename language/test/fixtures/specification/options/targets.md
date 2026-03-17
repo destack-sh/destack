@@ -17,7 +17,7 @@ value;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "noAny": false
@@ -44,7 +44,7 @@ value;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "noImprecisePrimitives": false
@@ -71,7 +71,7 @@ value;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "noImplicitConversions": false
@@ -99,7 +99,7 @@ cast;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "noUnsafeTypeAssertions": false
@@ -131,7 +131,7 @@ value;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "noManaged": false
@@ -160,7 +160,7 @@ value;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "noAny": false

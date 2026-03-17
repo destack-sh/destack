@@ -94,6 +94,6 @@ const value = drive(current => current);
 value satisfies "ok";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

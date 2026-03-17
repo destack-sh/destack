@@ -183,6 +183,6 @@ if (box.inner.value !== undefined) {
 
 - contains: not assignable
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

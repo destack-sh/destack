@@ -13,7 +13,7 @@ Strict bind, call, and apply checking should still apply to overloads.
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -38,7 +38,7 @@ selected satisfies "broad";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -65,7 +65,7 @@ selected satisfies "narrow";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -91,7 +91,7 @@ selected satisfies "broad";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -119,7 +119,7 @@ selected satisfies "narrow";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -144,7 +144,7 @@ selected satisfies "broad";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 

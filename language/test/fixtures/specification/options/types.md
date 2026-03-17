@@ -16,7 +16,7 @@ let value: any = 1;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": true } }
 ```
 
@@ -34,7 +34,7 @@ let value: any = 1;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -54,7 +54,7 @@ try {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": true, "useUnknownInCatchVariables": false } }
 ```
 
@@ -74,7 +74,7 @@ let value: unknown = 1;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUnknown": true } }
 ```
 
@@ -96,7 +96,7 @@ try {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUnknown": true, "useUnknownInCatchVariables": true } }
 ```
 
@@ -114,7 +114,7 @@ let value: unknown = 1;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUnknown": false } }
 ```
 
@@ -132,7 +132,7 @@ let value: number = 1;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false, "noImprecisePrimitives": true } }
 ```
 
@@ -150,7 +150,7 @@ let value = Number(1);
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false, "noImprecisePrimitives": true } }
 ```
 
@@ -168,7 +168,7 @@ let value: number = 1;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false, "noImprecisePrimitives": false } }
 ```
 
@@ -186,7 +186,7 @@ let value: float64 = 1;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitConversions": true } }
 ```
 
@@ -204,7 +204,7 @@ let value: float64 = 1;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitConversions": false } }
 ```
 
@@ -225,7 +225,7 @@ const bad: Box = { value: undefined };
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "exactOptionalPropertyTypes": true, "checkTs": true } }
 ```
 
@@ -246,7 +246,7 @@ ok.value satisfies string | undefined;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "exactOptionalPropertyTypes": true, "checkTs": true } }
 ```
 
@@ -265,7 +265,7 @@ ok.value satisfies string | undefined;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "exactOptionalPropertyTypes": false, "checkTs": true } }
 ```
 
@@ -288,7 +288,7 @@ const value: int32 = bag["missing"];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUncheckedIndexedAccess": true } }
 ```
 
@@ -311,7 +311,7 @@ const value: int32 = bag["missing"];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUncheckedIndexedAccess": false } }
 ```
 
@@ -328,7 +328,7 @@ const value: int32 = values[0];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUncheckedIndexedAccess": true } }
 ```
 
@@ -351,7 +351,7 @@ const value = bag.missing;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noPropertyAccessFromIndexSignature": true } }
 ```
 
@@ -374,7 +374,7 @@ const value = bag.missing;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noPropertyAccessFromIndexSignature": false } }
 ```
 
@@ -396,7 +396,7 @@ const value: int32 = bag.known;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noPropertyAccessFromIndexSignature": true } }
 ```
 
@@ -416,7 +416,7 @@ let value: int32 | undefined = record["alpha"];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "implicitCollectionConversions": "allow" } }
 ```
 
@@ -435,7 +435,7 @@ let value: int32 | undefined = dynamic[0];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "implicitCollectionConversions": "allow" } }
 ```
 
@@ -453,7 +453,7 @@ let value: int32 | undefined = record["alpha"];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "implicitCollectionConversions": "warn" } }
 ```
 
@@ -474,7 +474,7 @@ let value: int32 | undefined = dynamic[0];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "implicitCollectionConversions": "warn" } }
 ```
 
@@ -494,7 +494,7 @@ let value: int32 | undefined = record["alpha"];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "implicitCollectionConversions": "deny" } }
 ```
 
@@ -515,7 +515,7 @@ let value: int32 | undefined = dynamic[0];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "implicitCollectionConversions": "deny" } }
 ```
 
@@ -536,7 +536,7 @@ let cast = value as int32;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false, "noUnsafeTypeAssertions": true } }
 ```
 
@@ -555,7 +555,7 @@ let cast = value as int32;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUnsafeTypeAssertions": true } }
 ```
 
@@ -572,7 +572,7 @@ let cast = value as int32;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false, "noUnsafeTypeAssertions": false } }
 ```
 
@@ -593,7 +593,7 @@ out;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noMustAssertions": true } }
 ```
 
@@ -614,7 +614,7 @@ out satisfies string;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noMustAssertions": false } }
 ```
 
@@ -634,7 +634,7 @@ class User {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noDefiniteAssignmentAssertions": true } }
 ```
 
@@ -654,7 +654,7 @@ class User {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noDefiniteAssignmentAssertions": false } }
 ```
 
@@ -672,7 +672,7 @@ declare function isString(value: unknown): value is string;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noCustomTypeGuards": true } }
 ```
 
@@ -690,7 +690,7 @@ declare function isString(value: unknown): value is string;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noCustomTypeGuards": false } }
 ```
 
@@ -712,7 +712,7 @@ let value: Box = new Box();
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -736,7 +736,7 @@ let animals: Animal[] = dogs;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUnsoundVariance": true } }
 ```
 
@@ -758,7 +758,7 @@ let animals: Animal[] = dogs;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUnsoundVariance": false } }
 ```
 
@@ -781,7 +781,7 @@ if (value instanceof Animal) {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUnsoundNarrowing": true } }
 ```
 
@@ -804,7 +804,7 @@ if (value instanceof Animal) {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUnsoundNarrowing": false } }
 ```
 
@@ -823,7 +823,7 @@ wrapped[0][0] = 2;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "deepReadonly": true } }
 ```
 
@@ -842,7 +842,7 @@ wrapped[0][0] = 2;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "deepReadonly": false } }
 ```
 
@@ -858,7 +858,7 @@ let values: int32[] = [1, 2, 3];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -876,7 +876,7 @@ let value: { x: int32 } = { x: 1 };
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -894,7 +894,7 @@ let fn: () => int32 = () => 1;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -912,7 +912,7 @@ let value: string = "hello";
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -934,7 +934,7 @@ let value = new Box();
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -952,7 +952,7 @@ let values = [1, 2, 3];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -974,7 +974,7 @@ let value: ^Box = ^(new Box());
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -990,6 +990,6 @@ let value: character = 'a';
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```

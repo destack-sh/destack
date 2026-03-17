@@ -68,6 +68,6 @@ const child = Child.make();
 child.childOnly() satisfies "child";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "noImplicitThis": true, "strictBindCallApply": true } }
 ```

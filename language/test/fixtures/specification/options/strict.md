@@ -18,7 +18,7 @@ function handle(value) {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -40,7 +40,7 @@ function handle(value) {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false, "noImplicitAny": true } }
 ```
 
@@ -60,7 +60,7 @@ function handle(value) {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": true, "noImplicitAny": false } }
 ```
 
@@ -78,7 +78,7 @@ function handle(value) {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false } }
 ```
 
@@ -94,7 +94,7 @@ let value: int32 = null;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -112,7 +112,7 @@ let value: int32 = null;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false } }
 ```
 
@@ -130,7 +130,7 @@ let value: int32 = null;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false, "strictNullChecks": true } }
 ```
 
@@ -148,7 +148,7 @@ let value: int32 = null;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": true, "strictNullChecks": false } }
 ```
 
@@ -166,7 +166,7 @@ function counter() {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -186,7 +186,7 @@ function counter() {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false } }
 ```
 
@@ -206,7 +206,7 @@ function counter() {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false, "noImplicitThis": true } }
 ```
 
@@ -226,7 +226,7 @@ function counter() {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false, "noImplicitThis": false } }
 ```
 
@@ -247,7 +247,7 @@ let wide: FnWide = narrow;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -272,7 +272,7 @@ let wide: FnWide = narrow;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false, "strictFunctionTypes": true } }
 ```
 
@@ -298,7 +298,7 @@ let value: Wide = new Narrow();
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false, "strictFunctionTypes": true } }
 ```
 
@@ -321,7 +321,7 @@ let wide: FnWide = narrow;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false, "strictFunctionTypes": false } }
 ```
 
@@ -345,7 +345,7 @@ let value: Wide = new Narrow();
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false, "strictFunctionTypes": false } }
 ```
 
@@ -365,7 +365,7 @@ add.call({ base: "no" }, 1);
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -389,7 +389,7 @@ add.call({ base: "no" }, 1);
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false, "strictBindCallApply": true } }
 ```
 
@@ -411,7 +411,7 @@ add.call({ base: "no" }, 1);
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false, "strictBindCallApply": false } }
 ```
 
@@ -429,7 +429,7 @@ const value: ReturnValue = 1;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": { "strict": true, "lib": ["es5", "es2015.iterable"] }
 }
@@ -451,7 +451,7 @@ class Counter {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -475,7 +475,7 @@ value satisfies int;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -499,7 +499,7 @@ try {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strict": false, "useUnknownInCatchVariables": true } }
 ```
 
@@ -521,7 +521,7 @@ try {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "strict": false,
@@ -541,7 +541,7 @@ try {
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "strictBuiltinIteratorReturn": true,
@@ -566,7 +566,7 @@ const value: ReturnValue = 1;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 {
   "compilerOptions": {
     "noAny": false,

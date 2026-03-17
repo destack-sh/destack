@@ -12,7 +12,7 @@ Tests for strict `bind`, `call`, and `apply` checking.
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -34,7 +34,7 @@ add.call({ base: "no" }, 1);
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -56,7 +56,7 @@ add.apply({ base: 1 }, ["no"]);
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -78,7 +78,7 @@ result satisfies number;
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": false } }
 ```
 
@@ -98,7 +98,7 @@ add.call({ base: "no" }, 1);
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 
@@ -121,7 +121,7 @@ bound("no");
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "strictBindCallApply": true } }
 ```
 

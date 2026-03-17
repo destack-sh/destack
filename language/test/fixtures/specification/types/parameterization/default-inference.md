@@ -77,6 +77,6 @@ value[1] satisfies number;
 value[2] satisfies number;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

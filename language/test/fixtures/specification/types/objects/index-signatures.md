@@ -171,7 +171,7 @@ let value: int32 = bag["a"];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUncheckedIndexedAccess": true } }
 ```
 
@@ -194,7 +194,7 @@ let value: int32 = bag["a"];
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noUncheckedIndexedAccess": false } }
 ```
 
@@ -202,7 +202,7 @@ let value: int32 = bag["a"];
 
 ### noPropertyAccessFromIndexSignature forbids dot access
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noPropertyAccessFromIndexSignature": true } }
 ```
 
@@ -236,7 +236,7 @@ let value = bag.missing
 { "name": "spec" }
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noPropertyAccessFromIndexSignature": false } }
 ```
 

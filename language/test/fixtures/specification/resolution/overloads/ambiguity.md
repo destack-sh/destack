@@ -25,7 +25,7 @@ const selected = parse(value);
 selected satisfies "string";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -50,7 +50,7 @@ selected satisfies "number";
 
 - contains: not assignable
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -113,7 +113,7 @@ const selected = parse(value);
 selected satisfies "any";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -138,6 +138,6 @@ selected satisfies "unknown";
 
 - contains: not assignable
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```

@@ -81,7 +81,7 @@ const ok: AnySelect = "yes";
 const ok2: AnySelect = "no";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -97,7 +97,7 @@ type AnySelect = Select<any>;
 const bad: AnySelect = 1;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -193,7 +193,7 @@ type WrappedAny = [any] extends [string] ? "yes" : "no";
 let ok: WrappedAny = "yes";
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "noAny": false } }
 ```
 

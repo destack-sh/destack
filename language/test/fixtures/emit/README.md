@@ -5,7 +5,7 @@ Emit tests verify emitted output against checked-in snapshots.
 ## Structure
 
 Each test is a directory under `fixtures/emit/<name>/` containing:
-- `dsconfig.json`: target definitions
+- `destack.json`: target definitions
 - `src/`: input sources
 - `dist/<target>/`: expected output snapshots
 

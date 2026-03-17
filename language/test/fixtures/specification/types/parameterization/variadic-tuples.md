@@ -54,6 +54,6 @@ value[1] satisfies 1;
 value[2] satisfies true;
 ```
 
-```json:dsconfig.json
+```json:destack.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

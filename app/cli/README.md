@@ -129,7 +129,7 @@ just app/full
 | `explain` | Explain a diagnostic or lint rule (or list diagnostics). |
 | `completions` | Generate shell completions. |
 | `version` | Show version info. |
-| `task` | Run tasks from `dsconfig.json`. |
+| `task` | Run tasks from `destack.json`. |
 | `test` | Run tests (stub). |
 | `bench` | Run benchmarks (stub). |
 | `doc` | Generate docs (stub). |
@@ -137,7 +137,7 @@ just app/full
 | `daemon` | Manage the background daemon service. |
 | `dev` | Developer workflows, including integrated release flows. |
 
-`run` resolves `dsconfig.json` tasks first, then `package.json` scripts when the argument is not a file path.
+`run` resolves `destack.json` tasks first, then `package.json` scripts when the argument is not a file path.
 
 ## Common flags
 
@@ -146,7 +146,7 @@ just app/full
 | `--output-format <text|json>` | Emit structured JSON output for tooling. |
 | `--json` | Shorthand for `--output-format json`. |
 | `--cwd <dir>` | Set the working directory. |
-| `--config <path>` | Use a specific dsconfig.json. |
+| `--config <path>` | Use a specific destack.json. |
 | `--workspace <dir>` | Set the workspace root. |
 | `--cache-dir <dir>` | Override the cache directory. |
 | `--workers <n>` | Number of worker threads. |
