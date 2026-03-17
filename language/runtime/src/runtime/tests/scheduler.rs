@@ -550,7 +550,7 @@ fn test_event_loop_suspend_roundtrip_preserves_pending_state() {
     }]);
     event_loop
         .schedule_timer(Timer {
-            handle: ResourceId(62),
+            handle: ResourceId(62).into(),
             deadline: TimerDeadline {
                 clock: TimerClock::Wall,
                 at: Nanos::new(0),
@@ -606,7 +606,7 @@ fn test_event_loop_cancel_timer_drops_ready_timer_before_dispatch() {
     let mut event_loop = EventLoop::default();
     event_loop
         .schedule_timer(Timer {
-            handle: ResourceId(700),
+            handle: ResourceId(700).into(),
             deadline: TimerDeadline {
                 clock: TimerClock::Wall,
                 at: Nanos::new(0),
@@ -1063,7 +1063,7 @@ fn schedule_timer(
     agent
         .event_loop
         .schedule_timer(Timer {
-            handle: ResourceId(handle),
+            handle: ResourceId(handle).into(),
             deadline: TimerDeadline {
                 clock,
                 at: Nanos::new(fire_at_nanos),

@@ -787,7 +787,7 @@ impl TestRuntime {
         self.agent
             .event_loop
             .schedule_timer(Timer {
-                handle: ResourceId(handle),
+                handle: ResourceId(handle).into(),
                 deadline: TimerDeadline {
                     clock,
                     at: Nanos::new(fire_at_nanos),
