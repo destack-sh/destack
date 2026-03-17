@@ -170,8 +170,8 @@ impl Compiler {
         }
 
         // multiple profile matches: prefer explicit default target when available
-        if let Some(dsconfig) = package.dsconfig.as_ref()
-            && let Some(default_target) = dsconfig.options.default_target.as_ref()
+        if let Some(config) = package.config.as_ref()
+            && let Some(default_target) = config.options.default_target.as_ref()
         {
             let default_target_id = TargetId::new(package_id, default_target);
             if let Some((target_id, target)) = matching_targets
@@ -220,9 +220,9 @@ impl Compiler {
         let package = self.program.packages.get(package_id);
         let package = package.read();
 
-        // honor an explicit default target from dsconfig
-        if let Some(dsconfig) = package.dsconfig.as_ref()
-            && let Some(default_target) = dsconfig.options.default_target.as_ref()
+        // honor an explicit default target from config
+        if let Some(config) = package.config.as_ref()
+            && let Some(default_target) = config.options.default_target.as_ref()
         {
             let target_id = TargetId::new(package_id, default_target);
             let Some(target) = package.targets.get(&target_id) else {

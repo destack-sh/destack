@@ -759,7 +759,7 @@ mod tests {
 
         // source: class A { get constructor() {} }
         let module_id = test.add_module("test.js", "class A { get constructor() {} }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -775,7 +775,7 @@ mod tests {
 
         // source: class A { set constructor(v) {} }
         let module_id = test.add_module("test.js", "class A { set constructor(v) {} }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -791,7 +791,7 @@ mod tests {
 
         // source: class A { *constructor() {} }
         let module_id = test.add_module("test.js", "class A { *constructor() {} }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -807,7 +807,7 @@ mod tests {
 
         // source: class A { static "prototype"() {} }
         let module_id = test.add_module("test.js", r#"class A { static "prototype"() {} }"#);
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -823,7 +823,7 @@ mod tests {
 
         // source: class A { static constructor() {} }
         let module_id = test.add_module("test.js", "class A { static constructor() {} }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -842,7 +842,7 @@ mod tests {
             "test.js",
             r#"class A { constructor() {} 'constructor'() {} }"#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -859,7 +859,7 @@ mod tests {
         // source: class A { constructor() {} 'constructor'() }
         let module_id =
             test.add_module("test.js", r#"class A { constructor() {} 'constructor'() }"#);
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -875,7 +875,7 @@ mod tests {
 
         // source: class A { m([]){ "use strict"; } }
         let module_id = test.add_module("test.js", r#"class A { m([]){ "use strict"; } }"#);
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );

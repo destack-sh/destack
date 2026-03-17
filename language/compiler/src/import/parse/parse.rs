@@ -239,9 +239,9 @@ impl Compiler {
             let package = self.program.packages.get(package_id);
             let package = package.read();
             if package
-                .dsconfig
+                .config
                 .as_ref()
-                .is_some_and(|dsconfig| dsconfig.options.compiler.js_as_jsx)
+                .is_some_and(|config| config.options.compiler.js_as_jsx)
             {
                 return LanguageType::JavaScriptXml;
             }

@@ -3325,7 +3325,7 @@ cls.myFunc<ConcreteClass> = (instance) => {
 };
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3362,7 +3362,7 @@ let value = 1;
 (value as number) = 2;
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3382,7 +3382,7 @@ const value = () => 1;
 (value() as number) = 2;
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3402,7 +3402,7 @@ let value: number | undefined = 1;
 value! = 2;
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3422,7 +3422,7 @@ const value = () => 1;
 value()! = 2;
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3441,7 +3441,7 @@ value()! = 2;
 const value = f<T>.x;
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3460,7 +3460,7 @@ const value = f<T>.x;
 const value = (f<T>).x;
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3501,7 +3501,7 @@ function a() {
 }
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3526,7 +3526,7 @@ class A extends B {
 }
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3549,7 +3549,7 @@ class A extends B {
 }
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3573,7 +3573,7 @@ class A extends B {
 }
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3598,7 +3598,7 @@ class A extends B {
 }
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3623,7 +3623,7 @@ class A extends B {
 }
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3648,7 +3648,7 @@ class A extends B {
 }
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3673,7 +3673,7 @@ class A extends B {
 }
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3689,7 +3689,7 @@ class A extends B {
 
         // source: function null() {}
         let module_id = test.add_module("test.js", "function null() {}");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3705,7 +3705,7 @@ class A extends B {
 
         // source: try { 1; }
         let module_id = test.add_module("test.js", "try { 1; }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3721,7 +3721,7 @@ class A extends B {
 
         // source: try { 1; } catch { 2; }
         let module_id = test.add_module("test.js", "try { 1; } catch { 2; }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3737,7 +3737,7 @@ class A extends B {
 
         // source: try { 1; } finally { 2; }
         let module_id = test.add_module("test.js", "try { 1; } finally { 2; }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3753,7 +3753,7 @@ class A extends B {
 
         // source: try {} catch (answer()) {}
         let module_id = test.add_module("test.js", "try {} catch (answer()) {}");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3787,7 +3787,7 @@ function a() {
 }
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3809,7 +3809,7 @@ function a() {
 }
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3825,7 +3825,7 @@ function a() {
 
         // source: function expression named with strict reserved identifier
         let module_id = test.add_module("test.js", r#""use strict"; !function eval(){};"#);
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3841,7 +3841,7 @@ function a() {
 
         // source: class expression named with strict reserved identifier
         let module_id = test.add_module("test.js", r#""use strict"; !(class arguments {});"#);
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3855,7 +3855,7 @@ function a() {
     fn test_reject_update_on_literal_target() {
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module("test.js", "0++;");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3869,7 +3869,7 @@ function a() {
     fn test_reject_object_proto_setter() {
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module("test.js", r#"({ "__proto__": null });"#);
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3883,7 +3883,7 @@ function a() {
     fn test_reject_for_of_literal_binding_target() {
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module("test.js", "for(0 of 0);");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3899,7 +3899,7 @@ function a() {
 
         // source: for(([0]) in 0);
         let module_id = test.add_module("test.js", "for(([0]) in 0);");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3915,7 +3915,7 @@ function a() {
 
         // source: for({a: 0} of 0);
         let module_id = test.add_module("test.js", "for({a: 0} of 0);");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3935,7 +3935,7 @@ const __proto__ = 1;
 ({ __proto__, "__proto__": null });
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3955,7 +3955,7 @@ const __proto__ = 1;
 ({ __proto__ });
 "#,
         );
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3971,7 +3971,7 @@ const __proto__ = 1;
 
         // source: "use strict"; +protected;
         let module_id = test.add_module("test.js", r#""use strict"; +protected;"#);
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -3987,7 +3987,7 @@ const __proto__ = 1;
 
         // source: "use strict"; with(1);
         let module_id = test.add_module("test.js", r#""use strict"; with(1);"#);
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4003,7 +4003,7 @@ const __proto__ = 1;
 
         // source: "use strict"; yield:;
         let module_id = test.add_module("test.js", r#""use strict"; yield:;"#);
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4019,7 +4019,7 @@ const __proto__ = 1;
 
         // source: var a = new.target;
         let module_id = test.add_module("test.js", "var a = new.target;");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4035,7 +4035,7 @@ const __proto__ = 1;
 
         // source: function f() { return new.target; }
         let module_id = test.add_module("test.js", "function f() { return new.target; }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4051,7 +4051,7 @@ const __proto__ = 1;
 
         // source: new Test?.test();
         let module_id = test.add_module("test.ts", "new Test?.test();");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4068,7 +4068,7 @@ const __proto__ = 1;
         // source: a: while (true) { (function () { break a; }); }
         let module_id =
             test.add_module("test.js", "a: while (true) { (function () { break a; }); }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4084,7 +4084,7 @@ const __proto__ = 1;
 
         // source: function a([]){ "use strict"; }
         let module_id = test.add_module("test.js", r#"function a([]){ "use strict"; }"#);
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4112,7 +4112,7 @@ const __proto__ = 1;
 
         // source: ({ a([]){ "use strict"; } });
         let module_id = test.add_module("test.js", r#"({ a([]){ "use strict"; } });"#);
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4128,7 +4128,7 @@ const __proto__ = 1;
 
         // source: ({a([]){'use strict'}})
         let module_id = test.add_module("test.js", r#"({a([]){'use strict'}})"#);
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4156,7 +4156,7 @@ const __proto__ = 1;
 
         // source: ({ 5 }) => {}
         let module_id = test.add_module("test.js", "({ 5 }) => {}");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4172,7 +4172,7 @@ const __proto__ = 1;
 
         // source: ([ 5 ]) => {}
         let module_id = test.add_module("test.js", "([ 5 ]) => {}");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4188,7 +4188,7 @@ const __proto__ = 1;
 
         // source: function* a(){ function* b(c = yield d){} }
         let module_id = test.add_module("test.js", "function* a(){ function* b(c = yield d){} }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4204,7 +4204,7 @@ const __proto__ = 1;
 
         // source: function* a(){ function* b(c = yield* d){} }
         let module_id = test.add_module("test.js", "function* a(){ function* b(c = yield* d){} }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4220,7 +4220,7 @@ const __proto__ = 1;
 
         // source: function* a(){ function* b({c = yield}){} }
         let module_id = test.add_module("test.js", "function* a(){ function* b({c = yield}){} }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4236,7 +4236,7 @@ const __proto__ = 1;
 
         // source: function* a(){ ({ *b({c = yield}){} }); }
         let module_id = test.add_module("test.js", "function* a(){ ({ *b({c = yield}){} }); }");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4252,7 +4252,7 @@ const __proto__ = 1;
 
         // source: type Invalid = infer U;
         let module_id = test.add_module("test.ts", "type Invalid = infer U;");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );
@@ -4269,7 +4269,7 @@ const __proto__ = 1;
         // source: type Valid<T> = T extends infer U ? U : never;
         let module_id =
             test.add_module("test.ts", "type Valid<T> = T extends infer U ? U : never;");
-        test.apply_dsconfig(
+        test.apply_destack_config(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
         );

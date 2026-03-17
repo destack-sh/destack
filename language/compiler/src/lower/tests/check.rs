@@ -646,7 +646,7 @@ function work(): void {}
 "#,
     );
 
-    test.apply_dsconfig(module_id, r#"{ "compilerOptions": { "noManaged": true } }"#);
+    test.apply_destack_config(module_id, r#"{ "compilerOptions": { "noManaged": true } }"#);
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile_check_clean();

@@ -100,103 +100,103 @@ impl Compiler {
         let policy = match error {
             AnalyzeError::AnyTypeDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_any),
+                .with_config_options(&module, |ds| ds.compiler.no_any),
             AnalyzeError::ImplicitAny { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_implicit_any),
+                .with_config_options(&module, |ds| ds.compiler.no_implicit_any),
             AnalyzeError::UnknownTypeDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_unknown),
+                .with_config_options(&module, |ds| ds.compiler.no_unknown),
             AnalyzeError::ImprecisePrimitiveDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_imprecise_primitives),
+                .with_config_options(&module, |ds| ds.compiler.no_imprecise_primitives),
             AnalyzeError::UnsafeTypeAssertionDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_unsafe_type_assertions),
+                .with_config_options(&module, |ds| ds.compiler.no_unsafe_type_assertions),
             AnalyzeError::MustAssertionDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_must_assertions),
+                .with_config_options(&module, |ds| ds.compiler.no_must_assertions),
             AnalyzeError::DefiniteAssignmentAssertionDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_definite_assignment_assertions),
+                .with_config_options(&module, |ds| ds.compiler.no_definite_assignment_assertions),
             AnalyzeError::CustomTypeGuardDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_custom_type_guards),
+                .with_config_options(&module, |ds| ds.compiler.no_custom_type_guards),
             AnalyzeError::UntrustedDeclarationDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_untrusted_declarations),
+                .with_config_options(&module, |ds| ds.compiler.no_untrusted_declarations),
             AnalyzeError::UnsoundVarianceDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_unsound_variance),
+                .with_config_options(&module, |ds| ds.compiler.no_unsound_variance),
             AnalyzeError::UnsoundNarrowingDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_unsound_narrowing),
+                .with_config_options(&module, |ds| ds.compiler.no_unsound_narrowing),
             AnalyzeError::UnreachableCode { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.allow_unreachable_code),
+                .with_config_options(&module, |ds| ds.compiler.allow_unreachable_code),
             AnalyzeError::UnusedLabel { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.allow_unused_labels),
+                .with_config_options(&module, |ds| ds.compiler.allow_unused_labels),
             AnalyzeError::ImplicitThis { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_implicit_this),
+                .with_config_options(&module, |ds| ds.compiler.no_implicit_this),
             AnalyzeError::DynamicImportDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_dynamic_import),
+                .with_config_options(&module, |ds| ds.compiler.no_dynamic_import),
             AnalyzeError::DynamicEvaluationDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_dynamic_evaluation),
+                .with_config_options(&module, |ds| ds.compiler.no_dynamic_evaluation),
             AnalyzeError::ProxyDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_proxy),
+                .with_config_options(&module, |ds| ds.compiler.no_proxy),
             AnalyzeError::DynamicShapesDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_dynamic_shapes),
+                .with_config_options(&module, |ds| ds.compiler.no_dynamic_shapes),
             AnalyzeError::ComputedPropertyAccessDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_computed_property_access),
+                .with_config_options(&module, |ds| ds.compiler.no_computed_property_access),
             AnalyzeError::ReferentialEqualityDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_referential_equality),
+                .with_config_options(&module, |ds| ds.compiler.no_referential_equality),
             AnalyzeError::GlobalThisDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_global_this),
+                .with_config_options(&module, |ds| ds.compiler.no_global_this),
             AnalyzeError::ImplicitDynamicDispatchDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_implicit_dynamic_dispatch),
+                .with_config_options(&module, |ds| ds.compiler.no_implicit_dynamic_dispatch),
             AnalyzeError::MissingOverride { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_implicit_override),
+                .with_config_options(&module, |ds| ds.compiler.no_implicit_override),
             AnalyzeError::MissingReturn { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_implicit_returns),
+                .with_config_options(&module, |ds| ds.compiler.no_implicit_returns),
             AnalyzeError::SwitchFallthrough { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_fallthrough_cases_in_switch),
+                .with_config_options(&module, |ds| ds.compiler.no_fallthrough_cases_in_switch),
             AnalyzeError::PropertyAccessFromIndexSignature { .. } => {
-                self.program.with_dsconfig_options(&module, |ds| {
+                self.program.with_config_options(&module, |ds| {
                     ds.compiler.no_property_access_from_index_signature
                 })
             }
             AnalyzeError::UnusedLocal { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_unused_locals),
+                .with_config_options(&module, |ds| ds.compiler.no_unused_locals),
             AnalyzeError::UnusedParameter { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_unused_parameters),
+                .with_config_options(&module, |ds| ds.compiler.no_unused_parameters),
             AnalyzeError::ImplicitManagedTypeDisabled { .. }
             | AnalyzeError::ImplicitManagedValueDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_implicit_managed),
+                .with_config_options(&module, |ds| ds.compiler.no_implicit_managed),
             AnalyzeError::ManagedMemoryDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_managed),
+                .with_config_options(&module, |ds| ds.compiler.no_managed),
             AnalyzeError::RuntimeDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_runtime),
+                .with_config_options(&module, |ds| ds.compiler.no_runtime),
             AnalyzeError::ExceptionsDisabled { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_exceptions),
+                .with_config_options(&module, |ds| ds.compiler.no_exceptions),
             _ => return None,
         };
 
@@ -216,7 +216,7 @@ impl Compiler {
             ImportError::ConflictingBinding { is_local, .. } => {
                 if *is_local {
                     self.program
-                        .with_dsconfig_options(&module, |ds| ds.compiler.no_redeclared_locals)
+                        .with_config_options(&module, |ds| ds.compiler.no_redeclared_locals)
                 } else {
                     None
                 }
@@ -239,7 +239,7 @@ impl Compiler {
         let policy = match error {
             ResolveError::UnsupportedInternalModule { .. } => self
                 .program
-                .with_dsconfig_options(&module, |ds| ds.compiler.no_internal_import),
+                .with_config_options(&module, |ds| ds.compiler.no_internal_import),
             _ => None,
         };
 

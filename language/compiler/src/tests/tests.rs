@@ -25,7 +25,7 @@ use destack_source::{
 };
 use destack_vm::{Heap, Isolate, IsolateOptions, ManagedHeap, RawHeap, Value};
 use destack_workspace::{
-    ArtifactKey, CacheMode, CacheStore, DiskCacheStore, DsConfig, DsConfigJson, DsConfigOptions,
+    ArtifactKey, CacheMode, CacheStore, Destack, DestackJson, DestackOptions, DiskCacheStore,
     MemoryCacheStore, Module, ModuleDir, ModuleDirData, ModuleMir, ModuleMirData, OutputFormat,
     ProfileId, Program, Session, Target, TargetId,
 };
@@ -482,25 +482,25 @@ impl TestProgram {
         }
     }
 
-    /// Add a package.json and optionally dsconfig.json to the memory filesystem.
+    /// Add a package.json and optionally destack.json to the memory filesystem.
     ///
-    /// `dsconfig_compiler_options` is the raw JSON content for `compilerOptions`, e.g.:
+    /// `destack_config_compiler_options` is the raw JSON content for `compilerOptions`, e.g.:
     /// ```ignore
     /// test.add_package("my-pkg", Some(r#""noRedeclaredLocals": true"#));
     /// ```
-    pub fn add_package(&self, name: &str, dsconfig_compiler_options: Option<&str>) {
+    pub fn add_package(&self, name: &str, destack_config_compiler_options: Option<&str>) {
         self.add_file("package.json", &format!(r#"{{ "name": "{name}" }}"#));
-        if let Some(opts) = dsconfig_compiler_options {
+        if let Some(opts) = destack_config_compiler_options {
             self.add_file(
-                "dsconfig.json",
+                "destack.json",
                 &format!(r#"{{ "compilerOptions": {{ {opts} }} }}"#),
             );
         }
     }
 
-    /// Add a dsconfig.json to the memory filesystem.
-    pub fn add_dsconfig(&self, content: &str) {
-        self.add_file("dsconfig.json", content);
+    /// Add a destack.json to the memory filesystem.
+    pub fn add_destack_config(&self, content: &str) {
+        self.add_file("destack.json", content);
     }
 
     /// Set the cache mode for this test program.
@@ -512,16 +512,16 @@ impl TestProgram {
             CacheMode::Disk => "disk",
         };
 
-        // build dsconfig json value
-        let dsconfig_value = if let Some(dir) = dir {
+        // build config json value
+        let config_value = if let Some(dir) = dir {
             json!({ "cache": { "mode": mode_value, "dir": dir } })
         } else {
             json!({ "cache": { "mode": mode_value } })
         };
-        let dsconfig = dsconfig_value.to_string();
+        let config = config_value.to_string();
 
-        // write dsconfig to memory fs
-        self.add_dsconfig(&dsconfig);
+        // write config to memory fs
+        self.add_destack_config(&config);
 
         self
     }
@@ -721,27 +721,27 @@ impl TestProgram {
         let _ = self.program.packages.bump_version(package_id);
     }
 
-    /// Apply a dsconfig.json blob to the package containing the given module.
-    pub fn apply_dsconfig(&self, module: ModuleId, content: &str) {
-        let dsconfig_json: DsConfigJson = serde_json::from_str(content)
-            .unwrap_or_else(|error| panic!("invalid dsconfig json: {error}"));
-        let options = DsConfigOptions::from(&dsconfig_json);
+    /// Apply a destack.json blob to the package containing the given module.
+    pub fn apply_destack_config(&self, module: ModuleId, content: &str) {
+        let config_json: DestackJson = serde_json::from_str(content)
+            .unwrap_or_else(|error| panic!("invalid destack.json: {error}"));
+        let options = DestackOptions::from(&config_json);
         let directory = self.program.cwd.clone();
-        let path = directory.join("dsconfig.json");
+        let path = directory.join("destack.json");
         let file_id = self.program.files.next_id();
-        let dsconfig = DsConfig {
+        let config = Destack {
             file_id,
             path,
             directory,
             options,
-            content: dsconfig_json,
+            content: config_json,
         };
 
         let module_ref = self.program.modules.get(module);
         let package_id = module_ref.read().package_id;
         let package = self.program.packages.get(package_id);
         let mut package = package.write();
-        package.dsconfig = Some(dsconfig);
+        package.config = Some(config);
 
         // bump package version for config updates
         drop(package);

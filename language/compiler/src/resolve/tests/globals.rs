@@ -350,7 +350,7 @@ fn test_build_global_symbol_table_key_prefers_default_target_with_ambiguous_prof
     let module_id = test.add_module("main.ds", "export const value: i32 = 1;");
     test.add_target(module_id, "js");
     test.add_target(module_id, "ts");
-    test.apply_dsconfig(module_id, r#"{ "defaultTarget": "ts" }"#);
+    test.apply_destack_config(module_id, r#"{ "defaultTarget": "ts" }"#);
 
     let package_id = {
         let module = test.program.modules.get(module_id);
@@ -393,7 +393,7 @@ fn test_build_global_symbol_table_key_errors_when_default_target_mismatches_prof
     test.add_target(module_id, "js");
     test.add_target(module_id, "ts");
     test.add_target(module_id, "native");
-    test.apply_dsconfig(module_id, r#"{ "defaultTarget": "native" }"#);
+    test.apply_destack_config(module_id, r#"{ "defaultTarget": "native" }"#);
 
     let package_id = {
         let module = test.program.modules.get(module_id);
@@ -433,14 +433,14 @@ fn test_build_global_symbol_table_key_errors_when_default_target_mismatches_prof
     );
 }
 
-/// Error when dsconfig default target references a missing target entry.
+/// Error when destack.json default target references a missing target entry.
 #[test]
 fn test_build_global_symbol_table_key_errors_when_default_target_is_missing() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module("main.ds", "export const value: i32 = 1;");
     test.add_target(module_id, "js");
     test.add_target(module_id, "native");
-    test.apply_dsconfig(module_id, r#"{ "defaultTarget": "missing" }"#);
+    test.apply_destack_config(module_id, r#"{ "defaultTarget": "missing" }"#);
 
     let package_id = {
         let module = test.program.modules.get(module_id);

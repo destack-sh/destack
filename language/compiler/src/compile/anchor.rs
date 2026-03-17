@@ -120,11 +120,11 @@ impl DiagnosticAnchor {
                 Some((span.file, *span))
             }
             Self::Package(package_id) => {
-                // point to dsconfig.json or package.json if available
+                // point to destack.json or package.json if available
                 let package = program.packages.get(*package_id);
                 let package = package.read();
                 package
-                    .dsconfig
+                    .config
                     .as_ref()
                     .map(|c| (c.file_id, Span::empty(c.file_id)))
                     .or_else(|| {

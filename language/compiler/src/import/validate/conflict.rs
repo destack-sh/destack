@@ -158,7 +158,7 @@ impl Compiler {
         // destack modes read the configurable local redeclaration policy
         let policy = self
             .program
-            .with_dsconfig_options(module, |opts| opts.compiler.no_redeclared_locals)
+            .with_config_options(module, |opts| opts.compiler.no_redeclared_locals)
             .unwrap_or(DiagnosticPolicy::Allow);
 
         !policy.is_allow()
