@@ -10,7 +10,7 @@ use crate::diagnostic::RuntimeResult;
 #[cfg(any(unix, windows))]
 use crate::runtime::BindingCallContext;
 #[cfg(any(unix, windows))]
-use crate::runtime::process::service::CachedServiceHandle;
+use crate::runtime::process::service::ServiceHandle;
 
 #[cfg(unix)]
 use super::host::{
@@ -27,16 +27,16 @@ use super::host::{
 pub(crate) struct PlatformInputState {
     /// Shared unix input-monitor service handle for this agent.
     #[cfg(unix)]
-    unix_input_monitor_service: CachedServiceHandle<UnixInputMonitorService>,
+    unix_input_monitor_service: ServiceHandle<UnixInputMonitorService>,
     /// Agent-owned unix input-monitor state.
     #[cfg(unix)]
     unix_input_monitor_runtime_state: OnceLock<Arc<UnixInputMonitorRuntimeState>>,
     /// Shared windows raw-input service handle for this agent.
     #[cfg(windows)]
-    windows_raw_input_service: CachedServiceHandle<WindowsRawInputService>,
+    windows_raw_input_service: ServiceHandle<WindowsRawInputService>,
     /// Shared windows xinput packet service handle for this agent.
     #[cfg(windows)]
-    windows_xinput_service: CachedServiceHandle<WindowsXInputService>,
+    windows_xinput_service: ServiceHandle<WindowsXInputService>,
     /// Agent-owned windows raw-input state.
     #[cfg(windows)]
     windows_raw_input_runtime_state: OnceLock<Arc<WindowsRawInputRuntimeState>>,
