@@ -25,3 +25,4 @@ pub(crate) use rawhid::*;
 pub(crate) use sensor::*;
 pub(crate) use text::*;
 pub(crate) use touch::*;
+pub(crate) use xinput::{WindowsXInputService, windows_xinput_service};
