@@ -1,20 +1,12 @@
-mod alias;
-mod context;
-mod dsconfig;
 mod error;
-mod file;
-mod load;
+mod frame;
 mod options;
-mod package;
-mod require;
-mod resolution;
+mod pipeline;
 mod resolve;
 mod resolver;
-mod tsconfig;
-mod workspace;
 
-pub use context::*;
 pub use error::*;
+pub(crate) use frame::*;
 pub use options::*;
-pub use resolution::*;
+pub use resolve::{ResolveOrigin, ResolveTrace};
 pub use resolver::*;

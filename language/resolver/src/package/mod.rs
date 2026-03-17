@@ -1,4 +1,5 @@
+mod entry;
 mod exports;
 mod manifest;
-mod modules;
+mod search;
 mod specifier;

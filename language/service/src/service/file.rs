@@ -114,7 +114,7 @@ impl LanguageService {
 
         // reload workspace level dsconfig
         let workspace_root = self.session.workspace_root();
-        match resolver.load_dsconfig(&workspace_root, CachePolicy::Reload) {
+        match resolver.read_dsconfig(&workspace_root, CachePolicy::Reload) {
             Ok(dsconfig) => {
                 self.session.update_workspace_config(Some(dsconfig));
             }
@@ -140,7 +140,7 @@ impl LanguageService {
                 continue;
             };
 
-            let next_dsconfig = match resolver.load_dsconfig(&package_path, CachePolicy::Reload) {
+            let next_dsconfig = match resolver.read_dsconfig(&package_path, CachePolicy::Reload) {
                 Ok(dsconfig) => Some(dsconfig),
                 Err(ResolveError::DsConfigNotFound { .. }) => None,
                 Err(error) => {
@@ -195,7 +195,19 @@ impl LanguageService {
             let Some(path) = module.path.as_ref() else {
                 continue;
             };
-            let next_tsconfig = resolver.find_tsconfig(path);
+            let next_tsconfig = match resolver.find_tsconfig_for_file(path) {
+                Ok(tsconfig_id) => tsconfig_id,
+                Err(error) => {
+                    messages.push(warning_message(
+                        "config_reload_tsconfig_failed",
+                        &format!(
+                            "config: failed to refresh tsconfig {}: {error}",
+                            path.display()
+                        ),
+                    ));
+                    continue;
+                }
+            };
             if module.tsconfig_id != next_tsconfig {
                 module_updates.push((module.id, next_tsconfig));
             }

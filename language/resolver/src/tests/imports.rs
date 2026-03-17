@@ -4,7 +4,7 @@ use destack_source::{MemoryFileSystem, PathExt};
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::{ResolveError, ResolveOptions, Resolver};
+use crate::{Resolution, ResolveError, ResolveOptions, Resolver};
 
 /// Test simple imports field resolution.
 #[test]
@@ -32,7 +32,9 @@ fn test_imports_field_simple() {
     ];
 
     for (comment, path, request, expected) in pass {
-        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
+        let resolved_path = resolver
+            .resolve_from_directory(&path, request)
+            .map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
 
@@ -47,7 +49,7 @@ fn test_imports_field_simple() {
     ];
 
     for (comment, path, request, error) in fail {
-        let resolution = resolver.resolve(&path, request);
+        let resolution = resolver.resolve_from_directory(&path, request);
         assert_eq!(resolution, Err(error), "{comment} {path:?} {request}");
     }
 }
@@ -63,7 +65,7 @@ fn test_imports_field_disabled_returns_not_found() {
         ..ResolveOptions::default()
     });
 
-    let resolution = resolver.resolve(&f, "#imports-field");
+    let resolution = resolver.resolve_from_directory(&f, "#imports-field");
     assert_eq!(
         resolution,
         Err(ResolveError::NotFound {
@@ -892,7 +894,7 @@ fn test_imports_field_cases() {
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>(),
-            &mut crate::ResolveContext::default(),
+            &mut crate::ResolveFrame::default(),
         );
         if let Some(expect) = case.expect {
             if expect.is_empty() {
@@ -906,7 +908,7 @@ fn test_imports_field_cases() {
                 for expect in expect {
                     assert_eq!(
                         resolved_path,
-                        Ok(Some(Path::new(expect).normalize())),
+                        Ok(Some(Resolution::path_only(Path::new(expect).normalize()))),
                         "{}",
                         &case.name
                     );

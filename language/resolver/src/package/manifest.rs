@@ -3,20 +3,20 @@ use std::path::Path;
 use destack_source::{File, FileType, PackageId, PackageVersion, Uri};
 use destack_workspace::{Package, PackageKind, PackageManifest};
 
-use crate::{CachePolicy, ResolveContext, ResolveError, Resolver};
+use crate::{CachePolicy, ResolveError, ResolveFrame, Resolver};
 
 #[allow(clippy::too_many_arguments)]
 impl Resolver {
-    pub(crate) fn load_package(
+    /// Read one package manifest from a directory.
+    pub(crate) fn read_package_manifest(
         &self,
         path: &Path,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolveFrame,
         cache_policy: CachePolicy,
     ) -> Result<Option<PackageId>, ResolveError> {
-        tracing::trace!(?path, "resolver.load.package");
         let package_json_path = path.join("package.json");
 
-        // check if already in registry (indexed by directory path, not package.json path)
+        // reuse the cached package entry when possible
         if let Some(package_id) = self.packages.get_id_by_path(path)
             && cache_policy.use_cache()
         {
@@ -28,7 +28,7 @@ impl Resolver {
             return Ok(Some(package_id));
         }
 
-        // read file
+        // read the manifest file
         let bytes = match self.read_path(&package_json_path) {
             Ok(bytes) => bytes,
             Err(_) => {
@@ -37,7 +37,7 @@ impl Resolver {
             }
         };
 
-        // create package file
+        // materialize the manifest as a tracked file entry
         let file_id = self
             .files
             .get_id_by_path(&package_json_path)
@@ -61,14 +61,14 @@ impl Resolver {
         }
         let file = self.files.get(file_id);
 
-        // keep package manifest realpath aligned with symlink canonicalization
+        // align manifest realpaths with path canonicalization
         let package_json_realpath = if self.options.canonicalize_symlinks {
             self.canonicalize(path)?.join("package.json")
         } else {
             package_json_path.clone()
         };
 
-        // parse `package.json` from file
+        // parse the package manifest
         let package_config =
             PackageManifest::parse(&file, package_json_realpath).map_err(|_| {
                 ResolveError::InvalidPackageJson {
@@ -76,14 +76,7 @@ impl Resolver {
                 }
             })?;
 
-        // load dsconfig.json if it exists (optional), but fail loudly for invalid content
-        let dsconfig = match self.load_package_dsconfig(&package_config, cache_policy) {
-            Ok(dsconfig) => Some(dsconfig),
-            Err(ResolveError::DsConfigNotFound { .. }) => None,
-            Err(error) => return Err(error),
-        };
-
-        // insert or update package
+        // insert or refresh the package registry entry
         let package_id = PackageId::from_path(&package_config.directory);
         if let Some(package_id) = self.packages.get_id_by_path(path) {
             let package = self.packages.get(package_id);
@@ -93,7 +86,6 @@ impl Resolver {
             package.name = package_config.content.name.clone();
             package.version = package_config.content.version.clone();
             package.manifest = Some(package_config);
-            package.dsconfig = dsconfig;
         } else {
             let package = Package {
                 id: package_id,
@@ -104,7 +96,7 @@ impl Resolver {
                 name: package_config.content.name.clone(),
                 version: package_config.content.version.clone(),
                 manifest: Some(package_config),
-                dsconfig,
+                dsconfig: None,
                 tsconfig: None,
                 targets: Default::default(),
             };
@@ -116,33 +108,51 @@ impl Resolver {
     }
 
     /// Find the nearest package.json by traversing parent directories.
-    #[tracing::instrument(name = "resolver.package.find", level = "trace", skip(self, ctx))]
-    pub(crate) fn find_package_json(
+    pub(crate) fn find_nearest_package_scope(
         &self,
         path: &Path,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolveFrame,
     ) -> Result<Option<PackageId>, ResolveError> {
-        tracing::trace!(?path, "resolver.package.find");
+        if let Some(package_id) = self.cached_package_scope(path) {
+            return Ok(package_id);
+        }
+
+        // start from the querying path, but lift to a directory if needed
+        let lookup_path = path.to_path_buf();
+        let mut visited_paths = vec![lookup_path.clone()];
         let mut current = path.to_path_buf();
 
-        // go up directories when the querying path is not a directory
         while !self.is_directory(&current, ctx) {
             if let Some(parent) = current.parent() {
                 current = parent.to_path_buf();
+                visited_paths.push(current.clone());
             } else {
                 break;
             }
         }
 
-        // traverse parents looking for package.json
+        // walk parents until a package manifest is found
         let mut current = Some(current);
         while let Some(dir) = current {
-            if let Some(package_id) = self.load_package(&dir, ctx, CachePolicy::UseCache)? {
+            if !visited_paths.contains(&dir) {
+                visited_paths.push(dir.clone());
+            }
+
+            if let Some(package_id) =
+                self.read_package_manifest(&dir, ctx, CachePolicy::UseCache)?
+            {
+                for visited_path in visited_paths {
+                    self.cache_package_scope(&visited_path, Some(package_id));
+                }
                 return Ok(Some(package_id));
             }
             current = dir.parent().map(|p| p.to_path_buf());
         }
 
+        // cache the miss for every visited path
+        for visited_path in visited_paths {
+            self.cache_package_scope(&visited_path, None);
+        }
         Ok(None)
     }
 }

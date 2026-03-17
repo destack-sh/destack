@@ -284,7 +284,7 @@ impl LanguageService {
                     .and_then(|name| name.to_str())
                     .is_some_and(|name| name == "dsconfig.json")
                 {
-                    let _ = resolver.load_dsconfig(path, CachePolicy::Reload);
+                    let _ = resolver.read_dsconfig(path, CachePolicy::Reload);
                 } else {
                     let _ = resolver.reload_tsconfig(path);
                 }

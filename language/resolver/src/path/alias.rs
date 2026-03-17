@@ -1,15 +1,108 @@
 use std::borrow::Cow;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use destack_source::{PathExt, SLASH_START};
 use destack_workspace::PackageManifest;
 
-use crate::{Alias, AliasValue, ResolveContext, ResolveError, Resolver};
+use crate::{
+    Alias, AliasValue, Resolution, ResolveError, ResolveFrame, ResolveOrigin, ResolveRequest,
+    Resolver,
+};
+
+/// One compiled alias table.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct CompiledAliasTable {
+    /// The compiled alias entries in matching order.
+    entries: Vec<CompiledAliasEntry>,
+}
+
+/// One compiled alias entry.
+#[derive(Debug, Clone)]
+pub(crate) struct CompiledAliasEntry {
+    /// The parsed alias pattern.
+    pattern: CompiledAliasPattern,
+    /// The configured alias values in matching order.
+    values: Vec<AliasValue>,
+}
+
+/// One parsed alias matching pattern.
+#[derive(Debug, Clone)]
+enum CompiledAliasPattern {
+    /// One exact alias key that previously ended with `$`.
+    Exact { key: String },
+    /// One wildcard alias containing exactly one `*`.
+    Wildcard {
+        /// The original alias key.
+        key: String,
+        /// The literal prefix before the wildcard.
+        prefix: String,
+        /// The literal suffix after the wildcard.
+        suffix: String,
+    },
+    /// One package style prefix alias.
+    Prefix { key: String },
+}
+
+impl CompiledAliasTable {
+    /// Compile one alias table into match ready entries.
+    pub(crate) fn from_aliases(aliases: &Alias) -> Self {
+        let entries = aliases
+            .iter()
+            .map(|(alias_key_raw, values)| {
+                let pattern = if let Some(key) = alias_key_raw.strip_suffix('$') {
+                    CompiledAliasPattern::Exact {
+                        key: key.to_string(),
+                    }
+                } else if let Some((prefix, suffix)) = alias_key_raw.split_once('*') {
+                    CompiledAliasPattern::Wildcard {
+                        key: alias_key_raw.clone(),
+                        prefix: prefix.to_string(),
+                        suffix: suffix.to_string(),
+                    }
+                } else {
+                    CompiledAliasPattern::Prefix {
+                        key: alias_key_raw.clone(),
+                    }
+                };
+
+                CompiledAliasEntry {
+                    pattern,
+                    values: values.clone(),
+                }
+            })
+            .collect();
+
+        Self { entries }
+    }
+
+    /// Return the compiled alias entries in matching order.
+    fn entries(&self) -> &[CompiledAliasEntry] {
+        &self.entries
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 impl Resolver {
+    /// Run one recursive rewrite while restoring rewrite state afterward.
+    fn with_rewrite_scope<T>(
+        &self,
+        active_rewrite: Option<String>,
+        ctx: &mut ResolveFrame,
+        callback: impl FnOnce(&mut ResolveFrame) -> Result<T, ResolveError>,
+    ) -> Result<T, ResolveError> {
+        let previous_active_rewrite = std::mem::replace(&mut ctx.active_rewrite, active_rewrite);
+        let previous_is_fully_specified = ctx.is_fully_specified;
+        ctx.is_fully_specified = false;
+
+        let result = callback(ctx);
+
+        ctx.active_rewrite = previous_active_rewrite;
+        ctx.is_fully_specified = previous_is_fully_specified;
+        result
+    }
+
     /// Resolve the browser field value for a path or request.
-    pub(crate) fn resolve_browser_field<'a>(
+    pub(crate) fn browser_field_rewrite<'a>(
         &self,
         package_config: &'a PackageManifest,
         path: &Path,
@@ -24,7 +117,7 @@ impl Resolver {
             return Ok(None);
         };
 
-        // find matching key in object by request string
+        // match by the raw request string first
         if let Some(request) = request {
             if let Some(value) = object.get(request) {
                 return match value {
@@ -36,7 +129,7 @@ impl Resolver {
                 };
             }
         }
-        // find matching key by resolved path
+        // otherwise match by the resolved path
         else {
             let directory = package_config.path.parent().unwrap_or_else(|| {
                 panic!(
@@ -62,32 +155,36 @@ impl Resolver {
     }
 
     /// Resolve via browser field substitution.
-    pub(crate) fn load_browser_field(
+    pub(crate) fn rewrite_browser_field(
         &self,
         path: &Path,
         module_specifier: Option<&str>,
         package_config: &PackageManifest,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PathBuf>, ResolveError> {
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
         if ctx.is_fully_specified {
             return Ok(None);
         }
 
-        // bail if there is no new browser specifier
+        // return early when there is no browser rewrite
         let Some(new_specifier) =
-            self.resolve_browser_field(package_config, path, module_specifier)?
+            self.browser_field_rewrite(package_config, path, module_specifier)?
         else {
             return Ok(None);
         };
 
-        // abort when resolving recursive module
+        // ignore trivial self rewrites
         if module_specifier.is_some_and(|s| s == new_specifier) {
             return Ok(None);
         }
 
-        // check for recursive alias resolution
-        if ctx.alias.as_ref().is_some_and(|s| s == new_specifier) {
-            // complete when resolving to self `{"./a.js": "./a.js"}`
+        // reject recursive rewrite loops
+        if ctx
+            .active_rewrite
+            .as_ref()
+            .is_some_and(|s| s == new_specifier)
+        {
+            // allow self rewrites like `{"./a.js": "./a.js"}`
             if new_specifier
                 .strip_prefix("./")
                 .filter(|s| path.ends_with(Path::new(s)))
@@ -95,7 +192,7 @@ impl Resolver {
             {
                 return if self.is_file(path, ctx) {
                     if self.check_restrictions(path) {
-                        Ok(Some(path.to_path_buf()))
+                        Ok(Some(Resolution::path_only(path.to_path_buf())))
                     } else {
                         Ok(None)
                     }
@@ -108,53 +205,106 @@ impl Resolver {
             return Err(ResolveError::RecursiveDependency { depth: ctx.depth });
         }
 
-        // resolve alias
-        ctx.alias = Some(new_specifier.to_string());
-        ctx.is_fully_specified = false;
         let package_url = package_config.path.parent().unwrap().to_path_buf();
-        self.require(&package_url, new_specifier, ctx).map(Some)
+        let request = ResolveRequest::parse(new_specifier);
+        self.with_rewrite_scope(Some(new_specifier.to_string()), ctx, |ctx| {
+            self.resolve_request(
+                ResolveOrigin::Directory,
+                &package_url,
+                &package_url,
+                &request,
+                ctx,
+            )
+        })
+        .map(Some)
     }
 
-    /// Resolve aliases and fallbacks from options.
-    pub(crate) fn load_alias(
+    /// Resolve aliases from the primary alias table.
+    pub(crate) fn rewrite_primary_alias(
         &self,
-        path: &Path,
+        origin: ResolveOrigin,
+        request_directory: &Path,
+        lookup_path: &Path,
         specifier: &str,
-        aliases: &Alias,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PathBuf>, ResolveError> {
-        for (alias_key_raw, specifiers) in aliases {
-            let mut alias_key_has_wildcard = false;
-            let alias_key = {
-                // exact match (key ends with `$`)
-                if let Some(alias_key) = alias_key_raw.strip_suffix('$') {
-                    if alias_key != specifier {
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        self.rewrite_alias(
+            origin,
+            request_directory,
+            lookup_path,
+            specifier,
+            &self.compiled_alias,
+            ctx,
+        )
+    }
+
+    /// Resolve aliases from the fallback alias table.
+    pub(crate) fn rewrite_fallback_alias(
+        &self,
+        origin: ResolveOrigin,
+        request_directory: &Path,
+        lookup_path: &Path,
+        specifier: &str,
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        self.rewrite_alias(
+            origin,
+            request_directory,
+            lookup_path,
+            specifier,
+            &self.compiled_fallback,
+            ctx,
+        )
+    }
+
+    /// Resolve one compiled alias table.
+    fn rewrite_alias(
+        &self,
+        origin: ResolveOrigin,
+        request_directory: &Path,
+        lookup_path: &Path,
+        specifier: &str,
+        aliases: &CompiledAliasTable,
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        for alias in aliases.entries() {
+            let (alias_key, alias_key_has_wildcard) = match &alias.pattern {
+                CompiledAliasPattern::Exact { key } => {
+                    if key != specifier {
                         continue;
                     }
-                    alias_key
+                    (key.as_str(), false)
                 }
-                // wildcard pattern match (key contains `*`)
-                else if alias_key_raw.contains('*') {
-                    alias_key_has_wildcard = true;
-                    alias_key_raw
-                }
-                // directory pattern match
-                else {
-                    let strip_package_name = Self::strip_package_name(specifier, alias_key_raw);
-                    if strip_package_name.is_none() {
+                CompiledAliasPattern::Wildcard {
+                    key,
+                    prefix,
+                    suffix,
+                } => {
+                    if !specifier.starts_with(prefix)
+                        || !specifier.ends_with(suffix)
+                        || specifier.len() < prefix.len() + suffix.len()
+                    {
                         continue;
                     }
-                    alias_key_raw
+                    (key.as_str(), true)
+                }
+                CompiledAliasPattern::Prefix { key } => {
+                    if Self::strip_package_name(specifier, key).is_none() {
+                        continue;
+                    }
+                    (key.as_str(), false)
                 }
             };
 
-            // stop resolving when all tried alias values fail
+            // stop once every matched alias value failed
             let mut should_stop = false;
-            for alias_value in specifiers {
+            for alias_value in &alias.values {
                 match alias_value {
                     AliasValue::Path(alias_path) => {
-                        if let Some(resolved) = self.load_alias_value(
-                            path,
+                        if let Some(resolved) = self.rewrite_alias_value(
+                            origin,
+                            request_directory,
+                            lookup_path,
                             alias_key,
                             alias_key_has_wildcard,
                             alias_path,
@@ -166,7 +316,7 @@ impl Resolver {
                         }
                     }
                     AliasValue::Ignore => {
-                        let ignored_path = path.normalize_with(alias_key);
+                        let ignored_path = request_directory.normalize_with(alias_key);
                         return Err(ResolveError::Ignored { path: ignored_path });
                     }
                 }
@@ -182,17 +332,19 @@ impl Resolver {
     }
 
     /// Resolve an alias value by substituting the matched portion.
-    fn load_alias_value(
+    fn rewrite_alias_value(
         &self,
-        path: &Path,
+        origin: ResolveOrigin,
+        request_directory: &Path,
+        lookup_path: &Path,
         alias_key: &str,
         alias_key_has_wildcard: bool,
         alias_value: &str,
         request: &str,
-        ctx: &mut ResolveContext,
+        ctx: &mut ResolveFrame,
         should_stop: &mut bool,
-    ) -> Result<Option<PathBuf>, ResolveError> {
-        // skip if request matches alias_value exactly or is a subpath of it
+    ) -> Result<Option<Resolution>, ResolveError> {
+        // skip exact self aliases and direct subpaths
         if request == alias_value
             || request
                 .strip_prefix(alias_value)
@@ -201,9 +353,9 @@ impl Resolver {
             return Ok(None);
         }
 
-        // build the new specifier by substituting the alias
+        // build the substituted specifier
         let new_specifier = if alias_key_has_wildcard {
-            // wildcard alias: `@/*` -> `./src/*`
+            // extract the wildcard match
             let Some(matched) = alias_key.split_once('*').and_then(|(prefix, suffix)| {
                 request
                     .strip_prefix(prefix)
@@ -212,25 +364,25 @@ impl Resolver {
                 return Ok(None);
             };
 
-            // substitute wildcard in alias value if present
+            // substitute the wildcard into the alias value
             if alias_value.contains('*') {
                 Cow::Owned(alias_value.replacen('*', matched, 1))
             } else {
                 Cow::Borrowed(alias_value)
             }
         }
-        // non-wildcard alias: concatenate tail
+        // append the unmatched tail for prefix aliases
         else {
             let tail = &request[alias_key.len()..];
             if tail.is_empty() {
                 Cow::Borrowed(alias_value)
             } else {
                 let alias_path = Path::new(alias_value).normalize();
-                // don't append tail if alias_value is already a file
+                // keep explicit file aliases untouched
                 if self.is_file(&alias_path, ctx) {
                     return Ok(None);
                 }
-                // strip leading slash and normalize
+                // normalize the unmatched tail
                 let tail = tail.trim_start_matches(SLASH_START);
                 if tail.is_empty() {
                     Cow::Borrowed(alias_value)
@@ -243,8 +395,12 @@ impl Resolver {
 
         // resolve the substituted specifier
         *should_stop = true;
-        ctx.is_fully_specified = false;
-        match self.require(path, new_specifier.as_ref(), ctx) {
+        let request = ResolveRequest::parse(new_specifier.as_ref());
+        let resolution = self.with_rewrite_scope(None, ctx, |ctx| {
+            self.resolve_request(origin, request_directory, lookup_path, &request, ctx)
+        });
+
+        match resolution {
             Ok(resolved) => Ok(Some(resolved)),
             Err(error) if error.is_alternative_candidate_miss() => Ok(None),
             Err(error) => Err(error),
@@ -252,12 +408,12 @@ impl Resolver {
     }
 
     /// Resolve via extension alias (e.g., mapping `.js` to `.ts`).
-    pub(crate) fn load_with_extension_alias(
+    pub(crate) fn rewrite_extension_alias(
         &self,
         path: &Path,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PathBuf>, ResolveError> {
-        // no extension alias configured or found
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        // return early when no extension alias applies
         if self.options.extension_alias.is_empty() {
             return Ok(None);
         }
@@ -271,7 +427,7 @@ impl Resolver {
             return Ok(None);
         };
 
-        // get the extension alias mapping
+        // find the extension alias mapping
         let extension_key = format!(".{path_extension_str}");
         let Some(extensions) = self.options.extension_alias.get(&extension_key) else {
             return Ok(None);
@@ -279,22 +435,22 @@ impl Resolver {
 
         ctx.is_fully_specified = true;
         for extension in extensions {
-            // extension has leading dot (e.g., ".ts"), but with_extension needs without dot
+            // strip the leading dot for `with_extension`
             let extension = extension.strip_prefix('.').unwrap_or(extension);
             let path_with_ext = path.with_extension(extension);
-            if let Some(resolved) = self.load_alias_or_file(&path_with_ext, ctx)? {
+            if let Some(resolved) = self.probe_alias_or_file(&path_with_ext, ctx)? {
                 ctx.is_fully_specified = false;
                 return Ok(Some(resolved));
             }
         }
 
-        // bail if path is module directory (like `ipaddr.js`)
+        // return quietly for unresolved module directory lookups like `ipaddr.js`
         if !self.is_file(path, ctx) || !self.check_restrictions(path) {
             ctx.is_fully_specified = false;
             return Ok(None);
         }
 
-        // error: couldn't resolve any extension alias
+        // report the failed alias candidates
         ctx.is_fully_specified = false;
         let dir = path.parent().unwrap().to_path_buf();
         let filename_without_extension = Path::new(file_name).with_extension("");

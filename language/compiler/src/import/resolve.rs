@@ -101,8 +101,10 @@ impl Compiler {
         }
 
         // resolve non-builtin imports
+        let source_path = self.get_resolve_origin_path(source_module);
         let directory = self.get_resolve_directory(source_module);
         let (path, resolver) = self.resolve_specifier_to_path(
+            source_path.as_deref(),
             &directory,
             specifier,
             &specifier_str,
@@ -159,6 +161,7 @@ impl Compiler {
     /// Resolve a specifier to a path using dependency-aware rules.
     fn resolve_specifier_to_path(
         &self,
+        source_path: Option<&Path>,
         directory: &Path,
         specifier_id: StringId,
         specifier_str: &str,
@@ -168,7 +171,10 @@ impl Compiler {
         edge_kind: ImportEdgeKind,
     ) -> ImportResult<(PathBuf, Resolver)> {
         let resolver = self.resolver_for_kind(kind, source_module, source_language_type, edge_kind);
-        let resolution = resolver.resolve(directory, specifier_str);
+        let resolution = match source_path {
+            Some(source_path) => resolver.resolve_from_file(source_path, specifier_str),
+            None => resolver.resolve_from_directory(directory, specifier_str),
+        };
         if let Ok(resolution) = resolution {
             return Ok((resolution.path, resolver));
         }
@@ -478,7 +484,7 @@ impl Compiler {
         }
 
         // find or create package (needed to compute ModuleId)
-        let (package_id, package_root) = self.resolve_or_create_package_for_path(path, resolver);
+        let (package_id, package_root) = self.resolve_or_create_package_for_path(path, resolver)?;
 
         // compute ModuleId with loader key
         let module_id =
@@ -503,7 +509,13 @@ impl Compiler {
         self.program.files.insert(file);
 
         // find tsconfig (if any)
-        let tsconfig_id = resolver.find_tsconfig(path);
+        let tsconfig_id =
+            resolver
+                .find_tsconfig_for_file(path)
+                .map_err(|error| ImportError::ModuleNotFound {
+                    target: self.program.strings.intern(uri.as_ref()),
+                    error: Some(error),
+                })?;
 
         // create and register blank module
         let language_type = LanguageType::from(ty);
@@ -748,17 +760,38 @@ impl Compiler {
         }
     }
 
+    /// Get the origin file path to resolve from for a source module.
+    pub(super) fn get_resolve_origin_path(
+        &self,
+        source_module: Option<ModuleId>,
+    ) -> Option<PathBuf> {
+        let module_id = source_module?;
+        let module = self.program.modules.get(module_id);
+        let module_file = self.program.files.get(module.read().file_id);
+        module_file
+            .path
+            .clone()
+            .or_else(|| module_file.uri.to_path_buf())
+    }
+
     /// Resolve or create a package for a file path.
     pub(super) fn resolve_or_create_package_for_path(
         &self,
         path: &Path,
         resolver: &Resolver,
-    ) -> (PackageId, Option<PathBuf>) {
+    ) -> ImportResult<(PackageId, Option<PathBuf>)> {
         // try to find a physical package (package.json)
-        if let Some(package_id) = resolver.find_package(path) {
+        if let Some(package_id) =
+            resolver
+                .find_package(path)
+                .map_err(|error| ImportError::ModuleNotFound {
+                    target: self.program.strings.intern(path.to_string_lossy().as_ref()),
+                    error: Some(error),
+                })?
+        {
             let package = self.program.packages.get(package_id);
             let package_root = package.read().path.clone();
-            return (package_id, package_root);
+            return Ok((package_id, package_root));
         }
 
         // create synthetic package for file's directory
@@ -767,7 +800,7 @@ impl Compiler {
 
         // check if synthetic package already exists
         if self.program.packages.contains(package_id) {
-            return (package_id, Some(directory.to_path_buf()));
+            return Ok((package_id, Some(directory.to_path_buf())));
         }
 
         // load dsconfig.json for synthetic packages when present
@@ -801,7 +834,7 @@ impl Compiler {
                 current = parent.to_path_buf();
             }
 
-            dsconfig_path.and_then(|path| resolver.load_dsconfig(&path, CachePolicy::UseCache).ok())
+            dsconfig_path.and_then(|path| resolver.read_dsconfig(&path, CachePolicy::UseCache).ok())
         };
 
         // create and insert synthetic package
@@ -821,7 +854,7 @@ impl Compiler {
         };
         self.program.packages.insert(package);
 
-        (package_id, Some(directory.to_path_buf()))
+        Ok((package_id, Some(directory.to_path_buf())))
     }
 
     /// Build a synthetic package name from a directory.

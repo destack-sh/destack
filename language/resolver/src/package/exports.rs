@@ -1,105 +1,143 @@
 use std::borrow::Cow;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Component, Path};
 
 use destack_source::PathExt;
-use destack_workspace::{ModuleSpecifier, PackageManifest};
+use destack_workspace::PackageManifest;
 
-use crate::{CachePolicy, ResolveContext, ResolveError, Resolver};
-
-fn is_path_invalid_exports_target(path: &Path) -> bool {
-    path.components().enumerate().any(|(index, c)| match c {
-        Component::ParentDir => true,
-        Component::CurDir => index > 0,
-        Component::Normal(c) => c.eq_ignore_ascii_case("node_modules"),
-        _ => false,
-    })
-}
+use crate::{CachePolicy, Resolution, ResolveError, ResolveFrame, ResolveRequest, Resolver};
 
 #[allow(clippy::too_many_arguments)]
 impl Resolver {
-    pub(crate) fn load_package_imports(
+    /// Return true when one exports target path is invalid.
+    fn is_path_invalid_exports_target(path: &Path) -> bool {
+        path.components().enumerate().any(|(index, c)| match c {
+            Component::ParentDir => true,
+            Component::CurDir => index > 0,
+            Component::Normal(c) => c.eq_ignore_ascii_case("node_modules"),
+            _ => false,
+        })
+    }
+
+    /// Normalize one string target by substituting the matched export pattern.
+    fn normalize_string_target<'a>(
+        target_key: &'a str,
+        target: &'a str,
+        pattern_match: Option<&'a str>,
+        package_url: &Path,
+    ) -> Result<Cow<'a, str>, ResolveError> {
+        if let Some(pattern_match) = pattern_match {
+            if !target_key.contains('*') && !target.contains('*') {
+                // enhanced resolve supports trailing slash patterns here
+                if target_key.ends_with('/') && target.ends_with('/') {
+                    Ok(Cow::Owned(format!("{target}{pattern_match}")))
+                } else {
+                    Err(ResolveError::InvalidPackageConfigDirectory {
+                        path: package_url.join("package.json"),
+                    })
+                }
+            } else {
+                Ok(Cow::Owned(target.replace('*', pattern_match)))
+            }
+        } else {
+            Ok(Cow::Borrowed(target))
+        }
+    }
+
+    /// Probe one package target and reattach any target query or fragment overrides.
+    pub(crate) fn finalize_package_target(
+        &self,
+        specifier: &str,
+        target: Resolution,
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        let Resolution {
+            path,
+            query,
+            fragment,
+        } = target;
+
+        let probed = self.probe_esm_target(specifier, &path, ctx)?;
+        Ok(probed.map(|resolved| resolved.override_parts(query, fragment)))
+    }
+
+    /// Resolve one package import request through `package.json#imports`.
+    pub(crate) fn rewrite_package_import(
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PathBuf>, ResolveError> {
-        tracing::trace!(?path, ?specifier, "resolver.load.package.imports");
-
-        // skip package imports mapping when disabled
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        // return early when package imports are disabled
         if !self.options.resolve_package_json_imports {
             return Ok(None);
         }
 
-        // find the closest package scope to the directory
-        let Some(package_id) = self.find_package_json(path, ctx)? else {
+        // find the closest package scope
+        let Some(package_id) = self.find_nearest_package_scope(path, ctx)? else {
             return Ok(None);
         };
         let package = self.packages.get(package_id);
         let package = package.read();
 
-        // check if the package has imports
+        // resolve package imports when present
         if let Some(ref config) = package.manifest
             && let Some(resolved) = self.package_imports_resolve(specifier, config, ctx)?
         {
-            return self.resolve_esm_match(specifier, &resolved, ctx);
+            return self.finalize_package_target(specifier, resolved, ctx);
         }
         Ok(None)
     }
 
-    /// Search node_modules directories walking up from the given path.
-    #[tracing::instrument(name = "resolver.load.modules", level = "trace", skip(self, ctx))]
-    pub(crate) fn load_package_exports(
+    /// Resolve one package `exports` match from a specific package directory.
+    pub(crate) fn resolve_package_exports(
         &self,
         specifier: &str,
         subpath: &str,
         path: &Path,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PathBuf>, ResolveError> {
-        tracing::trace!(?specifier, ?subpath, ?path, "resolver.load.package.exports");
-        // check if package.json exists
-        let Some(package_id) = self.load_package(path, ctx, CachePolicy::UseCache)? else {
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        // load the package manifest
+        let Some(package_id) = self.read_package_manifest(path, ctx, CachePolicy::UseCache)? else {
             return Ok(None);
         };
         let package = self.packages.get(package_id);
         let package = package.read();
 
-        // resolve exports
+        // resolve package exports when present
         if let Some(ref config) = package.manifest
             && let Some(exports) = config.content.exports.as_ref()
             && let Some(resolved) =
                 self.package_exports_resolve(path, &format!(".{subpath}"), exports, ctx)?
         {
-            return self.resolve_esm_match(specifier, &resolved, ctx);
+            return self.finalize_package_target(specifier, resolved, ctx);
         }
 
         Ok(None)
     }
 
-    /// Try to resolve a self-reference (package importing itself).
-    #[tracing::instrument(name = "resolver.load.package.self", level = "trace", skip(self, ctx))]
-    pub(crate) fn load_package_self(
+    /// Try to resolve a self reference.
+    pub(crate) fn rewrite_package_self_reference(
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PathBuf>, ResolveError> {
-        tracing::trace!(?specifier, ?path, "resolver.load.package.self");
-        // find the closest package scope to the directory
-        let Some(package_id) = self.find_package_json(path, ctx)? else {
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        // find the closest package scope
+        let Some(package_id) = self.find_nearest_package_scope(path, ctx)? else {
             return Ok(None);
         };
         let package = self.packages.get(package_id);
         let package = package.read();
 
-        // check if the package has config
+        // return early when the package has no manifest
         let Some(ref config) = package.manifest else {
             return Ok(None);
         };
 
-        // prefer package scope browser field when self package matches
+        // prefer the package scope browser field when the self package matches
         let mut browser_field_path = path.to_path_buf();
 
-        // check if the package name matches the specifier (self-reference)
+        // resolve package self references by package name
         if let Some(subpath) = config
             .content
             .name
@@ -127,10 +165,10 @@ impl Resolver {
                     ctx,
                 )?
             {
-                return self.resolve_esm_match(specifier, &resolved, ctx);
+                return self.finalize_package_target(specifier, resolved, ctx);
             }
 
-            // resolve types entry for type conditions
+            // resolve the package types entry for type conditions
             if (subpath.is_empty() || subpath == ".")
                 && self
                     .options
@@ -141,26 +179,26 @@ impl Resolver {
             {
                 let types_path = package_url.normalize_with(types_field);
                 if self.is_file(&types_path, ctx) && self.check_restrictions(&types_path) {
-                    return self.resolve_esm_match(specifier, &types_path, ctx);
+                    return self.probe_esm_target(specifier, &types_path, ctx);
                 }
             }
 
             browser_field_path = package_url;
         }
 
-        // fallback to browser field
-        self.load_browser_field(&browser_field_path, Some(specifier), config, ctx)
+        // fall back to the browser field
+        self.rewrite_browser_field(&browser_field_path, Some(specifier), config, ctx)
     }
 
     /// Resolve an ESM match by loading as file or directory.
-    pub(crate) fn resolve_esm_match(
+    pub(crate) fn probe_esm_target(
         &self,
         specifier: &str,
         path: &Path,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PathBuf>, ResolveError> {
-        // non-compliant ESM can result in a directory, so directory is tried as well
-        if let Some(resolved) = self.load_file_or_directory(path, "", ctx)? {
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        // non compliant esm can still resolve to a directory
+        if let Some(resolved) = self.probe_path(path, "", ctx)? {
             Ok(Some(resolved))
         } else {
             Err(ResolveError::NotFound {
@@ -169,95 +207,15 @@ impl Resolver {
         }
     }
 
-    /// Resolve a bare package specifier by searching modules directories.
-    #[tracing::instrument(name = "resolver.package.resolve", level = "trace", skip(self, ctx))]
-    pub(crate) fn package_resolve(
+    /// Resolve a bare package specifier by searching module directories.
+    pub(crate) fn resolve_package_target(
         &self,
         path: &Path,
         specifier: &str,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PathBuf>, ResolveError> {
-        tracing::trace!(?specifier, ?path, "resolver.package.resolve");
-        let (package_name, subpath) = Self::parse_package_specifier(specifier);
-
-        // iterate over all possible modules directories
-        for module_name in &self.options.modules {
-            // walk up parent directories
-            let mut current = Some(path.to_path_buf());
-            while let Some(current_path) = current {
-                // check if the module directory exists
-                let Some(module_dir) = self.get_module_directory(&current_path, module_name, ctx)
-                else {
-                    current = current_path.parent().map(|p| p.to_path_buf());
-                    continue;
-                };
-
-                // check if the package exists in the module directory
-                let package_path = module_dir.normalize_with(package_name);
-                if self.is_directory(&package_path, ctx) {
-                    // load `package.json`
-                    if let Some(package_id) =
-                        self.load_package(&package_path, ctx, CachePolicy::UseCache)?
-                    {
-                        let package = self.packages.get(package_id);
-                        let package = package.read();
-
-                        if let Some(config) = &package.manifest {
-                            // resolve exports
-                            if let Some(exports) = config.content.exports.as_ref()
-                                && let Some(resolved) = self.package_exports_resolve(
-                                    &package_path,
-                                    &format!(".{subpath}"),
-                                    exports,
-                                    ctx,
-                                )?
-                            {
-                                return Ok(Some(resolved));
-                            }
-
-                            // resolve types entry for type conditions
-                            if (subpath.is_empty() || subpath == ".")
-                                && self
-                                    .options
-                                    .conditions
-                                    .iter()
-                                    .any(|condition| condition == "types")
-                                && let Some(types_field) = config.content.types.as_deref()
-                            {
-                                let types_path = package_path.normalize_with(types_field);
-                                if self.is_file(&types_path, ctx)
-                                    && self.check_restrictions(&types_path)
-                                {
-                                    return self.resolve_esm_match(specifier, &types_path, ctx);
-                                }
-                            }
-
-                            // resolve main entry field
-                            if (subpath.is_empty() || subpath == ".")
-                                && let Some(main_field) = config.content.main.as_deref()
-                            {
-                                let main_path = package_path.normalize_with(main_field);
-                                if self.is_file(&main_path, ctx)
-                                    && self.check_restrictions(&main_path)
-                                {
-                                    return self.resolve_esm_match(specifier, &main_path, ctx);
-                                }
-                            }
-                        }
-                    }
-
-                    // resolve subpath
-                    let subpath_spec = format!(".{subpath}");
-                    ctx.is_fully_specified = false;
-                    return self.require(&package_path, &subpath_spec, ctx).map(Some);
-                }
-                current = current_path.parent().map(|p| p.to_path_buf());
-            }
-        }
-
-        Err(ResolveError::NotFound {
-            specifier: specifier.to_string(),
-        })
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        self.resolve_package_or_modules(path, specifier, ctx)
+            .map(Some)
     }
 
     /// Resolve a subpath against a package's exports field.
@@ -266,15 +224,17 @@ impl Resolver {
         package_url: &Path,
         subpath: &str,
         exports: &serde_json::Value,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PathBuf>, ResolveError> {
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        // return early when exports resolution is disabled
         if !self.options.resolve_package_json_exports {
             return Ok(None);
         }
 
+        // capture the active conditions once for nested resolution
         let conditions = &self.options.conditions;
 
-        // validate exports (cannot mix keys starting with "." and not)
+        // validate exports key shape
         if let Some(map) = exports.as_object() {
             let mut has_dot = false;
             let mut without_dot = false;
@@ -290,7 +250,7 @@ impl Resolver {
             }
         }
 
-        // resolve root export
+        // resolve the root export
         if subpath == "." {
             let main_export = match exports {
                 serde_json::Value::String(_) | serde_json::Value::Array(_) => {
@@ -327,7 +287,7 @@ impl Resolver {
             }
         }
 
-        // resolve subpath export
+        // resolve a subpath export
         if let Some(exports) = exports.as_object()
             && let Some(resolved) =
                 self.package_match_resolve(subpath, exports, package_url, false, conditions, ctx)?
@@ -335,7 +295,7 @@ impl Resolver {
             return Ok(Some(resolved));
         }
 
-        // package path not exported
+        // report a missing package export
         Err(ResolveError::PackagePathNotExported {
             subpath: subpath.to_string(),
             package_path: package_url.to_path_buf(),
@@ -349,16 +309,16 @@ impl Resolver {
         &self,
         specifier: &str,
         package_config: &PackageManifest,
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PathBuf>, ResolveError> {
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
         debug_assert!(specifier.starts_with('#'), "{specifier}");
 
-        // bail if no imports are configured
+        // return early when imports are not configured
         let Some(imports) = package_config.content.imports.as_ref() else {
             return Ok(None);
         };
 
-        // error if specifier is invalid
+        // reject invalid `#` specifiers
         if specifier == "#" || specifier.starts_with("#/") {
             return Err(ResolveError::InvalidModuleSpecifier {
                 specifier: specifier.to_string(),
@@ -366,7 +326,7 @@ impl Resolver {
             });
         }
 
-        // resolve imports
+        // resolve the imports mapping
         if let Some(resolved) = self.package_match_resolve(
             specifier,
             imports,
@@ -392,13 +352,14 @@ impl Resolver {
         package_url: &Path,
         is_imports: bool,
         conditions: &[String],
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PathBuf>, ResolveError> {
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        // directory style requests never match here
         if match_key.ends_with('/') {
             return Ok(None);
         }
 
-        // direct match
+        // try a direct match first
         if !match_key.contains('*')
             && let Some(target) = match_obj.get(match_key)
         {
@@ -413,19 +374,19 @@ impl Resolver {
             );
         }
 
-        // find the best matching pattern key
+        // track the best matching pattern
         let mut best_target = None;
         let mut best_match = "";
         let mut best_key = "";
         for (source_key, target_key) in match_obj.iter() {
-            // ignore invalid mappings
+            // skip invalid mapping shapes
             if source_key.ends_with('*') && target_key.as_str().is_some_and(|s| !s.contains('*')) {
                 // (can't have asterisk in source key but not in target)
                 continue;
             }
 
             if source_key.starts_with("./") || source_key.starts_with('#') {
-                // wildcard pattern match
+                // check wildcard patterns
                 if let Some((pattern_base, pattern_trailer)) = source_key.split_once('*') {
                     if match_key.starts_with(pattern_base)
                         && !pattern_trailer.contains('*')
@@ -440,7 +401,7 @@ impl Resolver {
                         best_key = source_key;
                     }
                 }
-                // directory pattern match
+                // check directory patterns
                 else if source_key.ends_with('/')
                     && match_key.starts_with(source_key)
                     && Self::pattern_key_compare(best_key, source_key).is_gt()
@@ -477,48 +438,17 @@ impl Resolver {
         pattern_match: Option<&str>,
         is_imports: bool,
         conditions: &[String],
-        ctx: &mut ResolveContext,
-    ) -> Result<Option<PathBuf>, ResolveError> {
-        /// Normalize a string target by substituting pattern match.
-        fn normalize_string_target<'a>(
-            target_key: &'a str,
-            target: &'a str,
-            pattern_match: Option<&'a str>,
-            package_url: &Path,
-        ) -> Result<Cow<'a, str>, ResolveError> {
-            if let Some(pattern_match) = pattern_match {
-                if !target_key.contains('*') && !target.contains('*') {
-                    // enhanced-resolve behaviour: trailing slash patterns
-                    if target_key.ends_with('/') && target.ends_with('/') {
-                        Ok(Cow::Owned(format!("{target}{pattern_match}")))
-                    } else {
-                        Err(ResolveError::InvalidPackageConfigDirectory {
-                            path: package_url.join("package.json"),
-                        })
-                    }
-                } else {
-                    Ok(Cow::Owned(target.replace('*', pattern_match)))
-                }
-            } else {
-                Ok(Cow::Borrowed(target))
-            }
-        }
-
-        // resolve string target
+        ctx: &mut ResolveFrame,
+    ) -> Result<Option<Resolution>, ResolveError> {
+        // resolve string targets
         if let Some(target) = target.as_str() {
-            // parse target
-            let parsed = ModuleSpecifier::parse(target);
-            if let Some(query) = &parsed.query {
-                ctx.query.replace(query.to_string());
-            }
-            if let Some(fragment) = &parsed.fragment {
-                ctx.fragment.replace(fragment.to_string());
-            }
-            let target = parsed.path();
+            // parse query and fragment parts
+            let parsed = ResolveRequest::parse(target);
+            let target = parsed.path.as_str();
 
-            // target does not start with `./`
+            // handle package style targets
             if !target.starts_with("./") {
-                // error if target is invalid for exports
+                // reject invalid package targets
                 if !is_imports || target.starts_with("../") || target.starts_with('/') {
                     return Err(ResolveError::InvalidPackageTarget {
                         target: (*target).to_string(),
@@ -526,26 +456,34 @@ impl Resolver {
                         package_path: package_url.join("package.json"),
                     });
                 }
-                // normalize and resolve as package specifier
+                // resolve the target as another package request
                 let target =
-                    normalize_string_target(target_key, target, pattern_match, package_url)?;
-                return self.package_resolve(package_url, &target, ctx);
+                    Self::normalize_string_target(target_key, target, pattern_match, package_url)?;
+                let resolved = self.resolve_package_target(package_url, &target, ctx)?;
+                return Ok(resolved.map(|resolved| {
+                    resolved.override_parts(parsed.query.clone(), parsed.fragment.clone())
+                }));
             }
-            // target starts with `./`
+            // handle relative package targets
             else {
                 let target =
-                    normalize_string_target(target_key, target, pattern_match, package_url)?;
-                if is_path_invalid_exports_target(Path::new(target.as_ref())) {
+                    Self::normalize_string_target(target_key, target, pattern_match, package_url)?;
+                if Self::is_path_invalid_exports_target(Path::new(target.as_ref())) {
                     return Err(ResolveError::InvalidPackageTarget {
                         target: target.to_string(),
                         name: target_key.to_string(),
                         package_path: package_url.join("package.json"),
                     });
                 }
-                return Ok(Some(package_url.normalize_with(target.as_ref())));
+                let resolved_path = package_url.normalize_with(target.as_ref());
+                return Ok(Some(Resolution::with_parts(
+                    resolved_path,
+                    parsed.query.clone(),
+                    parsed.fragment.clone(),
+                )));
             }
         }
-        // resolve object target (conditions)
+        // resolve conditional object targets
         else if let Some(target) = target.as_object() {
             for (key, target_value) in target.iter() {
                 if key == "default" || conditions.iter().any(|condition| condition == key) {
@@ -565,7 +503,7 @@ impl Resolver {
             }
             return Ok(None);
         }
-        // resolve array target (fallback)
+        // resolve array fallback targets
         else if let Some(targets) = target.as_array() {
             if targets.is_empty() {
                 return Err(ResolveError::PackagePathNotExported {
@@ -590,11 +528,11 @@ impl Resolver {
                 match resolved {
                     Ok(Some(path)) => return Ok(Some(path)),
                     Ok(None) => continue,
-                    // continue through fallback candidates on expected resolution failures
+                    // continue through expected fallback failures
                     Err(error) if error.is_alternative_candidate_miss() => {
                         continue;
                     }
-                    // surface non-fallback errors immediately
+                    // surface all other errors immediately
                     Err(error) => return Err(error),
                 }
             }

@@ -8,7 +8,7 @@ use destack_source::{MemoryFileSystem, PathExt};
 use indexmap::IndexMap;
 use serde_json::json;
 
-use crate::{ResolveError, ResolveOptions, Resolver};
+use crate::{Resolution, ResolveError, ResolveOptions, Resolver};
 
 /// Test simple exports field resolution.
 #[test]
@@ -49,7 +49,9 @@ fn test_resolve_exports_field_simple() {
     ];
 
     for (comment, path, request, expected) in pass {
-        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
+        let resolved_path = resolver
+            .resolve_from_directory(&path, request)
+            .map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
 
@@ -72,7 +74,7 @@ fn test_resolve_exports_field_simple() {
     ];
 
     for (comment, path, request, error) in fail {
-        let resolution = resolver.resolve(&path, request);
+        let resolution = resolver.resolve_from_directory(&path, request);
         assert_eq!(resolution, Err(error), "{comment} {path:?} {request}");
     }
 }
@@ -88,7 +90,9 @@ fn test_resolve_exports_field_disabled_uses_main_field() {
         ..ResolveOptions::default()
     });
 
-    let resolved_path = resolver.resolve(&f, "exports-field").map(|r| r.full_path());
+    let resolved_path = resolver
+        .resolve_from_directory(&f, "exports-field")
+        .map(|r| r.full_path());
     assert_eq!(
         resolved_path,
         Ok(f.join("node_modules/exports-field/main.js"))
@@ -107,7 +111,7 @@ fn test_resolve_exports_field_not_browser_field1() {
     });
 
     let resolved_path = resolver
-        .resolve(&f, "exports-field/dist/main.js")
+        .resolve_from_directory(&f, "exports-field/dist/main.js")
         .map(|r| r.full_path());
     assert_eq!(
         resolved_path,
@@ -127,7 +131,7 @@ fn test_resolve_exports_field_not_browser_field2() {
     });
 
     let resolved_path = resolver
-        .resolve(&f2, "exports-field/dist/main.js")
+        .resolve_from_directory(&f2, "exports-field/dist/main.js")
         .map(|r| r.full_path());
     assert_eq!(
         resolved_path,
@@ -147,7 +151,7 @@ fn test_resolve_exports_field_extension_without_fully_specified() {
     });
 
     let resolved_path = commonjs_resolver
-        .resolve(&f2, "exports-field/dist/main")
+        .resolve_from_directory(&f2, "exports-field/dist/main")
         .map(|r| r.full_path());
     assert_eq!(
         resolved_path,
@@ -175,7 +179,9 @@ fn test_resolve_exports_field_extension_alias() {
     ];
 
     for (comment, path, request, expected) in pass {
-        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
+        let resolved_path = resolver
+            .resolve_from_directory(&path, request)
+            .map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
 }
@@ -208,7 +214,9 @@ fn test_resolve_exports_field_extension_alias_complex() {
     ];
 
     for (comment, path, request, expected) in pass {
-        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
+        let resolved_path = resolver
+            .resolve_from_directory(&path, request)
+            .map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
 }
@@ -237,7 +245,7 @@ fn test_resolve_exports_field_extension_alias_error() {
     ];
 
     for (comment, path, request, error) in fail {
-        let resolution = resolver.resolve(&path, request);
+        let resolution = resolver.resolve_from_directory(&path, request);
         assert_eq!(resolution, Err(error), "{comment} {path:?} {request}");
     }
 }
@@ -247,7 +255,7 @@ fn test_resolve_exports_field_extension_alias_error() {
 fn test_resolve_exports_field_directory() {
     let f = super::fixture();
     let resolver = Resolver::physical(ResolveOptions::default());
-    let resolution = resolver.resolve(f.join("foo"), "../exports-field");
+    let resolution = resolver.resolve_from_directory(f.join("foo"), "../exports-field");
     let path = resolution.unwrap().full_path();
     assert_eq!(path, f.join("exports-field").join("a.js"));
 }
@@ -2397,7 +2405,7 @@ fn test_resolve_exports_field_cases() {
             Path::new(""),
             case.request,
             &case.exports,
-            &mut crate::ResolveContext::default(),
+            &mut crate::ResolveFrame::default(),
         );
         if let Some(expect) = case.expect {
             if expect.is_empty() {
@@ -2414,7 +2422,7 @@ fn test_resolve_exports_field_cases() {
                 for expect in expect {
                     assert_eq!(
                         resolved_path,
-                        Ok(Some(Path::new(expect).normalize())),
+                        Ok(Some(Resolution::path_only(Path::new(expect).normalize()))),
                         "{}",
                         &case.name
                     );
@@ -2444,7 +2452,7 @@ fn test_resolve_exports_field_array_stops_on_invalid_mapping_shape() {
         Path::new(""),
         "./a/file.js",
         &exports,
-        &mut crate::ResolveContext::default(),
+        &mut crate::ResolveFrame::default(),
     );
 
     assert_eq!(
