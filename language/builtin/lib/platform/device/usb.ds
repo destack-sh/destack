@@ -64,6 +64,10 @@ export struct UsbInterfaceDescriptor {
 export struct UsbDeviceDescriptor {
     /// Stable USB device identifier.
     id: string;
+    /// USB specification version in binary-coded decimal form.
+    usbVersionBcd?: uint16;
+    /// Device release version in binary-coded decimal form.
+    deviceVersionBcd?: uint16;
     /// USB vendor identifier.
     vendorId: uint16;
     /// USB product identifier.
@@ -80,6 +84,28 @@ export struct UsbDeviceDescriptor {
     product?: string;
     /// Device serial-number string when available.
     serialNumber?: string;
+    /// Negotiated or observed device speed when available.
+    speed?: UsbDeviceSpeed;
+    /// Host bus number when the topology exposes one.
+    busNumber?: uint8;
+    /// Host port path from root hub to device when available.
+    portPath?: Slice<uint8>;
+}
+
+/// USB device speed.
+export enum UsbDeviceSpeed {
+    /// Host did not expose device speed.
+    Unknown = 1,
+    /// USB low-speed.
+    Low = 2,
+    /// USB full-speed.
+    Full = 3,
+    /// USB high-speed.
+    High = 4,
+    /// USB SuperSpeed.
+    Superspeed = 5,
+    /// USB SuperSpeedPlus.
+    SuperspeedPlus = 6,
 }
 
 /// USB control transfer type.
@@ -278,11 +304,12 @@ export struct UsbBosCapabilityDescriptor {
 declare namespace device {
     /// List USB devices.
     ///
-    /// Enumerate attached USB devices and return stable descriptors.
+    /// Enumerate attached USB devices and return stable descriptors for the current bus topology.
+    /// Descriptor identity is bus or topology based so callers can correlate list and hotplug results without opening devices.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses libusb-family enumeration or host USB APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses libusb topology enumeration on macOS and Linux-class Unix and SetupAPI plus WinUSB class device enumeration on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -306,11 +333,12 @@ declare namespace device {
 
     /// Open USB hotplug watch stream.
     ///
-    /// Open one USB hotplug watch stream for attach and detach events.
+    /// Open one hotplug watch stream for USB attach and detach events.
+    /// The stream reports topology changes independently from any later opened device session.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB hotplug subscription APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses libusb hotplug callbacks on macOS and Linux-class Unix and device interface notifications on Windows.
     ///
     /// # Errors
     /// Returns ioWouldBlock, notSupported.
@@ -334,11 +362,12 @@ declare namespace device {
 
     /// Close USB hotplug watch stream.
     ///
-    /// Close one USB hotplug watch stream and release host subscription resources.
+    /// Close one opened USB hotplug watch stream and release its host subscription state.
+    /// Closing a watch does not affect any separately opened USB device handle.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB hotplug unsubscription APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses libusb hotplug callback teardown on macOS and Linux-class Unix and device notification teardown on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -362,11 +391,12 @@ declare namespace device {
 
     /// Wait for one USB hotplug event.
     ///
-    /// Wait for one queued USB hotplug event from one opened watch stream.
+    /// Wait for the next queued USB hotplug event from one opened watch stream.
+    /// The returned event carries a full descriptor snapshot so attach consumers do not need a follow-up enumeration race.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB hotplug event queues.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses watch queues fed by libusb hotplug callbacks on macOS and Linux-class Unix and device notifications on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -393,11 +423,12 @@ declare namespace device {
 
     /// Poll one USB hotplug event without blocking.
     ///
-    /// Poll one queued USB hotplug event from one opened watch stream without waiting.
+    /// Read the next queued USB hotplug event from one opened watch stream without waiting.
+    /// This operation only consumes already published attach or detach events.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host nonblocking USB hotplug event queue reads.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses watch queues fed by libusb hotplug callbacks on macOS and Linux-class Unix and device notifications on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -421,11 +452,12 @@ declare namespace device {
 
     /// Open USB device.
     ///
-    /// Open one USB device for control and data transfers.
+    /// Open one USB device for descriptor, configuration, interface, and transfer operations.
+    /// Opening creates a device session whose lifetime and claimed interfaces are independent from further topology events.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB open APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses libusb device sessions on macOS and Linux-class Unix and WinUSB device-interface handles on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -449,11 +481,12 @@ declare namespace device {
 
     /// Close USB device.
     ///
-    /// Close one opened USB device and release host resources.
+    /// Close one opened USB device and release its underlying host session.
+    /// Closing a device also releases any claimed interfaces and pending transfer ownership for that session.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB close APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses device-handle teardown on macOS and Linux-class Unix and WinUSB session teardown on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -478,10 +511,11 @@ declare namespace device {
     /// Claim USB interface.
     ///
     /// Claim one interface on one opened USB device.
+    /// Claimed interfaces become the authority boundary for subsequent endpoint transfers and alternate-setting changes.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB interface-claim APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses libusb interface claims on macOS and Linux-class Unix and WinUSB or kernel interface-claim mechanisms on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -509,10 +543,11 @@ declare namespace device {
     /// Release USB interface.
     ///
     /// Release one interface previously claimed on one opened USB device.
+    /// Releasing an interface ends the session's authority over its endpoints without closing the device itself.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB interface-release APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses libusb interface release calls on macOS and Linux-class Unix and WinUSB or kernel interface-release mechanisms on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -540,10 +575,11 @@ declare namespace device {
     /// Set USB interface alternate setting.
     ///
     /// Select one alternate setting for one claimed interface.
+    /// Alternate-setting changes are session local and immediately redefine the active endpoint layout for that interface.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB alternate-setting APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses SET_INTERFACE style interface reconfiguration through libusb on macOS and Linux-class Unix and WinUSB class requests on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -571,11 +607,12 @@ declare namespace device {
 
     /// Read active USB device descriptor.
     ///
-    /// Read descriptor metadata for one opened USB device.
+    /// Read the active device descriptor and host topology metadata for one opened USB device.
+    /// This snapshot describes the device itself and is independent from any currently claimed interface state.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB descriptor-query APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses cached standard device-descriptor reads with host topology metadata on macOS, Linux-class Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -599,11 +636,12 @@ declare namespace device {
 
     /// List USB string-descriptor language identifiers.
     ///
-    /// Enumerate string-descriptor language identifiers for one opened USB device.
+    /// Enumerate the language identifiers that the device exposes for string-descriptor reads.
+    /// Callers can use the returned identifiers to select deterministic manufacturer, product, and serial text reads.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB string-descriptor language query APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses standard GET_DESCRIPTOR string-language queries on the default control pipe.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -627,11 +665,12 @@ declare namespace device {
 
     /// Read USB string descriptors.
     ///
-    /// Read manufacturer, product, and serial-number string descriptors for one language identifier.
+    /// Read manufacturer, product, and serial-number string descriptors for one selected language identifier.
+    /// Missing strings remain absent rather than being synthesized from transport-specific fallback metadata.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB string-descriptor read APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses standard string-descriptor control transfers on the default control pipe.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -659,10 +698,11 @@ declare namespace device {
     /// List USB BOS capabilities.
     ///
     /// Enumerate BOS capability descriptors for one opened USB device.
+    /// Raw BOS payload bytes are preserved so callers can interpret platform and vendor capabilities without data loss.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host BOS or device-capability descriptor query APIs where available.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses standard BOS descriptor reads on the default control pipe.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -682,17 +722,16 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function usbBosCapabilityList(
-        handle: UsbDeviceHandle,
-    ): Result<Slice<UsbBosCapabilityDescriptor>, PlatformError>;
+    export function usbBosCapabilityList(handle: UsbDeviceHandle): Result<Slice<UsbBosCapabilityDescriptor>, PlatformError>;
 
     /// List USB configurations.
     ///
-    /// Enumerate USB configurations and nested interface descriptors for one opened device.
+    /// Enumerate USB configurations and their nested interface and endpoint descriptors for one opened device.
+    /// The returned tree is a descriptor snapshot and does not imply that any configuration or interface is currently active.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB configuration-descriptor query APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses standard configuration-descriptor reads and host descriptor parsing on macOS, Linux-class Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -716,11 +755,12 @@ declare namespace device {
 
     /// Read active USB configuration value.
     ///
-    /// Read active configuration value for one opened USB device.
+    /// Read the currently selected configuration value for one opened USB device.
+    /// This reports live device state rather than the first configuration in descriptor order.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB configuration-state APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses live configuration queries through the device control path on macOS, Linux-class Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -744,11 +784,12 @@ declare namespace device {
 
     /// Set active USB configuration value.
     ///
-    /// Apply active configuration value for one opened USB device.
+    /// Select the active configuration value for one opened USB device.
+    /// Configuration changes are device state transitions and may invalidate previously claimed interfaces.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB set-configuration APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses SET_CONFIGURATION control requests through libusb on macOS and Linux-class Unix and WinUSB class device control on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -775,11 +816,12 @@ declare namespace device {
 
     /// Read control-transfer response bytes.
     ///
-    /// Execute one control-transfer read and return transfer status with response bytes.
+    /// Execute one control-transfer read and return both transfer status and response bytes.
+    /// The setup packet is passed through without higher-level interpretation so callers can issue standard, class, or vendor requests explicitly.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB control-transfer APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses synchronous or deadline-bounded default-control transfers on macOS, Linux-class Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -807,11 +849,12 @@ declare namespace device {
 
     /// Write control-transfer request bytes.
     ///
-    /// Execute one control-transfer write and return transfer status with transferred byte count.
+    /// Execute one control-transfer write and return both transfer status and transferred byte count.
+    /// The setup packet is passed through without higher-level interpretation so callers can issue standard, class, or vendor requests explicitly.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB control-transfer APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses synchronous or deadline-bounded default-control transfers on macOS, Linux-class Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -840,11 +883,12 @@ declare namespace device {
 
     /// Read bulk endpoint bytes.
     ///
-    /// Read up to `maxBytes` from one bulk IN endpoint and return transfer status.
+    /// Read up to `maxBytes` from one bulk IN endpoint and return transfer status with payload bytes.
+    /// Completion may be partial, which preserves host transfer semantics for high volume streaming protocols.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB bulk-transfer APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses bulk IN transfer submissions on claimed interfaces through libusb on macOS and Linux-class Unix and WinUSB on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -874,10 +918,11 @@ declare namespace device {
     /// Write bulk endpoint bytes.
     ///
     /// Write bytes to one bulk OUT endpoint and return transfer status with transferred byte count.
+    /// Completion may be partial, which preserves host transfer semantics for explicit higher-level retry policy.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB bulk-transfer APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses bulk OUT transfer submissions on claimed interfaces through libusb on macOS and Linux-class Unix and WinUSB on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -906,11 +951,12 @@ declare namespace device {
 
     /// Read interrupt endpoint bytes.
     ///
-    /// Read up to `maxBytes` from one interrupt IN endpoint and return transfer status.
+    /// Read up to `maxBytes` from one interrupt IN endpoint and return transfer status with payload bytes.
+    /// Poll interval semantics remain device defined, so this call does not synthesize any additional pacing policy.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB interrupt-transfer APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses interrupt IN transfer submissions on claimed interfaces through libusb on macOS and Linux-class Unix and WinUSB on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -940,10 +986,11 @@ declare namespace device {
     /// Write interrupt endpoint bytes.
     ///
     /// Write bytes to one interrupt OUT endpoint and return transfer status with transferred byte count.
+    /// Completion may be partial, which preserves host transfer semantics for explicit higher-level retry policy.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB interrupt-transfer APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses interrupt OUT transfer submissions on claimed interfaces through libusb on macOS and Linux-class Unix and WinUSB on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -972,11 +1019,12 @@ declare namespace device {
 
     /// Read one isochronous transfer.
     ///
-    /// Read one isochronous transfer and return flattened bytes with per-packet transfer results.
+    /// Read one isochronous transfer and return flattened bytes with per-packet completion results.
+    /// Packet boundaries are preserved explicitly so callers can reason about drop, underrun, and partial completion at the host cadence.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB isochronous transfer APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses scheduled isochronous transfer submissions with per-packet completion reporting on macOS, Linux-class Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -1005,11 +1053,12 @@ declare namespace device {
 
     /// Write one isochronous transfer.
     ///
-    /// Write one flattened isochronous transfer and return per-packet transfer results.
+    /// Write one isochronous transfer and return per-packet completion results.
+    /// Packet boundaries are preserved explicitly so callers can reason about bandwidth pressure and partial completion at the host cadence.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB isochronous transfer APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses scheduled isochronous transfer submissions with per-packet completion reporting on macOS, Linux-class Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1039,11 +1088,12 @@ declare namespace device {
 
     /// Cancel pending transfers on one endpoint.
     ///
-    /// Cancel pending USB transfers for one endpoint on one opened USB device.
+    /// Cancel pending transfers for one endpoint on one opened USB device.
+    /// Cancellation is scoped to outstanding transfer state and does not clear stalls or reset the device.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB transfer-cancellation APIs where available.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses transfer cancellation on the session's async request queue on macOS, Linux-class Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -1070,11 +1120,12 @@ declare namespace device {
 
     /// Cancel all pending transfers on one opened USB device.
     ///
-    /// Cancel pending USB transfers on all endpoints for one opened USB device.
+    /// Cancel pending transfers on all endpoints for one opened USB device.
+    /// Cancellation is scoped to outstanding transfer state and does not release interfaces or close the device session.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB transfer-cancellation APIs where available.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses transfer cancellation on the device session's async request queues on macOS, Linux-class Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -1098,11 +1149,12 @@ declare namespace device {
 
     /// Clear halt condition on one endpoint.
     ///
-    /// Clear one endpoint STALL condition for one opened USB device.
+    /// Clear a STALL condition on one endpoint for one opened USB device.
+    /// This is the explicit pipe recovery operation and does not imply transfer cancellation or interface release.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB clear-halt endpoint APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses CLEAR_FEATURE endpoint-halt requests through the active device session on macOS, Linux-class Unix, and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1130,10 +1182,11 @@ declare namespace device {
     /// Reset one USB device.
     ///
     /// Request one bus-level reset for one opened USB device.
+    /// Reset is a disruptive device state transition whose effects on active configuration and interfaces are intentionally left explicit.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB reset-device APIs where available.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses device reset requests through libusb on macOS and Linux-class Unix and device-level reset control on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1154,97 +1207,4 @@ declare namespace device {
         affinity: "any",
     })
     export function usbReset(handle: UsbDeviceHandle): Result<void, PlatformError>;
-
-    /// Query whether kernel driver is active on one interface.
-    ///
-    /// Query host kernel-driver attachment state for one interface.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB kernel-driver query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.device.usb.kernelDriverActive", {
-        effect: "external",
-        replay: "recordable",
-        capabilities: ["device.usb.control"],
-        platforms: ["windows", "unix"],
-        simulation: "stub",
-        scope: "host",
-        blocking: "sometimes",
-        affinity: "any",
-    })
-    export function usbKernelDriverActive(
-        handle: UsbDeviceHandle,
-        interfaceNumber: uint8,
-    ): Result<boolean, PlatformError>;
-
-    /// Detach kernel driver from one interface.
-    ///
-    /// Detach one host kernel driver from one interface before userspace claiming where supported.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB kernel-driver detach APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    @binding("destack.device.usb.kernelDriverDetach", {
-        effect: "external",
-        replay: "nonrecordable",
-        capabilities: ["device.usb.control"],
-        platforms: ["windows", "unix"],
-        simulation: "stub",
-        scope: "host",
-        blocking: "sometimes",
-        affinity: "any",
-    })
-    export function usbKernelDriverDetach(
-        handle: UsbDeviceHandle,
-        interfaceNumber: uint8,
-    ): Result<void, PlatformError>;
-
-    /// Attach kernel driver to one interface.
-    ///
-    /// Reattach one host kernel driver to one interface where supported.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host USB kernel-driver attach APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    @binding("destack.device.usb.kernelDriverAttach", {
-        effect: "external",
-        replay: "nonrecordable",
-        capabilities: ["device.usb.control"],
-        platforms: ["windows", "unix"],
-        simulation: "stub",
-        scope: "host",
-        blocking: "sometimes",
-        affinity: "any",
-    })
-    export function usbKernelDriverAttach(
-        handle: UsbDeviceHandle,
-        interfaceNumber: uint8,
-    ): Result<void, PlatformError>;
 }
