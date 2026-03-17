@@ -22,9 +22,9 @@ impl TestProgram {
         self.default_profile_override = Some(profile_id);
     }
 
-    /// Set noInternalImport policy for the module package dsconfig.
+    /// Set noInternalImport policy for the module package config.
     pub(crate) fn set_module_no_internal_import_policy(&self, module_id: ModuleId, policy: &str) {
-        self.apply_dsconfig(
+        self.apply_destack_config(
             module_id,
             &format!(
                 r#"

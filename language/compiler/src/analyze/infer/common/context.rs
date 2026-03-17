@@ -5,7 +5,7 @@ use destack_dir::{
     GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Mutability,
 };
 use destack_source::ModuleId;
-use destack_workspace::{DsConfigCompilerOptions, ProfileId};
+use destack_workspace::{CompilerOptions, ProfileId};
 
 use crate::AnalyzeOptions;
 use crate::analyze::common::{ConstContext, ContextualTypingMode, FreshnessMode, WideningMode};
@@ -635,7 +635,7 @@ impl InferState {
 
 impl Default for InferState {
     fn default() -> Self {
-        let options = AnalyzeOptions::from(&DsConfigCompilerOptions::default());
+        let options = AnalyzeOptions::from(&CompilerOptions::default());
         Self::new(ProfileId::new(0), options)
     }
 }

@@ -12,7 +12,7 @@ use destack_source::{
     PackageId, TemporaryPhysicalFileSystem, Uri,
 };
 use destack_workspace::{
-    ArtifactKey, CacheMode, CachePolicy, CacheScope, CacheValidate, DiskCacheStore, DsConfig,
+    ArtifactKey, CacheMode, CachePolicy, CacheScope, CacheValidate, Destack, DiskCacheStore,
     FileUpdate, MemoryCacheStore, ModuleAst, ModuleGraphKey, ModuleMir, ModuleSignatureKey,
     Session, TargetId, Workspace, WorkspaceIndexHeader, WorkspaceIndexStore, hash_workspace_config,
 };
@@ -643,28 +643,28 @@ fn test_workspace_index_roundtrip_disk() {
     let root_path = root.root().to_path_buf();
     root.write_bytes("package.json", br#"{ "name": "workspace-index-test" }"#)
         .unwrap();
-    let dsconfig_path = root.path_for("dsconfig.json");
-    let dsconfig_content = r#"{ "cache": { "mode": "disk" } }"#;
-    root.write_text("dsconfig.json", dsconfig_content).unwrap();
+    let config_path = root.path_for("destack.json");
+    let config_content = r#"{ "cache": { "mode": "disk" } }"#;
+    root.write_text("destack.json", config_content).unwrap();
     let module_path = root.path_for("main.ts");
     root.write_text("main.ts", "export const value: number = 1;")
         .unwrap();
 
     // parse workspace config
-    let dsconfig_file = File::from_text_as_jsonc(
+    let config_file = File::from_text_as_jsonc(
         FileId::new(1),
-        "dsconfig.json".to_string(),
-        Uri::from_path(&dsconfig_path),
-        Some(dsconfig_path.clone()),
+        "destack.json".to_string(),
+        Uri::from_path(&config_path),
+        Some(config_path.clone()),
         FileType::Json,
-        dsconfig_content.to_string(),
+        config_content.to_string(),
     )
-    .unwrap_or_else(|error| panic!("failed to parse dsconfig: {error}"));
-    let dsconfig = DsConfig::parse(&Arc::new(dsconfig_file))
-        .unwrap_or_else(|error| panic!("failed to build dsconfig: {error}"));
+    .unwrap_or_else(|error| panic!("failed to parse destack.json: {error}"));
+    let config = Destack::parse(&Arc::new(config_file))
+        .unwrap_or_else(|error| panic!("failed to build destack.json: {error}"));
 
     // register a module and flush the workspace index
-    let workspace = Workspace::single_package(root_path.clone()).with_config(dsconfig.clone());
+    let workspace = Workspace::single_package(root_path.clone()).with_config(config.clone());
     let session = Arc::new(Session::workspace(root_path.clone(), Arc::new(workspace)));
     let program = session.add_root(root_path.clone());
     let compiler = Compiler::new(
@@ -720,7 +720,7 @@ fn test_workspace_index_roundtrip_disk() {
     );
 
     // reload workspace index into a new program
-    let workspace = Workspace::single_package(root_path.clone()).with_config(dsconfig);
+    let workspace = Workspace::single_package(root_path.clone()).with_config(config);
     let session = Arc::new(Session::workspace(root_path.clone(), Arc::new(workspace)));
     let program = session.add_root(root_path.clone());
     let _compiler = Compiler::new(session, program.clone(), CompilerOptions::default());

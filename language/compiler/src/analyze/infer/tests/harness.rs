@@ -18,7 +18,7 @@ pub(super) use destack_dir::{
     Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 pub(super) use destack_source::ModuleId;
-pub(super) use destack_workspace::{DsConfigCompilerOptions, Module, ProfileId};
+pub(super) use destack_workspace::{CompilerOptions, Module, ProfileId};
 pub(super) use std::collections::{HashMap, HashSet};
 
 /// Cached view of module ctx for tests.

@@ -14,10 +14,10 @@ impl Compiler {
             return;
         }
 
-        // read the conversion policy from dsconfig
+        // read the conversion policy from config
         let policy = self
             .program
-            .with_dsconfig_options(module, |ds| ds.compiler.implicit_collection_conversions)
+            .with_config_options(module, |ds| ds.compiler.implicit_collection_conversions)
             .unwrap_or(ImplicitCollectionConversionPolicy::Allow);
 
         // honor the configured policy

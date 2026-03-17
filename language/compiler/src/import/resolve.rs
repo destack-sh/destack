@@ -29,9 +29,9 @@ const BUILTIN_NAMESPACE_ROOTS: &[(&str, &str)] =
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 enum SourceImportResolvePolicy {
-    /// Package owns dsconfig, so tsconfig path mapping is disabled.
-    DsConfig {
-        /// The linker mode from source package dsconfig.
+    /// Package owns Destack config, so tsconfig path mapping is disabled.
+    Destack {
+        /// The linker mode from source package config.
         node_linker: NodeLinker,
     },
     /// Source module uses tsconfig with compiler settings.
@@ -578,7 +578,7 @@ impl Compiler {
         let mut base_options = self.options.import_resolve.clone();
         let source_policy = self.source_import_resolve_policy(source_module);
         let node_linker = match &source_policy {
-            SourceImportResolvePolicy::DsConfig { node_linker } => *node_linker,
+            SourceImportResolvePolicy::Destack { node_linker } => *node_linker,
             SourceImportResolvePolicy::TsConfig { .. } | SourceImportResolvePolicy::None => {
                 NodeLinker::Auto
             }
@@ -591,8 +591,8 @@ impl Compiler {
             self.program.cwd.as_path(),
         );
 
-        // dsconfig packages own resolver behavior and suppress tsconfig overlays
-        if matches!(source_policy, SourceImportResolvePolicy::DsConfig { .. }) {
+        // config-owned packages suppress tsconfig overlays
+        if matches!(source_policy, SourceImportResolvePolicy::Destack { .. }) {
             base_options.tsconfig = None;
         }
 
@@ -635,12 +635,12 @@ impl Compiler {
         let tsconfig_id = source_module.tsconfig_id;
         drop(source_module);
 
-        // prefer package dsconfig ownership over tsconfig fallbacks
+        // prefer package config ownership over tsconfig fallbacks
         let package = self.program.packages.get(package_id);
         let package = package.read();
-        if let Some(dsconfig) = package.dsconfig.as_ref() {
-            return SourceImportResolvePolicy::DsConfig {
-                node_linker: dsconfig.options.compiler.node_linker,
+        if let Some(config) = package.config.as_ref() {
+            return SourceImportResolvePolicy::Destack {
+                node_linker: config.options.compiler.node_linker,
             };
         }
         drop(package);
@@ -803,19 +803,19 @@ impl Compiler {
             return Ok((package_id, Some(directory.to_path_buf())));
         }
 
-        // load dsconfig.json for synthetic packages when present
-        let dsconfig = {
-            // walk up directories for dsconfig until a package boundary
+        // load destack.json for synthetic packages when present
+        let config = {
+            // walk up directories for config until a package boundary
             let mut current = directory.to_path_buf();
-            let mut dsconfig_path = None;
+            let mut config_path = None;
             loop {
-                let candidate = current.join("dsconfig.json");
+                let candidate = current.join("destack.json");
                 if resolver
                     .fs()
                     .metadata(&candidate)
                     .is_ok_and(|meta| meta.is_file)
                 {
-                    dsconfig_path = Some(candidate);
+                    config_path = Some(candidate);
                     break;
                 }
 
@@ -834,7 +834,11 @@ impl Compiler {
                 current = parent.to_path_buf();
             }
 
-            dsconfig_path.and_then(|path| resolver.read_dsconfig(&path, CachePolicy::UseCache).ok())
+            config_path.and_then(|path| {
+                resolver
+                    .read_destack_config(&path, CachePolicy::UseCache)
+                    .ok()
+            })
         };
 
         // create and insert synthetic package
@@ -848,7 +852,7 @@ impl Compiler {
             name: Some(package_name),
             version: None,
             manifest: None,
-            dsconfig,
+            config,
             tsconfig: None,
             targets: Default::default(),
         };

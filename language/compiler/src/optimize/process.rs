@@ -210,7 +210,7 @@ impl Compiler {
         // resolve compiler options and derived restrictions for this target
         let compiler_options = self
             .program
-            .with_dsconfig_options(module, |opts| opts.compiler.clone())
+            .with_config_options(module, |opts| opts.compiler.clone())
             .unwrap_or_default();
         let compiler_options =
             destack_workspace::Program::compiler_options_for_target(target, &compiler_options);

@@ -543,7 +543,7 @@ v5 = field.get v0, 1        ; load length field
 
 **Bounds checks:**
 Array and slice indexing emits bounds checks by default.
-The policy is configured per target (`boundsChecks` in `dsconfig.json` or via `safetyPreset`):
+The policy is configured per target (`boundsChecks` in `destack.json` or via `safetyPreset`):
 - `always`: checks in all builds
 - `debug`: checks only when `target.debug` is true (default)
 - `never`: no checks (unsafe, fastest)
@@ -1563,7 +1563,7 @@ Address space changes are explicit and use the `addrspace.cast` intrinsic.
 
 By default, `&T` and `&readonly T` are hints and violations produce warnings.
 They help document APIs, guide drops, and enable limited optimizations.
-Set `borrowMode: "strict"` in `dsconfig.json` to enforce exclusive `&` borrows.
+Set `borrowMode: "strict"` in `destack.json` to enforce exclusive `&` borrows.
 Strict mode enables stronger `noalias` optimizations and errors on violations.
 Strict mode forbids:
 - Aliasing `&` with any other borrow

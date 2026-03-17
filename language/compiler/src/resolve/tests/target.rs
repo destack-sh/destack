@@ -959,11 +959,11 @@ http.request;
     test.check_has_diagnostic("ER101");
 }
 
-/// Allow typescript default imports from node builtins with dsconfig interop enabled.
+/// Allow typescript default imports from node builtins with destack.json interop enabled.
 #[test]
-fn test_module_binding_node_builtin_default_import_in_typescript_with_dsconfig_interop() {
+fn test_module_binding_node_builtin_default_import_in_typescript_with_destack_config_interop() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
-    test.add_dsconfig(
+    test.add_destack_config(
         r#"
 { "compilerOptions": { "esModuleInterop": true } }
 "#,
@@ -1263,7 +1263,7 @@ import "./types.d.ts";
 #[test]
 fn test_resolve_declaration_unresolved_module_with_skip_lib_check_skips_error() {
     let test = TestProgram::memory_sequential();
-    test.add_dsconfig(
+    test.add_destack_config(
         r#"
 { "compilerOptions": { "skipLibCheck": true } }
 "#,
@@ -1293,7 +1293,7 @@ import "./types.d.ts";
 #[test]
 fn test_resolve_dependency_declaration_unresolved_module_with_skip_lib_check_skips_error() {
     let test = TestProgram::memory_sequential();
-    test.add_dsconfig(
+    test.add_destack_config(
         r#"
 { "compilerOptions": { "skipLibCheck": true } }
 "#,

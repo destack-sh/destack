@@ -153,7 +153,7 @@ fn test_parallel_analyze_matches_sequential_value_kind() {
 #[test]
 fn test_no_imprecise_primitives_reports_number_constructor_call() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es5"]);
-    test.add_dsconfig(
+    test.add_destack_config(
         r#"{
             "compilerOptions": {
                 "noAny": false,
@@ -943,7 +943,7 @@ function invoke(this: { base: number }, value: number | undefined): number {
 invoke.call({ base: 1 });
 "#,
     );
-    test.apply_dsconfig(
+    test.apply_destack_config(
         module_id,
         r#"{
             "compilerOptions": {
@@ -971,7 +971,7 @@ declare const weird: ((value: number) => number) & {
 weird.call(0);
 "#,
     );
-    test.apply_dsconfig(
+    test.apply_destack_config(
         module_id,
         r#"{
             "compilerOptions": {
@@ -1860,7 +1860,7 @@ fn test_exported_struct_field_types_preserve_star_reexported_newtypes() {
     for skip_lib_check in [false, true] {
         let test = TestProgram::memory_sequential_with_prelude_and_libs();
         if skip_lib_check {
-            test.add_dsconfig(
+            test.add_destack_config(
                 r#"
 { "compilerOptions": { "skipLibCheck": true } }
 "#,
@@ -2083,7 +2083,7 @@ value.items;
 #[test]
 fn test_exported_struct_field_types_preserve_imported_newtypes_through_star_reexports() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
-    test.add_dsconfig(
+    test.add_destack_config(
         r#"
 { "compilerOptions": { "skipLibCheck": true } }
 "#,

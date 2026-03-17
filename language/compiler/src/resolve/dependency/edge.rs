@@ -664,7 +664,7 @@ impl Compiler {
     ) {
         let policy = self
             .program
-            .with_dsconfig_options(module, |ds| ds.compiler.no_internal_import);
+            .with_config_options(module, |ds| ds.compiler.no_internal_import);
         let Some(policy) = policy else {
             return;
         };
@@ -871,10 +871,10 @@ impl Compiler {
         let target_module_format =
             self.module_format_for_target(module.id, profile, remote_target)?;
 
-        // read source interop policy from dsconfig first, then tsconfig fallback
+        // read source interop policy from config first, then tsconfig fallback
         let is_typescript_commonjs_default_interop_enabled = self
             .program
-            .with_dsconfig_options(module, |options| {
+            .with_config_options(module, |options| {
                 let compiler = &options.compiler;
                 compiler.es_module_interop || compiler.allow_synthetic_default_imports
             })

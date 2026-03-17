@@ -66,19 +66,19 @@ impl Compiler {
         let package = self.program.packages.get(module.package_id);
         let package = package.read();
 
-        // derive cache options from dsconfig
+        // derive cache options from config
         let cache_options = package
-            .dsconfig
+            .config
             .as_ref()
-            .map(|dsconfig| dsconfig.options.cache.clone())
+            .map(|config| config.options.cache.clone())
             .unwrap_or_default();
 
         // resolve cache root directory
         let workspace_root = self.session.workspace_root();
         let base_dir = package
-            .dsconfig
+            .config
             .as_ref()
-            .map(|dsconfig| dsconfig.directory.clone())
+            .map(|config| config.directory.clone())
             .unwrap_or_else(|| workspace_root.clone());
         let mut dir = resolve_cache_root_for_scope(
             &base_dir,
@@ -233,13 +233,13 @@ impl Compiler {
         // seed the config hash
         let mut hasher = CacheHasher::new();
 
-        // hash the dsconfig content if available
+        // hash the config content if available
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let package = self.program.packages.get(module.package_id);
         let package = package.read();
-        if let Some(dsconfig) = package.dsconfig.as_ref() {
-            let file = self.program.files.get(dsconfig.file_id);
+        if let Some(config) = package.config.as_ref() {
+            let file = self.program.files.get(config.file_id);
             match &file.content {
                 FileContent::Json { value, .. } => {
                     let trimmed = trim_json_object(value, &DSCONFIG_CACHE_IGNORED_KEYS);

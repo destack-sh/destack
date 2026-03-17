@@ -31,9 +31,9 @@ impl Compiler {
             .packages
             .get(package_id)
             .read()
-            .dsconfig
+            .config
             .as_ref()
-            .is_some_and(|dsconfig| dsconfig.options.compiler.no_emit)
+            .is_some_and(|config| config.options.compiler.no_emit)
         {
             return Err(EmitError::NoEmit {
                 package: package_id,

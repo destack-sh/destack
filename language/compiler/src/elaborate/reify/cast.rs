@@ -1447,10 +1447,10 @@ impl Compiler {
         state: &ElaborateState<'_>,
         origin_id: LocalNodeId<Expression>,
     ) -> ElaborateResult<bool> {
-        // read the conversion policy from dsconfig
+        // read the conversion policy from config
         let policy = self
             .program
-            .with_dsconfig_options(state.ctx.module, |ds| {
+            .with_config_options(state.ctx.module, |ds| {
                 ds.compiler.implicit_collection_conversions
             })
             .unwrap_or(ImplicitCollectionConversionPolicy::Allow);
