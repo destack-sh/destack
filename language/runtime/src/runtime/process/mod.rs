@@ -1,6 +1,7 @@
 mod abi;
 mod agent;
 mod call;
+mod callback;
 mod context;
 mod drop;
 mod event;
@@ -14,6 +15,7 @@ pub(crate) mod service;
 pub use abi::*;
 pub use agent::*;
 pub use call::*;
+pub(crate) use callback::*;
 pub use context::*;
 pub use drop::*;
 pub use event::*;

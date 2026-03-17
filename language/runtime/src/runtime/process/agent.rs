@@ -3,6 +3,10 @@ use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use super::{
+    BindingCallContext, RuntimeScheduledCallbackControl, RuntimeScheduledCallbackHandle,
+    RuntimeScheduledCallbackRegistry,
+};
 use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::HostEventKind;
 use crate::platform::resource::ResourceTableSnapshot;
@@ -45,6 +49,8 @@ pub struct Agent {
     pub(crate) hooks: Arc<Hooks>,
     /// Agent-level finalizer registry for module services.
     pub(crate) finalizers: RuntimeFinalizers,
+    /// Agent-local runtime scheduled callbacks.
+    pub(crate) runtime_callbacks: RuntimeScheduledCallbackRegistry,
     /// Agent-owned platform state store.
     pub(crate) platform_state: PlatformState,
     /// Diagnostics storage for runtime errors and warning events.
@@ -100,15 +106,7 @@ pub struct AgentImage {
 impl AgentImage {
     /// Return whether the captured agent still has pending event-loop work.
     pub fn has_pending_work(&self) -> bool {
-        !self.event_loop.tasks.is_empty()
-            || !self.event_loop.microtasks.is_empty()
-            || !self.event_loop.events.is_empty()
-            || !self.event_loop.host_events.is_empty()
-            || !self.event_loop.ready_timers.is_empty()
-            || !self.event_loop.timers.is_empty()
-            || !self.event_loop.timer_watches.is_empty()
-            || !self.event_loop.poller_event_watches.is_empty()
-            || !self.event_loop.host_event_watches.is_empty()
+        self.event_loop.has_pending_work()
     }
 }
 
@@ -235,6 +233,7 @@ impl Agent {
             resources,
             hooks,
             finalizers: RuntimeFinalizers::default(),
+            runtime_callbacks: RuntimeScheduledCallbackRegistry::default(),
             platform_state: PlatformState::default(),
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             drop_counts: DropCounts::default(),
@@ -377,6 +376,66 @@ impl Agent {
         self.event_loop.unwatch_timer(handle)
     }
 
+    /// Schedule one runtime callback on the owning event loop thread.
+    pub(crate) fn schedule_runtime_callback(
+        &self,
+        binding: &BindingCallContext,
+        delay_ns: u64,
+        interval_ns: Option<u64>,
+        callback: impl FnMut(&BindingCallContext) -> RuntimeResult<RuntimeScheduledCallbackControl>
+        + 'static,
+    ) -> RuntimeResult<RuntimeScheduledCallbackHandle> {
+        self.runtime_callbacks
+            .schedule(binding, delay_ns, interval_ns, callback)
+    }
+
+    /// Cancel one scheduled runtime callback.
+    pub(crate) fn cancel_runtime_callback(
+        &self,
+        binding: &BindingCallContext,
+        handle: RuntimeScheduledCallbackHandle,
+    ) -> RuntimeResult<()> {
+        self.runtime_callbacks.cancel(binding, handle)
+    }
+
+    /// Service due runtime callbacks on the owning event loop thread.
+    pub(crate) fn service_runtime_callbacks(
+        &self,
+        binding: &BindingCallContext,
+    ) -> RuntimeResult<()> {
+        // skip the timer scan when no runtime callback is registered
+        if !self.runtime_callbacks.has_active_callbacks() {
+            return Ok(());
+        }
+
+        // collect only runtime owned timers from the shared ready set
+        let wall_now = binding.world().wall();
+        let mono_now = binding.world().mono();
+        let due_timers =
+            binding
+                .event_loop()
+                .take_due_timers_matching(wall_now, mono_now, |handle| {
+                    handle.internal_id().is_some_and(|handle| {
+                        self.runtime_callbacks
+                            .contains(RuntimeScheduledCallbackHandle::from_internal_id(handle))
+                    })
+                })?;
+
+        // run only runtime owned timer callbacks in this blocked wait path
+        for timer in due_timers {
+            let Some(handle) = timer.handle.internal_id() else {
+                continue;
+            };
+
+            self.runtime_callbacks.service_due_callback(
+                binding,
+                RuntimeScheduledCallbackHandle::from_internal_id(handle),
+            )?;
+        }
+
+        Ok(())
+    }
+
     /// Register one event watch.
     pub fn watch_event(
         &mut self,
@@ -510,6 +569,11 @@ impl Agent {
 
     /// Capture one materialized agent image.
     pub(crate) fn capture_image(&mut self, mode: CaptureMode) -> RuntimeResult<AgentImage> {
+        // runtime callback barrier
+        if self.runtime_callbacks.has_active_callbacks() {
+            return Err(self.runtime_callbacks.capture_barrier_error(mode));
+        }
+
         // local scheduler and external state
         let event_loop = self.event_loop.capture_image(mode, self.engine.as_mut())?;
         let resources = self.resources.capture_image(mode, ())?;
@@ -622,6 +686,7 @@ impl Agent {
                 finalizers.restore_image(&image.finalizers, ())?;
                 finalizers
             },
+            runtime_callbacks: RuntimeScheduledCallbackRegistry::default(),
             platform_state: {
                 let mut platform_state = PlatformState::default();
                 platform_state.restore_image(&image.platform_state, ())?;
