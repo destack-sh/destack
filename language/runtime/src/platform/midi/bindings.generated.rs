@@ -12,28 +12,23 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::midi::{
     MidiBackend, MidiBackendCapabilityFlags, MidiBackendDescriptor, MidiBackendDescriptorValue,
     MidiBackendDescriptorVm, MidiBackendDisconnectedEvent, MidiBackendDisconnectedEventValue,
-    MidiBackendDisconnectedEventVm, MidiBackendDisconnectedPayload,
-    MidiBackendDisconnectedPayloadVm, MidiBackendSelectionPolicy, MidiDataFormat,
+    MidiBackendDisconnectedEventVm, MidiBackendSelectionPolicy, MidiDataFormat,
     MidiDataFormatFlags, MidiEvent, MidiEventDeliveryMode, MidiEventMetadata, MidiEventMetadataVm,
     MidiEventOverflowPolicy, MidiEventSource, MidiEventSubscriptionFlags,
     MidiEventSubscriptionOptions, MidiEventSubscriptionOptionsVm, MidiEventValue, MidiEventVm,
     MidiInputPortOpenOptions, MidiInputPortOpenOptionsVm, MidiInputRecord, MidiInputRecordValue,
     MidiInputRecordVm, MidiOutputPortOpenOptions, MidiOutputPortOpenOptionsVm, MidiOutputRecord,
     MidiOutputRecordVm, MidiPortAddedEvent, MidiPortAddedEventValue, MidiPortAddedEventVm,
-    MidiPortAddedPayload, MidiPortAddedPayloadValue, MidiPortAddedPayloadVm, MidiPortChangedEvent,
-    MidiPortChangedEventValue, MidiPortChangedEventVm, MidiPortChangedPayload,
-    MidiPortChangedPayloadValue, MidiPortChangedPayloadVm, MidiPortDescriptor,
+    MidiPortChangedEvent, MidiPortChangedEventValue, MidiPortChangedEventVm, MidiPortDescriptor,
     MidiPortDescriptorValue, MidiPortDescriptorVm, MidiPortDirection, MidiPortDirectionFlags,
     MidiPortListFlags, MidiPortListOptions, MidiPortListOptionsVm, MidiPortRemovedEvent,
-    MidiPortRemovedEventValue, MidiPortRemovedEventVm, MidiPortRemovedPayload,
-    MidiPortRemovedPayloadValue, MidiPortRemovedPayloadVm, MidiProtocol, MidiProtocolFlags,
+    MidiPortRemovedEventValue, MidiPortRemovedEventVm, MidiProtocol, MidiProtocolFlags,
     MidiRecordFraming, MidiVirtualInputCreateOptions, MidiVirtualInputCreateOptionsVm,
     MidiVirtualOutputCreateOptions, MidiVirtualOutputCreateOptionsVm,
     MidibackenddescriptorReplayRecord, MidibackenddisconnectedeventReplayRecord,
     MidieventReplayRecord, MidiinputrecordReplayRecord, MidiportaddedeventReplayRecord,
-    MidiportaddedpayloadReplayRecord, MidiportchangedeventReplayRecord,
-    MidiportchangedpayloadReplayRecord, MidiportdescriptorReplayRecord,
-    MidiportremovedeventReplayRecord, MidiportremovedpayloadReplayRecord,
+    MidiportchangedeventReplayRecord, MidiportdescriptorReplayRecord,
+    MidiportremovedeventReplayRecord,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
@@ -406,13 +401,8 @@ fn encode_destack_midi_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.flags as u64, 32));
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
@@ -442,84 +432,70 @@ fn encode_destack_midi_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.direction as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
-                        let field_1: RuntimeResult<vm::Value> = {
-                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                                value.payload.descriptor.backend as i32 as i64,
-                                32,
-                            ));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(value.payload.descriptor.id.value());
-                            let field_2: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.group_id {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_3: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.backend_id {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_4: RuntimeResult<vm::Value> =
-                                Ok(value.payload.descriptor.name.value());
-                            let field_5: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.group_name {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_6: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.manufacturer {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_7: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.model {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_8: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.version {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                                value.payload.descriptor.supported_data_formats.0 as u64,
-                                32,
-                            ));
-                            let field_10: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.default_data_format {
-                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                                value.payload.descriptor.supported_protocols.0 as u64,
-                                32,
-                            ));
-                            let field_12: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.default_protocol {
-                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_13: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
-                            let field_14: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::bool(value.payload.descriptor.is_connected));
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                    field_12?, field_13?, field_14?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            Ok(vm::Value::int(value.descriptor.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = Ok(value.descriptor.id.value());
+                        let field_2: RuntimeResult<vm::Value> = match value.descriptor.group_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
+                        let field_3: RuntimeResult<vm::Value> = match value.descriptor.backend_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_4: RuntimeResult<vm::Value> = Ok(value.descriptor.name.value());
+                        let field_5: RuntimeResult<vm::Value> = match value.descriptor.group_name {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_6: RuntimeResult<vm::Value> = match value.descriptor.manufacturer
+                        {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_7: RuntimeResult<vm::Value> = match value.descriptor.model {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_8: RuntimeResult<vm::Value> = match value.descriptor.version {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.descriptor.supported_data_formats.0 as u64,
+                            32,
+                        ));
+                        let field_10: RuntimeResult<vm::Value> =
+                            match value.descriptor.default_data_format {
+                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.descriptor.supported_protocols.0 as u64,
+                            32,
+                        ));
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.descriptor.default_protocol {
+                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_13: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.descriptor.is_virtual));
+                        let field_14: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.descriptor.is_connected));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?, field_13?, field_14?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -547,84 +523,70 @@ fn encode_destack_midi_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.direction as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
-                        let field_1: RuntimeResult<vm::Value> = {
-                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                                value.payload.descriptor.backend as i32 as i64,
-                                32,
-                            ));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(value.payload.descriptor.id.value());
-                            let field_2: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.group_id {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_3: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.backend_id {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_4: RuntimeResult<vm::Value> =
-                                Ok(value.payload.descriptor.name.value());
-                            let field_5: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.group_name {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_6: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.manufacturer {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_7: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.model {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_8: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.version {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                                value.payload.descriptor.supported_data_formats.0 as u64,
-                                32,
-                            ));
-                            let field_10: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.default_data_format {
-                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                                value.payload.descriptor.supported_protocols.0 as u64,
-                                32,
-                            ));
-                            let field_12: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.default_protocol {
-                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_13: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
-                            let field_14: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::bool(value.payload.descriptor.is_connected));
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                    field_12?, field_13?, field_14?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            Ok(vm::Value::int(value.descriptor.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = Ok(value.descriptor.id.value());
+                        let field_2: RuntimeResult<vm::Value> = match value.descriptor.group_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
+                        let field_3: RuntimeResult<vm::Value> = match value.descriptor.backend_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_4: RuntimeResult<vm::Value> = Ok(value.descriptor.name.value());
+                        let field_5: RuntimeResult<vm::Value> = match value.descriptor.group_name {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_6: RuntimeResult<vm::Value> = match value.descriptor.manufacturer
+                        {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_7: RuntimeResult<vm::Value> = match value.descriptor.model {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_8: RuntimeResult<vm::Value> = match value.descriptor.version {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.descriptor.supported_data_formats.0 as u64,
+                            32,
+                        ));
+                        let field_10: RuntimeResult<vm::Value> =
+                            match value.descriptor.default_data_format {
+                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.descriptor.supported_protocols.0 as u64,
+                            32,
+                        ));
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.descriptor.default_protocol {
+                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_13: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.descriptor.is_virtual));
+                        let field_14: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.descriptor.is_connected));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?, field_13?, field_14?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -652,20 +614,15 @@ fn encode_destack_midi_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
-                        let field_1: RuntimeResult<vm::Value> = Ok(value.payload.id.value());
-                        let field_2: RuntimeResult<vm::Value> = match value.payload.group_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.direction as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> = Ok(value.id.value());
+                    let field_4: RuntimeResult<vm::Value> = match value.group_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -746,13 +703,8 @@ fn encode_destack_midi_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.flags as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
-                    };
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.flags as u64, 32));
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
                         .map_err(Box::<RuntimeError>::from)
@@ -782,84 +734,70 @@ fn encode_destack_midi_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.direction as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
-                        let field_1: RuntimeResult<vm::Value> = {
-                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                                value.payload.descriptor.backend as i32 as i64,
-                                32,
-                            ));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(value.payload.descriptor.id.value());
-                            let field_2: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.group_id {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_3: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.backend_id {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_4: RuntimeResult<vm::Value> =
-                                Ok(value.payload.descriptor.name.value());
-                            let field_5: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.group_name {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_6: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.manufacturer {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_7: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.model {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_8: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.version {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                                value.payload.descriptor.supported_data_formats.0 as u64,
-                                32,
-                            ));
-                            let field_10: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.default_data_format {
-                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                                value.payload.descriptor.supported_protocols.0 as u64,
-                                32,
-                            ));
-                            let field_12: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.default_protocol {
-                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_13: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
-                            let field_14: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::bool(value.payload.descriptor.is_connected));
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                    field_12?, field_13?, field_14?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            Ok(vm::Value::int(value.descriptor.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = Ok(value.descriptor.id.value());
+                        let field_2: RuntimeResult<vm::Value> = match value.descriptor.group_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
+                        let field_3: RuntimeResult<vm::Value> = match value.descriptor.backend_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_4: RuntimeResult<vm::Value> = Ok(value.descriptor.name.value());
+                        let field_5: RuntimeResult<vm::Value> = match value.descriptor.group_name {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_6: RuntimeResult<vm::Value> = match value.descriptor.manufacturer
+                        {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_7: RuntimeResult<vm::Value> = match value.descriptor.model {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_8: RuntimeResult<vm::Value> = match value.descriptor.version {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.descriptor.supported_data_formats.0 as u64,
+                            32,
+                        ));
+                        let field_10: RuntimeResult<vm::Value> =
+                            match value.descriptor.default_data_format {
+                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.descriptor.supported_protocols.0 as u64,
+                            32,
+                        ));
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.descriptor.default_protocol {
+                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_13: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.descriptor.is_virtual));
+                        let field_14: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.descriptor.is_connected));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?, field_13?, field_14?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -887,84 +825,70 @@ fn encode_destack_midi_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.direction as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
-                        let field_1: RuntimeResult<vm::Value> = {
-                            let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(
-                                value.payload.descriptor.backend as i32 as i64,
-                                32,
-                            ));
-                            let field_1: RuntimeResult<vm::Value> =
-                                Ok(value.payload.descriptor.id.value());
-                            let field_2: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.group_id {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_3: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.backend_id {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_4: RuntimeResult<vm::Value> =
-                                Ok(value.payload.descriptor.name.value());
-                            let field_5: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.group_name {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_6: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.manufacturer {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_7: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.model {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_8: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.version {
-                                    Some(value) => Ok(value.value()),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                                value.payload.descriptor.supported_data_formats.0 as u64,
-                                32,
-                            ));
-                            let field_10: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.default_data_format {
-                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
-                                value.payload.descriptor.supported_protocols.0 as u64,
-                                32,
-                            ));
-                            let field_12: RuntimeResult<vm::Value> =
-                                match value.payload.descriptor.default_protocol {
-                                    Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
-                                    None => Ok(vm::Value::VOID),
-                                };
-                            let field_13: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::bool(value.payload.descriptor.is_virtual));
-                            let field_14: RuntimeResult<vm::Value> =
-                                Ok(vm::Value::bool(value.payload.descriptor.is_connected));
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                    field_12?, field_13?, field_14?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            Ok(vm::Value::int(value.descriptor.backend as i32 as i64, 32));
+                        let field_1: RuntimeResult<vm::Value> = Ok(value.descriptor.id.value());
+                        let field_2: RuntimeResult<vm::Value> = match value.descriptor.group_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
                         };
+                        let field_3: RuntimeResult<vm::Value> = match value.descriptor.backend_id {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_4: RuntimeResult<vm::Value> = Ok(value.descriptor.name.value());
+                        let field_5: RuntimeResult<vm::Value> = match value.descriptor.group_name {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_6: RuntimeResult<vm::Value> = match value.descriptor.manufacturer
+                        {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_7: RuntimeResult<vm::Value> = match value.descriptor.model {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_8: RuntimeResult<vm::Value> = match value.descriptor.version {
+                            Some(value) => Ok(value.value()),
+                            None => Ok(vm::Value::VOID),
+                        };
+                        let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.descriptor.supported_data_formats.0 as u64,
+                            32,
+                        ));
+                        let field_10: RuntimeResult<vm::Value> =
+                            match value.descriptor.default_data_format {
+                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_11: RuntimeResult<vm::Value> = Ok(vm::Value::uint(
+                            value.descriptor.supported_protocols.0 as u64,
+                            32,
+                        ));
+                        let field_12: RuntimeResult<vm::Value> =
+                            match value.descriptor.default_protocol {
+                                Some(value) => Ok(vm::Value::int(value as i32 as i64, 32)),
+                                None => Ok(vm::Value::VOID),
+                            };
+                        let field_13: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.descriptor.is_virtual));
+                        let field_14: RuntimeResult<vm::Value> =
+                            Ok(vm::Value::bool(value.descriptor.is_connected));
                         context
-                            .allocate_aggregate(vec![field_0?, field_1?])
+                            .allocate_aggregate(vec![
+                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                                field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
+                                field_12?, field_13?, field_14?,
+                            ])
                             .map_err(Box::<RuntimeError>::from)
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -992,20 +916,15 @@ fn encode_destack_midi_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::int(value.payload.direction as i32 as i64, 32));
-                        let field_1: RuntimeResult<vm::Value> = Ok(value.payload.id.value());
-                        let field_2: RuntimeResult<vm::Value> = match value.payload.group_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::int(value.direction as i32 as i64, 32));
+                    let field_3: RuntimeResult<vm::Value> = Ok(value.id.value());
+                    let field_4: RuntimeResult<vm::Value> = match value.group_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -2939,14 +2858,11 @@ fn destack_midi_event_read_replay(
                             source: result_recorded_midi_backend_disconnected_event_metadata_source,
                             backend: result_recorded_midi_backend_disconnected_event_metadata_backend,
                         };
-                        let result_recorded_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                        let result_recorded_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                            flags: result_recorded_midi_backend_disconnected_event_payload_flags,
-                        };
+                        let result_recorded_midi_backend_disconnected_event_flags = value.flags;
                         let result_recorded_midi_backend_disconnected_event = MidibackenddisconnectedeventReplayRecord {
                             kind: result_recorded_midi_backend_disconnected_event_kind,
                             metadata: result_recorded_midi_backend_disconnected_event_metadata,
-                            payload: result_recorded_midi_backend_disconnected_event_payload,
+                            flags: result_recorded_midi_backend_disconnected_event_flags,
                         };
                         MidieventReplayRecord::MidiBackendDisconnectedEvent(result_recorded_midi_backend_disconnected_event)
                     }
@@ -2964,87 +2880,84 @@ fn destack_midi_event_read_replay(
                             source: result_recorded_midi_port_added_event_metadata_source,
                             backend: result_recorded_midi_port_added_event_metadata_backend,
                         };
-                        let result_recorded_midi_port_added_event_payload_direction = value.payload.direction;
-                        let result_recorded_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                        let result_recorded_midi_port_added_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
-                        let result_recorded_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                            let result_recorded_midi_port_added_event_payload_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_group_id_inner)
+                        let result_recorded_midi_port_added_event_direction = value.direction;
+                        let result_recorded_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                        let result_recorded_midi_port_added_event_descriptor_id = unsafe { value.descriptor.id.as_str()? }.to_string();
+                        let result_recorded_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                            let result_recorded_midi_port_added_event_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_added_event_descriptor_group_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                            let result_recorded_midi_port_added_event_payload_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_backend_id_inner)
+                        let result_recorded_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                            let result_recorded_midi_port_added_event_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_added_event_descriptor_backend_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
-                        let result_recorded_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                            let result_recorded_midi_port_added_event_payload_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_group_name_inner)
+                        let result_recorded_midi_port_added_event_descriptor_name = unsafe { value.descriptor.name.as_str()? }.to_string();
+                        let result_recorded_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                            let result_recorded_midi_port_added_event_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_added_event_descriptor_group_name_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                            let result_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                        let result_recorded_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                            let result_recorded_midi_port_added_event_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_added_event_descriptor_manufacturer_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                            let result_recorded_midi_port_added_event_payload_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_model_inner)
+                        let result_recorded_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                            let result_recorded_midi_port_added_event_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_added_event_descriptor_model_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                            let result_recorded_midi_port_added_event_payload_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_version_inner)
+                        let result_recorded_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                            let result_recorded_midi_port_added_event_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_added_event_descriptor_version_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                        let result_recorded_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                            let result_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                        let result_recorded_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                        let result_recorded_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                            let result_recorded_midi_port_added_event_descriptor_default_data_format_inner = value;
+                            Some(result_recorded_midi_port_added_event_descriptor_default_data_format_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                        let result_recorded_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                            let result_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                        let result_recorded_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                        let result_recorded_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                            let result_recorded_midi_port_added_event_descriptor_default_protocol_inner = value;
+                            Some(result_recorded_midi_port_added_event_descriptor_default_protocol_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                        let result_recorded_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                        let result_recorded_midi_port_added_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                            backend: result_recorded_midi_port_added_event_payload_descriptor_backend,
-                            id: result_recorded_midi_port_added_event_payload_descriptor_id,
-                            group_id: result_recorded_midi_port_added_event_payload_descriptor_group_id,
-                            backend_id: result_recorded_midi_port_added_event_payload_descriptor_backend_id,
-                            name: result_recorded_midi_port_added_event_payload_descriptor_name,
-                            group_name: result_recorded_midi_port_added_event_payload_descriptor_group_name,
-                            manufacturer: result_recorded_midi_port_added_event_payload_descriptor_manufacturer,
-                            model: result_recorded_midi_port_added_event_payload_descriptor_model,
-                            version: result_recorded_midi_port_added_event_payload_descriptor_version,
-                            supported_data_formats: result_recorded_midi_port_added_event_payload_descriptor_supported_data_formats,
-                            default_data_format: result_recorded_midi_port_added_event_payload_descriptor_default_data_format,
-                            supported_protocols: result_recorded_midi_port_added_event_payload_descriptor_supported_protocols,
-                            default_protocol: result_recorded_midi_port_added_event_payload_descriptor_default_protocol,
-                            is_virtual: result_recorded_midi_port_added_event_payload_descriptor_is_virtual,
-                            is_connected: result_recorded_midi_port_added_event_payload_descriptor_is_connected,
-                        };
-                        let result_recorded_midi_port_added_event_payload = MidiportaddedpayloadReplayRecord {
-                            direction: result_recorded_midi_port_added_event_payload_direction,
-                            descriptor: result_recorded_midi_port_added_event_payload_descriptor,
+                        let result_recorded_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                        let result_recorded_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                        let result_recorded_midi_port_added_event_descriptor = MidiportdescriptorReplayRecord {
+                            backend: result_recorded_midi_port_added_event_descriptor_backend,
+                            id: result_recorded_midi_port_added_event_descriptor_id,
+                            group_id: result_recorded_midi_port_added_event_descriptor_group_id,
+                            backend_id: result_recorded_midi_port_added_event_descriptor_backend_id,
+                            name: result_recorded_midi_port_added_event_descriptor_name,
+                            group_name: result_recorded_midi_port_added_event_descriptor_group_name,
+                            manufacturer: result_recorded_midi_port_added_event_descriptor_manufacturer,
+                            model: result_recorded_midi_port_added_event_descriptor_model,
+                            version: result_recorded_midi_port_added_event_descriptor_version,
+                            supported_data_formats: result_recorded_midi_port_added_event_descriptor_supported_data_formats,
+                            default_data_format: result_recorded_midi_port_added_event_descriptor_default_data_format,
+                            supported_protocols: result_recorded_midi_port_added_event_descriptor_supported_protocols,
+                            default_protocol: result_recorded_midi_port_added_event_descriptor_default_protocol,
+                            is_virtual: result_recorded_midi_port_added_event_descriptor_is_virtual,
+                            is_connected: result_recorded_midi_port_added_event_descriptor_is_connected,
                         };
                         let result_recorded_midi_port_added_event = MidiportaddedeventReplayRecord {
                             kind: result_recorded_midi_port_added_event_kind,
                             metadata: result_recorded_midi_port_added_event_metadata,
-                            payload: result_recorded_midi_port_added_event_payload,
+                            direction: result_recorded_midi_port_added_event_direction,
+                            descriptor: result_recorded_midi_port_added_event_descriptor,
                         };
                         MidieventReplayRecord::MidiPortAddedEvent(result_recorded_midi_port_added_event)
                     }
@@ -3062,87 +2975,84 @@ fn destack_midi_event_read_replay(
                             source: result_recorded_midi_port_changed_event_metadata_source,
                             backend: result_recorded_midi_port_changed_event_metadata_backend,
                         };
-                        let result_recorded_midi_port_changed_event_payload_direction = value.payload.direction;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
-                        let result_recorded_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_group_id_inner)
+                        let result_recorded_midi_port_changed_event_direction = value.direction;
+                        let result_recorded_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                        let result_recorded_midi_port_changed_event_descriptor_id = unsafe { value.descriptor.id.as_str()? }.to_string();
+                        let result_recorded_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                            let result_recorded_midi_port_changed_event_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_changed_event_descriptor_group_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                            let result_recorded_midi_port_changed_event_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_changed_event_descriptor_backend_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
-                        let result_recorded_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_group_name_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_name = unsafe { value.descriptor.name.as_str()? }.to_string();
+                        let result_recorded_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                            let result_recorded_midi_port_changed_event_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_changed_event_descriptor_group_name_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                            let result_recorded_midi_port_changed_event_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_changed_event_descriptor_manufacturer_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_model_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                            let result_recorded_midi_port_changed_event_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_changed_event_descriptor_model_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_version_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                            let result_recorded_midi_port_changed_event_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_changed_event_descriptor_version_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                        let result_recorded_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                            let result_recorded_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                            Some(result_recorded_midi_port_changed_event_descriptor_default_data_format_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                        let result_recorded_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                            let result_recorded_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                            Some(result_recorded_midi_port_changed_event_descriptor_default_protocol_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                        let result_recorded_midi_port_changed_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                            backend: result_recorded_midi_port_changed_event_payload_descriptor_backend,
-                            id: result_recorded_midi_port_changed_event_payload_descriptor_id,
-                            group_id: result_recorded_midi_port_changed_event_payload_descriptor_group_id,
-                            backend_id: result_recorded_midi_port_changed_event_payload_descriptor_backend_id,
-                            name: result_recorded_midi_port_changed_event_payload_descriptor_name,
-                            group_name: result_recorded_midi_port_changed_event_payload_descriptor_group_name,
-                            manufacturer: result_recorded_midi_port_changed_event_payload_descriptor_manufacturer,
-                            model: result_recorded_midi_port_changed_event_payload_descriptor_model,
-                            version: result_recorded_midi_port_changed_event_payload_descriptor_version,
-                            supported_data_formats: result_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                            default_data_format: result_recorded_midi_port_changed_event_payload_descriptor_default_data_format,
-                            supported_protocols: result_recorded_midi_port_changed_event_payload_descriptor_supported_protocols,
-                            default_protocol: result_recorded_midi_port_changed_event_payload_descriptor_default_protocol,
-                            is_virtual: result_recorded_midi_port_changed_event_payload_descriptor_is_virtual,
-                            is_connected: result_recorded_midi_port_changed_event_payload_descriptor_is_connected,
-                        };
-                        let result_recorded_midi_port_changed_event_payload = MidiportchangedpayloadReplayRecord {
-                            direction: result_recorded_midi_port_changed_event_payload_direction,
-                            descriptor: result_recorded_midi_port_changed_event_payload_descriptor,
+                        let result_recorded_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                        let result_recorded_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                        let result_recorded_midi_port_changed_event_descriptor = MidiportdescriptorReplayRecord {
+                            backend: result_recorded_midi_port_changed_event_descriptor_backend,
+                            id: result_recorded_midi_port_changed_event_descriptor_id,
+                            group_id: result_recorded_midi_port_changed_event_descriptor_group_id,
+                            backend_id: result_recorded_midi_port_changed_event_descriptor_backend_id,
+                            name: result_recorded_midi_port_changed_event_descriptor_name,
+                            group_name: result_recorded_midi_port_changed_event_descriptor_group_name,
+                            manufacturer: result_recorded_midi_port_changed_event_descriptor_manufacturer,
+                            model: result_recorded_midi_port_changed_event_descriptor_model,
+                            version: result_recorded_midi_port_changed_event_descriptor_version,
+                            supported_data_formats: result_recorded_midi_port_changed_event_descriptor_supported_data_formats,
+                            default_data_format: result_recorded_midi_port_changed_event_descriptor_default_data_format,
+                            supported_protocols: result_recorded_midi_port_changed_event_descriptor_supported_protocols,
+                            default_protocol: result_recorded_midi_port_changed_event_descriptor_default_protocol,
+                            is_virtual: result_recorded_midi_port_changed_event_descriptor_is_virtual,
+                            is_connected: result_recorded_midi_port_changed_event_descriptor_is_connected,
                         };
                         let result_recorded_midi_port_changed_event = MidiportchangedeventReplayRecord {
                             kind: result_recorded_midi_port_changed_event_kind,
                             metadata: result_recorded_midi_port_changed_event_metadata,
-                            payload: result_recorded_midi_port_changed_event_payload,
+                            direction: result_recorded_midi_port_changed_event_direction,
+                            descriptor: result_recorded_midi_port_changed_event_descriptor,
                         };
                         MidieventReplayRecord::MidiPortChangedEvent(result_recorded_midi_port_changed_event)
                     }
@@ -3160,23 +3070,20 @@ fn destack_midi_event_read_replay(
                             source: result_recorded_midi_port_removed_event_metadata_source,
                             backend: result_recorded_midi_port_removed_event_metadata_backend,
                         };
-                        let result_recorded_midi_port_removed_event_payload_direction = value.payload.direction;
-                        let result_recorded_midi_port_removed_event_payload_id = unsafe { value.payload.id.as_str()? }.to_string();
-                        let result_recorded_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                            let result_recorded_midi_port_removed_event_payload_group_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_removed_event_payload_group_id_inner)
+                        let result_recorded_midi_port_removed_event_direction = value.direction;
+                        let result_recorded_midi_port_removed_event_id = unsafe { value.id.as_str()? }.to_string();
+                        let result_recorded_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                            let result_recorded_midi_port_removed_event_group_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_removed_event_group_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_midi_port_removed_event_payload = MidiportremovedpayloadReplayRecord {
-                            direction: result_recorded_midi_port_removed_event_payload_direction,
-                            id: result_recorded_midi_port_removed_event_payload_id,
-                            group_id: result_recorded_midi_port_removed_event_payload_group_id,
                         };
                         let result_recorded_midi_port_removed_event = MidiportremovedeventReplayRecord {
                             kind: result_recorded_midi_port_removed_event_kind,
                             metadata: result_recorded_midi_port_removed_event_metadata,
-                            payload: result_recorded_midi_port_removed_event_payload,
+                            direction: result_recorded_midi_port_removed_event_direction,
+                            id: result_recorded_midi_port_removed_event_id,
+                            group_id: result_recorded_midi_port_removed_event_group_id,
                         };
                         MidieventReplayRecord::MidiPortRemovedEvent(result_recorded_midi_port_removed_event)
                     }
@@ -3218,14 +3125,11 @@ fn destack_midi_event_read_replay(
                                 source: value_native_midi_backend_disconnected_event_metadata_source,
                                 backend: value_native_midi_backend_disconnected_event_metadata_backend,
                             };
-                            let value_native_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                            let value_native_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                                flags: value_native_midi_backend_disconnected_event_payload_flags,
-                            };
+                            let value_native_midi_backend_disconnected_event_flags = value.flags;
                             let value_native_midi_backend_disconnected_event = MidiBackendDisconnectedEvent {
                                 kind: value_native_midi_backend_disconnected_event_kind,
                                 metadata: value_native_midi_backend_disconnected_event_metadata,
-                                payload: value_native_midi_backend_disconnected_event_payload,
+                                flags: value_native_midi_backend_disconnected_event_flags,
                             };
                             MidiEvent::MidiBackendDisconnectedEvent(value_native_midi_backend_disconnected_event)
                         }
@@ -3243,87 +3147,84 @@ fn destack_midi_event_read_replay(
                                 source: value_native_midi_port_added_event_metadata_source,
                                 backend: value_native_midi_port_added_event_metadata_backend,
                             };
-                            let value_native_midi_port_added_event_payload_direction = value.payload.direction;
-                            let value_native_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let value_native_midi_port_added_event_payload_descriptor_id = binding.store_string(value.payload.descriptor.id.as_str());
-                            let value_native_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let value_native_midi_port_added_event_payload_descriptor_group_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_added_event_payload_descriptor_group_id_inner)
+                            let value_native_midi_port_added_event_direction = value.direction;
+                            let value_native_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                            let value_native_midi_port_added_event_descriptor_id = binding.store_string(value.descriptor.id.as_str());
+                            let value_native_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let value_native_midi_port_added_event_descriptor_group_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_added_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let value_native_midi_port_added_event_payload_descriptor_backend_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_added_event_payload_descriptor_backend_id_inner)
+                            let value_native_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let value_native_midi_port_added_event_descriptor_backend_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_added_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_name = binding.store_string(value.payload.descriptor.name.as_str());
-                            let value_native_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let value_native_midi_port_added_event_payload_descriptor_group_name_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_added_event_payload_descriptor_group_name_inner)
+                            let value_native_midi_port_added_event_descriptor_name = binding.store_string(value.descriptor.name.as_str());
+                            let value_native_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let value_native_midi_port_added_event_descriptor_group_name_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_added_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let value_native_midi_port_added_event_payload_descriptor_manufacturer_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                            let value_native_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let value_native_midi_port_added_event_descriptor_manufacturer_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_added_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let value_native_midi_port_added_event_payload_descriptor_model_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_added_event_payload_descriptor_model_inner)
+                            let value_native_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let value_native_midi_port_added_event_descriptor_model_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_added_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let value_native_midi_port_added_event_payload_descriptor_version_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_added_event_payload_descriptor_version_inner)
+                            let value_native_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let value_native_midi_port_added_event_descriptor_version_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_added_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let value_native_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let value_native_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                                Some(value_native_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                            let value_native_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let value_native_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let value_native_midi_port_added_event_descriptor_default_data_format_inner = value;
+                                Some(value_native_midi_port_added_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let value_native_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let value_native_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                                Some(value_native_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                            let value_native_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let value_native_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let value_native_midi_port_added_event_descriptor_default_protocol_inner = value;
+                                Some(value_native_midi_port_added_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let value_native_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let value_native_midi_port_added_event_payload_descriptor = MidiPortDescriptor {
-                                backend: value_native_midi_port_added_event_payload_descriptor_backend,
-                                id: value_native_midi_port_added_event_payload_descriptor_id,
-                                group_id: value_native_midi_port_added_event_payload_descriptor_group_id,
-                                backend_id: value_native_midi_port_added_event_payload_descriptor_backend_id,
-                                name: value_native_midi_port_added_event_payload_descriptor_name,
-                                group_name: value_native_midi_port_added_event_payload_descriptor_group_name,
-                                manufacturer: value_native_midi_port_added_event_payload_descriptor_manufacturer,
-                                model: value_native_midi_port_added_event_payload_descriptor_model,
-                                version: value_native_midi_port_added_event_payload_descriptor_version,
-                                supported_data_formats: value_native_midi_port_added_event_payload_descriptor_supported_data_formats,
-                                default_data_format: value_native_midi_port_added_event_payload_descriptor_default_data_format,
-                                supported_protocols: value_native_midi_port_added_event_payload_descriptor_supported_protocols,
-                                default_protocol: value_native_midi_port_added_event_payload_descriptor_default_protocol,
-                                is_virtual: value_native_midi_port_added_event_payload_descriptor_is_virtual,
-                                is_connected: value_native_midi_port_added_event_payload_descriptor_is_connected,
-                            };
-                            let value_native_midi_port_added_event_payload = MidiPortAddedPayload {
-                                direction: value_native_midi_port_added_event_payload_direction,
-                                descriptor: value_native_midi_port_added_event_payload_descriptor,
+                            let value_native_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let value_native_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let value_native_midi_port_added_event_descriptor = MidiPortDescriptor {
+                                backend: value_native_midi_port_added_event_descriptor_backend,
+                                id: value_native_midi_port_added_event_descriptor_id,
+                                group_id: value_native_midi_port_added_event_descriptor_group_id,
+                                backend_id: value_native_midi_port_added_event_descriptor_backend_id,
+                                name: value_native_midi_port_added_event_descriptor_name,
+                                group_name: value_native_midi_port_added_event_descriptor_group_name,
+                                manufacturer: value_native_midi_port_added_event_descriptor_manufacturer,
+                                model: value_native_midi_port_added_event_descriptor_model,
+                                version: value_native_midi_port_added_event_descriptor_version,
+                                supported_data_formats: value_native_midi_port_added_event_descriptor_supported_data_formats,
+                                default_data_format: value_native_midi_port_added_event_descriptor_default_data_format,
+                                supported_protocols: value_native_midi_port_added_event_descriptor_supported_protocols,
+                                default_protocol: value_native_midi_port_added_event_descriptor_default_protocol,
+                                is_virtual: value_native_midi_port_added_event_descriptor_is_virtual,
+                                is_connected: value_native_midi_port_added_event_descriptor_is_connected,
                             };
                             let value_native_midi_port_added_event = MidiPortAddedEvent {
                                 kind: value_native_midi_port_added_event_kind,
                                 metadata: value_native_midi_port_added_event_metadata,
-                                payload: value_native_midi_port_added_event_payload,
+                                direction: value_native_midi_port_added_event_direction,
+                                descriptor: value_native_midi_port_added_event_descriptor,
                             };
                             MidiEvent::MidiPortAddedEvent(value_native_midi_port_added_event)
                         }
@@ -3341,87 +3242,84 @@ fn destack_midi_event_read_replay(
                                 source: value_native_midi_port_changed_event_metadata_source,
                                 backend: value_native_midi_port_changed_event_metadata_backend,
                             };
-                            let value_native_midi_port_changed_event_payload_direction = value.payload.direction;
-                            let value_native_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let value_native_midi_port_changed_event_payload_descriptor_id = binding.store_string(value.payload.descriptor.id.as_str());
-                            let value_native_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let value_native_midi_port_changed_event_payload_descriptor_group_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_changed_event_payload_descriptor_group_id_inner)
+                            let value_native_midi_port_changed_event_direction = value.direction;
+                            let value_native_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                            let value_native_midi_port_changed_event_descriptor_id = binding.store_string(value.descriptor.id.as_str());
+                            let value_native_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let value_native_midi_port_changed_event_descriptor_group_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_changed_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let value_native_midi_port_changed_event_payload_descriptor_backend_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                            let value_native_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let value_native_midi_port_changed_event_descriptor_backend_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_changed_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_name = binding.store_string(value.payload.descriptor.name.as_str());
-                            let value_native_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let value_native_midi_port_changed_event_payload_descriptor_group_name_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_changed_event_payload_descriptor_group_name_inner)
+                            let value_native_midi_port_changed_event_descriptor_name = binding.store_string(value.descriptor.name.as_str());
+                            let value_native_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let value_native_midi_port_changed_event_descriptor_group_name_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_changed_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let value_native_midi_port_changed_event_payload_descriptor_manufacturer_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                            let value_native_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let value_native_midi_port_changed_event_descriptor_manufacturer_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_changed_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let value_native_midi_port_changed_event_payload_descriptor_model_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_changed_event_payload_descriptor_model_inner)
+                            let value_native_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let value_native_midi_port_changed_event_descriptor_model_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_changed_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let value_native_midi_port_changed_event_payload_descriptor_version_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_changed_event_payload_descriptor_version_inner)
+                            let value_native_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let value_native_midi_port_changed_event_descriptor_version_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_changed_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let value_native_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let value_native_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                                Some(value_native_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                            let value_native_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let value_native_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let value_native_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                                Some(value_native_midi_port_changed_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let value_native_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let value_native_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                                Some(value_native_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                            let value_native_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let value_native_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let value_native_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                                Some(value_native_midi_port_changed_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let value_native_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let value_native_midi_port_changed_event_payload_descriptor = MidiPortDescriptor {
-                                backend: value_native_midi_port_changed_event_payload_descriptor_backend,
-                                id: value_native_midi_port_changed_event_payload_descriptor_id,
-                                group_id: value_native_midi_port_changed_event_payload_descriptor_group_id,
-                                backend_id: value_native_midi_port_changed_event_payload_descriptor_backend_id,
-                                name: value_native_midi_port_changed_event_payload_descriptor_name,
-                                group_name: value_native_midi_port_changed_event_payload_descriptor_group_name,
-                                manufacturer: value_native_midi_port_changed_event_payload_descriptor_manufacturer,
-                                model: value_native_midi_port_changed_event_payload_descriptor_model,
-                                version: value_native_midi_port_changed_event_payload_descriptor_version,
-                                supported_data_formats: value_native_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                                default_data_format: value_native_midi_port_changed_event_payload_descriptor_default_data_format,
-                                supported_protocols: value_native_midi_port_changed_event_payload_descriptor_supported_protocols,
-                                default_protocol: value_native_midi_port_changed_event_payload_descriptor_default_protocol,
-                                is_virtual: value_native_midi_port_changed_event_payload_descriptor_is_virtual,
-                                is_connected: value_native_midi_port_changed_event_payload_descriptor_is_connected,
-                            };
-                            let value_native_midi_port_changed_event_payload = MidiPortChangedPayload {
-                                direction: value_native_midi_port_changed_event_payload_direction,
-                                descriptor: value_native_midi_port_changed_event_payload_descriptor,
+                            let value_native_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let value_native_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let value_native_midi_port_changed_event_descriptor = MidiPortDescriptor {
+                                backend: value_native_midi_port_changed_event_descriptor_backend,
+                                id: value_native_midi_port_changed_event_descriptor_id,
+                                group_id: value_native_midi_port_changed_event_descriptor_group_id,
+                                backend_id: value_native_midi_port_changed_event_descriptor_backend_id,
+                                name: value_native_midi_port_changed_event_descriptor_name,
+                                group_name: value_native_midi_port_changed_event_descriptor_group_name,
+                                manufacturer: value_native_midi_port_changed_event_descriptor_manufacturer,
+                                model: value_native_midi_port_changed_event_descriptor_model,
+                                version: value_native_midi_port_changed_event_descriptor_version,
+                                supported_data_formats: value_native_midi_port_changed_event_descriptor_supported_data_formats,
+                                default_data_format: value_native_midi_port_changed_event_descriptor_default_data_format,
+                                supported_protocols: value_native_midi_port_changed_event_descriptor_supported_protocols,
+                                default_protocol: value_native_midi_port_changed_event_descriptor_default_protocol,
+                                is_virtual: value_native_midi_port_changed_event_descriptor_is_virtual,
+                                is_connected: value_native_midi_port_changed_event_descriptor_is_connected,
                             };
                             let value_native_midi_port_changed_event = MidiPortChangedEvent {
                                 kind: value_native_midi_port_changed_event_kind,
                                 metadata: value_native_midi_port_changed_event_metadata,
-                                payload: value_native_midi_port_changed_event_payload,
+                                direction: value_native_midi_port_changed_event_direction,
+                                descriptor: value_native_midi_port_changed_event_descriptor,
                             };
                             MidiEvent::MidiPortChangedEvent(value_native_midi_port_changed_event)
                         }
@@ -3439,23 +3337,20 @@ fn destack_midi_event_read_replay(
                                 source: value_native_midi_port_removed_event_metadata_source,
                                 backend: value_native_midi_port_removed_event_metadata_backend,
                             };
-                            let value_native_midi_port_removed_event_payload_direction = value.payload.direction;
-                            let value_native_midi_port_removed_event_payload_id = binding.store_string(value.payload.id.as_str());
-                            let value_native_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                let value_native_midi_port_removed_event_payload_group_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_removed_event_payload_group_id_inner)
+                            let value_native_midi_port_removed_event_direction = value.direction;
+                            let value_native_midi_port_removed_event_id = binding.store_string(value.id.as_str());
+                            let value_native_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                                let value_native_midi_port_removed_event_group_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_removed_event_group_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_midi_port_removed_event_payload = MidiPortRemovedPayload {
-                                direction: value_native_midi_port_removed_event_payload_direction,
-                                id: value_native_midi_port_removed_event_payload_id,
-                                group_id: value_native_midi_port_removed_event_payload_group_id,
                             };
                             let value_native_midi_port_removed_event = MidiPortRemovedEvent {
                                 kind: value_native_midi_port_removed_event_kind,
                                 metadata: value_native_midi_port_removed_event_metadata,
-                                payload: value_native_midi_port_removed_event_payload,
+                                direction: value_native_midi_port_removed_event_direction,
+                                id: value_native_midi_port_removed_event_id,
+                                group_id: value_native_midi_port_removed_event_group_id,
                             };
                             MidiEvent::MidiPortRemovedEvent(value_native_midi_port_removed_event)
                         }
@@ -3507,14 +3402,11 @@ fn destack_midi_event_read_batch_replay(
                                 source: result_recorded_item_recorded_midi_backend_disconnected_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_backend_disconnected_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                            let result_recorded_item_recorded_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                                flags: result_recorded_item_recorded_midi_backend_disconnected_event_payload_flags,
-                            };
+                            let result_recorded_item_recorded_midi_backend_disconnected_event_flags = value.flags;
                             let result_recorded_item_recorded_midi_backend_disconnected_event = MidibackenddisconnectedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_backend_disconnected_event_kind,
                                 metadata: result_recorded_item_recorded_midi_backend_disconnected_event_metadata,
-                                payload: result_recorded_item_recorded_midi_backend_disconnected_event_payload,
+                                flags: result_recorded_item_recorded_midi_backend_disconnected_event_flags,
                             };
                             MidieventReplayRecord::MidiBackendDisconnectedEvent(result_recorded_item_recorded_midi_backend_disconnected_event)
                         }
@@ -3532,87 +3424,84 @@ fn destack_midi_event_read_batch_replay(
                                 source: result_recorded_item_recorded_midi_port_added_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_port_added_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_direction = value.payload.direction;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_direction = value.direction;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_id = unsafe { value.descriptor.id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_name = unsafe { value.descriptor.name.as_str()? }.to_string();
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                                backend: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend,
-                                id: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_id,
-                                group_id: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id,
-                                backend_id: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id,
-                                name: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_name,
-                                group_name: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name,
-                                manufacturer: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer,
-                                model: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model,
-                                version: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version,
-                                supported_data_formats: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_data_formats,
-                                default_data_format: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format,
-                                supported_protocols: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_protocols,
-                                default_protocol: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol,
-                                is_virtual: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_virtual,
-                                is_connected: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_connected,
-                            };
-                            let result_recorded_item_recorded_midi_port_added_event_payload = MidiportaddedpayloadReplayRecord {
-                                direction: result_recorded_item_recorded_midi_port_added_event_payload_direction,
-                                descriptor: result_recorded_item_recorded_midi_port_added_event_payload_descriptor,
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor = MidiportdescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_midi_port_added_event_descriptor_backend,
+                                id: result_recorded_item_recorded_midi_port_added_event_descriptor_id,
+                                group_id: result_recorded_item_recorded_midi_port_added_event_descriptor_group_id,
+                                backend_id: result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id,
+                                name: result_recorded_item_recorded_midi_port_added_event_descriptor_name,
+                                group_name: result_recorded_item_recorded_midi_port_added_event_descriptor_group_name,
+                                manufacturer: result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer,
+                                model: result_recorded_item_recorded_midi_port_added_event_descriptor_model,
+                                version: result_recorded_item_recorded_midi_port_added_event_descriptor_version,
+                                supported_data_formats: result_recorded_item_recorded_midi_port_added_event_descriptor_supported_data_formats,
+                                default_data_format: result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format,
+                                supported_protocols: result_recorded_item_recorded_midi_port_added_event_descriptor_supported_protocols,
+                                default_protocol: result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol,
+                                is_virtual: result_recorded_item_recorded_midi_port_added_event_descriptor_is_virtual,
+                                is_connected: result_recorded_item_recorded_midi_port_added_event_descriptor_is_connected,
                             };
                             let result_recorded_item_recorded_midi_port_added_event = MidiportaddedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_port_added_event_kind,
                                 metadata: result_recorded_item_recorded_midi_port_added_event_metadata,
-                                payload: result_recorded_item_recorded_midi_port_added_event_payload,
+                                direction: result_recorded_item_recorded_midi_port_added_event_direction,
+                                descriptor: result_recorded_item_recorded_midi_port_added_event_descriptor,
                             };
                             MidieventReplayRecord::MidiPortAddedEvent(result_recorded_item_recorded_midi_port_added_event)
                         }
@@ -3630,87 +3519,84 @@ fn destack_midi_event_read_batch_replay(
                                 source: result_recorded_item_recorded_midi_port_changed_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_port_changed_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_direction = value.payload.direction;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_direction = value.direction;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_id = unsafe { value.descriptor.id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_name = unsafe { value.descriptor.name.as_str()? }.to_string();
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                                backend: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend,
-                                id: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_id,
-                                group_id: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id,
-                                backend_id: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id,
-                                name: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_name,
-                                group_name: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name,
-                                manufacturer: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer,
-                                model: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model,
-                                version: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version,
-                                supported_data_formats: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                                default_data_format: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format,
-                                supported_protocols: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_protocols,
-                                default_protocol: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol,
-                                is_virtual: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_virtual,
-                                is_connected: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_connected,
-                            };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload = MidiportchangedpayloadReplayRecord {
-                                direction: result_recorded_item_recorded_midi_port_changed_event_payload_direction,
-                                descriptor: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor,
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor = MidiportdescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_midi_port_changed_event_descriptor_backend,
+                                id: result_recorded_item_recorded_midi_port_changed_event_descriptor_id,
+                                group_id: result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id,
+                                backend_id: result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id,
+                                name: result_recorded_item_recorded_midi_port_changed_event_descriptor_name,
+                                group_name: result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name,
+                                manufacturer: result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer,
+                                model: result_recorded_item_recorded_midi_port_changed_event_descriptor_model,
+                                version: result_recorded_item_recorded_midi_port_changed_event_descriptor_version,
+                                supported_data_formats: result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_data_formats,
+                                default_data_format: result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format,
+                                supported_protocols: result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_protocols,
+                                default_protocol: result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol,
+                                is_virtual: result_recorded_item_recorded_midi_port_changed_event_descriptor_is_virtual,
+                                is_connected: result_recorded_item_recorded_midi_port_changed_event_descriptor_is_connected,
                             };
                             let result_recorded_item_recorded_midi_port_changed_event = MidiportchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_port_changed_event_kind,
                                 metadata: result_recorded_item_recorded_midi_port_changed_event_metadata,
-                                payload: result_recorded_item_recorded_midi_port_changed_event_payload,
+                                direction: result_recorded_item_recorded_midi_port_changed_event_direction,
+                                descriptor: result_recorded_item_recorded_midi_port_changed_event_descriptor,
                             };
                             MidieventReplayRecord::MidiPortChangedEvent(result_recorded_item_recorded_midi_port_changed_event)
                         }
@@ -3728,23 +3614,20 @@ fn destack_midi_event_read_batch_replay(
                                 source: result_recorded_item_recorded_midi_port_removed_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_port_removed_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_port_removed_event_payload_direction = value.payload.direction;
-                            let result_recorded_item_recorded_midi_port_removed_event_payload_id = unsafe { value.payload.id.as_str()? }.to_string();
-                            let result_recorded_item_recorded_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                let result_recorded_item_recorded_midi_port_removed_event_payload_group_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_removed_event_payload_group_id_inner)
+                            let result_recorded_item_recorded_midi_port_removed_event_direction = value.direction;
+                            let result_recorded_item_recorded_midi_port_removed_event_id = unsafe { value.id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                                let result_recorded_item_recorded_midi_port_removed_event_group_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_removed_event_group_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_midi_port_removed_event_payload = MidiportremovedpayloadReplayRecord {
-                                direction: result_recorded_item_recorded_midi_port_removed_event_payload_direction,
-                                id: result_recorded_item_recorded_midi_port_removed_event_payload_id,
-                                group_id: result_recorded_item_recorded_midi_port_removed_event_payload_group_id,
                             };
                             let result_recorded_item_recorded_midi_port_removed_event = MidiportremovedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_port_removed_event_kind,
                                 metadata: result_recorded_item_recorded_midi_port_removed_event_metadata,
-                                payload: result_recorded_item_recorded_midi_port_removed_event_payload,
+                                direction: result_recorded_item_recorded_midi_port_removed_event_direction,
+                                id: result_recorded_item_recorded_midi_port_removed_event_id,
+                                group_id: result_recorded_item_recorded_midi_port_removed_event_group_id,
                             };
                             MidieventReplayRecord::MidiPortRemovedEvent(result_recorded_item_recorded_midi_port_removed_event)
                         }
@@ -3790,14 +3673,11 @@ fn destack_midi_event_read_batch_replay(
                                     source: value_native_decoded_midi_backend_disconnected_event_metadata_source,
                                     backend: value_native_decoded_midi_backend_disconnected_event_metadata_backend,
                                 };
-                                let value_native_decoded_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                                let value_native_decoded_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                                    flags: value_native_decoded_midi_backend_disconnected_event_payload_flags,
-                                };
+                                let value_native_decoded_midi_backend_disconnected_event_flags = value.flags;
                                 let value_native_decoded_midi_backend_disconnected_event = MidiBackendDisconnectedEvent {
                                     kind: value_native_decoded_midi_backend_disconnected_event_kind,
                                     metadata: value_native_decoded_midi_backend_disconnected_event_metadata,
-                                    payload: value_native_decoded_midi_backend_disconnected_event_payload,
+                                    flags: value_native_decoded_midi_backend_disconnected_event_flags,
                                 };
                                 MidiEvent::MidiBackendDisconnectedEvent(value_native_decoded_midi_backend_disconnected_event)
                             }
@@ -3815,87 +3695,84 @@ fn destack_midi_event_read_batch_replay(
                                     source: value_native_decoded_midi_port_added_event_metadata_source,
                                     backend: value_native_decoded_midi_port_added_event_metadata_backend,
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_direction = value.payload.direction;
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_id = binding.store_string(value.payload.descriptor.id.as_str());
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_group_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_group_id_inner)
+                                let value_native_decoded_midi_port_added_event_direction = value.direction;
+                                let value_native_decoded_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                                let value_native_decoded_midi_port_added_event_descriptor_id = binding.store_string(value.descriptor.id.as_str());
+                                let value_native_decoded_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                    let value_native_decoded_midi_port_added_event_descriptor_group_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_group_id_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_backend_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_backend_id_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                    let value_native_decoded_midi_port_added_event_descriptor_backend_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_backend_id_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_name = binding.store_string(value.payload.descriptor.name.as_str());
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_group_name_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_group_name_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_name = binding.store_string(value.descriptor.name.as_str());
+                                let value_native_decoded_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                    let value_native_decoded_midi_port_added_event_descriptor_group_name_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_group_name_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_manufacturer_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                    let value_native_decoded_midi_port_added_event_descriptor_manufacturer_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_manufacturer_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_model_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_model_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                    let value_native_decoded_midi_port_added_event_descriptor_model_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_model_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_version_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_version_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                    let value_native_decoded_midi_port_added_event_descriptor_version_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_version_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                                let value_native_decoded_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                    let value_native_decoded_midi_port_added_event_descriptor_default_data_format_inner = value;
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_default_data_format_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                                let value_native_decoded_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                    let value_native_decoded_midi_port_added_event_descriptor_default_protocol_inner = value;
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_default_protocol_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                                let value_native_decoded_midi_port_added_event_payload_descriptor = MidiPortDescriptor {
-                                    backend: value_native_decoded_midi_port_added_event_payload_descriptor_backend,
-                                    id: value_native_decoded_midi_port_added_event_payload_descriptor_id,
-                                    group_id: value_native_decoded_midi_port_added_event_payload_descriptor_group_id,
-                                    backend_id: value_native_decoded_midi_port_added_event_payload_descriptor_backend_id,
-                                    name: value_native_decoded_midi_port_added_event_payload_descriptor_name,
-                                    group_name: value_native_decoded_midi_port_added_event_payload_descriptor_group_name,
-                                    manufacturer: value_native_decoded_midi_port_added_event_payload_descriptor_manufacturer,
-                                    model: value_native_decoded_midi_port_added_event_payload_descriptor_model,
-                                    version: value_native_decoded_midi_port_added_event_payload_descriptor_version,
-                                    supported_data_formats: value_native_decoded_midi_port_added_event_payload_descriptor_supported_data_formats,
-                                    default_data_format: value_native_decoded_midi_port_added_event_payload_descriptor_default_data_format,
-                                    supported_protocols: value_native_decoded_midi_port_added_event_payload_descriptor_supported_protocols,
-                                    default_protocol: value_native_decoded_midi_port_added_event_payload_descriptor_default_protocol,
-                                    is_virtual: value_native_decoded_midi_port_added_event_payload_descriptor_is_virtual,
-                                    is_connected: value_native_decoded_midi_port_added_event_payload_descriptor_is_connected,
-                                };
-                                let value_native_decoded_midi_port_added_event_payload = MidiPortAddedPayload {
-                                    direction: value_native_decoded_midi_port_added_event_payload_direction,
-                                    descriptor: value_native_decoded_midi_port_added_event_payload_descriptor,
+                                let value_native_decoded_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                                let value_native_decoded_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                                let value_native_decoded_midi_port_added_event_descriptor = MidiPortDescriptor {
+                                    backend: value_native_decoded_midi_port_added_event_descriptor_backend,
+                                    id: value_native_decoded_midi_port_added_event_descriptor_id,
+                                    group_id: value_native_decoded_midi_port_added_event_descriptor_group_id,
+                                    backend_id: value_native_decoded_midi_port_added_event_descriptor_backend_id,
+                                    name: value_native_decoded_midi_port_added_event_descriptor_name,
+                                    group_name: value_native_decoded_midi_port_added_event_descriptor_group_name,
+                                    manufacturer: value_native_decoded_midi_port_added_event_descriptor_manufacturer,
+                                    model: value_native_decoded_midi_port_added_event_descriptor_model,
+                                    version: value_native_decoded_midi_port_added_event_descriptor_version,
+                                    supported_data_formats: value_native_decoded_midi_port_added_event_descriptor_supported_data_formats,
+                                    default_data_format: value_native_decoded_midi_port_added_event_descriptor_default_data_format,
+                                    supported_protocols: value_native_decoded_midi_port_added_event_descriptor_supported_protocols,
+                                    default_protocol: value_native_decoded_midi_port_added_event_descriptor_default_protocol,
+                                    is_virtual: value_native_decoded_midi_port_added_event_descriptor_is_virtual,
+                                    is_connected: value_native_decoded_midi_port_added_event_descriptor_is_connected,
                                 };
                                 let value_native_decoded_midi_port_added_event = MidiPortAddedEvent {
                                     kind: value_native_decoded_midi_port_added_event_kind,
                                     metadata: value_native_decoded_midi_port_added_event_metadata,
-                                    payload: value_native_decoded_midi_port_added_event_payload,
+                                    direction: value_native_decoded_midi_port_added_event_direction,
+                                    descriptor: value_native_decoded_midi_port_added_event_descriptor,
                                 };
                                 MidiEvent::MidiPortAddedEvent(value_native_decoded_midi_port_added_event)
                             }
@@ -3913,87 +3790,84 @@ fn destack_midi_event_read_batch_replay(
                                     source: value_native_decoded_midi_port_changed_event_metadata_source,
                                     backend: value_native_decoded_midi_port_changed_event_metadata_backend,
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_direction = value.payload.direction;
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_id = binding.store_string(value.payload.descriptor.id.as_str());
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_group_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_group_id_inner)
+                                let value_native_decoded_midi_port_changed_event_direction = value.direction;
+                                let value_native_decoded_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                                let value_native_decoded_midi_port_changed_event_descriptor_id = binding.store_string(value.descriptor.id.as_str());
+                                let value_native_decoded_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_group_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_group_id_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_backend_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_backend_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_backend_id_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_name = binding.store_string(value.payload.descriptor.name.as_str());
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_group_name_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_group_name_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_name = binding.store_string(value.descriptor.name.as_str());
+                                let value_native_decoded_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_group_name_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_group_name_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_manufacturer_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_manufacturer_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_manufacturer_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_model_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_model_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_model_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_model_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_version_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_version_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_version_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_version_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                                let value_native_decoded_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_default_data_format_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                                let value_native_decoded_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_default_protocol_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor = MidiPortDescriptor {
-                                    backend: value_native_decoded_midi_port_changed_event_payload_descriptor_backend,
-                                    id: value_native_decoded_midi_port_changed_event_payload_descriptor_id,
-                                    group_id: value_native_decoded_midi_port_changed_event_payload_descriptor_group_id,
-                                    backend_id: value_native_decoded_midi_port_changed_event_payload_descriptor_backend_id,
-                                    name: value_native_decoded_midi_port_changed_event_payload_descriptor_name,
-                                    group_name: value_native_decoded_midi_port_changed_event_payload_descriptor_group_name,
-                                    manufacturer: value_native_decoded_midi_port_changed_event_payload_descriptor_manufacturer,
-                                    model: value_native_decoded_midi_port_changed_event_payload_descriptor_model,
-                                    version: value_native_decoded_midi_port_changed_event_payload_descriptor_version,
-                                    supported_data_formats: value_native_decoded_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                                    default_data_format: value_native_decoded_midi_port_changed_event_payload_descriptor_default_data_format,
-                                    supported_protocols: value_native_decoded_midi_port_changed_event_payload_descriptor_supported_protocols,
-                                    default_protocol: value_native_decoded_midi_port_changed_event_payload_descriptor_default_protocol,
-                                    is_virtual: value_native_decoded_midi_port_changed_event_payload_descriptor_is_virtual,
-                                    is_connected: value_native_decoded_midi_port_changed_event_payload_descriptor_is_connected,
-                                };
-                                let value_native_decoded_midi_port_changed_event_payload = MidiPortChangedPayload {
-                                    direction: value_native_decoded_midi_port_changed_event_payload_direction,
-                                    descriptor: value_native_decoded_midi_port_changed_event_payload_descriptor,
+                                let value_native_decoded_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                                let value_native_decoded_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                                let value_native_decoded_midi_port_changed_event_descriptor = MidiPortDescriptor {
+                                    backend: value_native_decoded_midi_port_changed_event_descriptor_backend,
+                                    id: value_native_decoded_midi_port_changed_event_descriptor_id,
+                                    group_id: value_native_decoded_midi_port_changed_event_descriptor_group_id,
+                                    backend_id: value_native_decoded_midi_port_changed_event_descriptor_backend_id,
+                                    name: value_native_decoded_midi_port_changed_event_descriptor_name,
+                                    group_name: value_native_decoded_midi_port_changed_event_descriptor_group_name,
+                                    manufacturer: value_native_decoded_midi_port_changed_event_descriptor_manufacturer,
+                                    model: value_native_decoded_midi_port_changed_event_descriptor_model,
+                                    version: value_native_decoded_midi_port_changed_event_descriptor_version,
+                                    supported_data_formats: value_native_decoded_midi_port_changed_event_descriptor_supported_data_formats,
+                                    default_data_format: value_native_decoded_midi_port_changed_event_descriptor_default_data_format,
+                                    supported_protocols: value_native_decoded_midi_port_changed_event_descriptor_supported_protocols,
+                                    default_protocol: value_native_decoded_midi_port_changed_event_descriptor_default_protocol,
+                                    is_virtual: value_native_decoded_midi_port_changed_event_descriptor_is_virtual,
+                                    is_connected: value_native_decoded_midi_port_changed_event_descriptor_is_connected,
                                 };
                                 let value_native_decoded_midi_port_changed_event = MidiPortChangedEvent {
                                     kind: value_native_decoded_midi_port_changed_event_kind,
                                     metadata: value_native_decoded_midi_port_changed_event_metadata,
-                                    payload: value_native_decoded_midi_port_changed_event_payload,
+                                    direction: value_native_decoded_midi_port_changed_event_direction,
+                                    descriptor: value_native_decoded_midi_port_changed_event_descriptor,
                                 };
                                 MidiEvent::MidiPortChangedEvent(value_native_decoded_midi_port_changed_event)
                             }
@@ -4011,23 +3885,20 @@ fn destack_midi_event_read_batch_replay(
                                     source: value_native_decoded_midi_port_removed_event_metadata_source,
                                     backend: value_native_decoded_midi_port_removed_event_metadata_backend,
                                 };
-                                let value_native_decoded_midi_port_removed_event_payload_direction = value.payload.direction;
-                                let value_native_decoded_midi_port_removed_event_payload_id = binding.store_string(value.payload.id.as_str());
-                                let value_native_decoded_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                    let value_native_decoded_midi_port_removed_event_payload_group_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_removed_event_payload_group_id_inner)
+                                let value_native_decoded_midi_port_removed_event_direction = value.direction;
+                                let value_native_decoded_midi_port_removed_event_id = binding.store_string(value.id.as_str());
+                                let value_native_decoded_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                                    let value_native_decoded_midi_port_removed_event_group_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_removed_event_group_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_midi_port_removed_event_payload = MidiPortRemovedPayload {
-                                    direction: value_native_decoded_midi_port_removed_event_payload_direction,
-                                    id: value_native_decoded_midi_port_removed_event_payload_id,
-                                    group_id: value_native_decoded_midi_port_removed_event_payload_group_id,
                                 };
                                 let value_native_decoded_midi_port_removed_event = MidiPortRemovedEvent {
                                     kind: value_native_decoded_midi_port_removed_event_kind,
                                     metadata: value_native_decoded_midi_port_removed_event_metadata,
-                                    payload: value_native_decoded_midi_port_removed_event_payload,
+                                    direction: value_native_decoded_midi_port_removed_event_direction,
+                                    id: value_native_decoded_midi_port_removed_event_id,
+                                    group_id: value_native_decoded_midi_port_removed_event_group_id,
                                 };
                                 MidiEvent::MidiPortRemovedEvent(value_native_decoded_midi_port_removed_event)
                             }
@@ -4078,14 +3949,11 @@ fn destack_midi_event_try_read_replay(
                             source: result_recorded_midi_backend_disconnected_event_metadata_source,
                             backend: result_recorded_midi_backend_disconnected_event_metadata_backend,
                         };
-                        let result_recorded_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                        let result_recorded_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                            flags: result_recorded_midi_backend_disconnected_event_payload_flags,
-                        };
+                        let result_recorded_midi_backend_disconnected_event_flags = value.flags;
                         let result_recorded_midi_backend_disconnected_event = MidibackenddisconnectedeventReplayRecord {
                             kind: result_recorded_midi_backend_disconnected_event_kind,
                             metadata: result_recorded_midi_backend_disconnected_event_metadata,
-                            payload: result_recorded_midi_backend_disconnected_event_payload,
+                            flags: result_recorded_midi_backend_disconnected_event_flags,
                         };
                         MidieventReplayRecord::MidiBackendDisconnectedEvent(result_recorded_midi_backend_disconnected_event)
                     }
@@ -4103,87 +3971,84 @@ fn destack_midi_event_try_read_replay(
                             source: result_recorded_midi_port_added_event_metadata_source,
                             backend: result_recorded_midi_port_added_event_metadata_backend,
                         };
-                        let result_recorded_midi_port_added_event_payload_direction = value.payload.direction;
-                        let result_recorded_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                        let result_recorded_midi_port_added_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
-                        let result_recorded_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                            let result_recorded_midi_port_added_event_payload_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_group_id_inner)
+                        let result_recorded_midi_port_added_event_direction = value.direction;
+                        let result_recorded_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                        let result_recorded_midi_port_added_event_descriptor_id = unsafe { value.descriptor.id.as_str()? }.to_string();
+                        let result_recorded_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                            let result_recorded_midi_port_added_event_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_added_event_descriptor_group_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                            let result_recorded_midi_port_added_event_payload_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_backend_id_inner)
+                        let result_recorded_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                            let result_recorded_midi_port_added_event_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_added_event_descriptor_backend_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
-                        let result_recorded_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                            let result_recorded_midi_port_added_event_payload_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_group_name_inner)
+                        let result_recorded_midi_port_added_event_descriptor_name = unsafe { value.descriptor.name.as_str()? }.to_string();
+                        let result_recorded_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                            let result_recorded_midi_port_added_event_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_added_event_descriptor_group_name_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                            let result_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                        let result_recorded_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                            let result_recorded_midi_port_added_event_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_added_event_descriptor_manufacturer_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                            let result_recorded_midi_port_added_event_payload_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_model_inner)
+                        let result_recorded_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                            let result_recorded_midi_port_added_event_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_added_event_descriptor_model_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                            let result_recorded_midi_port_added_event_payload_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_version_inner)
+                        let result_recorded_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                            let result_recorded_midi_port_added_event_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_added_event_descriptor_version_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                        let result_recorded_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                            let result_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                        let result_recorded_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                        let result_recorded_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                            let result_recorded_midi_port_added_event_descriptor_default_data_format_inner = value;
+                            Some(result_recorded_midi_port_added_event_descriptor_default_data_format_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                        let result_recorded_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                            let result_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                        let result_recorded_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                        let result_recorded_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                            let result_recorded_midi_port_added_event_descriptor_default_protocol_inner = value;
+                            Some(result_recorded_midi_port_added_event_descriptor_default_protocol_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                        let result_recorded_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                        let result_recorded_midi_port_added_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                            backend: result_recorded_midi_port_added_event_payload_descriptor_backend,
-                            id: result_recorded_midi_port_added_event_payload_descriptor_id,
-                            group_id: result_recorded_midi_port_added_event_payload_descriptor_group_id,
-                            backend_id: result_recorded_midi_port_added_event_payload_descriptor_backend_id,
-                            name: result_recorded_midi_port_added_event_payload_descriptor_name,
-                            group_name: result_recorded_midi_port_added_event_payload_descriptor_group_name,
-                            manufacturer: result_recorded_midi_port_added_event_payload_descriptor_manufacturer,
-                            model: result_recorded_midi_port_added_event_payload_descriptor_model,
-                            version: result_recorded_midi_port_added_event_payload_descriptor_version,
-                            supported_data_formats: result_recorded_midi_port_added_event_payload_descriptor_supported_data_formats,
-                            default_data_format: result_recorded_midi_port_added_event_payload_descriptor_default_data_format,
-                            supported_protocols: result_recorded_midi_port_added_event_payload_descriptor_supported_protocols,
-                            default_protocol: result_recorded_midi_port_added_event_payload_descriptor_default_protocol,
-                            is_virtual: result_recorded_midi_port_added_event_payload_descriptor_is_virtual,
-                            is_connected: result_recorded_midi_port_added_event_payload_descriptor_is_connected,
-                        };
-                        let result_recorded_midi_port_added_event_payload = MidiportaddedpayloadReplayRecord {
-                            direction: result_recorded_midi_port_added_event_payload_direction,
-                            descriptor: result_recorded_midi_port_added_event_payload_descriptor,
+                        let result_recorded_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                        let result_recorded_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                        let result_recorded_midi_port_added_event_descriptor = MidiportdescriptorReplayRecord {
+                            backend: result_recorded_midi_port_added_event_descriptor_backend,
+                            id: result_recorded_midi_port_added_event_descriptor_id,
+                            group_id: result_recorded_midi_port_added_event_descriptor_group_id,
+                            backend_id: result_recorded_midi_port_added_event_descriptor_backend_id,
+                            name: result_recorded_midi_port_added_event_descriptor_name,
+                            group_name: result_recorded_midi_port_added_event_descriptor_group_name,
+                            manufacturer: result_recorded_midi_port_added_event_descriptor_manufacturer,
+                            model: result_recorded_midi_port_added_event_descriptor_model,
+                            version: result_recorded_midi_port_added_event_descriptor_version,
+                            supported_data_formats: result_recorded_midi_port_added_event_descriptor_supported_data_formats,
+                            default_data_format: result_recorded_midi_port_added_event_descriptor_default_data_format,
+                            supported_protocols: result_recorded_midi_port_added_event_descriptor_supported_protocols,
+                            default_protocol: result_recorded_midi_port_added_event_descriptor_default_protocol,
+                            is_virtual: result_recorded_midi_port_added_event_descriptor_is_virtual,
+                            is_connected: result_recorded_midi_port_added_event_descriptor_is_connected,
                         };
                         let result_recorded_midi_port_added_event = MidiportaddedeventReplayRecord {
                             kind: result_recorded_midi_port_added_event_kind,
                             metadata: result_recorded_midi_port_added_event_metadata,
-                            payload: result_recorded_midi_port_added_event_payload,
+                            direction: result_recorded_midi_port_added_event_direction,
+                            descriptor: result_recorded_midi_port_added_event_descriptor,
                         };
                         MidieventReplayRecord::MidiPortAddedEvent(result_recorded_midi_port_added_event)
                     }
@@ -4201,87 +4066,84 @@ fn destack_midi_event_try_read_replay(
                             source: result_recorded_midi_port_changed_event_metadata_source,
                             backend: result_recorded_midi_port_changed_event_metadata_backend,
                         };
-                        let result_recorded_midi_port_changed_event_payload_direction = value.payload.direction;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
-                        let result_recorded_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_group_id_inner)
+                        let result_recorded_midi_port_changed_event_direction = value.direction;
+                        let result_recorded_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                        let result_recorded_midi_port_changed_event_descriptor_id = unsafe { value.descriptor.id.as_str()? }.to_string();
+                        let result_recorded_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                            let result_recorded_midi_port_changed_event_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_changed_event_descriptor_group_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                            let result_recorded_midi_port_changed_event_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_changed_event_descriptor_backend_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
-                        let result_recorded_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_group_name_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_name = unsafe { value.descriptor.name.as_str()? }.to_string();
+                        let result_recorded_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                            let result_recorded_midi_port_changed_event_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_changed_event_descriptor_group_name_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                            let result_recorded_midi_port_changed_event_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_changed_event_descriptor_manufacturer_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_model_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                            let result_recorded_midi_port_changed_event_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_changed_event_descriptor_model_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_version_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                            let result_recorded_midi_port_changed_event_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_changed_event_descriptor_version_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                        let result_recorded_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                            let result_recorded_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                            Some(result_recorded_midi_port_changed_event_descriptor_default_data_format_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                        let result_recorded_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                            let result_recorded_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                            Some(result_recorded_midi_port_changed_event_descriptor_default_protocol_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                        let result_recorded_midi_port_changed_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                            backend: result_recorded_midi_port_changed_event_payload_descriptor_backend,
-                            id: result_recorded_midi_port_changed_event_payload_descriptor_id,
-                            group_id: result_recorded_midi_port_changed_event_payload_descriptor_group_id,
-                            backend_id: result_recorded_midi_port_changed_event_payload_descriptor_backend_id,
-                            name: result_recorded_midi_port_changed_event_payload_descriptor_name,
-                            group_name: result_recorded_midi_port_changed_event_payload_descriptor_group_name,
-                            manufacturer: result_recorded_midi_port_changed_event_payload_descriptor_manufacturer,
-                            model: result_recorded_midi_port_changed_event_payload_descriptor_model,
-                            version: result_recorded_midi_port_changed_event_payload_descriptor_version,
-                            supported_data_formats: result_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                            default_data_format: result_recorded_midi_port_changed_event_payload_descriptor_default_data_format,
-                            supported_protocols: result_recorded_midi_port_changed_event_payload_descriptor_supported_protocols,
-                            default_protocol: result_recorded_midi_port_changed_event_payload_descriptor_default_protocol,
-                            is_virtual: result_recorded_midi_port_changed_event_payload_descriptor_is_virtual,
-                            is_connected: result_recorded_midi_port_changed_event_payload_descriptor_is_connected,
-                        };
-                        let result_recorded_midi_port_changed_event_payload = MidiportchangedpayloadReplayRecord {
-                            direction: result_recorded_midi_port_changed_event_payload_direction,
-                            descriptor: result_recorded_midi_port_changed_event_payload_descriptor,
+                        let result_recorded_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                        let result_recorded_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                        let result_recorded_midi_port_changed_event_descriptor = MidiportdescriptorReplayRecord {
+                            backend: result_recorded_midi_port_changed_event_descriptor_backend,
+                            id: result_recorded_midi_port_changed_event_descriptor_id,
+                            group_id: result_recorded_midi_port_changed_event_descriptor_group_id,
+                            backend_id: result_recorded_midi_port_changed_event_descriptor_backend_id,
+                            name: result_recorded_midi_port_changed_event_descriptor_name,
+                            group_name: result_recorded_midi_port_changed_event_descriptor_group_name,
+                            manufacturer: result_recorded_midi_port_changed_event_descriptor_manufacturer,
+                            model: result_recorded_midi_port_changed_event_descriptor_model,
+                            version: result_recorded_midi_port_changed_event_descriptor_version,
+                            supported_data_formats: result_recorded_midi_port_changed_event_descriptor_supported_data_formats,
+                            default_data_format: result_recorded_midi_port_changed_event_descriptor_default_data_format,
+                            supported_protocols: result_recorded_midi_port_changed_event_descriptor_supported_protocols,
+                            default_protocol: result_recorded_midi_port_changed_event_descriptor_default_protocol,
+                            is_virtual: result_recorded_midi_port_changed_event_descriptor_is_virtual,
+                            is_connected: result_recorded_midi_port_changed_event_descriptor_is_connected,
                         };
                         let result_recorded_midi_port_changed_event = MidiportchangedeventReplayRecord {
                             kind: result_recorded_midi_port_changed_event_kind,
                             metadata: result_recorded_midi_port_changed_event_metadata,
-                            payload: result_recorded_midi_port_changed_event_payload,
+                            direction: result_recorded_midi_port_changed_event_direction,
+                            descriptor: result_recorded_midi_port_changed_event_descriptor,
                         };
                         MidieventReplayRecord::MidiPortChangedEvent(result_recorded_midi_port_changed_event)
                     }
@@ -4299,23 +4161,20 @@ fn destack_midi_event_try_read_replay(
                             source: result_recorded_midi_port_removed_event_metadata_source,
                             backend: result_recorded_midi_port_removed_event_metadata_backend,
                         };
-                        let result_recorded_midi_port_removed_event_payload_direction = value.payload.direction;
-                        let result_recorded_midi_port_removed_event_payload_id = unsafe { value.payload.id.as_str()? }.to_string();
-                        let result_recorded_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                            let result_recorded_midi_port_removed_event_payload_group_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_midi_port_removed_event_payload_group_id_inner)
+                        let result_recorded_midi_port_removed_event_direction = value.direction;
+                        let result_recorded_midi_port_removed_event_id = unsafe { value.id.as_str()? }.to_string();
+                        let result_recorded_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                            let result_recorded_midi_port_removed_event_group_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_midi_port_removed_event_group_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_midi_port_removed_event_payload = MidiportremovedpayloadReplayRecord {
-                            direction: result_recorded_midi_port_removed_event_payload_direction,
-                            id: result_recorded_midi_port_removed_event_payload_id,
-                            group_id: result_recorded_midi_port_removed_event_payload_group_id,
                         };
                         let result_recorded_midi_port_removed_event = MidiportremovedeventReplayRecord {
                             kind: result_recorded_midi_port_removed_event_kind,
                             metadata: result_recorded_midi_port_removed_event_metadata,
-                            payload: result_recorded_midi_port_removed_event_payload,
+                            direction: result_recorded_midi_port_removed_event_direction,
+                            id: result_recorded_midi_port_removed_event_id,
+                            group_id: result_recorded_midi_port_removed_event_group_id,
                         };
                         MidieventReplayRecord::MidiPortRemovedEvent(result_recorded_midi_port_removed_event)
                     }
@@ -4357,14 +4216,11 @@ fn destack_midi_event_try_read_replay(
                                 source: value_native_midi_backend_disconnected_event_metadata_source,
                                 backend: value_native_midi_backend_disconnected_event_metadata_backend,
                             };
-                            let value_native_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                            let value_native_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                                flags: value_native_midi_backend_disconnected_event_payload_flags,
-                            };
+                            let value_native_midi_backend_disconnected_event_flags = value.flags;
                             let value_native_midi_backend_disconnected_event = MidiBackendDisconnectedEvent {
                                 kind: value_native_midi_backend_disconnected_event_kind,
                                 metadata: value_native_midi_backend_disconnected_event_metadata,
-                                payload: value_native_midi_backend_disconnected_event_payload,
+                                flags: value_native_midi_backend_disconnected_event_flags,
                             };
                             MidiEvent::MidiBackendDisconnectedEvent(value_native_midi_backend_disconnected_event)
                         }
@@ -4382,87 +4238,84 @@ fn destack_midi_event_try_read_replay(
                                 source: value_native_midi_port_added_event_metadata_source,
                                 backend: value_native_midi_port_added_event_metadata_backend,
                             };
-                            let value_native_midi_port_added_event_payload_direction = value.payload.direction;
-                            let value_native_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let value_native_midi_port_added_event_payload_descriptor_id = binding.store_string(value.payload.descriptor.id.as_str());
-                            let value_native_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let value_native_midi_port_added_event_payload_descriptor_group_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_added_event_payload_descriptor_group_id_inner)
+                            let value_native_midi_port_added_event_direction = value.direction;
+                            let value_native_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                            let value_native_midi_port_added_event_descriptor_id = binding.store_string(value.descriptor.id.as_str());
+                            let value_native_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let value_native_midi_port_added_event_descriptor_group_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_added_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let value_native_midi_port_added_event_payload_descriptor_backend_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_added_event_payload_descriptor_backend_id_inner)
+                            let value_native_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let value_native_midi_port_added_event_descriptor_backend_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_added_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_name = binding.store_string(value.payload.descriptor.name.as_str());
-                            let value_native_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let value_native_midi_port_added_event_payload_descriptor_group_name_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_added_event_payload_descriptor_group_name_inner)
+                            let value_native_midi_port_added_event_descriptor_name = binding.store_string(value.descriptor.name.as_str());
+                            let value_native_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let value_native_midi_port_added_event_descriptor_group_name_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_added_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let value_native_midi_port_added_event_payload_descriptor_manufacturer_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                            let value_native_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let value_native_midi_port_added_event_descriptor_manufacturer_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_added_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let value_native_midi_port_added_event_payload_descriptor_model_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_added_event_payload_descriptor_model_inner)
+                            let value_native_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let value_native_midi_port_added_event_descriptor_model_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_added_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let value_native_midi_port_added_event_payload_descriptor_version_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_added_event_payload_descriptor_version_inner)
+                            let value_native_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let value_native_midi_port_added_event_descriptor_version_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_added_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let value_native_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let value_native_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                                Some(value_native_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                            let value_native_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let value_native_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let value_native_midi_port_added_event_descriptor_default_data_format_inner = value;
+                                Some(value_native_midi_port_added_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let value_native_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let value_native_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                                Some(value_native_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                            let value_native_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let value_native_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let value_native_midi_port_added_event_descriptor_default_protocol_inner = value;
+                                Some(value_native_midi_port_added_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let value_native_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let value_native_midi_port_added_event_payload_descriptor = MidiPortDescriptor {
-                                backend: value_native_midi_port_added_event_payload_descriptor_backend,
-                                id: value_native_midi_port_added_event_payload_descriptor_id,
-                                group_id: value_native_midi_port_added_event_payload_descriptor_group_id,
-                                backend_id: value_native_midi_port_added_event_payload_descriptor_backend_id,
-                                name: value_native_midi_port_added_event_payload_descriptor_name,
-                                group_name: value_native_midi_port_added_event_payload_descriptor_group_name,
-                                manufacturer: value_native_midi_port_added_event_payload_descriptor_manufacturer,
-                                model: value_native_midi_port_added_event_payload_descriptor_model,
-                                version: value_native_midi_port_added_event_payload_descriptor_version,
-                                supported_data_formats: value_native_midi_port_added_event_payload_descriptor_supported_data_formats,
-                                default_data_format: value_native_midi_port_added_event_payload_descriptor_default_data_format,
-                                supported_protocols: value_native_midi_port_added_event_payload_descriptor_supported_protocols,
-                                default_protocol: value_native_midi_port_added_event_payload_descriptor_default_protocol,
-                                is_virtual: value_native_midi_port_added_event_payload_descriptor_is_virtual,
-                                is_connected: value_native_midi_port_added_event_payload_descriptor_is_connected,
-                            };
-                            let value_native_midi_port_added_event_payload = MidiPortAddedPayload {
-                                direction: value_native_midi_port_added_event_payload_direction,
-                                descriptor: value_native_midi_port_added_event_payload_descriptor,
+                            let value_native_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let value_native_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let value_native_midi_port_added_event_descriptor = MidiPortDescriptor {
+                                backend: value_native_midi_port_added_event_descriptor_backend,
+                                id: value_native_midi_port_added_event_descriptor_id,
+                                group_id: value_native_midi_port_added_event_descriptor_group_id,
+                                backend_id: value_native_midi_port_added_event_descriptor_backend_id,
+                                name: value_native_midi_port_added_event_descriptor_name,
+                                group_name: value_native_midi_port_added_event_descriptor_group_name,
+                                manufacturer: value_native_midi_port_added_event_descriptor_manufacturer,
+                                model: value_native_midi_port_added_event_descriptor_model,
+                                version: value_native_midi_port_added_event_descriptor_version,
+                                supported_data_formats: value_native_midi_port_added_event_descriptor_supported_data_formats,
+                                default_data_format: value_native_midi_port_added_event_descriptor_default_data_format,
+                                supported_protocols: value_native_midi_port_added_event_descriptor_supported_protocols,
+                                default_protocol: value_native_midi_port_added_event_descriptor_default_protocol,
+                                is_virtual: value_native_midi_port_added_event_descriptor_is_virtual,
+                                is_connected: value_native_midi_port_added_event_descriptor_is_connected,
                             };
                             let value_native_midi_port_added_event = MidiPortAddedEvent {
                                 kind: value_native_midi_port_added_event_kind,
                                 metadata: value_native_midi_port_added_event_metadata,
-                                payload: value_native_midi_port_added_event_payload,
+                                direction: value_native_midi_port_added_event_direction,
+                                descriptor: value_native_midi_port_added_event_descriptor,
                             };
                             MidiEvent::MidiPortAddedEvent(value_native_midi_port_added_event)
                         }
@@ -4480,87 +4333,84 @@ fn destack_midi_event_try_read_replay(
                                 source: value_native_midi_port_changed_event_metadata_source,
                                 backend: value_native_midi_port_changed_event_metadata_backend,
                             };
-                            let value_native_midi_port_changed_event_payload_direction = value.payload.direction;
-                            let value_native_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let value_native_midi_port_changed_event_payload_descriptor_id = binding.store_string(value.payload.descriptor.id.as_str());
-                            let value_native_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let value_native_midi_port_changed_event_payload_descriptor_group_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_changed_event_payload_descriptor_group_id_inner)
+                            let value_native_midi_port_changed_event_direction = value.direction;
+                            let value_native_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                            let value_native_midi_port_changed_event_descriptor_id = binding.store_string(value.descriptor.id.as_str());
+                            let value_native_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let value_native_midi_port_changed_event_descriptor_group_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_changed_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let value_native_midi_port_changed_event_payload_descriptor_backend_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                            let value_native_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let value_native_midi_port_changed_event_descriptor_backend_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_changed_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_name = binding.store_string(value.payload.descriptor.name.as_str());
-                            let value_native_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let value_native_midi_port_changed_event_payload_descriptor_group_name_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_changed_event_payload_descriptor_group_name_inner)
+                            let value_native_midi_port_changed_event_descriptor_name = binding.store_string(value.descriptor.name.as_str());
+                            let value_native_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let value_native_midi_port_changed_event_descriptor_group_name_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_changed_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let value_native_midi_port_changed_event_payload_descriptor_manufacturer_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                            let value_native_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let value_native_midi_port_changed_event_descriptor_manufacturer_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_changed_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let value_native_midi_port_changed_event_payload_descriptor_model_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_changed_event_payload_descriptor_model_inner)
+                            let value_native_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let value_native_midi_port_changed_event_descriptor_model_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_changed_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let value_native_midi_port_changed_event_payload_descriptor_version_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_changed_event_payload_descriptor_version_inner)
+                            let value_native_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let value_native_midi_port_changed_event_descriptor_version_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_changed_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let value_native_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let value_native_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                                Some(value_native_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                            let value_native_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let value_native_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let value_native_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                                Some(value_native_midi_port_changed_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let value_native_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let value_native_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                                Some(value_native_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                            let value_native_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let value_native_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let value_native_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                                Some(value_native_midi_port_changed_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let value_native_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let value_native_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let value_native_midi_port_changed_event_payload_descriptor = MidiPortDescriptor {
-                                backend: value_native_midi_port_changed_event_payload_descriptor_backend,
-                                id: value_native_midi_port_changed_event_payload_descriptor_id,
-                                group_id: value_native_midi_port_changed_event_payload_descriptor_group_id,
-                                backend_id: value_native_midi_port_changed_event_payload_descriptor_backend_id,
-                                name: value_native_midi_port_changed_event_payload_descriptor_name,
-                                group_name: value_native_midi_port_changed_event_payload_descriptor_group_name,
-                                manufacturer: value_native_midi_port_changed_event_payload_descriptor_manufacturer,
-                                model: value_native_midi_port_changed_event_payload_descriptor_model,
-                                version: value_native_midi_port_changed_event_payload_descriptor_version,
-                                supported_data_formats: value_native_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                                default_data_format: value_native_midi_port_changed_event_payload_descriptor_default_data_format,
-                                supported_protocols: value_native_midi_port_changed_event_payload_descriptor_supported_protocols,
-                                default_protocol: value_native_midi_port_changed_event_payload_descriptor_default_protocol,
-                                is_virtual: value_native_midi_port_changed_event_payload_descriptor_is_virtual,
-                                is_connected: value_native_midi_port_changed_event_payload_descriptor_is_connected,
-                            };
-                            let value_native_midi_port_changed_event_payload = MidiPortChangedPayload {
-                                direction: value_native_midi_port_changed_event_payload_direction,
-                                descriptor: value_native_midi_port_changed_event_payload_descriptor,
+                            let value_native_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let value_native_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let value_native_midi_port_changed_event_descriptor = MidiPortDescriptor {
+                                backend: value_native_midi_port_changed_event_descriptor_backend,
+                                id: value_native_midi_port_changed_event_descriptor_id,
+                                group_id: value_native_midi_port_changed_event_descriptor_group_id,
+                                backend_id: value_native_midi_port_changed_event_descriptor_backend_id,
+                                name: value_native_midi_port_changed_event_descriptor_name,
+                                group_name: value_native_midi_port_changed_event_descriptor_group_name,
+                                manufacturer: value_native_midi_port_changed_event_descriptor_manufacturer,
+                                model: value_native_midi_port_changed_event_descriptor_model,
+                                version: value_native_midi_port_changed_event_descriptor_version,
+                                supported_data_formats: value_native_midi_port_changed_event_descriptor_supported_data_formats,
+                                default_data_format: value_native_midi_port_changed_event_descriptor_default_data_format,
+                                supported_protocols: value_native_midi_port_changed_event_descriptor_supported_protocols,
+                                default_protocol: value_native_midi_port_changed_event_descriptor_default_protocol,
+                                is_virtual: value_native_midi_port_changed_event_descriptor_is_virtual,
+                                is_connected: value_native_midi_port_changed_event_descriptor_is_connected,
                             };
                             let value_native_midi_port_changed_event = MidiPortChangedEvent {
                                 kind: value_native_midi_port_changed_event_kind,
                                 metadata: value_native_midi_port_changed_event_metadata,
-                                payload: value_native_midi_port_changed_event_payload,
+                                direction: value_native_midi_port_changed_event_direction,
+                                descriptor: value_native_midi_port_changed_event_descriptor,
                             };
                             MidiEvent::MidiPortChangedEvent(value_native_midi_port_changed_event)
                         }
@@ -4578,23 +4428,20 @@ fn destack_midi_event_try_read_replay(
                                 source: value_native_midi_port_removed_event_metadata_source,
                                 backend: value_native_midi_port_removed_event_metadata_backend,
                             };
-                            let value_native_midi_port_removed_event_payload_direction = value.payload.direction;
-                            let value_native_midi_port_removed_event_payload_id = binding.store_string(value.payload.id.as_str());
-                            let value_native_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                let value_native_midi_port_removed_event_payload_group_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_midi_port_removed_event_payload_group_id_inner)
+                            let value_native_midi_port_removed_event_direction = value.direction;
+                            let value_native_midi_port_removed_event_id = binding.store_string(value.id.as_str());
+                            let value_native_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                                let value_native_midi_port_removed_event_group_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_midi_port_removed_event_group_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_midi_port_removed_event_payload = MidiPortRemovedPayload {
-                                direction: value_native_midi_port_removed_event_payload_direction,
-                                id: value_native_midi_port_removed_event_payload_id,
-                                group_id: value_native_midi_port_removed_event_payload_group_id,
                             };
                             let value_native_midi_port_removed_event = MidiPortRemovedEvent {
                                 kind: value_native_midi_port_removed_event_kind,
                                 metadata: value_native_midi_port_removed_event_metadata,
-                                payload: value_native_midi_port_removed_event_payload,
+                                direction: value_native_midi_port_removed_event_direction,
+                                id: value_native_midi_port_removed_event_id,
+                                group_id: value_native_midi_port_removed_event_group_id,
                             };
                             MidiEvent::MidiPortRemovedEvent(value_native_midi_port_removed_event)
                         }
@@ -4645,14 +4492,11 @@ fn destack_midi_event_try_read_batch_replay(
                                 source: result_recorded_item_recorded_midi_backend_disconnected_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_backend_disconnected_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                            let result_recorded_item_recorded_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                                flags: result_recorded_item_recorded_midi_backend_disconnected_event_payload_flags,
-                            };
+                            let result_recorded_item_recorded_midi_backend_disconnected_event_flags = value.flags;
                             let result_recorded_item_recorded_midi_backend_disconnected_event = MidibackenddisconnectedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_backend_disconnected_event_kind,
                                 metadata: result_recorded_item_recorded_midi_backend_disconnected_event_metadata,
-                                payload: result_recorded_item_recorded_midi_backend_disconnected_event_payload,
+                                flags: result_recorded_item_recorded_midi_backend_disconnected_event_flags,
                             };
                             MidieventReplayRecord::MidiBackendDisconnectedEvent(result_recorded_item_recorded_midi_backend_disconnected_event)
                         }
@@ -4670,87 +4514,84 @@ fn destack_midi_event_try_read_batch_replay(
                                 source: result_recorded_item_recorded_midi_port_added_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_port_added_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_direction = value.payload.direction;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_direction = value.direction;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_id = unsafe { value.descriptor.id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_name = unsafe { value.descriptor.name.as_str()? }.to_string();
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                                backend: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend,
-                                id: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_id,
-                                group_id: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id,
-                                backend_id: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id,
-                                name: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_name,
-                                group_name: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name,
-                                manufacturer: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer,
-                                model: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model,
-                                version: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version,
-                                supported_data_formats: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_data_formats,
-                                default_data_format: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format,
-                                supported_protocols: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_protocols,
-                                default_protocol: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol,
-                                is_virtual: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_virtual,
-                                is_connected: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_connected,
-                            };
-                            let result_recorded_item_recorded_midi_port_added_event_payload = MidiportaddedpayloadReplayRecord {
-                                direction: result_recorded_item_recorded_midi_port_added_event_payload_direction,
-                                descriptor: result_recorded_item_recorded_midi_port_added_event_payload_descriptor,
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor = MidiportdescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_midi_port_added_event_descriptor_backend,
+                                id: result_recorded_item_recorded_midi_port_added_event_descriptor_id,
+                                group_id: result_recorded_item_recorded_midi_port_added_event_descriptor_group_id,
+                                backend_id: result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id,
+                                name: result_recorded_item_recorded_midi_port_added_event_descriptor_name,
+                                group_name: result_recorded_item_recorded_midi_port_added_event_descriptor_group_name,
+                                manufacturer: result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer,
+                                model: result_recorded_item_recorded_midi_port_added_event_descriptor_model,
+                                version: result_recorded_item_recorded_midi_port_added_event_descriptor_version,
+                                supported_data_formats: result_recorded_item_recorded_midi_port_added_event_descriptor_supported_data_formats,
+                                default_data_format: result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format,
+                                supported_protocols: result_recorded_item_recorded_midi_port_added_event_descriptor_supported_protocols,
+                                default_protocol: result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol,
+                                is_virtual: result_recorded_item_recorded_midi_port_added_event_descriptor_is_virtual,
+                                is_connected: result_recorded_item_recorded_midi_port_added_event_descriptor_is_connected,
                             };
                             let result_recorded_item_recorded_midi_port_added_event = MidiportaddedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_port_added_event_kind,
                                 metadata: result_recorded_item_recorded_midi_port_added_event_metadata,
-                                payload: result_recorded_item_recorded_midi_port_added_event_payload,
+                                direction: result_recorded_item_recorded_midi_port_added_event_direction,
+                                descriptor: result_recorded_item_recorded_midi_port_added_event_descriptor,
                             };
                             MidieventReplayRecord::MidiPortAddedEvent(result_recorded_item_recorded_midi_port_added_event)
                         }
@@ -4768,87 +4609,84 @@ fn destack_midi_event_try_read_batch_replay(
                                 source: result_recorded_item_recorded_midi_port_changed_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_port_changed_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_direction = value.payload.direction;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_direction = value.direction;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_id = unsafe { value.descriptor.id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_name = unsafe { value.descriptor.name.as_str()? }.to_string();
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_model_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_version_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                                backend: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend,
-                                id: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_id,
-                                group_id: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id,
-                                backend_id: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id,
-                                name: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_name,
-                                group_name: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name,
-                                manufacturer: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer,
-                                model: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model,
-                                version: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version,
-                                supported_data_formats: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                                default_data_format: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format,
-                                supported_protocols: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_protocols,
-                                default_protocol: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol,
-                                is_virtual: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_virtual,
-                                is_connected: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_connected,
-                            };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload = MidiportchangedpayloadReplayRecord {
-                                direction: result_recorded_item_recorded_midi_port_changed_event_payload_direction,
-                                descriptor: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor,
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor = MidiportdescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_midi_port_changed_event_descriptor_backend,
+                                id: result_recorded_item_recorded_midi_port_changed_event_descriptor_id,
+                                group_id: result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id,
+                                backend_id: result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id,
+                                name: result_recorded_item_recorded_midi_port_changed_event_descriptor_name,
+                                group_name: result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name,
+                                manufacturer: result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer,
+                                model: result_recorded_item_recorded_midi_port_changed_event_descriptor_model,
+                                version: result_recorded_item_recorded_midi_port_changed_event_descriptor_version,
+                                supported_data_formats: result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_data_formats,
+                                default_data_format: result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format,
+                                supported_protocols: result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_protocols,
+                                default_protocol: result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol,
+                                is_virtual: result_recorded_item_recorded_midi_port_changed_event_descriptor_is_virtual,
+                                is_connected: result_recorded_item_recorded_midi_port_changed_event_descriptor_is_connected,
                             };
                             let result_recorded_item_recorded_midi_port_changed_event = MidiportchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_port_changed_event_kind,
                                 metadata: result_recorded_item_recorded_midi_port_changed_event_metadata,
-                                payload: result_recorded_item_recorded_midi_port_changed_event_payload,
+                                direction: result_recorded_item_recorded_midi_port_changed_event_direction,
+                                descriptor: result_recorded_item_recorded_midi_port_changed_event_descriptor,
                             };
                             MidieventReplayRecord::MidiPortChangedEvent(result_recorded_item_recorded_midi_port_changed_event)
                         }
@@ -4866,23 +4704,20 @@ fn destack_midi_event_try_read_batch_replay(
                                 source: result_recorded_item_recorded_midi_port_removed_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_port_removed_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_port_removed_event_payload_direction = value.payload.direction;
-                            let result_recorded_item_recorded_midi_port_removed_event_payload_id = unsafe { value.payload.id.as_str()? }.to_string();
-                            let result_recorded_item_recorded_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                let result_recorded_item_recorded_midi_port_removed_event_payload_group_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_midi_port_removed_event_payload_group_id_inner)
+                            let result_recorded_item_recorded_midi_port_removed_event_direction = value.direction;
+                            let result_recorded_item_recorded_midi_port_removed_event_id = unsafe { value.id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                                let result_recorded_item_recorded_midi_port_removed_event_group_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_midi_port_removed_event_group_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_midi_port_removed_event_payload = MidiportremovedpayloadReplayRecord {
-                                direction: result_recorded_item_recorded_midi_port_removed_event_payload_direction,
-                                id: result_recorded_item_recorded_midi_port_removed_event_payload_id,
-                                group_id: result_recorded_item_recorded_midi_port_removed_event_payload_group_id,
                             };
                             let result_recorded_item_recorded_midi_port_removed_event = MidiportremovedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_port_removed_event_kind,
                                 metadata: result_recorded_item_recorded_midi_port_removed_event_metadata,
-                                payload: result_recorded_item_recorded_midi_port_removed_event_payload,
+                                direction: result_recorded_item_recorded_midi_port_removed_event_direction,
+                                id: result_recorded_item_recorded_midi_port_removed_event_id,
+                                group_id: result_recorded_item_recorded_midi_port_removed_event_group_id,
                             };
                             MidieventReplayRecord::MidiPortRemovedEvent(result_recorded_item_recorded_midi_port_removed_event)
                         }
@@ -4928,14 +4763,11 @@ fn destack_midi_event_try_read_batch_replay(
                                     source: value_native_decoded_midi_backend_disconnected_event_metadata_source,
                                     backend: value_native_decoded_midi_backend_disconnected_event_metadata_backend,
                                 };
-                                let value_native_decoded_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                                let value_native_decoded_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                                    flags: value_native_decoded_midi_backend_disconnected_event_payload_flags,
-                                };
+                                let value_native_decoded_midi_backend_disconnected_event_flags = value.flags;
                                 let value_native_decoded_midi_backend_disconnected_event = MidiBackendDisconnectedEvent {
                                     kind: value_native_decoded_midi_backend_disconnected_event_kind,
                                     metadata: value_native_decoded_midi_backend_disconnected_event_metadata,
-                                    payload: value_native_decoded_midi_backend_disconnected_event_payload,
+                                    flags: value_native_decoded_midi_backend_disconnected_event_flags,
                                 };
                                 MidiEvent::MidiBackendDisconnectedEvent(value_native_decoded_midi_backend_disconnected_event)
                             }
@@ -4953,87 +4785,84 @@ fn destack_midi_event_try_read_batch_replay(
                                     source: value_native_decoded_midi_port_added_event_metadata_source,
                                     backend: value_native_decoded_midi_port_added_event_metadata_backend,
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_direction = value.payload.direction;
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_id = binding.store_string(value.payload.descriptor.id.as_str());
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_group_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_group_id_inner)
+                                let value_native_decoded_midi_port_added_event_direction = value.direction;
+                                let value_native_decoded_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                                let value_native_decoded_midi_port_added_event_descriptor_id = binding.store_string(value.descriptor.id.as_str());
+                                let value_native_decoded_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                    let value_native_decoded_midi_port_added_event_descriptor_group_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_group_id_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_backend_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_backend_id_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                    let value_native_decoded_midi_port_added_event_descriptor_backend_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_backend_id_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_name = binding.store_string(value.payload.descriptor.name.as_str());
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_group_name_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_group_name_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_name = binding.store_string(value.descriptor.name.as_str());
+                                let value_native_decoded_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                    let value_native_decoded_midi_port_added_event_descriptor_group_name_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_group_name_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_manufacturer_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                    let value_native_decoded_midi_port_added_event_descriptor_manufacturer_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_manufacturer_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_model_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_model_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                    let value_native_decoded_midi_port_added_event_descriptor_model_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_model_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_version_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_version_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                    let value_native_decoded_midi_port_added_event_descriptor_version_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_version_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                                let value_native_decoded_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                    let value_native_decoded_midi_port_added_event_descriptor_default_data_format_inner = value;
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_default_data_format_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                    let value_native_decoded_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                                    Some(value_native_decoded_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                                let value_native_decoded_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                                let value_native_decoded_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                    let value_native_decoded_midi_port_added_event_descriptor_default_protocol_inner = value;
+                                    Some(value_native_decoded_midi_port_added_event_descriptor_default_protocol_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                                let value_native_decoded_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                                let value_native_decoded_midi_port_added_event_payload_descriptor = MidiPortDescriptor {
-                                    backend: value_native_decoded_midi_port_added_event_payload_descriptor_backend,
-                                    id: value_native_decoded_midi_port_added_event_payload_descriptor_id,
-                                    group_id: value_native_decoded_midi_port_added_event_payload_descriptor_group_id,
-                                    backend_id: value_native_decoded_midi_port_added_event_payload_descriptor_backend_id,
-                                    name: value_native_decoded_midi_port_added_event_payload_descriptor_name,
-                                    group_name: value_native_decoded_midi_port_added_event_payload_descriptor_group_name,
-                                    manufacturer: value_native_decoded_midi_port_added_event_payload_descriptor_manufacturer,
-                                    model: value_native_decoded_midi_port_added_event_payload_descriptor_model,
-                                    version: value_native_decoded_midi_port_added_event_payload_descriptor_version,
-                                    supported_data_formats: value_native_decoded_midi_port_added_event_payload_descriptor_supported_data_formats,
-                                    default_data_format: value_native_decoded_midi_port_added_event_payload_descriptor_default_data_format,
-                                    supported_protocols: value_native_decoded_midi_port_added_event_payload_descriptor_supported_protocols,
-                                    default_protocol: value_native_decoded_midi_port_added_event_payload_descriptor_default_protocol,
-                                    is_virtual: value_native_decoded_midi_port_added_event_payload_descriptor_is_virtual,
-                                    is_connected: value_native_decoded_midi_port_added_event_payload_descriptor_is_connected,
-                                };
-                                let value_native_decoded_midi_port_added_event_payload = MidiPortAddedPayload {
-                                    direction: value_native_decoded_midi_port_added_event_payload_direction,
-                                    descriptor: value_native_decoded_midi_port_added_event_payload_descriptor,
+                                let value_native_decoded_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                                let value_native_decoded_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                                let value_native_decoded_midi_port_added_event_descriptor = MidiPortDescriptor {
+                                    backend: value_native_decoded_midi_port_added_event_descriptor_backend,
+                                    id: value_native_decoded_midi_port_added_event_descriptor_id,
+                                    group_id: value_native_decoded_midi_port_added_event_descriptor_group_id,
+                                    backend_id: value_native_decoded_midi_port_added_event_descriptor_backend_id,
+                                    name: value_native_decoded_midi_port_added_event_descriptor_name,
+                                    group_name: value_native_decoded_midi_port_added_event_descriptor_group_name,
+                                    manufacturer: value_native_decoded_midi_port_added_event_descriptor_manufacturer,
+                                    model: value_native_decoded_midi_port_added_event_descriptor_model,
+                                    version: value_native_decoded_midi_port_added_event_descriptor_version,
+                                    supported_data_formats: value_native_decoded_midi_port_added_event_descriptor_supported_data_formats,
+                                    default_data_format: value_native_decoded_midi_port_added_event_descriptor_default_data_format,
+                                    supported_protocols: value_native_decoded_midi_port_added_event_descriptor_supported_protocols,
+                                    default_protocol: value_native_decoded_midi_port_added_event_descriptor_default_protocol,
+                                    is_virtual: value_native_decoded_midi_port_added_event_descriptor_is_virtual,
+                                    is_connected: value_native_decoded_midi_port_added_event_descriptor_is_connected,
                                 };
                                 let value_native_decoded_midi_port_added_event = MidiPortAddedEvent {
                                     kind: value_native_decoded_midi_port_added_event_kind,
                                     metadata: value_native_decoded_midi_port_added_event_metadata,
-                                    payload: value_native_decoded_midi_port_added_event_payload,
+                                    direction: value_native_decoded_midi_port_added_event_direction,
+                                    descriptor: value_native_decoded_midi_port_added_event_descriptor,
                                 };
                                 MidiEvent::MidiPortAddedEvent(value_native_decoded_midi_port_added_event)
                             }
@@ -5051,87 +4880,84 @@ fn destack_midi_event_try_read_batch_replay(
                                     source: value_native_decoded_midi_port_changed_event_metadata_source,
                                     backend: value_native_decoded_midi_port_changed_event_metadata_backend,
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_direction = value.payload.direction;
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_id = binding.store_string(value.payload.descriptor.id.as_str());
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_group_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_group_id_inner)
+                                let value_native_decoded_midi_port_changed_event_direction = value.direction;
+                                let value_native_decoded_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                                let value_native_decoded_midi_port_changed_event_descriptor_id = binding.store_string(value.descriptor.id.as_str());
+                                let value_native_decoded_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_group_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_group_id_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_backend_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_backend_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_backend_id_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_name = binding.store_string(value.payload.descriptor.name.as_str());
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_group_name_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_group_name_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_name = binding.store_string(value.descriptor.name.as_str());
+                                let value_native_decoded_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_group_name_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_group_name_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_manufacturer_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_manufacturer_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_manufacturer_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_model_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_model_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_model_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_model_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_version_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_version_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_version_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_version_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                                let value_native_decoded_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_default_data_format_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                    let value_native_decoded_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                                    Some(value_native_decoded_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                                let value_native_decoded_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                                let value_native_decoded_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                    let value_native_decoded_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                                    Some(value_native_decoded_midi_port_changed_event_descriptor_default_protocol_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                                let value_native_decoded_midi_port_changed_event_payload_descriptor = MidiPortDescriptor {
-                                    backend: value_native_decoded_midi_port_changed_event_payload_descriptor_backend,
-                                    id: value_native_decoded_midi_port_changed_event_payload_descriptor_id,
-                                    group_id: value_native_decoded_midi_port_changed_event_payload_descriptor_group_id,
-                                    backend_id: value_native_decoded_midi_port_changed_event_payload_descriptor_backend_id,
-                                    name: value_native_decoded_midi_port_changed_event_payload_descriptor_name,
-                                    group_name: value_native_decoded_midi_port_changed_event_payload_descriptor_group_name,
-                                    manufacturer: value_native_decoded_midi_port_changed_event_payload_descriptor_manufacturer,
-                                    model: value_native_decoded_midi_port_changed_event_payload_descriptor_model,
-                                    version: value_native_decoded_midi_port_changed_event_payload_descriptor_version,
-                                    supported_data_formats: value_native_decoded_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                                    default_data_format: value_native_decoded_midi_port_changed_event_payload_descriptor_default_data_format,
-                                    supported_protocols: value_native_decoded_midi_port_changed_event_payload_descriptor_supported_protocols,
-                                    default_protocol: value_native_decoded_midi_port_changed_event_payload_descriptor_default_protocol,
-                                    is_virtual: value_native_decoded_midi_port_changed_event_payload_descriptor_is_virtual,
-                                    is_connected: value_native_decoded_midi_port_changed_event_payload_descriptor_is_connected,
-                                };
-                                let value_native_decoded_midi_port_changed_event_payload = MidiPortChangedPayload {
-                                    direction: value_native_decoded_midi_port_changed_event_payload_direction,
-                                    descriptor: value_native_decoded_midi_port_changed_event_payload_descriptor,
+                                let value_native_decoded_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                                let value_native_decoded_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                                let value_native_decoded_midi_port_changed_event_descriptor = MidiPortDescriptor {
+                                    backend: value_native_decoded_midi_port_changed_event_descriptor_backend,
+                                    id: value_native_decoded_midi_port_changed_event_descriptor_id,
+                                    group_id: value_native_decoded_midi_port_changed_event_descriptor_group_id,
+                                    backend_id: value_native_decoded_midi_port_changed_event_descriptor_backend_id,
+                                    name: value_native_decoded_midi_port_changed_event_descriptor_name,
+                                    group_name: value_native_decoded_midi_port_changed_event_descriptor_group_name,
+                                    manufacturer: value_native_decoded_midi_port_changed_event_descriptor_manufacturer,
+                                    model: value_native_decoded_midi_port_changed_event_descriptor_model,
+                                    version: value_native_decoded_midi_port_changed_event_descriptor_version,
+                                    supported_data_formats: value_native_decoded_midi_port_changed_event_descriptor_supported_data_formats,
+                                    default_data_format: value_native_decoded_midi_port_changed_event_descriptor_default_data_format,
+                                    supported_protocols: value_native_decoded_midi_port_changed_event_descriptor_supported_protocols,
+                                    default_protocol: value_native_decoded_midi_port_changed_event_descriptor_default_protocol,
+                                    is_virtual: value_native_decoded_midi_port_changed_event_descriptor_is_virtual,
+                                    is_connected: value_native_decoded_midi_port_changed_event_descriptor_is_connected,
                                 };
                                 let value_native_decoded_midi_port_changed_event = MidiPortChangedEvent {
                                     kind: value_native_decoded_midi_port_changed_event_kind,
                                     metadata: value_native_decoded_midi_port_changed_event_metadata,
-                                    payload: value_native_decoded_midi_port_changed_event_payload,
+                                    direction: value_native_decoded_midi_port_changed_event_direction,
+                                    descriptor: value_native_decoded_midi_port_changed_event_descriptor,
                                 };
                                 MidiEvent::MidiPortChangedEvent(value_native_decoded_midi_port_changed_event)
                             }
@@ -5149,23 +4975,20 @@ fn destack_midi_event_try_read_batch_replay(
                                     source: value_native_decoded_midi_port_removed_event_metadata_source,
                                     backend: value_native_decoded_midi_port_removed_event_metadata_backend,
                                 };
-                                let value_native_decoded_midi_port_removed_event_payload_direction = value.payload.direction;
-                                let value_native_decoded_midi_port_removed_event_payload_id = binding.store_string(value.payload.id.as_str());
-                                let value_native_decoded_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                    let value_native_decoded_midi_port_removed_event_payload_group_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_midi_port_removed_event_payload_group_id_inner)
+                                let value_native_decoded_midi_port_removed_event_direction = value.direction;
+                                let value_native_decoded_midi_port_removed_event_id = binding.store_string(value.id.as_str());
+                                let value_native_decoded_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                                    let value_native_decoded_midi_port_removed_event_group_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_midi_port_removed_event_group_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_midi_port_removed_event_payload = MidiPortRemovedPayload {
-                                    direction: value_native_decoded_midi_port_removed_event_payload_direction,
-                                    id: value_native_decoded_midi_port_removed_event_payload_id,
-                                    group_id: value_native_decoded_midi_port_removed_event_payload_group_id,
                                 };
                                 let value_native_decoded_midi_port_removed_event = MidiPortRemovedEvent {
                                     kind: value_native_decoded_midi_port_removed_event_kind,
                                     metadata: value_native_decoded_midi_port_removed_event_metadata,
-                                    payload: value_native_decoded_midi_port_removed_event_payload,
+                                    direction: value_native_decoded_midi_port_removed_event_direction,
+                                    id: value_native_decoded_midi_port_removed_event_id,
+                                    group_id: value_native_decoded_midi_port_removed_event_group_id,
                                 };
                                 MidiEvent::MidiPortRemovedEvent(value_native_decoded_midi_port_removed_event)
                             }
@@ -7654,14 +7477,11 @@ fn destack_midi_event_read_vm_replay(
                             source: result_recorded_midi_backend_disconnected_event_metadata_source,
                             backend: result_recorded_midi_backend_disconnected_event_metadata_backend,
                         };
-                        let result_recorded_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                        let result_recorded_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                            flags: result_recorded_midi_backend_disconnected_event_payload_flags,
-                        };
+                        let result_recorded_midi_backend_disconnected_event_flags = value.flags;
                         let result_recorded_midi_backend_disconnected_event = MidibackenddisconnectedeventReplayRecord {
                             kind: result_recorded_midi_backend_disconnected_event_kind,
                             metadata: result_recorded_midi_backend_disconnected_event_metadata,
-                            payload: result_recorded_midi_backend_disconnected_event_payload,
+                            flags: result_recorded_midi_backend_disconnected_event_flags,
                         };
                         MidieventReplayRecord::MidiBackendDisconnectedEvent(result_recorded_midi_backend_disconnected_event)
                     }
@@ -7682,111 +7502,108 @@ fn destack_midi_event_read_vm_replay(
                             source: result_recorded_midi_port_added_event_metadata_source,
                             backend: result_recorded_midi_port_added_event_metadata_backend,
                         };
-                        let result_recorded_midi_port_added_event_payload_direction = value.payload.direction;
-                        let result_recorded_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                        let result_recorded_midi_port_added_event_payload_descriptor_id = {
-                            let result_recorded_midi_port_added_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_midi_port_added_event_payload_descriptor_id_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_direction = value.direction;
+                        let result_recorded_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                        let result_recorded_midi_port_added_event_descriptor_id = {
+                            let result_recorded_midi_port_added_event_descriptor_id_ref = context.string_ref(value.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_midi_port_added_event_descriptor_id_ref.as_str().to_string()
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                            let result_recorded_midi_port_added_event_payload_descriptor_group_id_inner = {
-                                let result_recorded_midi_port_added_event_payload_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_added_event_payload_descriptor_group_id_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                            let result_recorded_midi_port_added_event_descriptor_group_id_inner = {
+                                let result_recorded_midi_port_added_event_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_added_event_descriptor_group_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_group_id_inner)
+                            Some(result_recorded_midi_port_added_event_descriptor_group_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                            let result_recorded_midi_port_added_event_payload_descriptor_backend_id_inner = {
-                                let result_recorded_midi_port_added_event_payload_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_added_event_payload_descriptor_backend_id_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                            let result_recorded_midi_port_added_event_descriptor_backend_id_inner = {
+                                let result_recorded_midi_port_added_event_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_added_event_descriptor_backend_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_backend_id_inner)
+                            Some(result_recorded_midi_port_added_event_descriptor_backend_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_name = {
-                            let result_recorded_midi_port_added_event_payload_descriptor_name_ref = context.string_ref(value.payload.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_midi_port_added_event_payload_descriptor_name_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_name = {
+                            let result_recorded_midi_port_added_event_descriptor_name_ref = context.string_ref(value.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_midi_port_added_event_descriptor_name_ref.as_str().to_string()
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                            let result_recorded_midi_port_added_event_payload_descriptor_group_name_inner = {
-                                let result_recorded_midi_port_added_event_payload_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_added_event_payload_descriptor_group_name_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                            let result_recorded_midi_port_added_event_descriptor_group_name_inner = {
+                                let result_recorded_midi_port_added_event_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_added_event_descriptor_group_name_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_group_name_inner)
+                            Some(result_recorded_midi_port_added_event_descriptor_group_name_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                            let result_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner = {
-                                let result_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                            let result_recorded_midi_port_added_event_descriptor_manufacturer_inner = {
+                                let result_recorded_midi_port_added_event_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_added_event_descriptor_manufacturer_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                            Some(result_recorded_midi_port_added_event_descriptor_manufacturer_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                            let result_recorded_midi_port_added_event_payload_descriptor_model_inner = {
-                                let result_recorded_midi_port_added_event_payload_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_added_event_payload_descriptor_model_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                            let result_recorded_midi_port_added_event_descriptor_model_inner = {
+                                let result_recorded_midi_port_added_event_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_added_event_descriptor_model_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_model_inner)
+                            Some(result_recorded_midi_port_added_event_descriptor_model_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                            let result_recorded_midi_port_added_event_payload_descriptor_version_inner = {
-                                let result_recorded_midi_port_added_event_payload_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_added_event_payload_descriptor_version_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                            let result_recorded_midi_port_added_event_descriptor_version_inner = {
+                                let result_recorded_midi_port_added_event_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_added_event_descriptor_version_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_version_inner)
+                            Some(result_recorded_midi_port_added_event_descriptor_version_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                        let result_recorded_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                            let result_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                        let result_recorded_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                        let result_recorded_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                            let result_recorded_midi_port_added_event_descriptor_default_data_format_inner = value;
+                            Some(result_recorded_midi_port_added_event_descriptor_default_data_format_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                        let result_recorded_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                            let result_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                        let result_recorded_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                        let result_recorded_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                            let result_recorded_midi_port_added_event_descriptor_default_protocol_inner = value;
+                            Some(result_recorded_midi_port_added_event_descriptor_default_protocol_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                        let result_recorded_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                        let result_recorded_midi_port_added_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                            backend: result_recorded_midi_port_added_event_payload_descriptor_backend,
-                            id: result_recorded_midi_port_added_event_payload_descriptor_id,
-                            group_id: result_recorded_midi_port_added_event_payload_descriptor_group_id,
-                            backend_id: result_recorded_midi_port_added_event_payload_descriptor_backend_id,
-                            name: result_recorded_midi_port_added_event_payload_descriptor_name,
-                            group_name: result_recorded_midi_port_added_event_payload_descriptor_group_name,
-                            manufacturer: result_recorded_midi_port_added_event_payload_descriptor_manufacturer,
-                            model: result_recorded_midi_port_added_event_payload_descriptor_model,
-                            version: result_recorded_midi_port_added_event_payload_descriptor_version,
-                            supported_data_formats: result_recorded_midi_port_added_event_payload_descriptor_supported_data_formats,
-                            default_data_format: result_recorded_midi_port_added_event_payload_descriptor_default_data_format,
-                            supported_protocols: result_recorded_midi_port_added_event_payload_descriptor_supported_protocols,
-                            default_protocol: result_recorded_midi_port_added_event_payload_descriptor_default_protocol,
-                            is_virtual: result_recorded_midi_port_added_event_payload_descriptor_is_virtual,
-                            is_connected: result_recorded_midi_port_added_event_payload_descriptor_is_connected,
-                        };
-                        let result_recorded_midi_port_added_event_payload = MidiportaddedpayloadReplayRecord {
-                            direction: result_recorded_midi_port_added_event_payload_direction,
-                            descriptor: result_recorded_midi_port_added_event_payload_descriptor,
+                        let result_recorded_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                        let result_recorded_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                        let result_recorded_midi_port_added_event_descriptor = MidiportdescriptorReplayRecord {
+                            backend: result_recorded_midi_port_added_event_descriptor_backend,
+                            id: result_recorded_midi_port_added_event_descriptor_id,
+                            group_id: result_recorded_midi_port_added_event_descriptor_group_id,
+                            backend_id: result_recorded_midi_port_added_event_descriptor_backend_id,
+                            name: result_recorded_midi_port_added_event_descriptor_name,
+                            group_name: result_recorded_midi_port_added_event_descriptor_group_name,
+                            manufacturer: result_recorded_midi_port_added_event_descriptor_manufacturer,
+                            model: result_recorded_midi_port_added_event_descriptor_model,
+                            version: result_recorded_midi_port_added_event_descriptor_version,
+                            supported_data_formats: result_recorded_midi_port_added_event_descriptor_supported_data_formats,
+                            default_data_format: result_recorded_midi_port_added_event_descriptor_default_data_format,
+                            supported_protocols: result_recorded_midi_port_added_event_descriptor_supported_protocols,
+                            default_protocol: result_recorded_midi_port_added_event_descriptor_default_protocol,
+                            is_virtual: result_recorded_midi_port_added_event_descriptor_is_virtual,
+                            is_connected: result_recorded_midi_port_added_event_descriptor_is_connected,
                         };
                         let result_recorded_midi_port_added_event = MidiportaddedeventReplayRecord {
                             kind: result_recorded_midi_port_added_event_kind,
                             metadata: result_recorded_midi_port_added_event_metadata,
-                            payload: result_recorded_midi_port_added_event_payload,
+                            direction: result_recorded_midi_port_added_event_direction,
+                            descriptor: result_recorded_midi_port_added_event_descriptor,
                         };
                         MidieventReplayRecord::MidiPortAddedEvent(result_recorded_midi_port_added_event)
                     }
@@ -7807,111 +7624,108 @@ fn destack_midi_event_read_vm_replay(
                             source: result_recorded_midi_port_changed_event_metadata_source,
                             backend: result_recorded_midi_port_changed_event_metadata_backend,
                         };
-                        let result_recorded_midi_port_changed_event_payload_direction = value.payload.direction;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_id = {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_midi_port_changed_event_payload_descriptor_id_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_direction = value.direction;
+                        let result_recorded_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                        let result_recorded_midi_port_changed_event_descriptor_id = {
+                            let result_recorded_midi_port_changed_event_descriptor_id_ref = context.string_ref(value.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_midi_port_changed_event_descriptor_id_ref.as_str().to_string()
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_group_id_inner = {
-                                let result_recorded_midi_port_changed_event_payload_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_changed_event_payload_descriptor_group_id_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                            let result_recorded_midi_port_changed_event_descriptor_group_id_inner = {
+                                let result_recorded_midi_port_changed_event_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_changed_event_descriptor_group_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_group_id_inner)
+                            Some(result_recorded_midi_port_changed_event_descriptor_group_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner = {
-                                let result_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                            let result_recorded_midi_port_changed_event_descriptor_backend_id_inner = {
+                                let result_recorded_midi_port_changed_event_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_changed_event_descriptor_backend_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                            Some(result_recorded_midi_port_changed_event_descriptor_backend_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_name = {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_name_ref = context.string_ref(value.payload.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_midi_port_changed_event_payload_descriptor_name_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_name = {
+                            let result_recorded_midi_port_changed_event_descriptor_name_ref = context.string_ref(value.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_midi_port_changed_event_descriptor_name_ref.as_str().to_string()
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_group_name_inner = {
-                                let result_recorded_midi_port_changed_event_payload_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_changed_event_payload_descriptor_group_name_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                            let result_recorded_midi_port_changed_event_descriptor_group_name_inner = {
+                                let result_recorded_midi_port_changed_event_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_changed_event_descriptor_group_name_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_group_name_inner)
+                            Some(result_recorded_midi_port_changed_event_descriptor_group_name_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner = {
-                                let result_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                            let result_recorded_midi_port_changed_event_descriptor_manufacturer_inner = {
+                                let result_recorded_midi_port_changed_event_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_changed_event_descriptor_manufacturer_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                            Some(result_recorded_midi_port_changed_event_descriptor_manufacturer_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_model_inner = {
-                                let result_recorded_midi_port_changed_event_payload_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_changed_event_payload_descriptor_model_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                            let result_recorded_midi_port_changed_event_descriptor_model_inner = {
+                                let result_recorded_midi_port_changed_event_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_changed_event_descriptor_model_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_model_inner)
+                            Some(result_recorded_midi_port_changed_event_descriptor_model_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_version_inner = {
-                                let result_recorded_midi_port_changed_event_payload_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_changed_event_payload_descriptor_version_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                            let result_recorded_midi_port_changed_event_descriptor_version_inner = {
+                                let result_recorded_midi_port_changed_event_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_changed_event_descriptor_version_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_version_inner)
+                            Some(result_recorded_midi_port_changed_event_descriptor_version_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                        let result_recorded_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                            let result_recorded_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                            Some(result_recorded_midi_port_changed_event_descriptor_default_data_format_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                        let result_recorded_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                            let result_recorded_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                            Some(result_recorded_midi_port_changed_event_descriptor_default_protocol_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                        let result_recorded_midi_port_changed_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                            backend: result_recorded_midi_port_changed_event_payload_descriptor_backend,
-                            id: result_recorded_midi_port_changed_event_payload_descriptor_id,
-                            group_id: result_recorded_midi_port_changed_event_payload_descriptor_group_id,
-                            backend_id: result_recorded_midi_port_changed_event_payload_descriptor_backend_id,
-                            name: result_recorded_midi_port_changed_event_payload_descriptor_name,
-                            group_name: result_recorded_midi_port_changed_event_payload_descriptor_group_name,
-                            manufacturer: result_recorded_midi_port_changed_event_payload_descriptor_manufacturer,
-                            model: result_recorded_midi_port_changed_event_payload_descriptor_model,
-                            version: result_recorded_midi_port_changed_event_payload_descriptor_version,
-                            supported_data_formats: result_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                            default_data_format: result_recorded_midi_port_changed_event_payload_descriptor_default_data_format,
-                            supported_protocols: result_recorded_midi_port_changed_event_payload_descriptor_supported_protocols,
-                            default_protocol: result_recorded_midi_port_changed_event_payload_descriptor_default_protocol,
-                            is_virtual: result_recorded_midi_port_changed_event_payload_descriptor_is_virtual,
-                            is_connected: result_recorded_midi_port_changed_event_payload_descriptor_is_connected,
-                        };
-                        let result_recorded_midi_port_changed_event_payload = MidiportchangedpayloadReplayRecord {
-                            direction: result_recorded_midi_port_changed_event_payload_direction,
-                            descriptor: result_recorded_midi_port_changed_event_payload_descriptor,
+                        let result_recorded_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                        let result_recorded_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                        let result_recorded_midi_port_changed_event_descriptor = MidiportdescriptorReplayRecord {
+                            backend: result_recorded_midi_port_changed_event_descriptor_backend,
+                            id: result_recorded_midi_port_changed_event_descriptor_id,
+                            group_id: result_recorded_midi_port_changed_event_descriptor_group_id,
+                            backend_id: result_recorded_midi_port_changed_event_descriptor_backend_id,
+                            name: result_recorded_midi_port_changed_event_descriptor_name,
+                            group_name: result_recorded_midi_port_changed_event_descriptor_group_name,
+                            manufacturer: result_recorded_midi_port_changed_event_descriptor_manufacturer,
+                            model: result_recorded_midi_port_changed_event_descriptor_model,
+                            version: result_recorded_midi_port_changed_event_descriptor_version,
+                            supported_data_formats: result_recorded_midi_port_changed_event_descriptor_supported_data_formats,
+                            default_data_format: result_recorded_midi_port_changed_event_descriptor_default_data_format,
+                            supported_protocols: result_recorded_midi_port_changed_event_descriptor_supported_protocols,
+                            default_protocol: result_recorded_midi_port_changed_event_descriptor_default_protocol,
+                            is_virtual: result_recorded_midi_port_changed_event_descriptor_is_virtual,
+                            is_connected: result_recorded_midi_port_changed_event_descriptor_is_connected,
                         };
                         let result_recorded_midi_port_changed_event = MidiportchangedeventReplayRecord {
                             kind: result_recorded_midi_port_changed_event_kind,
                             metadata: result_recorded_midi_port_changed_event_metadata,
-                            payload: result_recorded_midi_port_changed_event_payload,
+                            direction: result_recorded_midi_port_changed_event_direction,
+                            descriptor: result_recorded_midi_port_changed_event_descriptor,
                         };
                         MidieventReplayRecord::MidiPortChangedEvent(result_recorded_midi_port_changed_event)
                     }
@@ -7932,29 +7746,26 @@ fn destack_midi_event_read_vm_replay(
                             source: result_recorded_midi_port_removed_event_metadata_source,
                             backend: result_recorded_midi_port_removed_event_metadata_backend,
                         };
-                        let result_recorded_midi_port_removed_event_payload_direction = value.payload.direction;
-                        let result_recorded_midi_port_removed_event_payload_id = {
-                            let result_recorded_midi_port_removed_event_payload_id_ref = context.string_ref(value.payload.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_midi_port_removed_event_payload_id_ref.as_str().to_string()
+                        let result_recorded_midi_port_removed_event_direction = value.direction;
+                        let result_recorded_midi_port_removed_event_id = {
+                            let result_recorded_midi_port_removed_event_id_ref = context.string_ref(value.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_midi_port_removed_event_id_ref.as_str().to_string()
                         };
-                        let result_recorded_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                            let result_recorded_midi_port_removed_event_payload_group_id_inner = {
-                                let result_recorded_midi_port_removed_event_payload_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_removed_event_payload_group_id_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                            let result_recorded_midi_port_removed_event_group_id_inner = {
+                                let result_recorded_midi_port_removed_event_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_removed_event_group_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_removed_event_payload_group_id_inner)
+                            Some(result_recorded_midi_port_removed_event_group_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_midi_port_removed_event_payload = MidiportremovedpayloadReplayRecord {
-                            direction: result_recorded_midi_port_removed_event_payload_direction,
-                            id: result_recorded_midi_port_removed_event_payload_id,
-                            group_id: result_recorded_midi_port_removed_event_payload_group_id,
                         };
                         let result_recorded_midi_port_removed_event = MidiportremovedeventReplayRecord {
                             kind: result_recorded_midi_port_removed_event_kind,
                             metadata: result_recorded_midi_port_removed_event_metadata,
-                            payload: result_recorded_midi_port_removed_event_payload,
+                            direction: result_recorded_midi_port_removed_event_direction,
+                            id: result_recorded_midi_port_removed_event_id,
+                            group_id: result_recorded_midi_port_removed_event_group_id,
                         };
                         MidieventReplayRecord::MidiPortRemovedEvent(result_recorded_midi_port_removed_event)
                     }
@@ -7997,14 +7808,11 @@ fn destack_midi_event_read_vm_replay(
                                 source: vm_result_midi_backend_disconnected_event_metadata_source,
                                 backend: vm_result_midi_backend_disconnected_event_metadata_backend,
                             };
-                            let vm_result_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                            let vm_result_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                                flags: vm_result_midi_backend_disconnected_event_payload_flags,
-                            };
+                            let vm_result_midi_backend_disconnected_event_flags = value.flags;
                             let vm_result_midi_backend_disconnected_event = MidiBackendDisconnectedEventVm {
                                 kind: vm_result_midi_backend_disconnected_event_kind,
                                 metadata: vm_result_midi_backend_disconnected_event_metadata,
-                                payload: vm_result_midi_backend_disconnected_event_payload,
+                                flags: vm_result_midi_backend_disconnected_event_flags,
                             };
                             MidiEventVm::MidiBackendDisconnectedEvent(vm_result_midi_backend_disconnected_event)
                         }
@@ -8022,87 +7830,84 @@ fn destack_midi_event_read_vm_replay(
                                 source: vm_result_midi_port_added_event_metadata_source,
                                 backend: vm_result_midi_port_added_event_metadata_backend,
                             };
-                            let vm_result_midi_port_added_event_payload_direction = value.payload.direction;
-                            let vm_result_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let vm_result_midi_port_added_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let vm_result_midi_port_added_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_group_id_inner)
+                            let vm_result_midi_port_added_event_direction = value.direction;
+                            let vm_result_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                            let vm_result_midi_port_added_event_descriptor_id = context.string_handle(value.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let vm_result_midi_port_added_event_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_added_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let vm_result_midi_port_added_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_backend_id_inner)
+                            let vm_result_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let vm_result_midi_port_added_event_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_added_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let vm_result_midi_port_added_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_group_name_inner)
+                            let vm_result_midi_port_added_event_descriptor_name = context.string_handle(value.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let vm_result_midi_port_added_event_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_added_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                            let vm_result_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let vm_result_midi_port_added_event_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_added_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let vm_result_midi_port_added_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_model_inner)
+                            let vm_result_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let vm_result_midi_port_added_event_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_added_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let vm_result_midi_port_added_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_version_inner)
+                            let vm_result_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let vm_result_midi_port_added_event_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_added_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let vm_result_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let vm_result_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                            let vm_result_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let vm_result_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let vm_result_midi_port_added_event_descriptor_default_data_format_inner = value;
+                                Some(vm_result_midi_port_added_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let vm_result_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let vm_result_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                            let vm_result_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let vm_result_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let vm_result_midi_port_added_event_descriptor_default_protocol_inner = value;
+                                Some(vm_result_midi_port_added_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let vm_result_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let vm_result_midi_port_added_event_payload_descriptor = MidiPortDescriptorVm {
-                                backend: vm_result_midi_port_added_event_payload_descriptor_backend,
-                                id: vm_result_midi_port_added_event_payload_descriptor_id,
-                                group_id: vm_result_midi_port_added_event_payload_descriptor_group_id,
-                                backend_id: vm_result_midi_port_added_event_payload_descriptor_backend_id,
-                                name: vm_result_midi_port_added_event_payload_descriptor_name,
-                                group_name: vm_result_midi_port_added_event_payload_descriptor_group_name,
-                                manufacturer: vm_result_midi_port_added_event_payload_descriptor_manufacturer,
-                                model: vm_result_midi_port_added_event_payload_descriptor_model,
-                                version: vm_result_midi_port_added_event_payload_descriptor_version,
-                                supported_data_formats: vm_result_midi_port_added_event_payload_descriptor_supported_data_formats,
-                                default_data_format: vm_result_midi_port_added_event_payload_descriptor_default_data_format,
-                                supported_protocols: vm_result_midi_port_added_event_payload_descriptor_supported_protocols,
-                                default_protocol: vm_result_midi_port_added_event_payload_descriptor_default_protocol,
-                                is_virtual: vm_result_midi_port_added_event_payload_descriptor_is_virtual,
-                                is_connected: vm_result_midi_port_added_event_payload_descriptor_is_connected,
-                            };
-                            let vm_result_midi_port_added_event_payload = MidiPortAddedPayloadVm {
-                                direction: vm_result_midi_port_added_event_payload_direction,
-                                descriptor: vm_result_midi_port_added_event_payload_descriptor,
+                            let vm_result_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let vm_result_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let vm_result_midi_port_added_event_descriptor = MidiPortDescriptorVm {
+                                backend: vm_result_midi_port_added_event_descriptor_backend,
+                                id: vm_result_midi_port_added_event_descriptor_id,
+                                group_id: vm_result_midi_port_added_event_descriptor_group_id,
+                                backend_id: vm_result_midi_port_added_event_descriptor_backend_id,
+                                name: vm_result_midi_port_added_event_descriptor_name,
+                                group_name: vm_result_midi_port_added_event_descriptor_group_name,
+                                manufacturer: vm_result_midi_port_added_event_descriptor_manufacturer,
+                                model: vm_result_midi_port_added_event_descriptor_model,
+                                version: vm_result_midi_port_added_event_descriptor_version,
+                                supported_data_formats: vm_result_midi_port_added_event_descriptor_supported_data_formats,
+                                default_data_format: vm_result_midi_port_added_event_descriptor_default_data_format,
+                                supported_protocols: vm_result_midi_port_added_event_descriptor_supported_protocols,
+                                default_protocol: vm_result_midi_port_added_event_descriptor_default_protocol,
+                                is_virtual: vm_result_midi_port_added_event_descriptor_is_virtual,
+                                is_connected: vm_result_midi_port_added_event_descriptor_is_connected,
                             };
                             let vm_result_midi_port_added_event = MidiPortAddedEventVm {
                                 kind: vm_result_midi_port_added_event_kind,
                                 metadata: vm_result_midi_port_added_event_metadata,
-                                payload: vm_result_midi_port_added_event_payload,
+                                direction: vm_result_midi_port_added_event_direction,
+                                descriptor: vm_result_midi_port_added_event_descriptor,
                             };
                             MidiEventVm::MidiPortAddedEvent(vm_result_midi_port_added_event)
                         }
@@ -8120,87 +7925,84 @@ fn destack_midi_event_read_vm_replay(
                                 source: vm_result_midi_port_changed_event_metadata_source,
                                 backend: vm_result_midi_port_changed_event_metadata_backend,
                             };
-                            let vm_result_midi_port_changed_event_payload_direction = value.payload.direction;
-                            let vm_result_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let vm_result_midi_port_changed_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let vm_result_midi_port_changed_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_group_id_inner)
+                            let vm_result_midi_port_changed_event_direction = value.direction;
+                            let vm_result_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                            let vm_result_midi_port_changed_event_descriptor_id = context.string_handle(value.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let vm_result_midi_port_changed_event_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_changed_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                            let vm_result_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let vm_result_midi_port_changed_event_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_changed_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let vm_result_midi_port_changed_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_group_name_inner)
+                            let vm_result_midi_port_changed_event_descriptor_name = context.string_handle(value.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let vm_result_midi_port_changed_event_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_changed_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                            let vm_result_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let vm_result_midi_port_changed_event_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_changed_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let vm_result_midi_port_changed_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_model_inner)
+                            let vm_result_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let vm_result_midi_port_changed_event_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_changed_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let vm_result_midi_port_changed_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_version_inner)
+                            let vm_result_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let vm_result_midi_port_changed_event_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_changed_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let vm_result_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let vm_result_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                            let vm_result_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let vm_result_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let vm_result_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                                Some(vm_result_midi_port_changed_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let vm_result_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let vm_result_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                            let vm_result_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let vm_result_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let vm_result_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                                Some(vm_result_midi_port_changed_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let vm_result_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let vm_result_midi_port_changed_event_payload_descriptor = MidiPortDescriptorVm {
-                                backend: vm_result_midi_port_changed_event_payload_descriptor_backend,
-                                id: vm_result_midi_port_changed_event_payload_descriptor_id,
-                                group_id: vm_result_midi_port_changed_event_payload_descriptor_group_id,
-                                backend_id: vm_result_midi_port_changed_event_payload_descriptor_backend_id,
-                                name: vm_result_midi_port_changed_event_payload_descriptor_name,
-                                group_name: vm_result_midi_port_changed_event_payload_descriptor_group_name,
-                                manufacturer: vm_result_midi_port_changed_event_payload_descriptor_manufacturer,
-                                model: vm_result_midi_port_changed_event_payload_descriptor_model,
-                                version: vm_result_midi_port_changed_event_payload_descriptor_version,
-                                supported_data_formats: vm_result_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                                default_data_format: vm_result_midi_port_changed_event_payload_descriptor_default_data_format,
-                                supported_protocols: vm_result_midi_port_changed_event_payload_descriptor_supported_protocols,
-                                default_protocol: vm_result_midi_port_changed_event_payload_descriptor_default_protocol,
-                                is_virtual: vm_result_midi_port_changed_event_payload_descriptor_is_virtual,
-                                is_connected: vm_result_midi_port_changed_event_payload_descriptor_is_connected,
-                            };
-                            let vm_result_midi_port_changed_event_payload = MidiPortChangedPayloadVm {
-                                direction: vm_result_midi_port_changed_event_payload_direction,
-                                descriptor: vm_result_midi_port_changed_event_payload_descriptor,
+                            let vm_result_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let vm_result_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let vm_result_midi_port_changed_event_descriptor = MidiPortDescriptorVm {
+                                backend: vm_result_midi_port_changed_event_descriptor_backend,
+                                id: vm_result_midi_port_changed_event_descriptor_id,
+                                group_id: vm_result_midi_port_changed_event_descriptor_group_id,
+                                backend_id: vm_result_midi_port_changed_event_descriptor_backend_id,
+                                name: vm_result_midi_port_changed_event_descriptor_name,
+                                group_name: vm_result_midi_port_changed_event_descriptor_group_name,
+                                manufacturer: vm_result_midi_port_changed_event_descriptor_manufacturer,
+                                model: vm_result_midi_port_changed_event_descriptor_model,
+                                version: vm_result_midi_port_changed_event_descriptor_version,
+                                supported_data_formats: vm_result_midi_port_changed_event_descriptor_supported_data_formats,
+                                default_data_format: vm_result_midi_port_changed_event_descriptor_default_data_format,
+                                supported_protocols: vm_result_midi_port_changed_event_descriptor_supported_protocols,
+                                default_protocol: vm_result_midi_port_changed_event_descriptor_default_protocol,
+                                is_virtual: vm_result_midi_port_changed_event_descriptor_is_virtual,
+                                is_connected: vm_result_midi_port_changed_event_descriptor_is_connected,
                             };
                             let vm_result_midi_port_changed_event = MidiPortChangedEventVm {
                                 kind: vm_result_midi_port_changed_event_kind,
                                 metadata: vm_result_midi_port_changed_event_metadata,
-                                payload: vm_result_midi_port_changed_event_payload,
+                                direction: vm_result_midi_port_changed_event_direction,
+                                descriptor: vm_result_midi_port_changed_event_descriptor,
                             };
                             MidiEventVm::MidiPortChangedEvent(vm_result_midi_port_changed_event)
                         }
@@ -8218,23 +8020,20 @@ fn destack_midi_event_read_vm_replay(
                                 source: vm_result_midi_port_removed_event_metadata_source,
                                 backend: vm_result_midi_port_removed_event_metadata_backend,
                             };
-                            let vm_result_midi_port_removed_event_payload_direction = value.payload.direction;
-                            let vm_result_midi_port_removed_event_payload_id = context.string_handle(value.payload.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                let vm_result_midi_port_removed_event_payload_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_removed_event_payload_group_id_inner)
+                            let vm_result_midi_port_removed_event_direction = value.direction;
+                            let vm_result_midi_port_removed_event_id = context.string_handle(value.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                                let vm_result_midi_port_removed_event_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_removed_event_group_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_midi_port_removed_event_payload = MidiPortRemovedPayloadVm {
-                                direction: vm_result_midi_port_removed_event_payload_direction,
-                                id: vm_result_midi_port_removed_event_payload_id,
-                                group_id: vm_result_midi_port_removed_event_payload_group_id,
                             };
                             let vm_result_midi_port_removed_event = MidiPortRemovedEventVm {
                                 kind: vm_result_midi_port_removed_event_kind,
                                 metadata: vm_result_midi_port_removed_event_metadata,
-                                payload: vm_result_midi_port_removed_event_payload,
+                                direction: vm_result_midi_port_removed_event_direction,
+                                id: vm_result_midi_port_removed_event_id,
+                                group_id: vm_result_midi_port_removed_event_group_id,
                             };
                             MidiEventVm::MidiPortRemovedEvent(vm_result_midi_port_removed_event)
                         }
@@ -8294,14 +8093,11 @@ fn destack_midi_event_read_batch_vm_replay(
                                 source: result_recorded_item_recorded_midi_backend_disconnected_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_backend_disconnected_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                            let result_recorded_item_recorded_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                                flags: result_recorded_item_recorded_midi_backend_disconnected_event_payload_flags,
-                            };
+                            let result_recorded_item_recorded_midi_backend_disconnected_event_flags = value.flags;
                             let result_recorded_item_recorded_midi_backend_disconnected_event = MidibackenddisconnectedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_backend_disconnected_event_kind,
                                 metadata: result_recorded_item_recorded_midi_backend_disconnected_event_metadata,
-                                payload: result_recorded_item_recorded_midi_backend_disconnected_event_payload,
+                                flags: result_recorded_item_recorded_midi_backend_disconnected_event_flags,
                             };
                             MidieventReplayRecord::MidiBackendDisconnectedEvent(result_recorded_item_recorded_midi_backend_disconnected_event)
                         }
@@ -8322,111 +8118,108 @@ fn destack_midi_event_read_batch_vm_replay(
                                 source: result_recorded_item_recorded_midi_port_added_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_port_added_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_direction = value.payload.direction;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_id = {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_midi_port_added_event_payload_descriptor_id_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_direction = value.direction;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_id = {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_id_ref = context.string_ref(value.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_midi_port_added_event_descriptor_id_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id_inner = {
-                                    let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_group_id_inner = {
+                                    let result_recorded_item_recorded_midi_port_added_event_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_added_event_descriptor_group_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id_inner)
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id_inner = {
-                                    let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id_inner = {
+                                    let result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id_inner)
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_name = {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_name_ref = context.string_ref(value.payload.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_midi_port_added_event_payload_descriptor_name_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_name = {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_name_ref = context.string_ref(value.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_midi_port_added_event_descriptor_name_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name_inner = {
-                                    let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_group_name_inner = {
+                                    let result_recorded_item_recorded_midi_port_added_event_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_added_event_descriptor_group_name_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name_inner)
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner = {
-                                    let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer_inner = {
+                                    let result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model_inner = {
-                                    let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_model_inner = {
+                                    let result_recorded_item_recorded_midi_port_added_event_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_added_event_descriptor_model_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model_inner)
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version_inner = {
-                                    let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_version_inner = {
+                                    let result_recorded_item_recorded_midi_port_added_event_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_added_event_descriptor_version_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version_inner)
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                                backend: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend,
-                                id: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_id,
-                                group_id: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id,
-                                backend_id: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id,
-                                name: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_name,
-                                group_name: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name,
-                                manufacturer: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer,
-                                model: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model,
-                                version: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version,
-                                supported_data_formats: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_data_formats,
-                                default_data_format: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format,
-                                supported_protocols: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_protocols,
-                                default_protocol: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol,
-                                is_virtual: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_virtual,
-                                is_connected: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_connected,
-                            };
-                            let result_recorded_item_recorded_midi_port_added_event_payload = MidiportaddedpayloadReplayRecord {
-                                direction: result_recorded_item_recorded_midi_port_added_event_payload_direction,
-                                descriptor: result_recorded_item_recorded_midi_port_added_event_payload_descriptor,
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor = MidiportdescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_midi_port_added_event_descriptor_backend,
+                                id: result_recorded_item_recorded_midi_port_added_event_descriptor_id,
+                                group_id: result_recorded_item_recorded_midi_port_added_event_descriptor_group_id,
+                                backend_id: result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id,
+                                name: result_recorded_item_recorded_midi_port_added_event_descriptor_name,
+                                group_name: result_recorded_item_recorded_midi_port_added_event_descriptor_group_name,
+                                manufacturer: result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer,
+                                model: result_recorded_item_recorded_midi_port_added_event_descriptor_model,
+                                version: result_recorded_item_recorded_midi_port_added_event_descriptor_version,
+                                supported_data_formats: result_recorded_item_recorded_midi_port_added_event_descriptor_supported_data_formats,
+                                default_data_format: result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format,
+                                supported_protocols: result_recorded_item_recorded_midi_port_added_event_descriptor_supported_protocols,
+                                default_protocol: result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol,
+                                is_virtual: result_recorded_item_recorded_midi_port_added_event_descriptor_is_virtual,
+                                is_connected: result_recorded_item_recorded_midi_port_added_event_descriptor_is_connected,
                             };
                             let result_recorded_item_recorded_midi_port_added_event = MidiportaddedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_port_added_event_kind,
                                 metadata: result_recorded_item_recorded_midi_port_added_event_metadata,
-                                payload: result_recorded_item_recorded_midi_port_added_event_payload,
+                                direction: result_recorded_item_recorded_midi_port_added_event_direction,
+                                descriptor: result_recorded_item_recorded_midi_port_added_event_descriptor,
                             };
                             MidieventReplayRecord::MidiPortAddedEvent(result_recorded_item_recorded_midi_port_added_event)
                         }
@@ -8447,111 +8240,108 @@ fn destack_midi_event_read_batch_vm_replay(
                                 source: result_recorded_item_recorded_midi_port_changed_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_port_changed_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_direction = value.payload.direction;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_id = {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_id_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_direction = value.direction;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_id = {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_id_ref = context.string_ref(value.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_midi_port_changed_event_descriptor_id_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id_inner = {
-                                    let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id_inner = {
+                                    let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id_inner)
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner = {
-                                    let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id_inner = {
+                                    let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_name = {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_name_ref = context.string_ref(value.payload.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_name_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_name = {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_name_ref = context.string_ref(value.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_midi_port_changed_event_descriptor_name_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name_inner = {
-                                    let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name_inner = {
+                                    let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name_inner)
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner = {
-                                    let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer_inner = {
+                                    let result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model_inner = {
-                                    let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_model_inner = {
+                                    let result_recorded_item_recorded_midi_port_changed_event_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_changed_event_descriptor_model_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model_inner)
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version_inner = {
-                                    let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_version_inner = {
+                                    let result_recorded_item_recorded_midi_port_changed_event_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_changed_event_descriptor_version_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version_inner)
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                                backend: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend,
-                                id: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_id,
-                                group_id: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id,
-                                backend_id: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id,
-                                name: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_name,
-                                group_name: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name,
-                                manufacturer: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer,
-                                model: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model,
-                                version: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version,
-                                supported_data_formats: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                                default_data_format: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format,
-                                supported_protocols: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_protocols,
-                                default_protocol: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol,
-                                is_virtual: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_virtual,
-                                is_connected: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_connected,
-                            };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload = MidiportchangedpayloadReplayRecord {
-                                direction: result_recorded_item_recorded_midi_port_changed_event_payload_direction,
-                                descriptor: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor,
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor = MidiportdescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_midi_port_changed_event_descriptor_backend,
+                                id: result_recorded_item_recorded_midi_port_changed_event_descriptor_id,
+                                group_id: result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id,
+                                backend_id: result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id,
+                                name: result_recorded_item_recorded_midi_port_changed_event_descriptor_name,
+                                group_name: result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name,
+                                manufacturer: result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer,
+                                model: result_recorded_item_recorded_midi_port_changed_event_descriptor_model,
+                                version: result_recorded_item_recorded_midi_port_changed_event_descriptor_version,
+                                supported_data_formats: result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_data_formats,
+                                default_data_format: result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format,
+                                supported_protocols: result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_protocols,
+                                default_protocol: result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol,
+                                is_virtual: result_recorded_item_recorded_midi_port_changed_event_descriptor_is_virtual,
+                                is_connected: result_recorded_item_recorded_midi_port_changed_event_descriptor_is_connected,
                             };
                             let result_recorded_item_recorded_midi_port_changed_event = MidiportchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_port_changed_event_kind,
                                 metadata: result_recorded_item_recorded_midi_port_changed_event_metadata,
-                                payload: result_recorded_item_recorded_midi_port_changed_event_payload,
+                                direction: result_recorded_item_recorded_midi_port_changed_event_direction,
+                                descriptor: result_recorded_item_recorded_midi_port_changed_event_descriptor,
                             };
                             MidieventReplayRecord::MidiPortChangedEvent(result_recorded_item_recorded_midi_port_changed_event)
                         }
@@ -8572,29 +8362,26 @@ fn destack_midi_event_read_batch_vm_replay(
                                 source: result_recorded_item_recorded_midi_port_removed_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_port_removed_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_port_removed_event_payload_direction = value.payload.direction;
-                            let result_recorded_item_recorded_midi_port_removed_event_payload_id = {
-                                let result_recorded_item_recorded_midi_port_removed_event_payload_id_ref = context.string_ref(value.payload.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_midi_port_removed_event_payload_id_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_removed_event_direction = value.direction;
+                            let result_recorded_item_recorded_midi_port_removed_event_id = {
+                                let result_recorded_item_recorded_midi_port_removed_event_id_ref = context.string_ref(value.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_midi_port_removed_event_id_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                let result_recorded_item_recorded_midi_port_removed_event_payload_group_id_inner = {
-                                    let result_recorded_item_recorded_midi_port_removed_event_payload_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_removed_event_payload_group_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                                let result_recorded_item_recorded_midi_port_removed_event_group_id_inner = {
+                                    let result_recorded_item_recorded_midi_port_removed_event_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_removed_event_group_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_removed_event_payload_group_id_inner)
+                                Some(result_recorded_item_recorded_midi_port_removed_event_group_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_midi_port_removed_event_payload = MidiportremovedpayloadReplayRecord {
-                                direction: result_recorded_item_recorded_midi_port_removed_event_payload_direction,
-                                id: result_recorded_item_recorded_midi_port_removed_event_payload_id,
-                                group_id: result_recorded_item_recorded_midi_port_removed_event_payload_group_id,
                             };
                             let result_recorded_item_recorded_midi_port_removed_event = MidiportremovedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_port_removed_event_kind,
                                 metadata: result_recorded_item_recorded_midi_port_removed_event_metadata,
-                                payload: result_recorded_item_recorded_midi_port_removed_event_payload,
+                                direction: result_recorded_item_recorded_midi_port_removed_event_direction,
+                                id: result_recorded_item_recorded_midi_port_removed_event_id,
+                                group_id: result_recorded_item_recorded_midi_port_removed_event_group_id,
                             };
                             MidieventReplayRecord::MidiPortRemovedEvent(result_recorded_item_recorded_midi_port_removed_event)
                         }
@@ -8641,14 +8428,11 @@ fn destack_midi_event_read_batch_vm_replay(
                                     source: vm_result_item_value_midi_backend_disconnected_event_metadata_source,
                                     backend: vm_result_item_value_midi_backend_disconnected_event_metadata_backend,
                                 };
-                                let vm_result_item_value_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                                let vm_result_item_value_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                                    flags: vm_result_item_value_midi_backend_disconnected_event_payload_flags,
-                                };
+                                let vm_result_item_value_midi_backend_disconnected_event_flags = value.flags;
                                 let vm_result_item_value_midi_backend_disconnected_event = MidiBackendDisconnectedEventVm {
                                     kind: vm_result_item_value_midi_backend_disconnected_event_kind,
                                     metadata: vm_result_item_value_midi_backend_disconnected_event_metadata,
-                                    payload: vm_result_item_value_midi_backend_disconnected_event_payload,
+                                    flags: vm_result_item_value_midi_backend_disconnected_event_flags,
                                 };
                                 MidiEventVm::MidiBackendDisconnectedEvent(vm_result_item_value_midi_backend_disconnected_event)
                             }
@@ -8666,87 +8450,84 @@ fn destack_midi_event_read_batch_vm_replay(
                                     source: vm_result_item_value_midi_port_added_event_metadata_source,
                                     backend: vm_result_item_value_midi_port_added_event_metadata_backend,
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_direction = value.payload.direction;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner)
+                                let vm_result_item_value_midi_port_added_event_direction = value.direction;
+                                let vm_result_item_value_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                                let vm_result_item_value_midi_port_added_event_descriptor_id = context.string_handle(value.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_group_id_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_backend_id_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_name = context.string_handle(value.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_group_name_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_manufacturer_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_model_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_version_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                                let vm_result_item_value_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_default_data_format_inner = value;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_default_data_format_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                                let vm_result_item_value_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_default_protocol_inner = value;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_default_protocol_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor = MidiPortDescriptorVm {
-                                    backend: vm_result_item_value_midi_port_added_event_payload_descriptor_backend,
-                                    id: vm_result_item_value_midi_port_added_event_payload_descriptor_id,
-                                    group_id: vm_result_item_value_midi_port_added_event_payload_descriptor_group_id,
-                                    backend_id: vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id,
-                                    name: vm_result_item_value_midi_port_added_event_payload_descriptor_name,
-                                    group_name: vm_result_item_value_midi_port_added_event_payload_descriptor_group_name,
-                                    manufacturer: vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer,
-                                    model: vm_result_item_value_midi_port_added_event_payload_descriptor_model,
-                                    version: vm_result_item_value_midi_port_added_event_payload_descriptor_version,
-                                    supported_data_formats: vm_result_item_value_midi_port_added_event_payload_descriptor_supported_data_formats,
-                                    default_data_format: vm_result_item_value_midi_port_added_event_payload_descriptor_default_data_format,
-                                    supported_protocols: vm_result_item_value_midi_port_added_event_payload_descriptor_supported_protocols,
-                                    default_protocol: vm_result_item_value_midi_port_added_event_payload_descriptor_default_protocol,
-                                    is_virtual: vm_result_item_value_midi_port_added_event_payload_descriptor_is_virtual,
-                                    is_connected: vm_result_item_value_midi_port_added_event_payload_descriptor_is_connected,
-                                };
-                                let vm_result_item_value_midi_port_added_event_payload = MidiPortAddedPayloadVm {
-                                    direction: vm_result_item_value_midi_port_added_event_payload_direction,
-                                    descriptor: vm_result_item_value_midi_port_added_event_payload_descriptor,
+                                let vm_result_item_value_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                                let vm_result_item_value_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                                let vm_result_item_value_midi_port_added_event_descriptor = MidiPortDescriptorVm {
+                                    backend: vm_result_item_value_midi_port_added_event_descriptor_backend,
+                                    id: vm_result_item_value_midi_port_added_event_descriptor_id,
+                                    group_id: vm_result_item_value_midi_port_added_event_descriptor_group_id,
+                                    backend_id: vm_result_item_value_midi_port_added_event_descriptor_backend_id,
+                                    name: vm_result_item_value_midi_port_added_event_descriptor_name,
+                                    group_name: vm_result_item_value_midi_port_added_event_descriptor_group_name,
+                                    manufacturer: vm_result_item_value_midi_port_added_event_descriptor_manufacturer,
+                                    model: vm_result_item_value_midi_port_added_event_descriptor_model,
+                                    version: vm_result_item_value_midi_port_added_event_descriptor_version,
+                                    supported_data_formats: vm_result_item_value_midi_port_added_event_descriptor_supported_data_formats,
+                                    default_data_format: vm_result_item_value_midi_port_added_event_descriptor_default_data_format,
+                                    supported_protocols: vm_result_item_value_midi_port_added_event_descriptor_supported_protocols,
+                                    default_protocol: vm_result_item_value_midi_port_added_event_descriptor_default_protocol,
+                                    is_virtual: vm_result_item_value_midi_port_added_event_descriptor_is_virtual,
+                                    is_connected: vm_result_item_value_midi_port_added_event_descriptor_is_connected,
                                 };
                                 let vm_result_item_value_midi_port_added_event = MidiPortAddedEventVm {
                                     kind: vm_result_item_value_midi_port_added_event_kind,
                                     metadata: vm_result_item_value_midi_port_added_event_metadata,
-                                    payload: vm_result_item_value_midi_port_added_event_payload,
+                                    direction: vm_result_item_value_midi_port_added_event_direction,
+                                    descriptor: vm_result_item_value_midi_port_added_event_descriptor,
                                 };
                                 MidiEventVm::MidiPortAddedEvent(vm_result_item_value_midi_port_added_event)
                             }
@@ -8764,87 +8545,84 @@ fn destack_midi_event_read_batch_vm_replay(
                                     source: vm_result_item_value_midi_port_changed_event_metadata_source,
                                     backend: vm_result_item_value_midi_port_changed_event_metadata_backend,
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_direction = value.payload.direction;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner)
+                                let vm_result_item_value_midi_port_changed_event_direction = value.direction;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_id = context.string_handle(value.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_group_id_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_backend_id_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_name = context.string_handle(value.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_group_name_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_manufacturer_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_model_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_version_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_default_data_format_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_default_protocol_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor = MidiPortDescriptorVm {
-                                    backend: vm_result_item_value_midi_port_changed_event_payload_descriptor_backend,
-                                    id: vm_result_item_value_midi_port_changed_event_payload_descriptor_id,
-                                    group_id: vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id,
-                                    backend_id: vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id,
-                                    name: vm_result_item_value_midi_port_changed_event_payload_descriptor_name,
-                                    group_name: vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name,
-                                    manufacturer: vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer,
-                                    model: vm_result_item_value_midi_port_changed_event_payload_descriptor_model,
-                                    version: vm_result_item_value_midi_port_changed_event_payload_descriptor_version,
-                                    supported_data_formats: vm_result_item_value_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                                    default_data_format: vm_result_item_value_midi_port_changed_event_payload_descriptor_default_data_format,
-                                    supported_protocols: vm_result_item_value_midi_port_changed_event_payload_descriptor_supported_protocols,
-                                    default_protocol: vm_result_item_value_midi_port_changed_event_payload_descriptor_default_protocol,
-                                    is_virtual: vm_result_item_value_midi_port_changed_event_payload_descriptor_is_virtual,
-                                    is_connected: vm_result_item_value_midi_port_changed_event_payload_descriptor_is_connected,
-                                };
-                                let vm_result_item_value_midi_port_changed_event_payload = MidiPortChangedPayloadVm {
-                                    direction: vm_result_item_value_midi_port_changed_event_payload_direction,
-                                    descriptor: vm_result_item_value_midi_port_changed_event_payload_descriptor,
+                                let vm_result_item_value_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                                let vm_result_item_value_midi_port_changed_event_descriptor = MidiPortDescriptorVm {
+                                    backend: vm_result_item_value_midi_port_changed_event_descriptor_backend,
+                                    id: vm_result_item_value_midi_port_changed_event_descriptor_id,
+                                    group_id: vm_result_item_value_midi_port_changed_event_descriptor_group_id,
+                                    backend_id: vm_result_item_value_midi_port_changed_event_descriptor_backend_id,
+                                    name: vm_result_item_value_midi_port_changed_event_descriptor_name,
+                                    group_name: vm_result_item_value_midi_port_changed_event_descriptor_group_name,
+                                    manufacturer: vm_result_item_value_midi_port_changed_event_descriptor_manufacturer,
+                                    model: vm_result_item_value_midi_port_changed_event_descriptor_model,
+                                    version: vm_result_item_value_midi_port_changed_event_descriptor_version,
+                                    supported_data_formats: vm_result_item_value_midi_port_changed_event_descriptor_supported_data_formats,
+                                    default_data_format: vm_result_item_value_midi_port_changed_event_descriptor_default_data_format,
+                                    supported_protocols: vm_result_item_value_midi_port_changed_event_descriptor_supported_protocols,
+                                    default_protocol: vm_result_item_value_midi_port_changed_event_descriptor_default_protocol,
+                                    is_virtual: vm_result_item_value_midi_port_changed_event_descriptor_is_virtual,
+                                    is_connected: vm_result_item_value_midi_port_changed_event_descriptor_is_connected,
                                 };
                                 let vm_result_item_value_midi_port_changed_event = MidiPortChangedEventVm {
                                     kind: vm_result_item_value_midi_port_changed_event_kind,
                                     metadata: vm_result_item_value_midi_port_changed_event_metadata,
-                                    payload: vm_result_item_value_midi_port_changed_event_payload,
+                                    direction: vm_result_item_value_midi_port_changed_event_direction,
+                                    descriptor: vm_result_item_value_midi_port_changed_event_descriptor,
                                 };
                                 MidiEventVm::MidiPortChangedEvent(vm_result_item_value_midi_port_changed_event)
                             }
@@ -8862,23 +8640,20 @@ fn destack_midi_event_read_batch_vm_replay(
                                     source: vm_result_item_value_midi_port_removed_event_metadata_source,
                                     backend: vm_result_item_value_midi_port_removed_event_metadata_backend,
                                 };
-                                let vm_result_item_value_midi_port_removed_event_payload_direction = value.payload.direction;
-                                let vm_result_item_value_midi_port_removed_event_payload_id = context.string_handle(value.payload.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                    let vm_result_item_value_midi_port_removed_event_payload_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_removed_event_payload_group_id_inner)
+                                let vm_result_item_value_midi_port_removed_event_direction = value.direction;
+                                let vm_result_item_value_midi_port_removed_event_id = context.string_handle(value.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                                    let vm_result_item_value_midi_port_removed_event_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_removed_event_group_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_midi_port_removed_event_payload = MidiPortRemovedPayloadVm {
-                                    direction: vm_result_item_value_midi_port_removed_event_payload_direction,
-                                    id: vm_result_item_value_midi_port_removed_event_payload_id,
-                                    group_id: vm_result_item_value_midi_port_removed_event_payload_group_id,
                                 };
                                 let vm_result_item_value_midi_port_removed_event = MidiPortRemovedEventVm {
                                     kind: vm_result_item_value_midi_port_removed_event_kind,
                                     metadata: vm_result_item_value_midi_port_removed_event_metadata,
-                                    payload: vm_result_item_value_midi_port_removed_event_payload,
+                                    direction: vm_result_item_value_midi_port_removed_event_direction,
+                                    id: vm_result_item_value_midi_port_removed_event_id,
+                                    group_id: vm_result_item_value_midi_port_removed_event_group_id,
                                 };
                                 MidiEventVm::MidiPortRemovedEvent(vm_result_item_value_midi_port_removed_event)
                             }
@@ -8935,14 +8710,11 @@ fn destack_midi_event_try_read_vm_replay(
                             source: result_recorded_midi_backend_disconnected_event_metadata_source,
                             backend: result_recorded_midi_backend_disconnected_event_metadata_backend,
                         };
-                        let result_recorded_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                        let result_recorded_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                            flags: result_recorded_midi_backend_disconnected_event_payload_flags,
-                        };
+                        let result_recorded_midi_backend_disconnected_event_flags = value.flags;
                         let result_recorded_midi_backend_disconnected_event = MidibackenddisconnectedeventReplayRecord {
                             kind: result_recorded_midi_backend_disconnected_event_kind,
                             metadata: result_recorded_midi_backend_disconnected_event_metadata,
-                            payload: result_recorded_midi_backend_disconnected_event_payload,
+                            flags: result_recorded_midi_backend_disconnected_event_flags,
                         };
                         MidieventReplayRecord::MidiBackendDisconnectedEvent(result_recorded_midi_backend_disconnected_event)
                     }
@@ -8963,111 +8735,108 @@ fn destack_midi_event_try_read_vm_replay(
                             source: result_recorded_midi_port_added_event_metadata_source,
                             backend: result_recorded_midi_port_added_event_metadata_backend,
                         };
-                        let result_recorded_midi_port_added_event_payload_direction = value.payload.direction;
-                        let result_recorded_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                        let result_recorded_midi_port_added_event_payload_descriptor_id = {
-                            let result_recorded_midi_port_added_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_midi_port_added_event_payload_descriptor_id_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_direction = value.direction;
+                        let result_recorded_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                        let result_recorded_midi_port_added_event_descriptor_id = {
+                            let result_recorded_midi_port_added_event_descriptor_id_ref = context.string_ref(value.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_midi_port_added_event_descriptor_id_ref.as_str().to_string()
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                            let result_recorded_midi_port_added_event_payload_descriptor_group_id_inner = {
-                                let result_recorded_midi_port_added_event_payload_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_added_event_payload_descriptor_group_id_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                            let result_recorded_midi_port_added_event_descriptor_group_id_inner = {
+                                let result_recorded_midi_port_added_event_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_added_event_descriptor_group_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_group_id_inner)
+                            Some(result_recorded_midi_port_added_event_descriptor_group_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                            let result_recorded_midi_port_added_event_payload_descriptor_backend_id_inner = {
-                                let result_recorded_midi_port_added_event_payload_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_added_event_payload_descriptor_backend_id_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                            let result_recorded_midi_port_added_event_descriptor_backend_id_inner = {
+                                let result_recorded_midi_port_added_event_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_added_event_descriptor_backend_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_backend_id_inner)
+                            Some(result_recorded_midi_port_added_event_descriptor_backend_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_name = {
-                            let result_recorded_midi_port_added_event_payload_descriptor_name_ref = context.string_ref(value.payload.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_midi_port_added_event_payload_descriptor_name_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_name = {
+                            let result_recorded_midi_port_added_event_descriptor_name_ref = context.string_ref(value.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_midi_port_added_event_descriptor_name_ref.as_str().to_string()
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                            let result_recorded_midi_port_added_event_payload_descriptor_group_name_inner = {
-                                let result_recorded_midi_port_added_event_payload_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_added_event_payload_descriptor_group_name_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                            let result_recorded_midi_port_added_event_descriptor_group_name_inner = {
+                                let result_recorded_midi_port_added_event_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_added_event_descriptor_group_name_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_group_name_inner)
+                            Some(result_recorded_midi_port_added_event_descriptor_group_name_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                            let result_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner = {
-                                let result_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                            let result_recorded_midi_port_added_event_descriptor_manufacturer_inner = {
+                                let result_recorded_midi_port_added_event_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_added_event_descriptor_manufacturer_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                            Some(result_recorded_midi_port_added_event_descriptor_manufacturer_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                            let result_recorded_midi_port_added_event_payload_descriptor_model_inner = {
-                                let result_recorded_midi_port_added_event_payload_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_added_event_payload_descriptor_model_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                            let result_recorded_midi_port_added_event_descriptor_model_inner = {
+                                let result_recorded_midi_port_added_event_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_added_event_descriptor_model_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_model_inner)
+                            Some(result_recorded_midi_port_added_event_descriptor_model_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                            let result_recorded_midi_port_added_event_payload_descriptor_version_inner = {
-                                let result_recorded_midi_port_added_event_payload_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_added_event_payload_descriptor_version_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                            let result_recorded_midi_port_added_event_descriptor_version_inner = {
+                                let result_recorded_midi_port_added_event_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_added_event_descriptor_version_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_version_inner)
+                            Some(result_recorded_midi_port_added_event_descriptor_version_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                        let result_recorded_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                            let result_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                        let result_recorded_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                        let result_recorded_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                            let result_recorded_midi_port_added_event_descriptor_default_data_format_inner = value;
+                            Some(result_recorded_midi_port_added_event_descriptor_default_data_format_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                        let result_recorded_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                            let result_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                            Some(result_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                        let result_recorded_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                        let result_recorded_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                            let result_recorded_midi_port_added_event_descriptor_default_protocol_inner = value;
+                            Some(result_recorded_midi_port_added_event_descriptor_default_protocol_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                        let result_recorded_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                        let result_recorded_midi_port_added_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                            backend: result_recorded_midi_port_added_event_payload_descriptor_backend,
-                            id: result_recorded_midi_port_added_event_payload_descriptor_id,
-                            group_id: result_recorded_midi_port_added_event_payload_descriptor_group_id,
-                            backend_id: result_recorded_midi_port_added_event_payload_descriptor_backend_id,
-                            name: result_recorded_midi_port_added_event_payload_descriptor_name,
-                            group_name: result_recorded_midi_port_added_event_payload_descriptor_group_name,
-                            manufacturer: result_recorded_midi_port_added_event_payload_descriptor_manufacturer,
-                            model: result_recorded_midi_port_added_event_payload_descriptor_model,
-                            version: result_recorded_midi_port_added_event_payload_descriptor_version,
-                            supported_data_formats: result_recorded_midi_port_added_event_payload_descriptor_supported_data_formats,
-                            default_data_format: result_recorded_midi_port_added_event_payload_descriptor_default_data_format,
-                            supported_protocols: result_recorded_midi_port_added_event_payload_descriptor_supported_protocols,
-                            default_protocol: result_recorded_midi_port_added_event_payload_descriptor_default_protocol,
-                            is_virtual: result_recorded_midi_port_added_event_payload_descriptor_is_virtual,
-                            is_connected: result_recorded_midi_port_added_event_payload_descriptor_is_connected,
-                        };
-                        let result_recorded_midi_port_added_event_payload = MidiportaddedpayloadReplayRecord {
-                            direction: result_recorded_midi_port_added_event_payload_direction,
-                            descriptor: result_recorded_midi_port_added_event_payload_descriptor,
+                        let result_recorded_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                        let result_recorded_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                        let result_recorded_midi_port_added_event_descriptor = MidiportdescriptorReplayRecord {
+                            backend: result_recorded_midi_port_added_event_descriptor_backend,
+                            id: result_recorded_midi_port_added_event_descriptor_id,
+                            group_id: result_recorded_midi_port_added_event_descriptor_group_id,
+                            backend_id: result_recorded_midi_port_added_event_descriptor_backend_id,
+                            name: result_recorded_midi_port_added_event_descriptor_name,
+                            group_name: result_recorded_midi_port_added_event_descriptor_group_name,
+                            manufacturer: result_recorded_midi_port_added_event_descriptor_manufacturer,
+                            model: result_recorded_midi_port_added_event_descriptor_model,
+                            version: result_recorded_midi_port_added_event_descriptor_version,
+                            supported_data_formats: result_recorded_midi_port_added_event_descriptor_supported_data_formats,
+                            default_data_format: result_recorded_midi_port_added_event_descriptor_default_data_format,
+                            supported_protocols: result_recorded_midi_port_added_event_descriptor_supported_protocols,
+                            default_protocol: result_recorded_midi_port_added_event_descriptor_default_protocol,
+                            is_virtual: result_recorded_midi_port_added_event_descriptor_is_virtual,
+                            is_connected: result_recorded_midi_port_added_event_descriptor_is_connected,
                         };
                         let result_recorded_midi_port_added_event = MidiportaddedeventReplayRecord {
                             kind: result_recorded_midi_port_added_event_kind,
                             metadata: result_recorded_midi_port_added_event_metadata,
-                            payload: result_recorded_midi_port_added_event_payload,
+                            direction: result_recorded_midi_port_added_event_direction,
+                            descriptor: result_recorded_midi_port_added_event_descriptor,
                         };
                         MidieventReplayRecord::MidiPortAddedEvent(result_recorded_midi_port_added_event)
                     }
@@ -9088,111 +8857,108 @@ fn destack_midi_event_try_read_vm_replay(
                             source: result_recorded_midi_port_changed_event_metadata_source,
                             backend: result_recorded_midi_port_changed_event_metadata_backend,
                         };
-                        let result_recorded_midi_port_changed_event_payload_direction = value.payload.direction;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_id = {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_midi_port_changed_event_payload_descriptor_id_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_direction = value.direction;
+                        let result_recorded_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                        let result_recorded_midi_port_changed_event_descriptor_id = {
+                            let result_recorded_midi_port_changed_event_descriptor_id_ref = context.string_ref(value.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_midi_port_changed_event_descriptor_id_ref.as_str().to_string()
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_group_id_inner = {
-                                let result_recorded_midi_port_changed_event_payload_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_changed_event_payload_descriptor_group_id_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                            let result_recorded_midi_port_changed_event_descriptor_group_id_inner = {
+                                let result_recorded_midi_port_changed_event_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_changed_event_descriptor_group_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_group_id_inner)
+                            Some(result_recorded_midi_port_changed_event_descriptor_group_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner = {
-                                let result_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                            let result_recorded_midi_port_changed_event_descriptor_backend_id_inner = {
+                                let result_recorded_midi_port_changed_event_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_changed_event_descriptor_backend_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                            Some(result_recorded_midi_port_changed_event_descriptor_backend_id_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_name = {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_name_ref = context.string_ref(value.payload.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_midi_port_changed_event_payload_descriptor_name_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_name = {
+                            let result_recorded_midi_port_changed_event_descriptor_name_ref = context.string_ref(value.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_midi_port_changed_event_descriptor_name_ref.as_str().to_string()
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_group_name_inner = {
-                                let result_recorded_midi_port_changed_event_payload_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_changed_event_payload_descriptor_group_name_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                            let result_recorded_midi_port_changed_event_descriptor_group_name_inner = {
+                                let result_recorded_midi_port_changed_event_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_changed_event_descriptor_group_name_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_group_name_inner)
+                            Some(result_recorded_midi_port_changed_event_descriptor_group_name_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner = {
-                                let result_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                            let result_recorded_midi_port_changed_event_descriptor_manufacturer_inner = {
+                                let result_recorded_midi_port_changed_event_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_changed_event_descriptor_manufacturer_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                            Some(result_recorded_midi_port_changed_event_descriptor_manufacturer_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_model_inner = {
-                                let result_recorded_midi_port_changed_event_payload_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_changed_event_payload_descriptor_model_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                            let result_recorded_midi_port_changed_event_descriptor_model_inner = {
+                                let result_recorded_midi_port_changed_event_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_changed_event_descriptor_model_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_model_inner)
+                            Some(result_recorded_midi_port_changed_event_descriptor_model_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_version_inner = {
-                                let result_recorded_midi_port_changed_event_payload_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_changed_event_payload_descriptor_version_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                            let result_recorded_midi_port_changed_event_descriptor_version_inner = {
+                                let result_recorded_midi_port_changed_event_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_changed_event_descriptor_version_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_version_inner)
+                            Some(result_recorded_midi_port_changed_event_descriptor_version_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                        let result_recorded_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                            let result_recorded_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                            Some(result_recorded_midi_port_changed_event_descriptor_default_data_format_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                            let result_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                            Some(result_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                        let result_recorded_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                        let result_recorded_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                            let result_recorded_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                            Some(result_recorded_midi_port_changed_event_descriptor_default_protocol_inner)
                         } else {
                             None
                         };
-                        let result_recorded_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                        let result_recorded_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                        let result_recorded_midi_port_changed_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                            backend: result_recorded_midi_port_changed_event_payload_descriptor_backend,
-                            id: result_recorded_midi_port_changed_event_payload_descriptor_id,
-                            group_id: result_recorded_midi_port_changed_event_payload_descriptor_group_id,
-                            backend_id: result_recorded_midi_port_changed_event_payload_descriptor_backend_id,
-                            name: result_recorded_midi_port_changed_event_payload_descriptor_name,
-                            group_name: result_recorded_midi_port_changed_event_payload_descriptor_group_name,
-                            manufacturer: result_recorded_midi_port_changed_event_payload_descriptor_manufacturer,
-                            model: result_recorded_midi_port_changed_event_payload_descriptor_model,
-                            version: result_recorded_midi_port_changed_event_payload_descriptor_version,
-                            supported_data_formats: result_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                            default_data_format: result_recorded_midi_port_changed_event_payload_descriptor_default_data_format,
-                            supported_protocols: result_recorded_midi_port_changed_event_payload_descriptor_supported_protocols,
-                            default_protocol: result_recorded_midi_port_changed_event_payload_descriptor_default_protocol,
-                            is_virtual: result_recorded_midi_port_changed_event_payload_descriptor_is_virtual,
-                            is_connected: result_recorded_midi_port_changed_event_payload_descriptor_is_connected,
-                        };
-                        let result_recorded_midi_port_changed_event_payload = MidiportchangedpayloadReplayRecord {
-                            direction: result_recorded_midi_port_changed_event_payload_direction,
-                            descriptor: result_recorded_midi_port_changed_event_payload_descriptor,
+                        let result_recorded_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                        let result_recorded_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                        let result_recorded_midi_port_changed_event_descriptor = MidiportdescriptorReplayRecord {
+                            backend: result_recorded_midi_port_changed_event_descriptor_backend,
+                            id: result_recorded_midi_port_changed_event_descriptor_id,
+                            group_id: result_recorded_midi_port_changed_event_descriptor_group_id,
+                            backend_id: result_recorded_midi_port_changed_event_descriptor_backend_id,
+                            name: result_recorded_midi_port_changed_event_descriptor_name,
+                            group_name: result_recorded_midi_port_changed_event_descriptor_group_name,
+                            manufacturer: result_recorded_midi_port_changed_event_descriptor_manufacturer,
+                            model: result_recorded_midi_port_changed_event_descriptor_model,
+                            version: result_recorded_midi_port_changed_event_descriptor_version,
+                            supported_data_formats: result_recorded_midi_port_changed_event_descriptor_supported_data_formats,
+                            default_data_format: result_recorded_midi_port_changed_event_descriptor_default_data_format,
+                            supported_protocols: result_recorded_midi_port_changed_event_descriptor_supported_protocols,
+                            default_protocol: result_recorded_midi_port_changed_event_descriptor_default_protocol,
+                            is_virtual: result_recorded_midi_port_changed_event_descriptor_is_virtual,
+                            is_connected: result_recorded_midi_port_changed_event_descriptor_is_connected,
                         };
                         let result_recorded_midi_port_changed_event = MidiportchangedeventReplayRecord {
                             kind: result_recorded_midi_port_changed_event_kind,
                             metadata: result_recorded_midi_port_changed_event_metadata,
-                            payload: result_recorded_midi_port_changed_event_payload,
+                            direction: result_recorded_midi_port_changed_event_direction,
+                            descriptor: result_recorded_midi_port_changed_event_descriptor,
                         };
                         MidieventReplayRecord::MidiPortChangedEvent(result_recorded_midi_port_changed_event)
                     }
@@ -9213,29 +8979,26 @@ fn destack_midi_event_try_read_vm_replay(
                             source: result_recorded_midi_port_removed_event_metadata_source,
                             backend: result_recorded_midi_port_removed_event_metadata_backend,
                         };
-                        let result_recorded_midi_port_removed_event_payload_direction = value.payload.direction;
-                        let result_recorded_midi_port_removed_event_payload_id = {
-                            let result_recorded_midi_port_removed_event_payload_id_ref = context.string_ref(value.payload.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                            result_recorded_midi_port_removed_event_payload_id_ref.as_str().to_string()
+                        let result_recorded_midi_port_removed_event_direction = value.direction;
+                        let result_recorded_midi_port_removed_event_id = {
+                            let result_recorded_midi_port_removed_event_id_ref = context.string_ref(value.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_midi_port_removed_event_id_ref.as_str().to_string()
                         };
-                        let result_recorded_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                            let result_recorded_midi_port_removed_event_payload_group_id_inner = {
-                                let result_recorded_midi_port_removed_event_payload_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_midi_port_removed_event_payload_group_id_inner_ref.as_str().to_string()
+                        let result_recorded_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                            let result_recorded_midi_port_removed_event_group_id_inner = {
+                                let result_recorded_midi_port_removed_event_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_midi_port_removed_event_group_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_midi_port_removed_event_payload_group_id_inner)
+                            Some(result_recorded_midi_port_removed_event_group_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_midi_port_removed_event_payload = MidiportremovedpayloadReplayRecord {
-                            direction: result_recorded_midi_port_removed_event_payload_direction,
-                            id: result_recorded_midi_port_removed_event_payload_id,
-                            group_id: result_recorded_midi_port_removed_event_payload_group_id,
                         };
                         let result_recorded_midi_port_removed_event = MidiportremovedeventReplayRecord {
                             kind: result_recorded_midi_port_removed_event_kind,
                             metadata: result_recorded_midi_port_removed_event_metadata,
-                            payload: result_recorded_midi_port_removed_event_payload,
+                            direction: result_recorded_midi_port_removed_event_direction,
+                            id: result_recorded_midi_port_removed_event_id,
+                            group_id: result_recorded_midi_port_removed_event_group_id,
                         };
                         MidieventReplayRecord::MidiPortRemovedEvent(result_recorded_midi_port_removed_event)
                     }
@@ -9278,14 +9041,11 @@ fn destack_midi_event_try_read_vm_replay(
                                 source: vm_result_midi_backend_disconnected_event_metadata_source,
                                 backend: vm_result_midi_backend_disconnected_event_metadata_backend,
                             };
-                            let vm_result_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                            let vm_result_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                                flags: vm_result_midi_backend_disconnected_event_payload_flags,
-                            };
+                            let vm_result_midi_backend_disconnected_event_flags = value.flags;
                             let vm_result_midi_backend_disconnected_event = MidiBackendDisconnectedEventVm {
                                 kind: vm_result_midi_backend_disconnected_event_kind,
                                 metadata: vm_result_midi_backend_disconnected_event_metadata,
-                                payload: vm_result_midi_backend_disconnected_event_payload,
+                                flags: vm_result_midi_backend_disconnected_event_flags,
                             };
                             MidiEventVm::MidiBackendDisconnectedEvent(vm_result_midi_backend_disconnected_event)
                         }
@@ -9303,87 +9063,84 @@ fn destack_midi_event_try_read_vm_replay(
                                 source: vm_result_midi_port_added_event_metadata_source,
                                 backend: vm_result_midi_port_added_event_metadata_backend,
                             };
-                            let vm_result_midi_port_added_event_payload_direction = value.payload.direction;
-                            let vm_result_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let vm_result_midi_port_added_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let vm_result_midi_port_added_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_group_id_inner)
+                            let vm_result_midi_port_added_event_direction = value.direction;
+                            let vm_result_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                            let vm_result_midi_port_added_event_descriptor_id = context.string_handle(value.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let vm_result_midi_port_added_event_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_added_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let vm_result_midi_port_added_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_backend_id_inner)
+                            let vm_result_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let vm_result_midi_port_added_event_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_added_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let vm_result_midi_port_added_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_group_name_inner)
+                            let vm_result_midi_port_added_event_descriptor_name = context.string_handle(value.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let vm_result_midi_port_added_event_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_added_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                            let vm_result_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let vm_result_midi_port_added_event_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_added_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let vm_result_midi_port_added_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_model_inner)
+                            let vm_result_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let vm_result_midi_port_added_event_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_added_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let vm_result_midi_port_added_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_version_inner)
+                            let vm_result_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let vm_result_midi_port_added_event_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_added_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let vm_result_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let vm_result_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                            let vm_result_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let vm_result_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let vm_result_midi_port_added_event_descriptor_default_data_format_inner = value;
+                                Some(vm_result_midi_port_added_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let vm_result_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let vm_result_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                                Some(vm_result_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                            let vm_result_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let vm_result_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let vm_result_midi_port_added_event_descriptor_default_protocol_inner = value;
+                                Some(vm_result_midi_port_added_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let vm_result_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let vm_result_midi_port_added_event_payload_descriptor = MidiPortDescriptorVm {
-                                backend: vm_result_midi_port_added_event_payload_descriptor_backend,
-                                id: vm_result_midi_port_added_event_payload_descriptor_id,
-                                group_id: vm_result_midi_port_added_event_payload_descriptor_group_id,
-                                backend_id: vm_result_midi_port_added_event_payload_descriptor_backend_id,
-                                name: vm_result_midi_port_added_event_payload_descriptor_name,
-                                group_name: vm_result_midi_port_added_event_payload_descriptor_group_name,
-                                manufacturer: vm_result_midi_port_added_event_payload_descriptor_manufacturer,
-                                model: vm_result_midi_port_added_event_payload_descriptor_model,
-                                version: vm_result_midi_port_added_event_payload_descriptor_version,
-                                supported_data_formats: vm_result_midi_port_added_event_payload_descriptor_supported_data_formats,
-                                default_data_format: vm_result_midi_port_added_event_payload_descriptor_default_data_format,
-                                supported_protocols: vm_result_midi_port_added_event_payload_descriptor_supported_protocols,
-                                default_protocol: vm_result_midi_port_added_event_payload_descriptor_default_protocol,
-                                is_virtual: vm_result_midi_port_added_event_payload_descriptor_is_virtual,
-                                is_connected: vm_result_midi_port_added_event_payload_descriptor_is_connected,
-                            };
-                            let vm_result_midi_port_added_event_payload = MidiPortAddedPayloadVm {
-                                direction: vm_result_midi_port_added_event_payload_direction,
-                                descriptor: vm_result_midi_port_added_event_payload_descriptor,
+                            let vm_result_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let vm_result_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let vm_result_midi_port_added_event_descriptor = MidiPortDescriptorVm {
+                                backend: vm_result_midi_port_added_event_descriptor_backend,
+                                id: vm_result_midi_port_added_event_descriptor_id,
+                                group_id: vm_result_midi_port_added_event_descriptor_group_id,
+                                backend_id: vm_result_midi_port_added_event_descriptor_backend_id,
+                                name: vm_result_midi_port_added_event_descriptor_name,
+                                group_name: vm_result_midi_port_added_event_descriptor_group_name,
+                                manufacturer: vm_result_midi_port_added_event_descriptor_manufacturer,
+                                model: vm_result_midi_port_added_event_descriptor_model,
+                                version: vm_result_midi_port_added_event_descriptor_version,
+                                supported_data_formats: vm_result_midi_port_added_event_descriptor_supported_data_formats,
+                                default_data_format: vm_result_midi_port_added_event_descriptor_default_data_format,
+                                supported_protocols: vm_result_midi_port_added_event_descriptor_supported_protocols,
+                                default_protocol: vm_result_midi_port_added_event_descriptor_default_protocol,
+                                is_virtual: vm_result_midi_port_added_event_descriptor_is_virtual,
+                                is_connected: vm_result_midi_port_added_event_descriptor_is_connected,
                             };
                             let vm_result_midi_port_added_event = MidiPortAddedEventVm {
                                 kind: vm_result_midi_port_added_event_kind,
                                 metadata: vm_result_midi_port_added_event_metadata,
-                                payload: vm_result_midi_port_added_event_payload,
+                                direction: vm_result_midi_port_added_event_direction,
+                                descriptor: vm_result_midi_port_added_event_descriptor,
                             };
                             MidiEventVm::MidiPortAddedEvent(vm_result_midi_port_added_event)
                         }
@@ -9401,87 +9158,84 @@ fn destack_midi_event_try_read_vm_replay(
                                 source: vm_result_midi_port_changed_event_metadata_source,
                                 backend: vm_result_midi_port_changed_event_metadata_backend,
                             };
-                            let vm_result_midi_port_changed_event_payload_direction = value.payload.direction;
-                            let vm_result_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let vm_result_midi_port_changed_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let vm_result_midi_port_changed_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_group_id_inner)
+                            let vm_result_midi_port_changed_event_direction = value.direction;
+                            let vm_result_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                            let vm_result_midi_port_changed_event_descriptor_id = context.string_handle(value.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let vm_result_midi_port_changed_event_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_changed_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                            let vm_result_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let vm_result_midi_port_changed_event_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_changed_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let vm_result_midi_port_changed_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_group_name_inner)
+                            let vm_result_midi_port_changed_event_descriptor_name = context.string_handle(value.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let vm_result_midi_port_changed_event_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_changed_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                            let vm_result_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let vm_result_midi_port_changed_event_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_changed_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let vm_result_midi_port_changed_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_model_inner)
+                            let vm_result_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let vm_result_midi_port_changed_event_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_changed_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let vm_result_midi_port_changed_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_version_inner)
+                            let vm_result_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let vm_result_midi_port_changed_event_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_changed_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let vm_result_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let vm_result_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                            let vm_result_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let vm_result_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let vm_result_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                                Some(vm_result_midi_port_changed_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let vm_result_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let vm_result_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                                Some(vm_result_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                            let vm_result_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let vm_result_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let vm_result_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                                Some(vm_result_midi_port_changed_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let vm_result_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let vm_result_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let vm_result_midi_port_changed_event_payload_descriptor = MidiPortDescriptorVm {
-                                backend: vm_result_midi_port_changed_event_payload_descriptor_backend,
-                                id: vm_result_midi_port_changed_event_payload_descriptor_id,
-                                group_id: vm_result_midi_port_changed_event_payload_descriptor_group_id,
-                                backend_id: vm_result_midi_port_changed_event_payload_descriptor_backend_id,
-                                name: vm_result_midi_port_changed_event_payload_descriptor_name,
-                                group_name: vm_result_midi_port_changed_event_payload_descriptor_group_name,
-                                manufacturer: vm_result_midi_port_changed_event_payload_descriptor_manufacturer,
-                                model: vm_result_midi_port_changed_event_payload_descriptor_model,
-                                version: vm_result_midi_port_changed_event_payload_descriptor_version,
-                                supported_data_formats: vm_result_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                                default_data_format: vm_result_midi_port_changed_event_payload_descriptor_default_data_format,
-                                supported_protocols: vm_result_midi_port_changed_event_payload_descriptor_supported_protocols,
-                                default_protocol: vm_result_midi_port_changed_event_payload_descriptor_default_protocol,
-                                is_virtual: vm_result_midi_port_changed_event_payload_descriptor_is_virtual,
-                                is_connected: vm_result_midi_port_changed_event_payload_descriptor_is_connected,
-                            };
-                            let vm_result_midi_port_changed_event_payload = MidiPortChangedPayloadVm {
-                                direction: vm_result_midi_port_changed_event_payload_direction,
-                                descriptor: vm_result_midi_port_changed_event_payload_descriptor,
+                            let vm_result_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let vm_result_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let vm_result_midi_port_changed_event_descriptor = MidiPortDescriptorVm {
+                                backend: vm_result_midi_port_changed_event_descriptor_backend,
+                                id: vm_result_midi_port_changed_event_descriptor_id,
+                                group_id: vm_result_midi_port_changed_event_descriptor_group_id,
+                                backend_id: vm_result_midi_port_changed_event_descriptor_backend_id,
+                                name: vm_result_midi_port_changed_event_descriptor_name,
+                                group_name: vm_result_midi_port_changed_event_descriptor_group_name,
+                                manufacturer: vm_result_midi_port_changed_event_descriptor_manufacturer,
+                                model: vm_result_midi_port_changed_event_descriptor_model,
+                                version: vm_result_midi_port_changed_event_descriptor_version,
+                                supported_data_formats: vm_result_midi_port_changed_event_descriptor_supported_data_formats,
+                                default_data_format: vm_result_midi_port_changed_event_descriptor_default_data_format,
+                                supported_protocols: vm_result_midi_port_changed_event_descriptor_supported_protocols,
+                                default_protocol: vm_result_midi_port_changed_event_descriptor_default_protocol,
+                                is_virtual: vm_result_midi_port_changed_event_descriptor_is_virtual,
+                                is_connected: vm_result_midi_port_changed_event_descriptor_is_connected,
                             };
                             let vm_result_midi_port_changed_event = MidiPortChangedEventVm {
                                 kind: vm_result_midi_port_changed_event_kind,
                                 metadata: vm_result_midi_port_changed_event_metadata,
-                                payload: vm_result_midi_port_changed_event_payload,
+                                direction: vm_result_midi_port_changed_event_direction,
+                                descriptor: vm_result_midi_port_changed_event_descriptor,
                             };
                             MidiEventVm::MidiPortChangedEvent(vm_result_midi_port_changed_event)
                         }
@@ -9499,23 +9253,20 @@ fn destack_midi_event_try_read_vm_replay(
                                 source: vm_result_midi_port_removed_event_metadata_source,
                                 backend: vm_result_midi_port_removed_event_metadata_backend,
                             };
-                            let vm_result_midi_port_removed_event_payload_direction = value.payload.direction;
-                            let vm_result_midi_port_removed_event_payload_id = context.string_handle(value.payload.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                            let vm_result_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                let vm_result_midi_port_removed_event_payload_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_midi_port_removed_event_payload_group_id_inner)
+                            let vm_result_midi_port_removed_event_direction = value.direction;
+                            let vm_result_midi_port_removed_event_id = context.string_handle(value.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                            let vm_result_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                                let vm_result_midi_port_removed_event_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_midi_port_removed_event_group_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_midi_port_removed_event_payload = MidiPortRemovedPayloadVm {
-                                direction: vm_result_midi_port_removed_event_payload_direction,
-                                id: vm_result_midi_port_removed_event_payload_id,
-                                group_id: vm_result_midi_port_removed_event_payload_group_id,
                             };
                             let vm_result_midi_port_removed_event = MidiPortRemovedEventVm {
                                 kind: vm_result_midi_port_removed_event_kind,
                                 metadata: vm_result_midi_port_removed_event_metadata,
-                                payload: vm_result_midi_port_removed_event_payload,
+                                direction: vm_result_midi_port_removed_event_direction,
+                                id: vm_result_midi_port_removed_event_id,
+                                group_id: vm_result_midi_port_removed_event_group_id,
                             };
                             MidiEventVm::MidiPortRemovedEvent(vm_result_midi_port_removed_event)
                         }
@@ -9574,14 +9325,11 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                 source: result_recorded_item_recorded_midi_backend_disconnected_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_backend_disconnected_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                            let result_recorded_item_recorded_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                                flags: result_recorded_item_recorded_midi_backend_disconnected_event_payload_flags,
-                            };
+                            let result_recorded_item_recorded_midi_backend_disconnected_event_flags = value.flags;
                             let result_recorded_item_recorded_midi_backend_disconnected_event = MidibackenddisconnectedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_backend_disconnected_event_kind,
                                 metadata: result_recorded_item_recorded_midi_backend_disconnected_event_metadata,
-                                payload: result_recorded_item_recorded_midi_backend_disconnected_event_payload,
+                                flags: result_recorded_item_recorded_midi_backend_disconnected_event_flags,
                             };
                             MidieventReplayRecord::MidiBackendDisconnectedEvent(result_recorded_item_recorded_midi_backend_disconnected_event)
                         }
@@ -9602,111 +9350,108 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                 source: result_recorded_item_recorded_midi_port_added_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_port_added_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_direction = value.payload.direction;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_id = {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_midi_port_added_event_payload_descriptor_id_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_direction = value.direction;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_id = {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_id_ref = context.string_ref(value.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_midi_port_added_event_descriptor_id_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id_inner = {
-                                    let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_group_id_inner = {
+                                    let result_recorded_item_recorded_midi_port_added_event_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_added_event_descriptor_group_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id_inner)
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id_inner = {
-                                    let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id_inner = {
+                                    let result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id_inner)
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_name = {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_name_ref = context.string_ref(value.payload.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_midi_port_added_event_payload_descriptor_name_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_name = {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_name_ref = context.string_ref(value.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_midi_port_added_event_descriptor_name_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name_inner = {
-                                    let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_group_name_inner = {
+                                    let result_recorded_item_recorded_midi_port_added_event_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_added_event_descriptor_group_name_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name_inner)
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner = {
-                                    let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer_inner = {
+                                    let result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model_inner = {
-                                    let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_model_inner = {
+                                    let result_recorded_item_recorded_midi_port_added_event_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_added_event_descriptor_model_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model_inner)
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version_inner = {
-                                    let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_version_inner = {
+                                    let result_recorded_item_recorded_midi_port_added_event_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_added_event_descriptor_version_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version_inner)
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let result_recorded_item_recorded_midi_port_added_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                                backend: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend,
-                                id: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_id,
-                                group_id: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_id,
-                                backend_id: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_backend_id,
-                                name: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_name,
-                                group_name: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_group_name,
-                                manufacturer: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_manufacturer,
-                                model: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_model,
-                                version: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_version,
-                                supported_data_formats: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_data_formats,
-                                default_data_format: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_data_format,
-                                supported_protocols: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_supported_protocols,
-                                default_protocol: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_default_protocol,
-                                is_virtual: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_virtual,
-                                is_connected: result_recorded_item_recorded_midi_port_added_event_payload_descriptor_is_connected,
-                            };
-                            let result_recorded_item_recorded_midi_port_added_event_payload = MidiportaddedpayloadReplayRecord {
-                                direction: result_recorded_item_recorded_midi_port_added_event_payload_direction,
-                                descriptor: result_recorded_item_recorded_midi_port_added_event_payload_descriptor,
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let result_recorded_item_recorded_midi_port_added_event_descriptor = MidiportdescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_midi_port_added_event_descriptor_backend,
+                                id: result_recorded_item_recorded_midi_port_added_event_descriptor_id,
+                                group_id: result_recorded_item_recorded_midi_port_added_event_descriptor_group_id,
+                                backend_id: result_recorded_item_recorded_midi_port_added_event_descriptor_backend_id,
+                                name: result_recorded_item_recorded_midi_port_added_event_descriptor_name,
+                                group_name: result_recorded_item_recorded_midi_port_added_event_descriptor_group_name,
+                                manufacturer: result_recorded_item_recorded_midi_port_added_event_descriptor_manufacturer,
+                                model: result_recorded_item_recorded_midi_port_added_event_descriptor_model,
+                                version: result_recorded_item_recorded_midi_port_added_event_descriptor_version,
+                                supported_data_formats: result_recorded_item_recorded_midi_port_added_event_descriptor_supported_data_formats,
+                                default_data_format: result_recorded_item_recorded_midi_port_added_event_descriptor_default_data_format,
+                                supported_protocols: result_recorded_item_recorded_midi_port_added_event_descriptor_supported_protocols,
+                                default_protocol: result_recorded_item_recorded_midi_port_added_event_descriptor_default_protocol,
+                                is_virtual: result_recorded_item_recorded_midi_port_added_event_descriptor_is_virtual,
+                                is_connected: result_recorded_item_recorded_midi_port_added_event_descriptor_is_connected,
                             };
                             let result_recorded_item_recorded_midi_port_added_event = MidiportaddedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_port_added_event_kind,
                                 metadata: result_recorded_item_recorded_midi_port_added_event_metadata,
-                                payload: result_recorded_item_recorded_midi_port_added_event_payload,
+                                direction: result_recorded_item_recorded_midi_port_added_event_direction,
+                                descriptor: result_recorded_item_recorded_midi_port_added_event_descriptor,
                             };
                             MidieventReplayRecord::MidiPortAddedEvent(result_recorded_item_recorded_midi_port_added_event)
                         }
@@ -9727,111 +9472,108 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                 source: result_recorded_item_recorded_midi_port_changed_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_port_changed_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_direction = value.payload.direction;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_id = {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_id_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_direction = value.direction;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_id = {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_id_ref = context.string_ref(value.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_midi_port_changed_event_descriptor_id_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id_inner = {
-                                    let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id_inner = {
+                                    let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id_inner)
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner = {
-                                    let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id_inner = {
+                                    let result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_name = {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_name_ref = context.string_ref(value.payload.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_name_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_name = {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_name_ref = context.string_ref(value.descriptor.name).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_midi_port_changed_event_descriptor_name_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name_inner = {
-                                    let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name_inner = {
+                                    let result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name_inner)
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner = {
-                                    let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer_inner = {
+                                    let result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model_inner = {
-                                    let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_model_inner = {
+                                    let result_recorded_item_recorded_midi_port_changed_event_descriptor_model_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_changed_event_descriptor_model_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model_inner)
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_model_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version_inner = {
-                                    let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_version_inner = {
+                                    let result_recorded_item_recorded_midi_port_changed_event_descriptor_version_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_changed_event_descriptor_version_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version_inner)
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_version_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                                Some(result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                let result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                                Some(result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                            let result_recorded_item_recorded_midi_port_changed_event_payload_descriptor = MidiportdescriptorReplayRecord {
-                                backend: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend,
-                                id: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_id,
-                                group_id: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_id,
-                                backend_id: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_backend_id,
-                                name: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_name,
-                                group_name: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_group_name,
-                                manufacturer: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_manufacturer,
-                                model: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_model,
-                                version: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_version,
-                                supported_data_formats: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                                default_data_format: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_data_format,
-                                supported_protocols: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_supported_protocols,
-                                default_protocol: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_default_protocol,
-                                is_virtual: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_virtual,
-                                is_connected: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor_is_connected,
-                            };
-                            let result_recorded_item_recorded_midi_port_changed_event_payload = MidiportchangedpayloadReplayRecord {
-                                direction: result_recorded_item_recorded_midi_port_changed_event_payload_direction,
-                                descriptor: result_recorded_item_recorded_midi_port_changed_event_payload_descriptor,
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                            let result_recorded_item_recorded_midi_port_changed_event_descriptor = MidiportdescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_midi_port_changed_event_descriptor_backend,
+                                id: result_recorded_item_recorded_midi_port_changed_event_descriptor_id,
+                                group_id: result_recorded_item_recorded_midi_port_changed_event_descriptor_group_id,
+                                backend_id: result_recorded_item_recorded_midi_port_changed_event_descriptor_backend_id,
+                                name: result_recorded_item_recorded_midi_port_changed_event_descriptor_name,
+                                group_name: result_recorded_item_recorded_midi_port_changed_event_descriptor_group_name,
+                                manufacturer: result_recorded_item_recorded_midi_port_changed_event_descriptor_manufacturer,
+                                model: result_recorded_item_recorded_midi_port_changed_event_descriptor_model,
+                                version: result_recorded_item_recorded_midi_port_changed_event_descriptor_version,
+                                supported_data_formats: result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_data_formats,
+                                default_data_format: result_recorded_item_recorded_midi_port_changed_event_descriptor_default_data_format,
+                                supported_protocols: result_recorded_item_recorded_midi_port_changed_event_descriptor_supported_protocols,
+                                default_protocol: result_recorded_item_recorded_midi_port_changed_event_descriptor_default_protocol,
+                                is_virtual: result_recorded_item_recorded_midi_port_changed_event_descriptor_is_virtual,
+                                is_connected: result_recorded_item_recorded_midi_port_changed_event_descriptor_is_connected,
                             };
                             let result_recorded_item_recorded_midi_port_changed_event = MidiportchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_port_changed_event_kind,
                                 metadata: result_recorded_item_recorded_midi_port_changed_event_metadata,
-                                payload: result_recorded_item_recorded_midi_port_changed_event_payload,
+                                direction: result_recorded_item_recorded_midi_port_changed_event_direction,
+                                descriptor: result_recorded_item_recorded_midi_port_changed_event_descriptor,
                             };
                             MidieventReplayRecord::MidiPortChangedEvent(result_recorded_item_recorded_midi_port_changed_event)
                         }
@@ -9852,29 +9594,26 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                 source: result_recorded_item_recorded_midi_port_removed_event_metadata_source,
                                 backend: result_recorded_item_recorded_midi_port_removed_event_metadata_backend,
                             };
-                            let result_recorded_item_recorded_midi_port_removed_event_payload_direction = value.payload.direction;
-                            let result_recorded_item_recorded_midi_port_removed_event_payload_id = {
-                                let result_recorded_item_recorded_midi_port_removed_event_payload_id_ref = context.string_ref(value.payload.id).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_midi_port_removed_event_payload_id_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_removed_event_direction = value.direction;
+                            let result_recorded_item_recorded_midi_port_removed_event_id = {
+                                let result_recorded_item_recorded_midi_port_removed_event_id_ref = context.string_ref(value.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_midi_port_removed_event_id_ref.as_str().to_string()
                             };
-                            let result_recorded_item_recorded_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                let result_recorded_item_recorded_midi_port_removed_event_payload_group_id_inner = {
-                                    let result_recorded_item_recorded_midi_port_removed_event_payload_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_midi_port_removed_event_payload_group_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                                let result_recorded_item_recorded_midi_port_removed_event_group_id_inner = {
+                                    let result_recorded_item_recorded_midi_port_removed_event_group_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_midi_port_removed_event_group_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_midi_port_removed_event_payload_group_id_inner)
+                                Some(result_recorded_item_recorded_midi_port_removed_event_group_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_midi_port_removed_event_payload = MidiportremovedpayloadReplayRecord {
-                                direction: result_recorded_item_recorded_midi_port_removed_event_payload_direction,
-                                id: result_recorded_item_recorded_midi_port_removed_event_payload_id,
-                                group_id: result_recorded_item_recorded_midi_port_removed_event_payload_group_id,
                             };
                             let result_recorded_item_recorded_midi_port_removed_event = MidiportremovedeventReplayRecord {
                                 kind: result_recorded_item_recorded_midi_port_removed_event_kind,
                                 metadata: result_recorded_item_recorded_midi_port_removed_event_metadata,
-                                payload: result_recorded_item_recorded_midi_port_removed_event_payload,
+                                direction: result_recorded_item_recorded_midi_port_removed_event_direction,
+                                id: result_recorded_item_recorded_midi_port_removed_event_id,
+                                group_id: result_recorded_item_recorded_midi_port_removed_event_group_id,
                             };
                             MidieventReplayRecord::MidiPortRemovedEvent(result_recorded_item_recorded_midi_port_removed_event)
                         }
@@ -9921,14 +9660,11 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                     source: vm_result_item_value_midi_backend_disconnected_event_metadata_source,
                                     backend: vm_result_item_value_midi_backend_disconnected_event_metadata_backend,
                                 };
-                                let vm_result_item_value_midi_backend_disconnected_event_payload_flags = value.payload.flags;
-                                let vm_result_item_value_midi_backend_disconnected_event_payload = MidiBackendDisconnectedPayload {
-                                    flags: vm_result_item_value_midi_backend_disconnected_event_payload_flags,
-                                };
+                                let vm_result_item_value_midi_backend_disconnected_event_flags = value.flags;
                                 let vm_result_item_value_midi_backend_disconnected_event = MidiBackendDisconnectedEventVm {
                                     kind: vm_result_item_value_midi_backend_disconnected_event_kind,
                                     metadata: vm_result_item_value_midi_backend_disconnected_event_metadata,
-                                    payload: vm_result_item_value_midi_backend_disconnected_event_payload,
+                                    flags: vm_result_item_value_midi_backend_disconnected_event_flags,
                                 };
                                 MidiEventVm::MidiBackendDisconnectedEvent(vm_result_item_value_midi_backend_disconnected_event)
                             }
@@ -9946,87 +9682,84 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                     source: vm_result_item_value_midi_port_added_event_metadata_source,
                                     backend: vm_result_item_value_midi_port_added_event_metadata_backend,
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_direction = value.payload.direction;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_group_id_inner)
+                                let vm_result_item_value_midi_port_added_event_direction = value.direction;
+                                let vm_result_item_value_midi_port_added_event_descriptor_backend = value.descriptor.backend;
+                                let vm_result_item_value_midi_port_added_event_descriptor_id = context.string_handle(value.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_midi_port_added_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_group_id_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_backend_id_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_group_name_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_name = context.string_handle(value.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_midi_port_added_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_group_name_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_manufacturer_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_model_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_model_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_version_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_version_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_default_data_format_inner = value;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_default_data_format_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                                let vm_result_item_value_midi_port_added_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_default_data_format_inner = value;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_default_data_format_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                    let vm_result_item_value_midi_port_added_event_payload_descriptor_default_protocol_inner = value;
-                                    Some(vm_result_item_value_midi_port_added_event_payload_descriptor_default_protocol_inner)
+                                let vm_result_item_value_midi_port_added_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                                let vm_result_item_value_midi_port_added_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                    let vm_result_item_value_midi_port_added_event_descriptor_default_protocol_inner = value;
+                                    Some(vm_result_item_value_midi_port_added_event_descriptor_default_protocol_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                                let vm_result_item_value_midi_port_added_event_payload_descriptor = MidiPortDescriptorVm {
-                                    backend: vm_result_item_value_midi_port_added_event_payload_descriptor_backend,
-                                    id: vm_result_item_value_midi_port_added_event_payload_descriptor_id,
-                                    group_id: vm_result_item_value_midi_port_added_event_payload_descriptor_group_id,
-                                    backend_id: vm_result_item_value_midi_port_added_event_payload_descriptor_backend_id,
-                                    name: vm_result_item_value_midi_port_added_event_payload_descriptor_name,
-                                    group_name: vm_result_item_value_midi_port_added_event_payload_descriptor_group_name,
-                                    manufacturer: vm_result_item_value_midi_port_added_event_payload_descriptor_manufacturer,
-                                    model: vm_result_item_value_midi_port_added_event_payload_descriptor_model,
-                                    version: vm_result_item_value_midi_port_added_event_payload_descriptor_version,
-                                    supported_data_formats: vm_result_item_value_midi_port_added_event_payload_descriptor_supported_data_formats,
-                                    default_data_format: vm_result_item_value_midi_port_added_event_payload_descriptor_default_data_format,
-                                    supported_protocols: vm_result_item_value_midi_port_added_event_payload_descriptor_supported_protocols,
-                                    default_protocol: vm_result_item_value_midi_port_added_event_payload_descriptor_default_protocol,
-                                    is_virtual: vm_result_item_value_midi_port_added_event_payload_descriptor_is_virtual,
-                                    is_connected: vm_result_item_value_midi_port_added_event_payload_descriptor_is_connected,
-                                };
-                                let vm_result_item_value_midi_port_added_event_payload = MidiPortAddedPayloadVm {
-                                    direction: vm_result_item_value_midi_port_added_event_payload_direction,
-                                    descriptor: vm_result_item_value_midi_port_added_event_payload_descriptor,
+                                let vm_result_item_value_midi_port_added_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                                let vm_result_item_value_midi_port_added_event_descriptor_is_connected = value.descriptor.is_connected;
+                                let vm_result_item_value_midi_port_added_event_descriptor = MidiPortDescriptorVm {
+                                    backend: vm_result_item_value_midi_port_added_event_descriptor_backend,
+                                    id: vm_result_item_value_midi_port_added_event_descriptor_id,
+                                    group_id: vm_result_item_value_midi_port_added_event_descriptor_group_id,
+                                    backend_id: vm_result_item_value_midi_port_added_event_descriptor_backend_id,
+                                    name: vm_result_item_value_midi_port_added_event_descriptor_name,
+                                    group_name: vm_result_item_value_midi_port_added_event_descriptor_group_name,
+                                    manufacturer: vm_result_item_value_midi_port_added_event_descriptor_manufacturer,
+                                    model: vm_result_item_value_midi_port_added_event_descriptor_model,
+                                    version: vm_result_item_value_midi_port_added_event_descriptor_version,
+                                    supported_data_formats: vm_result_item_value_midi_port_added_event_descriptor_supported_data_formats,
+                                    default_data_format: vm_result_item_value_midi_port_added_event_descriptor_default_data_format,
+                                    supported_protocols: vm_result_item_value_midi_port_added_event_descriptor_supported_protocols,
+                                    default_protocol: vm_result_item_value_midi_port_added_event_descriptor_default_protocol,
+                                    is_virtual: vm_result_item_value_midi_port_added_event_descriptor_is_virtual,
+                                    is_connected: vm_result_item_value_midi_port_added_event_descriptor_is_connected,
                                 };
                                 let vm_result_item_value_midi_port_added_event = MidiPortAddedEventVm {
                                     kind: vm_result_item_value_midi_port_added_event_kind,
                                     metadata: vm_result_item_value_midi_port_added_event_metadata,
-                                    payload: vm_result_item_value_midi_port_added_event_payload,
+                                    direction: vm_result_item_value_midi_port_added_event_direction,
+                                    descriptor: vm_result_item_value_midi_port_added_event_descriptor,
                                 };
                                 MidiEventVm::MidiPortAddedEvent(vm_result_item_value_midi_port_added_event)
                             }
@@ -10044,87 +9777,84 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                     source: vm_result_item_value_midi_port_changed_event_metadata_source,
                                     backend: vm_result_item_value_midi_port_changed_event_metadata_backend,
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_direction = value.payload.direction;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_id = context.string_handle(value.payload.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id = if let Some(value) = value.payload.descriptor.group_id {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id_inner)
+                                let vm_result_item_value_midi_port_changed_event_direction = value.direction;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_backend = value.descriptor.backend;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_id = context.string_handle(value.descriptor.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_group_id = if let Some(value) = value.descriptor.group_id {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_group_id_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id = if let Some(value) = value.payload.descriptor.backend_id {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_backend_id = if let Some(value) = value.descriptor.backend_id {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_backend_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_backend_id_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_name = context.string_handle(value.payload.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name = if let Some(value) = value.payload.descriptor.group_name {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_name = context.string_handle(value.descriptor.name.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_group_name = if let Some(value) = value.descriptor.group_name {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_group_name_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_group_name_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer = if let Some(value) = value.payload.descriptor.manufacturer {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_manufacturer = if let Some(value) = value.descriptor.manufacturer {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_manufacturer_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_manufacturer_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_model = if let Some(value) = value.payload.descriptor.model {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_model_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_model = if let Some(value) = value.descriptor.model {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_model_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_model_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_version = if let Some(value) = value.payload.descriptor.version {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_version_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_version = if let Some(value) = value.descriptor.version {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_version_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_version_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_supported_data_formats = value.payload.descriptor.supported_data_formats;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_default_data_format = if let Some(value) = value.payload.descriptor.default_data_format {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_default_data_format_inner = value;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_default_data_format_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_supported_data_formats = value.descriptor.supported_data_formats;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_default_data_format = if let Some(value) = value.descriptor.default_data_format {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_default_data_format_inner = value;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_default_data_format_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_supported_protocols = value.payload.descriptor.supported_protocols;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_default_protocol = if let Some(value) = value.payload.descriptor.default_protocol {
-                                    let vm_result_item_value_midi_port_changed_event_payload_descriptor_default_protocol_inner = value;
-                                    Some(vm_result_item_value_midi_port_changed_event_payload_descriptor_default_protocol_inner)
+                                let vm_result_item_value_midi_port_changed_event_descriptor_supported_protocols = value.descriptor.supported_protocols;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_default_protocol = if let Some(value) = value.descriptor.default_protocol {
+                                    let vm_result_item_value_midi_port_changed_event_descriptor_default_protocol_inner = value;
+                                    Some(vm_result_item_value_midi_port_changed_event_descriptor_default_protocol_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_is_virtual = value.payload.descriptor.is_virtual;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor_is_connected = value.payload.descriptor.is_connected;
-                                let vm_result_item_value_midi_port_changed_event_payload_descriptor = MidiPortDescriptorVm {
-                                    backend: vm_result_item_value_midi_port_changed_event_payload_descriptor_backend,
-                                    id: vm_result_item_value_midi_port_changed_event_payload_descriptor_id,
-                                    group_id: vm_result_item_value_midi_port_changed_event_payload_descriptor_group_id,
-                                    backend_id: vm_result_item_value_midi_port_changed_event_payload_descriptor_backend_id,
-                                    name: vm_result_item_value_midi_port_changed_event_payload_descriptor_name,
-                                    group_name: vm_result_item_value_midi_port_changed_event_payload_descriptor_group_name,
-                                    manufacturer: vm_result_item_value_midi_port_changed_event_payload_descriptor_manufacturer,
-                                    model: vm_result_item_value_midi_port_changed_event_payload_descriptor_model,
-                                    version: vm_result_item_value_midi_port_changed_event_payload_descriptor_version,
-                                    supported_data_formats: vm_result_item_value_midi_port_changed_event_payload_descriptor_supported_data_formats,
-                                    default_data_format: vm_result_item_value_midi_port_changed_event_payload_descriptor_default_data_format,
-                                    supported_protocols: vm_result_item_value_midi_port_changed_event_payload_descriptor_supported_protocols,
-                                    default_protocol: vm_result_item_value_midi_port_changed_event_payload_descriptor_default_protocol,
-                                    is_virtual: vm_result_item_value_midi_port_changed_event_payload_descriptor_is_virtual,
-                                    is_connected: vm_result_item_value_midi_port_changed_event_payload_descriptor_is_connected,
-                                };
-                                let vm_result_item_value_midi_port_changed_event_payload = MidiPortChangedPayloadVm {
-                                    direction: vm_result_item_value_midi_port_changed_event_payload_direction,
-                                    descriptor: vm_result_item_value_midi_port_changed_event_payload_descriptor,
+                                let vm_result_item_value_midi_port_changed_event_descriptor_is_virtual = value.descriptor.is_virtual;
+                                let vm_result_item_value_midi_port_changed_event_descriptor_is_connected = value.descriptor.is_connected;
+                                let vm_result_item_value_midi_port_changed_event_descriptor = MidiPortDescriptorVm {
+                                    backend: vm_result_item_value_midi_port_changed_event_descriptor_backend,
+                                    id: vm_result_item_value_midi_port_changed_event_descriptor_id,
+                                    group_id: vm_result_item_value_midi_port_changed_event_descriptor_group_id,
+                                    backend_id: vm_result_item_value_midi_port_changed_event_descriptor_backend_id,
+                                    name: vm_result_item_value_midi_port_changed_event_descriptor_name,
+                                    group_name: vm_result_item_value_midi_port_changed_event_descriptor_group_name,
+                                    manufacturer: vm_result_item_value_midi_port_changed_event_descriptor_manufacturer,
+                                    model: vm_result_item_value_midi_port_changed_event_descriptor_model,
+                                    version: vm_result_item_value_midi_port_changed_event_descriptor_version,
+                                    supported_data_formats: vm_result_item_value_midi_port_changed_event_descriptor_supported_data_formats,
+                                    default_data_format: vm_result_item_value_midi_port_changed_event_descriptor_default_data_format,
+                                    supported_protocols: vm_result_item_value_midi_port_changed_event_descriptor_supported_protocols,
+                                    default_protocol: vm_result_item_value_midi_port_changed_event_descriptor_default_protocol,
+                                    is_virtual: vm_result_item_value_midi_port_changed_event_descriptor_is_virtual,
+                                    is_connected: vm_result_item_value_midi_port_changed_event_descriptor_is_connected,
                                 };
                                 let vm_result_item_value_midi_port_changed_event = MidiPortChangedEventVm {
                                     kind: vm_result_item_value_midi_port_changed_event_kind,
                                     metadata: vm_result_item_value_midi_port_changed_event_metadata,
-                                    payload: vm_result_item_value_midi_port_changed_event_payload,
+                                    direction: vm_result_item_value_midi_port_changed_event_direction,
+                                    descriptor: vm_result_item_value_midi_port_changed_event_descriptor,
                                 };
                                 MidiEventVm::MidiPortChangedEvent(vm_result_item_value_midi_port_changed_event)
                             }
@@ -10142,23 +9872,20 @@ fn destack_midi_event_try_read_batch_vm_replay(
                                     source: vm_result_item_value_midi_port_removed_event_metadata_source,
                                     backend: vm_result_item_value_midi_port_removed_event_metadata_backend,
                                 };
-                                let vm_result_item_value_midi_port_removed_event_payload_direction = value.payload.direction;
-                                let vm_result_item_value_midi_port_removed_event_payload_id = context.string_handle(value.payload.id.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                let vm_result_item_value_midi_port_removed_event_payload_group_id = if let Some(value) = value.payload.group_id {
-                                    let vm_result_item_value_midi_port_removed_event_payload_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_midi_port_removed_event_payload_group_id_inner)
+                                let vm_result_item_value_midi_port_removed_event_direction = value.direction;
+                                let vm_result_item_value_midi_port_removed_event_id = context.string_handle(value.id.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                let vm_result_item_value_midi_port_removed_event_group_id = if let Some(value) = value.group_id {
+                                    let vm_result_item_value_midi_port_removed_event_group_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_midi_port_removed_event_group_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_midi_port_removed_event_payload = MidiPortRemovedPayloadVm {
-                                    direction: vm_result_item_value_midi_port_removed_event_payload_direction,
-                                    id: vm_result_item_value_midi_port_removed_event_payload_id,
-                                    group_id: vm_result_item_value_midi_port_removed_event_payload_group_id,
                                 };
                                 let vm_result_item_value_midi_port_removed_event = MidiPortRemovedEventVm {
                                     kind: vm_result_item_value_midi_port_removed_event_kind,
                                     metadata: vm_result_item_value_midi_port_removed_event_metadata,
-                                    payload: vm_result_item_value_midi_port_removed_event_payload,
+                                    direction: vm_result_item_value_midi_port_removed_event_direction,
+                                    id: vm_result_item_value_midi_port_removed_event_id,
+                                    group_id: vm_result_item_value_midi_port_removed_event_group_id,
                                 };
                                 MidiEventVm::MidiPortRemovedEvent(vm_result_item_value_midi_port_removed_event)
                             }

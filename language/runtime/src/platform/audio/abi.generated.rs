@@ -2905,8 +2905,8 @@ pub struct AudioBackendDisconnectedEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Backend-disconnected payload.
-    pub payload: AudioBackendDisconnectedPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 pub type AudioBackendDisconnectedEvent = AudioBackendDisconnectedEventAbi<NativeAbi>;
@@ -2959,14 +2959,14 @@ impl VmAggregateCodec for AudioBackendDisconnectedEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload =
-            <AudioBackendDisconnectedPayloadVm as VmAggregateCodec>::decode_with_context(
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
                 context, slots[2],
             )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            stream: field_stream,
         })
     }
 
@@ -2980,8 +2980,8 @@ impl VmAggregateCodec for AudioBackendDisconnectedEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioBackendDisconnectedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
+                self.stream,
                 context,
             )?,
         ];
@@ -3000,8 +3000,8 @@ pub struct AudioBackendDisconnectedEventValue {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Backend-disconnected payload.
-    pub payload: AudioBackendDisconnectedPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 impl NativeAbiCodec for AudioBackendDisconnectedEventAbi<NativeAbi> {
@@ -3011,8 +3011,8 @@ impl NativeAbiCodec for AudioBackendDisconnectedEventAbi<NativeAbi> {
         Ok(AudioBackendDisconnectedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioBackendDisconnectedPayload as NativeAbiCodec>::into_value(self.payload)?
+            stream: unsafe {
+                <Option<resource::AudioStreamHandle> as NativeAbiCodec>::into_value(self.stream)?
             },
         })
     }
@@ -3021,9 +3021,9 @@ impl NativeAbiCodec for AudioBackendDisconnectedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioBackendDisconnectedPayload as NativeAbiCodec>::from_value(
+            stream: <Option<resource::AudioStreamHandle> as NativeAbiCodec>::from_value(
                 binding,
-                value.payload,
+                value.stream,
             ),
         }
     }
@@ -3039,8 +3039,8 @@ impl VmAbiCodec for AudioBackendDisconnectedEventAbi<VmAbi> {
         Ok(AudioBackendDisconnectedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioBackendDisconnectedPayloadVm as VmAbiCodec>::into_value(
-                self.payload,
+            stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::into_value(
+                self.stream,
                 context,
             )?,
         })
@@ -3053,105 +3053,13 @@ impl VmAbiCodec for AudioBackendDisconnectedEventAbi<VmAbi> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioBackendDisconnectedPayloadVm as VmAbiCodec>::from_value(
+            stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::from_value(
                 context,
-                value.payload,
+                value.stream,
             )?,
         })
     }
 }
-
-/// ABI struct for AudioBackendDisconnectedPayload.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct AudioBackendDisconnectedPayload {
-    /// Target stream handle when present.
-    pub stream: Option<resource::AudioStreamHandle>,
-}
-
-pub type AudioBackendDisconnectedPayloadVm = AudioBackendDisconnectedPayload;
-
-impl VmAggregateCodec for AudioBackendDisconnectedPayload {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioBackendDisconnectedPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_stream =
-            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
-            )?;
-        Ok(Self {
-            stream: field_stream,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
-                self.stream,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-/// Value type for AudioBackendDisconnectedPayload.
-pub type AudioBackendDisconnectedPayloadValue = AudioBackendDisconnectedPayload;
-
-impl NativeAbiCodec for AudioBackendDisconnectedPayload {
-    type Value = AudioBackendDisconnectedPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for AudioBackendDisconnectedPayload {
-    type Value = AudioBackendDisconnectedPayloadValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
-impl VmCollectionElement for AudioBackendDisconnectedPayload {}
 
 /// ABI struct for AudioBackendResetEvent.
 #[repr(C)]
@@ -3160,8 +3068,8 @@ pub struct AudioBackendResetEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Backend-reset payload.
-    pub payload: AudioBackendResetPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 pub type AudioBackendResetEvent = AudioBackendResetEventAbi<NativeAbi>;
@@ -3214,13 +3122,14 @@ impl VmAggregateCodec for AudioBackendResetEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <AudioBackendResetPayloadVm as VmAggregateCodec>::decode_with_context(
-            context, slots[2],
-        )?;
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            stream: field_stream,
         })
     }
 
@@ -3234,8 +3143,8 @@ impl VmAggregateCodec for AudioBackendResetEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioBackendResetPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
+                self.stream,
                 context,
             )?,
         ];
@@ -3254,8 +3163,8 @@ pub struct AudioBackendResetEventValue {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Backend-reset payload.
-    pub payload: AudioBackendResetPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 impl NativeAbiCodec for AudioBackendResetEventAbi<NativeAbi> {
@@ -3265,8 +3174,8 @@ impl NativeAbiCodec for AudioBackendResetEventAbi<NativeAbi> {
         Ok(AudioBackendResetEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioBackendResetPayload as NativeAbiCodec>::into_value(self.payload)?
+            stream: unsafe {
+                <Option<resource::AudioStreamHandle> as NativeAbiCodec>::into_value(self.stream)?
             },
         })
     }
@@ -3275,9 +3184,9 @@ impl NativeAbiCodec for AudioBackendResetEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioBackendResetPayload as NativeAbiCodec>::from_value(
+            stream: <Option<resource::AudioStreamHandle> as NativeAbiCodec>::from_value(
                 binding,
-                value.payload,
+                value.stream,
             ),
         }
     }
@@ -3293,7 +3202,10 @@ impl VmAbiCodec for AudioBackendResetEventAbi<VmAbi> {
         Ok(AudioBackendResetEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioBackendResetPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
+            stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::into_value(
+                self.stream,
+                context,
+            )?,
         })
     }
 
@@ -3304,105 +3216,13 @@ impl VmAbiCodec for AudioBackendResetEventAbi<VmAbi> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioBackendResetPayloadVm as VmAbiCodec>::from_value(
+            stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::from_value(
                 context,
-                value.payload,
+                value.stream,
             )?,
         })
     }
 }
-
-/// ABI struct for AudioBackendResetPayload.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct AudioBackendResetPayload {
-    /// Target stream handle when present.
-    pub stream: Option<resource::AudioStreamHandle>,
-}
-
-pub type AudioBackendResetPayloadVm = AudioBackendResetPayload;
-
-impl VmAggregateCodec for AudioBackendResetPayload {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioBackendResetPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_stream =
-            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
-            )?;
-        Ok(Self {
-            stream: field_stream,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
-                self.stream,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-/// Value type for AudioBackendResetPayload.
-pub type AudioBackendResetPayloadValue = AudioBackendResetPayload;
-
-impl NativeAbiCodec for AudioBackendResetPayload {
-    type Value = AudioBackendResetPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for AudioBackendResetPayload {
-    type Value = AudioBackendResetPayloadValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
-impl VmCollectionElement for AudioBackendResetPayload {}
 
 /// ABI struct for AudioClockSnapshot.
 #[repr(C)]
@@ -3578,8 +3398,8 @@ pub struct AudioDefaultCaptureChangedEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Default-capture-changed payload.
-    pub payload: platform_audio::AudioDefaultCaptureChangedPayloadAbi<A>,
+    /// Target device identifier when present.
+    pub device_id: Option<A::String>,
 }
 
 pub type AudioDefaultCaptureChangedEvent = AudioDefaultCaptureChangedEventAbi<NativeAbi>;
@@ -3632,14 +3452,12 @@ impl VmAggregateCodec for AudioDefaultCaptureChangedEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload =
-            <AudioDefaultCaptureChangedPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
-            )?;
+        let field_device_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            device_id: field_device_id,
         })
     }
 
@@ -3653,8 +3471,8 @@ impl VmAggregateCodec for AudioDefaultCaptureChangedEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioDefaultCaptureChangedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.device_id,
                 context,
             )?,
         ];
@@ -3673,8 +3491,8 @@ pub struct AudioDefaultCaptureChangedEventValue {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Default-capture-changed payload.
-    pub payload: AudioDefaultCaptureChangedPayloadValue,
+    /// Target device identifier when present.
+    pub device_id: Option<String>,
 }
 
 impl NativeAbiCodec for AudioDefaultCaptureChangedEventAbi<NativeAbi> {
@@ -3684,8 +3502,8 @@ impl NativeAbiCodec for AudioDefaultCaptureChangedEventAbi<NativeAbi> {
         Ok(AudioDefaultCaptureChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioDefaultCaptureChangedPayload as NativeAbiCodec>::into_value(self.payload)?
+            device_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
             },
         })
     }
@@ -3694,9 +3512,9 @@ impl NativeAbiCodec for AudioDefaultCaptureChangedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioDefaultCaptureChangedPayload as NativeAbiCodec>::from_value(
+            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.payload,
+                value.device_id,
             ),
         }
     }
@@ -3712,142 +3530,6 @@ impl VmAbiCodec for AudioDefaultCaptureChangedEventAbi<VmAbi> {
         Ok(AudioDefaultCaptureChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioDefaultCaptureChangedPayloadVm as VmAbiCodec>::into_value(
-                self.payload,
-                context,
-            )?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioDefaultCaptureChangedPayloadVm as VmAbiCodec>::from_value(
-                context,
-                value.payload,
-            )?,
-        })
-    }
-}
-
-/// ABI struct for AudioDefaultCaptureChangedPayload.
-#[repr(C)]
-pub struct AudioDefaultCaptureChangedPayloadAbi<A: BindingAbi> {
-    /// Target device identifier when present.
-    pub device_id: Option<A::String>,
-}
-
-pub type AudioDefaultCaptureChangedPayload = AudioDefaultCaptureChangedPayloadAbi<NativeAbi>;
-pub type AudioDefaultCaptureChangedPayloadVm = AudioDefaultCaptureChangedPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for AudioDefaultCaptureChangedPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("AudioDefaultCaptureChangedPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for AudioDefaultCaptureChangedPayloadAbi<NativeAbi> {}
-impl Clone for AudioDefaultCaptureChangedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for AudioDefaultCaptureChangedPayloadAbi<VmAbi> {}
-impl Clone for AudioDefaultCaptureChangedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for AudioDefaultCaptureChangedPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioDefaultCaptureChangedPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self {
-            device_id: field_device_id,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.device_id,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for AudioDefaultCaptureChangedPayloadAbi<VmAbi> {}
-
-/// Value type for AudioDefaultCaptureChangedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudioDefaultCaptureChangedPayloadValue {
-    /// Target device identifier when present.
-    pub device_id: Option<String>,
-}
-
-impl NativeAbiCodec for AudioDefaultCaptureChangedPayloadAbi<NativeAbi> {
-    type Value = AudioDefaultCaptureChangedPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AudioDefaultCaptureChangedPayloadValue {
-            device_id: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
-                binding,
-                value.device_id,
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for AudioDefaultCaptureChangedPayloadAbi<VmAbi> {
-    type Value = AudioDefaultCaptureChangedPayloadValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AudioDefaultCaptureChangedPayloadValue {
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
                 self.device_id,
                 context,
@@ -3860,6 +3542,8 @@ impl VmAbiCodec for AudioDefaultCaptureChangedPayloadAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
                 value.device_id,
@@ -3875,8 +3559,8 @@ pub struct AudioDefaultLoopbackChangedEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Default-loopback-changed payload.
-    pub payload: platform_audio::AudioDefaultLoopbackChangedPayloadAbi<A>,
+    /// Target device identifier when present.
+    pub device_id: Option<A::String>,
 }
 
 pub type AudioDefaultLoopbackChangedEvent = AudioDefaultLoopbackChangedEventAbi<NativeAbi>;
@@ -3929,14 +3613,12 @@ impl VmAggregateCodec for AudioDefaultLoopbackChangedEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload =
-            <AudioDefaultLoopbackChangedPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
-            )?;
+        let field_device_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            device_id: field_device_id,
         })
     }
 
@@ -3950,8 +3632,8 @@ impl VmAggregateCodec for AudioDefaultLoopbackChangedEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioDefaultLoopbackChangedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.device_id,
                 context,
             )?,
         ];
@@ -3970,8 +3652,8 @@ pub struct AudioDefaultLoopbackChangedEventValue {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Default-loopback-changed payload.
-    pub payload: AudioDefaultLoopbackChangedPayloadValue,
+    /// Target device identifier when present.
+    pub device_id: Option<String>,
 }
 
 impl NativeAbiCodec for AudioDefaultLoopbackChangedEventAbi<NativeAbi> {
@@ -3981,8 +3663,8 @@ impl NativeAbiCodec for AudioDefaultLoopbackChangedEventAbi<NativeAbi> {
         Ok(AudioDefaultLoopbackChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioDefaultLoopbackChangedPayload as NativeAbiCodec>::into_value(self.payload)?
+            device_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
             },
         })
     }
@@ -3991,9 +3673,9 @@ impl NativeAbiCodec for AudioDefaultLoopbackChangedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioDefaultLoopbackChangedPayload as NativeAbiCodec>::from_value(
+            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.payload,
+                value.device_id,
             ),
         }
     }
@@ -4009,142 +3691,6 @@ impl VmAbiCodec for AudioDefaultLoopbackChangedEventAbi<VmAbi> {
         Ok(AudioDefaultLoopbackChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioDefaultLoopbackChangedPayloadVm as VmAbiCodec>::into_value(
-                self.payload,
-                context,
-            )?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioDefaultLoopbackChangedPayloadVm as VmAbiCodec>::from_value(
-                context,
-                value.payload,
-            )?,
-        })
-    }
-}
-
-/// ABI struct for AudioDefaultLoopbackChangedPayload.
-#[repr(C)]
-pub struct AudioDefaultLoopbackChangedPayloadAbi<A: BindingAbi> {
-    /// Target device identifier when present.
-    pub device_id: Option<A::String>,
-}
-
-pub type AudioDefaultLoopbackChangedPayload = AudioDefaultLoopbackChangedPayloadAbi<NativeAbi>;
-pub type AudioDefaultLoopbackChangedPayloadVm = AudioDefaultLoopbackChangedPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for AudioDefaultLoopbackChangedPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("AudioDefaultLoopbackChangedPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for AudioDefaultLoopbackChangedPayloadAbi<NativeAbi> {}
-impl Clone for AudioDefaultLoopbackChangedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for AudioDefaultLoopbackChangedPayloadAbi<VmAbi> {}
-impl Clone for AudioDefaultLoopbackChangedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for AudioDefaultLoopbackChangedPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioDefaultLoopbackChangedPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self {
-            device_id: field_device_id,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.device_id,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for AudioDefaultLoopbackChangedPayloadAbi<VmAbi> {}
-
-/// Value type for AudioDefaultLoopbackChangedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudioDefaultLoopbackChangedPayloadValue {
-    /// Target device identifier when present.
-    pub device_id: Option<String>,
-}
-
-impl NativeAbiCodec for AudioDefaultLoopbackChangedPayloadAbi<NativeAbi> {
-    type Value = AudioDefaultLoopbackChangedPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AudioDefaultLoopbackChangedPayloadValue {
-            device_id: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
-                binding,
-                value.device_id,
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for AudioDefaultLoopbackChangedPayloadAbi<VmAbi> {
-    type Value = AudioDefaultLoopbackChangedPayloadValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AudioDefaultLoopbackChangedPayloadValue {
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
                 self.device_id,
                 context,
@@ -4157,6 +3703,8 @@ impl VmAbiCodec for AudioDefaultLoopbackChangedPayloadAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
                 value.device_id,
@@ -4172,8 +3720,8 @@ pub struct AudioDefaultPlaybackChangedEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Default-playback-changed payload.
-    pub payload: platform_audio::AudioDefaultPlaybackChangedPayloadAbi<A>,
+    /// Target device identifier when present.
+    pub device_id: Option<A::String>,
 }
 
 pub type AudioDefaultPlaybackChangedEvent = AudioDefaultPlaybackChangedEventAbi<NativeAbi>;
@@ -4226,14 +3774,12 @@ impl VmAggregateCodec for AudioDefaultPlaybackChangedEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload =
-            <AudioDefaultPlaybackChangedPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
-            )?;
+        let field_device_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            device_id: field_device_id,
         })
     }
 
@@ -4247,8 +3793,8 @@ impl VmAggregateCodec for AudioDefaultPlaybackChangedEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioDefaultPlaybackChangedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.device_id,
                 context,
             )?,
         ];
@@ -4267,8 +3813,8 @@ pub struct AudioDefaultPlaybackChangedEventValue {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Default-playback-changed payload.
-    pub payload: AudioDefaultPlaybackChangedPayloadValue,
+    /// Target device identifier when present.
+    pub device_id: Option<String>,
 }
 
 impl NativeAbiCodec for AudioDefaultPlaybackChangedEventAbi<NativeAbi> {
@@ -4278,8 +3824,8 @@ impl NativeAbiCodec for AudioDefaultPlaybackChangedEventAbi<NativeAbi> {
         Ok(AudioDefaultPlaybackChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioDefaultPlaybackChangedPayload as NativeAbiCodec>::into_value(self.payload)?
+            device_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
             },
         })
     }
@@ -4288,9 +3834,9 @@ impl NativeAbiCodec for AudioDefaultPlaybackChangedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioDefaultPlaybackChangedPayload as NativeAbiCodec>::from_value(
+            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.payload,
+                value.device_id,
             ),
         }
     }
@@ -4306,142 +3852,6 @@ impl VmAbiCodec for AudioDefaultPlaybackChangedEventAbi<VmAbi> {
         Ok(AudioDefaultPlaybackChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioDefaultPlaybackChangedPayloadVm as VmAbiCodec>::into_value(
-                self.payload,
-                context,
-            )?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioDefaultPlaybackChangedPayloadVm as VmAbiCodec>::from_value(
-                context,
-                value.payload,
-            )?,
-        })
-    }
-}
-
-/// ABI struct for AudioDefaultPlaybackChangedPayload.
-#[repr(C)]
-pub struct AudioDefaultPlaybackChangedPayloadAbi<A: BindingAbi> {
-    /// Target device identifier when present.
-    pub device_id: Option<A::String>,
-}
-
-pub type AudioDefaultPlaybackChangedPayload = AudioDefaultPlaybackChangedPayloadAbi<NativeAbi>;
-pub type AudioDefaultPlaybackChangedPayloadVm = AudioDefaultPlaybackChangedPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for AudioDefaultPlaybackChangedPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("AudioDefaultPlaybackChangedPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for AudioDefaultPlaybackChangedPayloadAbi<NativeAbi> {}
-impl Clone for AudioDefaultPlaybackChangedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for AudioDefaultPlaybackChangedPayloadAbi<VmAbi> {}
-impl Clone for AudioDefaultPlaybackChangedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for AudioDefaultPlaybackChangedPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioDefaultPlaybackChangedPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self {
-            device_id: field_device_id,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.device_id,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for AudioDefaultPlaybackChangedPayloadAbi<VmAbi> {}
-
-/// Value type for AudioDefaultPlaybackChangedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudioDefaultPlaybackChangedPayloadValue {
-    /// Target device identifier when present.
-    pub device_id: Option<String>,
-}
-
-impl NativeAbiCodec for AudioDefaultPlaybackChangedPayloadAbi<NativeAbi> {
-    type Value = AudioDefaultPlaybackChangedPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AudioDefaultPlaybackChangedPayloadValue {
-            device_id: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
-                binding,
-                value.device_id,
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for AudioDefaultPlaybackChangedPayloadAbi<VmAbi> {
-    type Value = AudioDefaultPlaybackChangedPayloadValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AudioDefaultPlaybackChangedPayloadValue {
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
                 self.device_id,
                 context,
@@ -4454,6 +3864,8 @@ impl VmAbiCodec for AudioDefaultPlaybackChangedPayloadAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
                 value.device_id,
@@ -4469,8 +3881,8 @@ pub struct AudioDeviceAddedEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Device-added payload.
-    pub payload: platform_audio::AudioDeviceAddedPayloadAbi<A>,
+    /// Target device identifier when present.
+    pub device_id: Option<A::String>,
 }
 
 pub type AudioDeviceAddedEvent = AudioDeviceAddedEventAbi<NativeAbi>;
@@ -4523,13 +3935,12 @@ impl VmAggregateCodec for AudioDeviceAddedEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <AudioDeviceAddedPayloadVm as VmAggregateCodec>::decode_with_context(
-            context, slots[2],
-        )?;
+        let field_device_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            device_id: field_device_id,
         })
     }
 
@@ -4543,8 +3954,8 @@ impl VmAggregateCodec for AudioDeviceAddedEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioDeviceAddedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.device_id,
                 context,
             )?,
         ];
@@ -4563,8 +3974,8 @@ pub struct AudioDeviceAddedEventValue {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Device-added payload.
-    pub payload: AudioDeviceAddedPayloadValue,
+    /// Target device identifier when present.
+    pub device_id: Option<String>,
 }
 
 impl NativeAbiCodec for AudioDeviceAddedEventAbi<NativeAbi> {
@@ -4574,8 +3985,8 @@ impl NativeAbiCodec for AudioDeviceAddedEventAbi<NativeAbi> {
         Ok(AudioDeviceAddedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioDeviceAddedPayload as NativeAbiCodec>::into_value(self.payload)?
+            device_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
             },
         })
     }
@@ -4584,9 +3995,9 @@ impl NativeAbiCodec for AudioDeviceAddedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioDeviceAddedPayload as NativeAbiCodec>::from_value(
+            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.payload,
+                value.device_id,
             ),
         }
     }
@@ -4602,136 +4013,6 @@ impl VmAbiCodec for AudioDeviceAddedEventAbi<VmAbi> {
         Ok(AudioDeviceAddedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioDeviceAddedPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioDeviceAddedPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
-        })
-    }
-}
-
-/// ABI struct for AudioDeviceAddedPayload.
-#[repr(C)]
-pub struct AudioDeviceAddedPayloadAbi<A: BindingAbi> {
-    /// Target device identifier when present.
-    pub device_id: Option<A::String>,
-}
-
-pub type AudioDeviceAddedPayload = AudioDeviceAddedPayloadAbi<NativeAbi>;
-pub type AudioDeviceAddedPayloadVm = AudioDeviceAddedPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for AudioDeviceAddedPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("AudioDeviceAddedPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for AudioDeviceAddedPayloadAbi<NativeAbi> {}
-impl Clone for AudioDeviceAddedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for AudioDeviceAddedPayloadAbi<VmAbi> {}
-impl Clone for AudioDeviceAddedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for AudioDeviceAddedPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioDeviceAddedPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self {
-            device_id: field_device_id,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.device_id,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for AudioDeviceAddedPayloadAbi<VmAbi> {}
-
-/// Value type for AudioDeviceAddedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudioDeviceAddedPayloadValue {
-    /// Target device identifier when present.
-    pub device_id: Option<String>,
-}
-
-impl NativeAbiCodec for AudioDeviceAddedPayloadAbi<NativeAbi> {
-    type Value = AudioDeviceAddedPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AudioDeviceAddedPayloadValue {
-            device_id: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
-                binding,
-                value.device_id,
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for AudioDeviceAddedPayloadAbi<VmAbi> {
-    type Value = AudioDeviceAddedPayloadValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AudioDeviceAddedPayloadValue {
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
                 self.device_id,
                 context,
@@ -4744,6 +4025,8 @@ impl VmAbiCodec for AudioDeviceAddedPayloadAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
                 value.device_id,
@@ -5451,8 +4734,8 @@ pub struct AudioDeviceFormatChangedEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Device-format-changed payload.
-    pub payload: platform_audio::AudioDeviceFormatChangedPayloadAbi<A>,
+    /// Target device identifier when present.
+    pub device_id: Option<A::String>,
 }
 
 pub type AudioDeviceFormatChangedEvent = AudioDeviceFormatChangedEventAbi<NativeAbi>;
@@ -5505,14 +4788,12 @@ impl VmAggregateCodec for AudioDeviceFormatChangedEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload =
-            <AudioDeviceFormatChangedPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
-            )?;
+        let field_device_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            device_id: field_device_id,
         })
     }
 
@@ -5526,8 +4807,8 @@ impl VmAggregateCodec for AudioDeviceFormatChangedEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioDeviceFormatChangedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.device_id,
                 context,
             )?,
         ];
@@ -5546,8 +4827,8 @@ pub struct AudioDeviceFormatChangedEventValue {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Device-format-changed payload.
-    pub payload: AudioDeviceFormatChangedPayloadValue,
+    /// Target device identifier when present.
+    pub device_id: Option<String>,
 }
 
 impl NativeAbiCodec for AudioDeviceFormatChangedEventAbi<NativeAbi> {
@@ -5557,8 +4838,8 @@ impl NativeAbiCodec for AudioDeviceFormatChangedEventAbi<NativeAbi> {
         Ok(AudioDeviceFormatChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioDeviceFormatChangedPayload as NativeAbiCodec>::into_value(self.payload)?
+            device_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
             },
         })
     }
@@ -5567,9 +4848,9 @@ impl NativeAbiCodec for AudioDeviceFormatChangedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioDeviceFormatChangedPayload as NativeAbiCodec>::from_value(
+            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.payload,
+                value.device_id,
             ),
         }
     }
@@ -5585,142 +4866,6 @@ impl VmAbiCodec for AudioDeviceFormatChangedEventAbi<VmAbi> {
         Ok(AudioDeviceFormatChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioDeviceFormatChangedPayloadVm as VmAbiCodec>::into_value(
-                self.payload,
-                context,
-            )?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioDeviceFormatChangedPayloadVm as VmAbiCodec>::from_value(
-                context,
-                value.payload,
-            )?,
-        })
-    }
-}
-
-/// ABI struct for AudioDeviceFormatChangedPayload.
-#[repr(C)]
-pub struct AudioDeviceFormatChangedPayloadAbi<A: BindingAbi> {
-    /// Target device identifier when present.
-    pub device_id: Option<A::String>,
-}
-
-pub type AudioDeviceFormatChangedPayload = AudioDeviceFormatChangedPayloadAbi<NativeAbi>;
-pub type AudioDeviceFormatChangedPayloadVm = AudioDeviceFormatChangedPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for AudioDeviceFormatChangedPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("AudioDeviceFormatChangedPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for AudioDeviceFormatChangedPayloadAbi<NativeAbi> {}
-impl Clone for AudioDeviceFormatChangedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for AudioDeviceFormatChangedPayloadAbi<VmAbi> {}
-impl Clone for AudioDeviceFormatChangedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for AudioDeviceFormatChangedPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioDeviceFormatChangedPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self {
-            device_id: field_device_id,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.device_id,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for AudioDeviceFormatChangedPayloadAbi<VmAbi> {}
-
-/// Value type for AudioDeviceFormatChangedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudioDeviceFormatChangedPayloadValue {
-    /// Target device identifier when present.
-    pub device_id: Option<String>,
-}
-
-impl NativeAbiCodec for AudioDeviceFormatChangedPayloadAbi<NativeAbi> {
-    type Value = AudioDeviceFormatChangedPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AudioDeviceFormatChangedPayloadValue {
-            device_id: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
-                binding,
-                value.device_id,
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for AudioDeviceFormatChangedPayloadAbi<VmAbi> {
-    type Value = AudioDeviceFormatChangedPayloadValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AudioDeviceFormatChangedPayloadValue {
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
                 self.device_id,
                 context,
@@ -5733,6 +4878,8 @@ impl VmAbiCodec for AudioDeviceFormatChangedPayloadAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
                 value.device_id,
@@ -5980,8 +5127,8 @@ pub struct AudioDeviceRemovedEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Device-removed payload.
-    pub payload: platform_audio::AudioDeviceRemovedPayloadAbi<A>,
+    /// Target device identifier when present.
+    pub device_id: Option<A::String>,
 }
 
 pub type AudioDeviceRemovedEvent = AudioDeviceRemovedEventAbi<NativeAbi>;
@@ -6034,13 +5181,12 @@ impl VmAggregateCodec for AudioDeviceRemovedEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <AudioDeviceRemovedPayloadVm as VmAggregateCodec>::decode_with_context(
-            context, slots[2],
-        )?;
+        let field_device_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            device_id: field_device_id,
         })
     }
 
@@ -6054,8 +5200,8 @@ impl VmAggregateCodec for AudioDeviceRemovedEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioDeviceRemovedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.device_id,
                 context,
             )?,
         ];
@@ -6074,8 +5220,8 @@ pub struct AudioDeviceRemovedEventValue {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Device-removed payload.
-    pub payload: AudioDeviceRemovedPayloadValue,
+    /// Target device identifier when present.
+    pub device_id: Option<String>,
 }
 
 impl NativeAbiCodec for AudioDeviceRemovedEventAbi<NativeAbi> {
@@ -6085,8 +5231,8 @@ impl NativeAbiCodec for AudioDeviceRemovedEventAbi<NativeAbi> {
         Ok(AudioDeviceRemovedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioDeviceRemovedPayload as NativeAbiCodec>::into_value(self.payload)?
+            device_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
             },
         })
     }
@@ -6095,9 +5241,9 @@ impl NativeAbiCodec for AudioDeviceRemovedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioDeviceRemovedPayload as NativeAbiCodec>::from_value(
+            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.payload,
+                value.device_id,
             ),
         }
     }
@@ -6113,142 +5259,6 @@ impl VmAbiCodec for AudioDeviceRemovedEventAbi<VmAbi> {
         Ok(AudioDeviceRemovedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioDeviceRemovedPayloadVm as VmAbiCodec>::into_value(
-                self.payload,
-                context,
-            )?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioDeviceRemovedPayloadVm as VmAbiCodec>::from_value(
-                context,
-                value.payload,
-            )?,
-        })
-    }
-}
-
-/// ABI struct for AudioDeviceRemovedPayload.
-#[repr(C)]
-pub struct AudioDeviceRemovedPayloadAbi<A: BindingAbi> {
-    /// Target device identifier when present.
-    pub device_id: Option<A::String>,
-}
-
-pub type AudioDeviceRemovedPayload = AudioDeviceRemovedPayloadAbi<NativeAbi>;
-pub type AudioDeviceRemovedPayloadVm = AudioDeviceRemovedPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for AudioDeviceRemovedPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("AudioDeviceRemovedPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for AudioDeviceRemovedPayloadAbi<NativeAbi> {}
-impl Clone for AudioDeviceRemovedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for AudioDeviceRemovedPayloadAbi<VmAbi> {}
-impl Clone for AudioDeviceRemovedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for AudioDeviceRemovedPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioDeviceRemovedPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self {
-            device_id: field_device_id,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.device_id,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for AudioDeviceRemovedPayloadAbi<VmAbi> {}
-
-/// Value type for AudioDeviceRemovedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudioDeviceRemovedPayloadValue {
-    /// Target device identifier when present.
-    pub device_id: Option<String>,
-}
-
-impl NativeAbiCodec for AudioDeviceRemovedPayloadAbi<NativeAbi> {
-    type Value = AudioDeviceRemovedPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AudioDeviceRemovedPayloadValue {
-            device_id: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
-                binding,
-                value.device_id,
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for AudioDeviceRemovedPayloadAbi<VmAbi> {
-    type Value = AudioDeviceRemovedPayloadValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AudioDeviceRemovedPayloadValue {
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
                 self.device_id,
                 context,
@@ -6261,6 +5271,8 @@ impl VmAbiCodec for AudioDeviceRemovedPayloadAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
                 value.device_id,
@@ -6276,8 +5288,8 @@ pub struct AudioDeviceReroutedEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Device-rerouted payload.
-    pub payload: platform_audio::AudioDeviceReroutedPayloadAbi<A>,
+    /// Target device identifier when present.
+    pub device_id: Option<A::String>,
 }
 
 pub type AudioDeviceReroutedEvent = AudioDeviceReroutedEventAbi<NativeAbi>;
@@ -6330,14 +5342,12 @@ impl VmAggregateCodec for AudioDeviceReroutedEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload =
-            <AudioDeviceReroutedPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
-            )?;
+        let field_device_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            device_id: field_device_id,
         })
     }
 
@@ -6351,8 +5361,8 @@ impl VmAggregateCodec for AudioDeviceReroutedEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioDeviceReroutedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.device_id,
                 context,
             )?,
         ];
@@ -6371,8 +5381,8 @@ pub struct AudioDeviceReroutedEventValue {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Device-rerouted payload.
-    pub payload: AudioDeviceReroutedPayloadValue,
+    /// Target device identifier when present.
+    pub device_id: Option<String>,
 }
 
 impl NativeAbiCodec for AudioDeviceReroutedEventAbi<NativeAbi> {
@@ -6382,8 +5392,8 @@ impl NativeAbiCodec for AudioDeviceReroutedEventAbi<NativeAbi> {
         Ok(AudioDeviceReroutedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioDeviceReroutedPayload as NativeAbiCodec>::into_value(self.payload)?
+            device_id: unsafe {
+                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
             },
         })
     }
@@ -6392,9 +5402,9 @@ impl NativeAbiCodec for AudioDeviceReroutedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioDeviceReroutedPayload as NativeAbiCodec>::from_value(
+            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
                 binding,
-                value.payload,
+                value.device_id,
             ),
         }
     }
@@ -6410,142 +5420,6 @@ impl VmAbiCodec for AudioDeviceReroutedEventAbi<VmAbi> {
         Ok(AudioDeviceReroutedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioDeviceReroutedPayloadVm as VmAbiCodec>::into_value(
-                self.payload,
-                context,
-            )?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioDeviceReroutedPayloadVm as VmAbiCodec>::from_value(
-                context,
-                value.payload,
-            )?,
-        })
-    }
-}
-
-/// ABI struct for AudioDeviceReroutedPayload.
-#[repr(C)]
-pub struct AudioDeviceReroutedPayloadAbi<A: BindingAbi> {
-    /// Target device identifier when present.
-    pub device_id: Option<A::String>,
-}
-
-pub type AudioDeviceReroutedPayload = AudioDeviceReroutedPayloadAbi<NativeAbi>;
-pub type AudioDeviceReroutedPayloadVm = AudioDeviceReroutedPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for AudioDeviceReroutedPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("AudioDeviceReroutedPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for AudioDeviceReroutedPayloadAbi<NativeAbi> {}
-impl Clone for AudioDeviceReroutedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for AudioDeviceReroutedPayloadAbi<VmAbi> {}
-impl Clone for AudioDeviceReroutedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for AudioDeviceReroutedPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioDeviceReroutedPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self {
-            device_id: field_device_id,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.device_id,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for AudioDeviceReroutedPayloadAbi<VmAbi> {}
-
-/// Value type for AudioDeviceReroutedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudioDeviceReroutedPayloadValue {
-    /// Target device identifier when present.
-    pub device_id: Option<String>,
-}
-
-impl NativeAbiCodec for AudioDeviceReroutedPayloadAbi<NativeAbi> {
-    type Value = AudioDeviceReroutedPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AudioDeviceReroutedPayloadValue {
-            device_id: unsafe {
-                <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.device_id)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            device_id: <Option<NativeStringRef> as NativeAbiCodec>::from_value(
-                binding,
-                value.device_id,
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for AudioDeviceReroutedPayloadAbi<VmAbi> {
-    type Value = AudioDeviceReroutedPayloadValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AudioDeviceReroutedPayloadValue {
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
                 self.device_id,
                 context,
@@ -6558,6 +5432,8 @@ impl VmAbiCodec for AudioDeviceReroutedPayloadAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
             device_id: <Option<vm::StringHandle> as VmAbiCodec>::from_value(
                 context,
                 value.device_id,
@@ -6835,8 +5711,8 @@ pub struct AudioInterruptionBeganEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Interruption-began payload.
-    pub payload: AudioInterruptionBeganPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 pub type AudioInterruptionBeganEvent = AudioInterruptionBeganEventAbi<NativeAbi>;
@@ -6889,14 +5765,14 @@ impl VmAggregateCodec for AudioInterruptionBeganEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload =
-            <AudioInterruptionBeganPayloadVm as VmAggregateCodec>::decode_with_context(
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
                 context, slots[2],
             )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            stream: field_stream,
         })
     }
 
@@ -6910,8 +5786,8 @@ impl VmAggregateCodec for AudioInterruptionBeganEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioInterruptionBeganPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
+                self.stream,
                 context,
             )?,
         ];
@@ -6930,8 +5806,8 @@ pub struct AudioInterruptionBeganEventValue {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Interruption-began payload.
-    pub payload: AudioInterruptionBeganPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 impl NativeAbiCodec for AudioInterruptionBeganEventAbi<NativeAbi> {
@@ -6941,8 +5817,8 @@ impl NativeAbiCodec for AudioInterruptionBeganEventAbi<NativeAbi> {
         Ok(AudioInterruptionBeganEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioInterruptionBeganPayload as NativeAbiCodec>::into_value(self.payload)?
+            stream: unsafe {
+                <Option<resource::AudioStreamHandle> as NativeAbiCodec>::into_value(self.stream)?
             },
         })
     }
@@ -6951,9 +5827,9 @@ impl NativeAbiCodec for AudioInterruptionBeganEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioInterruptionBeganPayload as NativeAbiCodec>::from_value(
+            stream: <Option<resource::AudioStreamHandle> as NativeAbiCodec>::from_value(
                 binding,
-                value.payload,
+                value.stream,
             ),
         }
     }
@@ -6969,8 +5845,8 @@ impl VmAbiCodec for AudioInterruptionBeganEventAbi<VmAbi> {
         Ok(AudioInterruptionBeganEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioInterruptionBeganPayloadVm as VmAbiCodec>::into_value(
-                self.payload,
+            stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::into_value(
+                self.stream,
                 context,
             )?,
         })
@@ -6983,105 +5859,13 @@ impl VmAbiCodec for AudioInterruptionBeganEventAbi<VmAbi> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioInterruptionBeganPayloadVm as VmAbiCodec>::from_value(
+            stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::from_value(
                 context,
-                value.payload,
+                value.stream,
             )?,
         })
     }
 }
-
-/// ABI struct for AudioInterruptionBeganPayload.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct AudioInterruptionBeganPayload {
-    /// Target stream handle when present.
-    pub stream: Option<resource::AudioStreamHandle>,
-}
-
-pub type AudioInterruptionBeganPayloadVm = AudioInterruptionBeganPayload;
-
-impl VmAggregateCodec for AudioInterruptionBeganPayload {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioInterruptionBeganPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_stream =
-            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
-            )?;
-        Ok(Self {
-            stream: field_stream,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
-                self.stream,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-/// Value type for AudioInterruptionBeganPayload.
-pub type AudioInterruptionBeganPayloadValue = AudioInterruptionBeganPayload;
-
-impl NativeAbiCodec for AudioInterruptionBeganPayload {
-    type Value = AudioInterruptionBeganPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for AudioInterruptionBeganPayload {
-    type Value = AudioInterruptionBeganPayloadValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
-impl VmCollectionElement for AudioInterruptionBeganPayload {}
 
 /// ABI struct for AudioInterruptionEndedEvent.
 #[repr(C)]
@@ -7090,8 +5874,8 @@ pub struct AudioInterruptionEndedEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Interruption-ended payload.
-    pub payload: AudioInterruptionEndedPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 pub type AudioInterruptionEndedEvent = AudioInterruptionEndedEventAbi<NativeAbi>;
@@ -7144,14 +5928,14 @@ impl VmAggregateCodec for AudioInterruptionEndedEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload =
-            <AudioInterruptionEndedPayloadVm as VmAggregateCodec>::decode_with_context(
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
                 context, slots[2],
             )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            stream: field_stream,
         })
     }
 
@@ -7165,8 +5949,8 @@ impl VmAggregateCodec for AudioInterruptionEndedEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioInterruptionEndedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
+                self.stream,
                 context,
             )?,
         ];
@@ -7185,8 +5969,8 @@ pub struct AudioInterruptionEndedEventValue {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Interruption-ended payload.
-    pub payload: AudioInterruptionEndedPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 impl NativeAbiCodec for AudioInterruptionEndedEventAbi<NativeAbi> {
@@ -7196,8 +5980,8 @@ impl NativeAbiCodec for AudioInterruptionEndedEventAbi<NativeAbi> {
         Ok(AudioInterruptionEndedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioInterruptionEndedPayload as NativeAbiCodec>::into_value(self.payload)?
+            stream: unsafe {
+                <Option<resource::AudioStreamHandle> as NativeAbiCodec>::into_value(self.stream)?
             },
         })
     }
@@ -7206,9 +5990,9 @@ impl NativeAbiCodec for AudioInterruptionEndedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioInterruptionEndedPayload as NativeAbiCodec>::from_value(
+            stream: <Option<resource::AudioStreamHandle> as NativeAbiCodec>::from_value(
                 binding,
-                value.payload,
+                value.stream,
             ),
         }
     }
@@ -7224,8 +6008,8 @@ impl VmAbiCodec for AudioInterruptionEndedEventAbi<VmAbi> {
         Ok(AudioInterruptionEndedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioInterruptionEndedPayloadVm as VmAbiCodec>::into_value(
-                self.payload,
+            stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::into_value(
+                self.stream,
                 context,
             )?,
         })
@@ -7238,105 +6022,13 @@ impl VmAbiCodec for AudioInterruptionEndedEventAbi<VmAbi> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioInterruptionEndedPayloadVm as VmAbiCodec>::from_value(
+            stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::from_value(
                 context,
-                value.payload,
+                value.stream,
             )?,
         })
     }
 }
-
-/// ABI struct for AudioInterruptionEndedPayload.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct AudioInterruptionEndedPayload {
-    /// Target stream handle when present.
-    pub stream: Option<resource::AudioStreamHandle>,
-}
-
-pub type AudioInterruptionEndedPayloadVm = AudioInterruptionEndedPayload;
-
-impl VmAggregateCodec for AudioInterruptionEndedPayload {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioInterruptionEndedPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let field_stream =
-            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
-            )?;
-        Ok(Self {
-            stream: field_stream,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
-                self.stream,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-/// Value type for AudioInterruptionEndedPayload.
-pub type AudioInterruptionEndedPayloadValue = AudioInterruptionEndedPayload;
-
-impl NativeAbiCodec for AudioInterruptionEndedPayload {
-    type Value = AudioInterruptionEndedPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for AudioInterruptionEndedPayload {
-    type Value = AudioInterruptionEndedPayloadValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
-impl VmCollectionElement for AudioInterruptionEndedPayload {}
 
 /// ABI struct for AudioStreamAvailability.
 #[repr(C)]
@@ -8093,8 +6785,12 @@ pub struct AudioStreamDeviceChangedEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Stream-device-changed payload.
-    pub payload: platform_audio::AudioStreamDeviceChangedPayloadAbi<A>,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
+    /// Current stream status flags.
+    pub status_flags: AudioStreamStatusFlags,
+    /// Target device identifier when present.
+    pub device_id: Option<A::String>,
 }
 
 pub type AudioStreamDeviceChangedEvent = AudioStreamDeviceChangedEventAbi<NativeAbi>;
@@ -8136,10 +6832,10 @@ impl VmAggregateCodec for AudioStreamDeviceChangedEventAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
@@ -8147,14 +6843,20 @@ impl VmAggregateCodec for AudioStreamDeviceChangedEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload =
-            <AudioStreamDeviceChangedPayloadVm as VmAggregateCodec>::decode_with_context(
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
                 context, slots[2],
             )?;
+        let field_status_flags =
+            <AudioStreamStatusFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_device_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            stream: field_stream,
+            status_flags: field_status_flags,
+            device_id: field_device_id,
         })
     }
 
@@ -8168,164 +6870,6 @@ impl VmAggregateCodec for AudioStreamDeviceChangedEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioStreamDeviceChangedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for AudioStreamDeviceChangedEventAbi<VmAbi> {}
-
-/// Value type for AudioStreamDeviceChangedEvent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudioStreamDeviceChangedEventValue {
-    /// Discriminator for this audio event variant.
-    pub kind: String,
-    /// Shared event metadata.
-    pub metadata: AudioEventMetadata,
-    /// Stream-device-changed payload.
-    pub payload: AudioStreamDeviceChangedPayloadValue,
-}
-
-impl NativeAbiCodec for AudioStreamDeviceChangedEventAbi<NativeAbi> {
-    type Value = AudioStreamDeviceChangedEventValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AudioStreamDeviceChangedEventValue {
-            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioStreamDeviceChangedPayload as NativeAbiCodec>::into_value(self.payload)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioStreamDeviceChangedPayload as NativeAbiCodec>::from_value(
-                binding,
-                value.payload,
-            ),
-        }
-    }
-}
-
-impl VmAbiCodec for AudioStreamDeviceChangedEventAbi<VmAbi> {
-    type Value = AudioStreamDeviceChangedEventValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AudioStreamDeviceChangedEventValue {
-            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioStreamDeviceChangedPayloadVm as VmAbiCodec>::into_value(
-                self.payload,
-                context,
-            )?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioStreamDeviceChangedPayloadVm as VmAbiCodec>::from_value(
-                context,
-                value.payload,
-            )?,
-        })
-    }
-}
-
-/// ABI struct for AudioStreamDeviceChangedPayload.
-#[repr(C)]
-pub struct AudioStreamDeviceChangedPayloadAbi<A: BindingAbi> {
-    /// Target stream handle when present.
-    pub stream: Option<resource::AudioStreamHandle>,
-    /// Current stream status flags.
-    pub status_flags: AudioStreamStatusFlags,
-    /// Target device identifier when present.
-    pub device_id: Option<A::String>,
-}
-
-pub type AudioStreamDeviceChangedPayload = AudioStreamDeviceChangedPayloadAbi<NativeAbi>;
-pub type AudioStreamDeviceChangedPayloadVm = AudioStreamDeviceChangedPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for AudioStreamDeviceChangedPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("AudioStreamDeviceChangedPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for AudioStreamDeviceChangedPayloadAbi<NativeAbi> {}
-impl Clone for AudioStreamDeviceChangedPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for AudioStreamDeviceChangedPayloadAbi<VmAbi> {}
-impl Clone for AudioStreamDeviceChangedPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for AudioStreamDeviceChangedPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioStreamDeviceChangedPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let field_stream =
-            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
-            )?;
-        let field_status_flags =
-            <AudioStreamStatusFlags as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        Ok(Self {
-            stream: field_stream,
-            status_flags: field_status_flags,
-            device_id: field_device_id,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
             <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
                 self.stream,
                 context,
@@ -8345,11 +6889,15 @@ impl VmAggregateCodec for AudioStreamDeviceChangedPayloadAbi<VmAbi> {
     }
 }
 
-impl VmCollectionElement for AudioStreamDeviceChangedPayloadAbi<VmAbi> {}
+impl VmCollectionElement for AudioStreamDeviceChangedEventAbi<VmAbi> {}
 
-/// Value type for AudioStreamDeviceChangedPayload.
+/// Value type for AudioStreamDeviceChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudioStreamDeviceChangedPayloadValue {
+pub struct AudioStreamDeviceChangedEventValue {
+    /// Discriminator for this audio event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: AudioEventMetadata,
     /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
     /// Current stream status flags.
@@ -8358,11 +6906,13 @@ pub struct AudioStreamDeviceChangedPayloadValue {
     pub device_id: Option<String>,
 }
 
-impl NativeAbiCodec for AudioStreamDeviceChangedPayloadAbi<NativeAbi> {
-    type Value = AudioStreamDeviceChangedPayloadValue;
+impl NativeAbiCodec for AudioStreamDeviceChangedEventAbi<NativeAbi> {
+    type Value = AudioStreamDeviceChangedEventValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AudioStreamDeviceChangedPayloadValue {
+        Ok(AudioStreamDeviceChangedEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
             stream: unsafe {
                 <Option<resource::AudioStreamHandle> as NativeAbiCodec>::into_value(self.stream)?
             },
@@ -8377,6 +6927,8 @@ impl NativeAbiCodec for AudioStreamDeviceChangedPayloadAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
             stream: <Option<resource::AudioStreamHandle> as NativeAbiCodec>::from_value(
                 binding,
                 value.stream,
@@ -8393,14 +6945,16 @@ impl NativeAbiCodec for AudioStreamDeviceChangedPayloadAbi<NativeAbi> {
     }
 }
 
-impl VmAbiCodec for AudioStreamDeviceChangedPayloadAbi<VmAbi> {
-    type Value = AudioStreamDeviceChangedPayloadValue;
+impl VmAbiCodec for AudioStreamDeviceChangedEventAbi<VmAbi> {
+    type Value = AudioStreamDeviceChangedEventValue;
 
     fn into_value(
         self,
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AudioStreamDeviceChangedPayloadValue {
+        Ok(AudioStreamDeviceChangedEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
             stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::into_value(
                 self.stream,
                 context,
@@ -8421,6 +6975,8 @@ impl VmAbiCodec for AudioStreamDeviceChangedPayloadAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
             stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::from_value(
                 context,
                 value.stream,
@@ -8708,8 +7264,10 @@ pub struct AudioStreamStateChangedEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Stream-state-changed payload.
-    pub payload: AudioStreamStateChangedPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
+    /// Current stream status flags.
+    pub status_flags: AudioStreamStatusFlags,
 }
 
 pub type AudioStreamStateChangedEvent = AudioStreamStateChangedEventAbi<NativeAbi>;
@@ -8751,10 +7309,10 @@ impl VmAggregateCodec for AudioStreamStateChangedEventAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
@@ -8762,14 +7320,17 @@ impl VmAggregateCodec for AudioStreamStateChangedEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload =
-            <AudioStreamStateChangedPayloadVm as VmAggregateCodec>::decode_with_context(
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
                 context, slots[2],
             )?;
+        let field_status_flags =
+            <AudioStreamStatusFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            stream: field_stream,
+            status_flags: field_status_flags,
         })
     }
 
@@ -8783,8 +7344,12 @@ impl VmAggregateCodec for AudioStreamStateChangedEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioStreamStateChangedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
+                self.stream,
+                context,
+            )?,
+            <AudioStreamStatusFlags as VmAggregateCodec>::encode_with_context(
+                self.status_flags,
                 context,
             )?,
         ];
@@ -8803,8 +7368,10 @@ pub struct AudioStreamStateChangedEventValue {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Stream-state-changed payload.
-    pub payload: AudioStreamStateChangedPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
+    /// Current stream status flags.
+    pub status_flags: AudioStreamStatusFlags,
 }
 
 impl NativeAbiCodec for AudioStreamStateChangedEventAbi<NativeAbi> {
@@ -8814,8 +7381,11 @@ impl NativeAbiCodec for AudioStreamStateChangedEventAbi<NativeAbi> {
         Ok(AudioStreamStateChangedEventValue {
             kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
             metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioStreamStateChangedPayload as NativeAbiCodec>::into_value(self.payload)?
+            stream: unsafe {
+                <Option<resource::AudioStreamHandle> as NativeAbiCodec>::into_value(self.stream)?
+            },
+            status_flags: unsafe {
+                <AudioStreamStatusFlags as NativeAbiCodec>::into_value(self.status_flags)?
             },
         })
     }
@@ -8824,9 +7394,13 @@ impl NativeAbiCodec for AudioStreamStateChangedEventAbi<NativeAbi> {
         Self {
             kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
             metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioStreamStateChangedPayload as NativeAbiCodec>::from_value(
+            stream: <Option<resource::AudioStreamHandle> as NativeAbiCodec>::from_value(
                 binding,
-                value.payload,
+                value.stream,
+            ),
+            status_flags: <AudioStreamStatusFlags as NativeAbiCodec>::from_value(
+                binding,
+                value.status_flags,
             ),
         }
     }
@@ -8842,8 +7416,12 @@ impl VmAbiCodec for AudioStreamStateChangedEventAbi<VmAbi> {
         Ok(AudioStreamStateChangedEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioStreamStateChangedPayloadVm as VmAbiCodec>::into_value(
-                self.payload,
+            stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::into_value(
+                self.stream,
+                context,
+            )?,
+            status_flags: <AudioStreamStatusFlags as VmAbiCodec>::into_value(
+                self.status_flags,
                 context,
             )?,
         })
@@ -8856,114 +7434,17 @@ impl VmAbiCodec for AudioStreamStateChangedEventAbi<VmAbi> {
         Ok(Self {
             kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
             metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioStreamStateChangedPayloadVm as VmAbiCodec>::from_value(
+            stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::from_value(
                 context,
-                value.payload,
+                value.stream,
+            )?,
+            status_flags: <AudioStreamStatusFlags as VmAbiCodec>::from_value(
+                context,
+                value.status_flags,
             )?,
         })
     }
 }
-
-/// ABI struct for AudioStreamStateChangedPayload.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct AudioStreamStateChangedPayload {
-    /// Target stream handle when present.
-    pub stream: Option<resource::AudioStreamHandle>,
-    /// Current stream status flags.
-    pub status_flags: AudioStreamStatusFlags,
-}
-
-pub type AudioStreamStateChangedPayloadVm = AudioStreamStateChangedPayload;
-
-impl VmAggregateCodec for AudioStreamStateChangedPayload {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioStreamStateChangedPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let field_stream =
-            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
-            )?;
-        let field_status_flags =
-            <AudioStreamStatusFlags as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        Ok(Self {
-            stream: field_stream,
-            status_flags: field_status_flags,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
-                self.stream,
-                context,
-            )?,
-            <AudioStreamStatusFlags as VmAggregateCodec>::encode_with_context(
-                self.status_flags,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-/// Value type for AudioStreamStateChangedPayload.
-pub type AudioStreamStateChangedPayloadValue = AudioStreamStateChangedPayload;
-
-impl NativeAbiCodec for AudioStreamStateChangedPayload {
-    type Value = AudioStreamStateChangedPayloadValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        value
-    }
-}
-
-impl VmAbiCodec for AudioStreamStateChangedPayload {
-    type Value = AudioStreamStateChangedPayloadValue;
-
-    fn into_value(
-        self,
-        _context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(self)
-    }
-
-    fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(value)
-    }
-}
-
-impl VmCollectionElement for AudioStreamStateChangedPayload {}
 
 /// ABI struct for AudioStreamSupport.
 #[repr(C)]
@@ -9320,8 +7801,14 @@ pub struct AudioStreamXRunEventAbi<A: BindingAbi> {
     pub kind: A::String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Stream-xrun payload.
-    pub payload: platform_audio::AudioStreamXRunPayloadAbi<A>,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
+    /// Current stream status flags.
+    pub status_flags: AudioStreamStatusFlags,
+    /// Xrun count delta for this event.
+    pub xrun_count_delta: u64,
+    /// Target device identifier when present.
+    pub device_id: Option<A::String>,
 }
 
 pub type AudioStreamXRunEvent = AudioStreamXRunEventAbi<NativeAbi>;
@@ -9363,10 +7850,10 @@ impl VmAggregateCodec for AudioStreamXRunEventAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 6 fields",
             ))
             .boxed());
         }
@@ -9374,12 +7861,23 @@ impl VmAggregateCodec for AudioStreamXRunEventAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_metadata =
             <AudioEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload =
-            <AudioStreamXRunPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        let field_status_flags =
+            <AudioStreamStatusFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_xrun_count_delta =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_device_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
-            payload: field_payload,
+            stream: field_stream,
+            status_flags: field_status_flags,
+            xrun_count_delta: field_xrun_count_delta,
+            device_id: field_device_id,
         })
     }
 
@@ -9393,160 +7891,6 @@ impl VmAggregateCodec for AudioStreamXRunEventAbi<VmAbi> {
                 self.metadata,
                 context,
             )?,
-            <AudioStreamXRunPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
-    }
-}
-
-impl VmCollectionElement for AudioStreamXRunEventAbi<VmAbi> {}
-
-/// Value type for AudioStreamXRunEvent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudioStreamXRunEventValue {
-    /// Discriminator for this audio event variant.
-    pub kind: String,
-    /// Shared event metadata.
-    pub metadata: AudioEventMetadata,
-    /// Stream-xrun payload.
-    pub payload: AudioStreamXRunPayloadValue,
-}
-
-impl NativeAbiCodec for AudioStreamXRunEventAbi<NativeAbi> {
-    type Value = AudioStreamXRunEventValue;
-
-    unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AudioStreamXRunEventValue {
-            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
-            metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
-            payload: unsafe {
-                <AudioStreamXRunPayload as NativeAbiCodec>::into_value(self.payload)?
-            },
-        })
-    }
-
-    fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
-        Self {
-            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
-            metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
-            payload: <AudioStreamXRunPayload as NativeAbiCodec>::from_value(binding, value.payload),
-        }
-    }
-}
-
-impl VmAbiCodec for AudioStreamXRunEventAbi<VmAbi> {
-    type Value = AudioStreamXRunEventValue;
-
-    fn into_value(
-        self,
-        context: &vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AudioStreamXRunEventValue {
-            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
-            metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
-            payload: <AudioStreamXRunPayloadVm as VmAbiCodec>::into_value(self.payload, context)?,
-        })
-    }
-
-    fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
-        value: <Self as VmAbiCodec>::Value,
-    ) -> RuntimeResult<Self> {
-        Ok(Self {
-            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
-            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
-            payload: <AudioStreamXRunPayloadVm as VmAbiCodec>::from_value(context, value.payload)?,
-        })
-    }
-}
-
-/// ABI struct for AudioStreamXRunPayload.
-#[repr(C)]
-pub struct AudioStreamXRunPayloadAbi<A: BindingAbi> {
-    /// Target stream handle when present.
-    pub stream: Option<resource::AudioStreamHandle>,
-    /// Current stream status flags.
-    pub status_flags: AudioStreamStatusFlags,
-    /// Xrun count delta for this event.
-    pub xrun_count_delta: u64,
-    /// Target device identifier when present.
-    pub device_id: Option<A::String>,
-}
-
-pub type AudioStreamXRunPayload = AudioStreamXRunPayloadAbi<NativeAbi>;
-pub type AudioStreamXRunPayloadVm = AudioStreamXRunPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for AudioStreamXRunPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("AudioStreamXRunPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for AudioStreamXRunPayloadAbi<NativeAbi> {}
-impl Clone for AudioStreamXRunPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for AudioStreamXRunPayloadAbi<VmAbi> {}
-impl Clone for AudioStreamXRunPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for AudioStreamXRunPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "AudioStreamXRunPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let field_stream =
-            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
-            )?;
-        let field_status_flags =
-            <AudioStreamStatusFlags as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_xrun_count_delta =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_device_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        Ok(Self {
-            stream: field_stream,
-            status_flags: field_status_flags,
-            xrun_count_delta: field_xrun_count_delta,
-            device_id: field_device_id,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
             <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
                 self.stream,
                 context,
@@ -9567,11 +7911,15 @@ impl VmAggregateCodec for AudioStreamXRunPayloadAbi<VmAbi> {
     }
 }
 
-impl VmCollectionElement for AudioStreamXRunPayloadAbi<VmAbi> {}
+impl VmCollectionElement for AudioStreamXRunEventAbi<VmAbi> {}
 
-/// Value type for AudioStreamXRunPayload.
+/// Value type for AudioStreamXRunEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudioStreamXRunPayloadValue {
+pub struct AudioStreamXRunEventValue {
+    /// Discriminator for this audio event variant.
+    pub kind: String,
+    /// Shared event metadata.
+    pub metadata: AudioEventMetadata,
     /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
     /// Current stream status flags.
@@ -9582,11 +7930,13 @@ pub struct AudioStreamXRunPayloadValue {
     pub device_id: Option<String>,
 }
 
-impl NativeAbiCodec for AudioStreamXRunPayloadAbi<NativeAbi> {
-    type Value = AudioStreamXRunPayloadValue;
+impl NativeAbiCodec for AudioStreamXRunEventAbi<NativeAbi> {
+    type Value = AudioStreamXRunEventValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
-        Ok(AudioStreamXRunPayloadValue {
+        Ok(AudioStreamXRunEventValue {
+            kind: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.kind)? },
+            metadata: unsafe { <AudioEventMetadata as NativeAbiCodec>::into_value(self.metadata)? },
             stream: unsafe {
                 <Option<resource::AudioStreamHandle> as NativeAbiCodec>::into_value(self.stream)?
             },
@@ -9604,6 +7954,8 @@ impl NativeAbiCodec for AudioStreamXRunPayloadAbi<NativeAbi> {
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
+            kind: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.kind),
+            metadata: <AudioEventMetadata as NativeAbiCodec>::from_value(binding, value.metadata),
             stream: <Option<resource::AudioStreamHandle> as NativeAbiCodec>::from_value(
                 binding,
                 value.stream,
@@ -9621,14 +7973,16 @@ impl NativeAbiCodec for AudioStreamXRunPayloadAbi<NativeAbi> {
     }
 }
 
-impl VmAbiCodec for AudioStreamXRunPayloadAbi<VmAbi> {
-    type Value = AudioStreamXRunPayloadValue;
+impl VmAbiCodec for AudioStreamXRunEventAbi<VmAbi> {
+    type Value = AudioStreamXRunEventValue;
 
     fn into_value(
         self,
         context: &vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
-        Ok(AudioStreamXRunPayloadValue {
+        Ok(AudioStreamXRunEventValue {
+            kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
+            metadata: <AudioEventMetadataVm as VmAbiCodec>::into_value(self.metadata, context)?,
             stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::into_value(
                 self.stream,
                 context,
@@ -9650,6 +8004,8 @@ impl VmAbiCodec for AudioStreamXRunPayloadAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
+            kind: <vm::StringHandle as VmAbiCodec>::from_value(context, value.kind)?,
+            metadata: <AudioEventMetadataVm as VmAbiCodec>::from_value(context, value.metadata)?,
             stream: <Option<resource::AudioStreamHandle> as VmAbiCodec>::from_value(
                 context,
                 value.stream,
@@ -9703,8 +8059,8 @@ pub struct AudiobackenddisconnectedeventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Backend-disconnected payload.
-    pub payload: AudioBackendDisconnectedPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 /// Replay struct for AudioBackendResetEvent.
@@ -9714,8 +8070,8 @@ pub struct AudiobackendreseteventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Backend-reset payload.
-    pub payload: AudioBackendResetPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 /// Replay struct for AudioDefaultCaptureChangedEvent.
@@ -9725,13 +8081,6 @@ pub struct AudiodefaultcapturechangedeventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Default-capture-changed payload.
-    pub payload: AudiodefaultcapturechangedpayloadReplayRecord,
-}
-
-/// Replay struct for AudioDefaultCaptureChangedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudiodefaultcapturechangedpayloadReplayRecord {
     /// Target device identifier when present.
     pub device_id: Option<String>,
 }
@@ -9743,13 +8092,6 @@ pub struct AudiodefaultloopbackchangedeventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Default-loopback-changed payload.
-    pub payload: AudiodefaultloopbackchangedpayloadReplayRecord,
-}
-
-/// Replay struct for AudioDefaultLoopbackChangedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudiodefaultloopbackchangedpayloadReplayRecord {
     /// Target device identifier when present.
     pub device_id: Option<String>,
 }
@@ -9761,13 +8103,6 @@ pub struct AudiodefaultplaybackchangedeventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Default-playback-changed payload.
-    pub payload: AudiodefaultplaybackchangedpayloadReplayRecord,
-}
-
-/// Replay struct for AudioDefaultPlaybackChangedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudiodefaultplaybackchangedpayloadReplayRecord {
     /// Target device identifier when present.
     pub device_id: Option<String>,
 }
@@ -9779,13 +8114,6 @@ pub struct AudiodeviceaddedeventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Device-added payload.
-    pub payload: AudiodeviceaddedpayloadReplayRecord,
-}
-
-/// Replay struct for AudioDeviceAddedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudiodeviceaddedpayloadReplayRecord {
     /// Target device identifier when present.
     pub device_id: Option<String>,
 }
@@ -9866,13 +8194,6 @@ pub struct AudiodeviceformatchangedeventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Device-format-changed payload.
-    pub payload: AudiodeviceformatchangedpayloadReplayRecord,
-}
-
-/// Replay struct for AudioDeviceFormatChangedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudiodeviceformatchangedpayloadReplayRecord {
     /// Target device identifier when present.
     pub device_id: Option<String>,
 }
@@ -9884,13 +8205,6 @@ pub struct AudiodeviceremovedeventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Device-removed payload.
-    pub payload: AudiodeviceremovedpayloadReplayRecord,
-}
-
-/// Replay struct for AudioDeviceRemovedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudiodeviceremovedpayloadReplayRecord {
     /// Target device identifier when present.
     pub device_id: Option<String>,
 }
@@ -9902,13 +8216,6 @@ pub struct AudiodevicereroutedeventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Device-rerouted payload.
-    pub payload: AudiodevicereroutedpayloadReplayRecord,
-}
-
-/// Replay struct for AudioDeviceReroutedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudiodevicereroutedpayloadReplayRecord {
     /// Target device identifier when present.
     pub device_id: Option<String>,
 }
@@ -9920,8 +8227,8 @@ pub struct AudiointerruptionbeganeventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Interruption-began payload.
-    pub payload: AudioInterruptionBeganPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 /// Replay struct for AudioInterruptionEndedEvent.
@@ -9931,8 +8238,8 @@ pub struct AudiointerruptionendedeventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Interruption-ended payload.
-    pub payload: AudioInterruptionEndedPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 /// Replay struct for AudioStreamDescriptor.
@@ -9994,13 +8301,6 @@ pub struct AudiostreamdevicechangedeventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Stream-device-changed payload.
-    pub payload: AudiostreamdevicechangedpayloadReplayRecord,
-}
-
-/// Replay struct for AudioStreamDeviceChangedPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudiostreamdevicechangedpayloadReplayRecord {
     /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
     /// Current stream status flags.
@@ -10016,8 +8316,10 @@ pub struct AudiostreamstatechangedeventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Stream-state-changed payload.
-    pub payload: AudioStreamStateChangedPayload,
+    /// Target stream handle when present.
+    pub stream: Option<resource::AudioStreamHandle>,
+    /// Current stream status flags.
+    pub status_flags: AudioStreamStatusFlags,
 }
 
 /// Replay struct for AudioStreamSupport.
@@ -10041,13 +8343,6 @@ pub struct AudiostreamxruneventReplayRecord {
     pub kind: String,
     /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// Stream-xrun payload.
-    pub payload: AudiostreamxrunpayloadReplayRecord,
-}
-
-/// Replay struct for AudioStreamXRunPayload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AudiostreamxrunpayloadReplayRecord {
     /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
     /// Current stream status flags.
