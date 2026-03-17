@@ -116,10 +116,8 @@ impl IsolateState {
         heap: &'a Heap,
         value: Value,
     ) -> Result<StringRef<'a>, Error> {
-        // resolve the borrowed string view
-        let view = self.string_interner.string_value_view(heap, value)?;
-
-        Ok(StringRef::new(heap, view.ptr, view.len))
+        // delegate to the string interner
+        self.string_interner.string_value_ref(heap, value)
     }
 
     /// Read a UTF-8 string from a managed handle.
