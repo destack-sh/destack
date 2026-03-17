@@ -35,7 +35,7 @@ pub(super) fn spawn_worker(
             }
 
             if !should_run {
-                std::thread::sleep(runtime.poll_period);
+                audio_core::wait_for_worker_period(&binding, runtime.poll_period);
                 continue;
             }
 

@@ -1,6 +1,7 @@
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
+use std::time::Duration;
 
 use crate::diagnostic::RuntimeResult;
 #[cfg(any(
@@ -24,8 +25,10 @@ use super::constants::{
     STREAM_FLAG_SCHEDULE_REALTIME, STREAM_REQUIRE_BIT_EXACT_PCM,
     STREAM_REQUIRE_HARDWARE_TIMESTAMPS, STREAM_REQUIRE_NON_INTERLEAVED, STREAM_REQUIRE_PAUSE,
     STREAM_REQUIRE_SCHEDULED_WRITE, STREAM_STATUS_INPUT_OVERFLOW, STREAM_STATUS_OUTPUT_UNDERFLOW,
-    host_monotonic_nanos, resolved_max_queued_frames, resolved_worker_poll_period,
+    host_monotonic_nanos, resolved_max_queued_frames, resolved_stream_wait_slice_ns,
+    resolved_worker_poll_period,
 };
+use super::error::{stream_shutdown_error, stream_state_is_terminal};
 use super::event::publish::publish_stream_event_native;
 use super::model::{
     AudioStreamHostState, AudioStreamRuntimeCapabilities, AudioStreamStateInner, AudioStreamSync,
@@ -74,6 +77,67 @@ fn estimate_drift_ppm(state: &AudioStreamStateInner, sample_rate: u32) -> f64 {
         drift_ppm
     } else {
         0.0
+    }
+}
+
+/// Wait for one worker-period slice or one stream wakeup.
+pub(crate) fn wait_for_worker_period(stream: &AudioStreamHostState, period_duration: Duration) {
+    // worker pacing
+    let state = stream
+        .sync
+        .state
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let wait = stream
+        .sync
+        .wake
+        .wait_timeout(state, period_duration)
+        .unwrap_or_else(|error| error.into_inner());
+
+    drop(wait.0);
+}
+
+/// Wait until one target presentation time or fail when the stream terminates.
+pub(crate) fn wait_for_stream_presentation_time(
+    ctx: &BindingCallContext,
+    stream: &AudioStreamHostState,
+    operation: &'static str,
+    presentation_time_ns: u64,
+) -> RuntimeResult<()> {
+    let wait_slice_ns = resolved_stream_wait_slice_ns(ctx);
+
+    loop {
+        // stop waiting once the target presentation time is reached
+        let now_ns = ctx.world().mono_nanos();
+        if now_ns >= presentation_time_ns {
+            return Ok(());
+        }
+
+        // fail loudly when the stream can no longer accept writes
+        let mut state = stream
+            .sync
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if stream_state_is_terminal(&state) {
+            return Err(stream_shutdown_error(operation, &state));
+        }
+
+        // wait for one bounded slice so stream wakeups can interrupt the schedule wait
+        let remaining_ns = presentation_time_ns.saturating_sub(now_ns);
+        let duration = Duration::from_nanos(remaining_ns.min(wait_slice_ns).max(1));
+        let wait = stream
+            .sync
+            .wake
+            .wait_timeout(state, duration)
+            .unwrap_or_else(|error| error.into_inner());
+
+        state = wait.0;
+        if stream_state_is_terminal(&state) {
+            return Err(stream_shutdown_error(operation, &state));
+        }
+
+        drop(state);
     }
 }
 
@@ -399,7 +463,7 @@ pub(crate) fn build_synthetic_stream_worker(stream: Arc<AudioStreamHostState>) -
                 );
             }
 
-            thread::sleep(period_duration);
+            wait_for_worker_period(&stream, period_duration);
         }
     })
 }

@@ -59,6 +59,7 @@ pub(crate) use stream::{
     host_stream_flush, host_stream_pause, host_stream_start, host_stream_stop, open_null_stream,
     record_stream_callback_timing, satisfied_stream_requirements, stream_availability_snapshot,
     stream_descriptor, stream_state_snapshot, stream_timing_snapshot,
+    wait_for_stream_presentation_time, wait_for_worker_period,
 };
 
 #[cfg(windows)]
@@ -93,7 +94,10 @@ pub(crate) use constants::{
 pub(crate) use constants::{BACKEND_OPEN_ALSA_NO_RESAMPLE, BACKEND_OPEN_JACK_NO_AUTOCONNECT};
 
 #[cfg(unix)]
-pub(crate) use constants::{resolved_max_stream_read_bytes, resolved_stream_wait_slice_ns};
+pub(crate) use constants::resolved_stream_wait_slice_ns;
+
+#[cfg(unix)]
+pub(crate) use constants::resolved_max_stream_read_bytes;
 
 #[cfg(windows)]
 pub(crate) use constants::{EVENT_POLL_INTERVAL_NS, MAX_STREAM_READ_BYTES};
@@ -119,7 +123,7 @@ pub(crate) use model::{
 ))]
 pub(crate) use stream::mark_stream_backend_disconnected;
 
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(target_os = "linux")]
 pub(crate) use constants::resolved_event_monitor_poll_interval_ns;
 
 #[cfg(any(target_os = "linux", windows))]

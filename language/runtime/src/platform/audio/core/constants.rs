@@ -357,7 +357,7 @@ pub(crate) fn host_monotonic_nanos() -> u64 {
 }
 
 /// Return the configured monitor poll interval for audio event monitor workers.
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(target_os = "linux")]
 pub(crate) fn resolved_event_monitor_poll_interval_ns(default_ns: u64) -> u64 {
     let configured = with_binding_call_context(|context| {
         Ok(context.agent().options.audio.event_monitor_poll_interval_ns)
@@ -385,7 +385,6 @@ pub(crate) fn resolved_default_event_poll_interval_ns(ctx: &BindingCallContext) 
         .clamp(MIN_EVENT_POLL_INTERVAL_NS, MAX_EVENT_POLL_INTERVAL_NS)
 }
 
-#[cfg(unix)]
 /// Return the configured wait-slice for blocking audio stream operations.
 pub(crate) fn resolved_stream_wait_slice_ns(ctx: &BindingCallContext) -> u64 {
     let configured = ctx.agent().options.audio.stream_wait_slice_ns;

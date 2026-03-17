@@ -56,7 +56,7 @@ pub(super) fn spawn_worker(
 
             // process one host transfer cycle while the stream runs
             if should_run {
-                if let Err(error) = wait_for_stream_signal(&runtime) {
+                if let Err(error) = wait_for_stream_signal(&binding, &runtime) {
                     let backend_message = error.to_string();
                     let mut state = binding
                         .sync
@@ -130,7 +130,7 @@ pub(super) fn spawn_worker(
             }
             // idle pacing: avoid hot spinning while paused or stopped
             else {
-                thread::sleep(runtime.poll_period);
+                audio_core::wait_for_worker_period(&binding, runtime.poll_period);
             }
 
             // wake waiters after each worker cycle
@@ -140,7 +140,10 @@ pub(super) fn spawn_worker(
 }
 
 /// Wait for one WASAPI event callback signal or poll timeout.
-fn wait_for_stream_signal(runtime: &Arc<WasapiStreamRuntime>) -> RuntimeResult<()> {
+fn wait_for_stream_signal(
+    binding: &Arc<audio_core::AudioStreamHostState>,
+    runtime: &Arc<WasapiStreamRuntime>,
+) -> RuntimeResult<()> {
     let mut handles = [0 as HANDLE; MAX_EVENT_WAIT_HANDLES];
     let mut handle_count = 0usize;
 
@@ -160,7 +163,7 @@ fn wait_for_stream_signal(runtime: &Arc<WasapiStreamRuntime>) -> RuntimeResult<(
 
     // fall back to periodic pacing when no event handles are attached
     if handle_count == 0 {
-        thread::sleep(runtime.poll_period);
+        audio_core::wait_for_worker_period(binding, runtime.poll_period);
         return Ok(());
     }
 
