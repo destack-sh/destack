@@ -221,7 +221,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5.8"
 pnp = "0.12.8"
 wasm-bindgen = "0.2.114"
-zbus = "5.14.0"
 x11rb = "0.13.2"
 wayland-client = "0.31.13"
 wayland-protocols = { version = "0.32.11", features = ["client", "staging", "unstable"] }
@@ -236,8 +235,14 @@ objc2-core-foundation = "0.3.2"
 objc2-core-graphics = "0.3.2"
 objc2-core-media = "0.3.2"
 objc2-core-video = "0.3.2"
+objc2-contacts = "0.3.2"
+objc2-core-location = "0.3.2"
+objc2-event-kit = "0.3.2"
 objc2-foundation = "0.3.2"
+objc2-user-notifications = "0.3.2"
 dispatch2 = "0.3.1"
+notify-rust = "4.12.0"
+zbus = { version = "5.14.0", default-features = false, features = ["blocking", "blocking-api"] }
 windows = { version = "0.60.0", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 windows-core = "0.60.1"
 windows-collections = "0.1.1"
