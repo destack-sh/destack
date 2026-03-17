@@ -9,8 +9,8 @@ use crate::{
     ArgumentSlice, Attribute, Block, CallSite, DataLayout, DebugTable, DevirtualizationMetadata,
     DispatchTable, Field, Function, Global, Instruction, InterfaceDispatchShape, Itab, ItabId,
     Layout, LayoutId, Local, LocalNodeId, MemoryTable, Node, NodeType, ProvenanceId,
-    ProvenanceKind, ProvenanceTable, Type, TypeAlias, TypeCache, TypeLineage, TypeTable, Value,
-    Vtable, VtableId,
+    ProvenanceKind, ProvenanceReason, ProvenanceTable, Type, TypeAlias, TypeCache, TypeLineage,
+    TypeTable, Value, Vtable, VtableId,
 };
 
 /// MIR node tree for a single module.
@@ -154,7 +154,7 @@ impl NodeTree {
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.node_type_by_node_id.push(T::TYPE);
-        let provenance_id = self.provenance_table.create_direct(source_dir_id);
+        let provenance_id = self.create_direct_provenance(source_dir_id);
 
         self.provenance_by_node_id.push(Some(provenance_id));
         self.span_by_node_id.push(None);
@@ -487,7 +487,7 @@ impl NodeTree {
     /// Set the direct DIR origin for a MIR node.
     #[inline]
     pub fn set_source(&mut self, id: u32, source_dir_id: u32) {
-        let provenance_id = self.provenance_table.create_direct(source_dir_id);
+        let provenance_id = self.create_direct_provenance(source_dir_id);
 
         self.set_provenance(id, provenance_id);
     }
@@ -497,10 +497,68 @@ impl NodeTree {
     pub fn create_provenance(
         &mut self,
         kind: ProvenanceKind,
+        reason: Option<ProvenanceReason>,
         origins: Vec<u32>,
         parents: Vec<ProvenanceId>,
     ) -> ProvenanceId {
-        self.provenance_table.create(kind, None, origins, parents)
+        self.provenance_table.create(kind, reason, origins, parents)
+    }
+
+    /// Create one direct provenance record.
+    #[inline]
+    pub fn create_direct_provenance(&mut self, origin: u32) -> ProvenanceId {
+        self.provenance_table.direct(origin)
+    }
+
+    /// Create one synthetic provenance record.
+    #[inline]
+    pub fn create_synthetic_provenance(
+        &mut self,
+        reason: Option<ProvenanceReason>,
+        parents: Vec<ProvenanceId>,
+    ) -> ProvenanceId {
+        self.provenance_table.synthetic(reason, parents)
+    }
+
+    /// Create one derived provenance record.
+    #[inline]
+    pub fn create_derived_provenance(
+        &mut self,
+        reason: Option<ProvenanceReason>,
+        origins: Vec<u32>,
+        parents: Vec<ProvenanceId>,
+    ) -> ProvenanceId {
+        self.provenance_table.derived(reason, origins, parents)
+    }
+
+    /// Create one merged provenance record.
+    #[inline]
+    pub fn create_merged_provenance(
+        &mut self,
+        origins: Vec<u32>,
+        parents: Vec<ProvenanceId>,
+    ) -> ProvenanceId {
+        self.provenance_table.merged(origins, parents)
+    }
+
+    /// Create one inlined provenance record.
+    #[inline]
+    pub fn create_inlined_provenance(
+        &mut self,
+        origins: Vec<u32>,
+        parents: Vec<ProvenanceId>,
+    ) -> ProvenanceId {
+        self.provenance_table.inlined(origins, parents)
+    }
+
+    /// Create one optimized provenance record.
+    #[inline]
+    pub fn create_optimized_provenance(
+        &mut self,
+        origins: Vec<u32>,
+        parents: Vec<ProvenanceId>,
+    ) -> ProvenanceId {
+        self.provenance_table.optimized(origins, parents)
     }
 
     /// Get the attributes for a node.

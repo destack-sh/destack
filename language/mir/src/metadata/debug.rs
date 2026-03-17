@@ -203,15 +203,44 @@ pub enum DebugValueLocation {
     State(DebugValueState),
 }
 
-/// One binding location valid over an instruction range.
+/// The start of one debug binding location range.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DebugRangeStart {
+    /// The range begins at function entry.
+    FunctionEntry,
+    /// The range begins at one specific instruction.
+    Instruction(LocalNodeId<Instruction>),
+}
+
+impl DebugRangeStart {
+    /// Create one function-entry range start.
+    pub fn function_entry() -> Self {
+        Self::FunctionEntry
+    }
+
+    /// Create one instruction range start.
+    pub fn instruction(instruction: LocalNodeId<Instruction>) -> Self {
+        Self::Instruction(instruction)
+    }
+
+    /// Return the instruction for this start, when present.
+    pub fn instruction_id(self) -> Option<LocalNodeId<Instruction>> {
+        match self {
+            Self::FunctionEntry => None,
+            Self::Instruction(instruction) => Some(instruction),
+        }
+    }
+}
+
+/// One binding location valid over a half-open instruction range.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DebugBindingLocationRange {
     /// The binding being described.
     pub binding: DebugBindingId,
     /// The storage location over the covered range.
     pub location: DebugValueLocation,
-    /// The first instruction covered by this range.
-    pub start: Option<LocalNodeId<Instruction>>,
+    /// The start of the covered range.
+    pub start: DebugRangeStart,
     /// The first instruction after the covered range, if bounded.
     pub end: Option<LocalNodeId<Instruction>>,
 }
@@ -331,6 +360,48 @@ impl DebugTable {
         id
     }
 
+    /// Record the function scope for one function.
+    pub fn set_function_scope(
+        &mut self,
+        function_id: LocalNodeId<Function>,
+        scope_id: DebugScopeId,
+    ) {
+        self.function_scopes.insert(function_id, scope_id);
+    }
+
+    /// Record the lexical scope for one block.
+    pub fn set_block_scope(&mut self, block_id: LocalNodeId<Block>, scope_id: DebugScopeId) {
+        self.block_scopes.insert(block_id, scope_id);
+    }
+
+    /// Record the debug location for one instruction.
+    pub fn set_instruction_location(
+        &mut self,
+        instruction_id: LocalNodeId<Instruction>,
+        location: DebugLocation,
+    ) {
+        self.instruction_locations.insert(instruction_id, location);
+    }
+
+    /// Append one binding location range.
+    pub fn add_binding_location_range(
+        &mut self,
+        binding: DebugBindingId,
+        location: DebugValueLocation,
+        start: DebugRangeStart,
+        end: Option<LocalNodeId<Instruction>>,
+    ) {
+        self.binding_location_ranges
+            .entry(binding)
+            .or_default()
+            .push(DebugBindingLocationRange {
+                binding,
+                location,
+                start,
+                end,
+            });
+    }
+
     /// Return the debug scope for an id.
     pub fn scope(&self, id: DebugScopeId) -> &DebugScope {
         &self.scopes[id.index()]
@@ -349,5 +420,10 @@ impl DebugTable {
     /// Return the inline site for an id.
     pub fn inline_site(&self, id: DebugInlineSiteId) -> &DebugInlineSite {
         &self.inline_sites[id.index()]
+    }
+
+    /// Return the coroutine state for an id.
+    pub fn coroutine_state(&self, id: DebugCoroutineStateId) -> &DebugCoroutineState {
+        &self.coroutine_states[id.index()]
     }
 }
