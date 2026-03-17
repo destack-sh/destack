@@ -1,8 +1,8 @@
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(unix)]
 use std::ffi::{CStr, CString, c_char, c_void};
 
 /// Open one dynamic library by one file name.
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(unix)]
 pub(crate) fn open_dynamic_library(name: &str) -> Result<*mut c_void, String> {
     let name = CString::new(name)
         .map_err(|_| String::from("dynamic library name must not contain interior NUL bytes"))?;
@@ -24,7 +24,7 @@ pub(crate) fn open_dynamic_library(name: &str) -> Result<*mut c_void, String> {
 }
 
 /// Close one open dynamic library handle.
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(unix)]
 pub(crate) fn close_dynamic_library(handle: *mut c_void) {
     if handle.is_null() {
         return;
@@ -37,7 +37,7 @@ pub(crate) fn close_dynamic_library(handle: *mut c_void) {
 }
 
 /// Load one typed symbol from one dynamic-library handle.
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(unix)]
 pub(crate) fn load_dynamic_symbol<T>(handle: *mut c_void, name: &[u8]) -> Result<T, String>
 where
     T: Copy,
@@ -111,7 +111,7 @@ where
 }
 
 /// Return one dynamic-loader error message when available.
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(unix)]
 fn dynamic_loader_error() -> Option<String> {
     let pointer = unsafe { libc::dlerror() };
     if pointer.is_null() {

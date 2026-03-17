@@ -18,6 +18,43 @@ The runtime is organized around core `runtime`, `platform` bindings, and the und
  - `runtime/`: all the core runtime scaffolding and orchestration (world, topology, poller, scheduler/loop, etc.)
  - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/lib/platform) lib
  - `host/`: host adapters, host event bridges, host ffi entrypoints, and host state integration
+
+### Runtime architecture
+
+The runtime uses one consistent architecture across native backends, host bridges, and simulation.
+
+#### State ownership
+
+Process-global service state owns shared native library contexts, monitor registrations, and subsystem-wide callback machinery.
+Agent-local runtime state owns resource tables, subscriptions, normalization, sequencing, and other lane-local runtime behavior.
+Resource-local state owns one open session, stream, watch, or subscription and any bounded queues attached to that resource.
+Session-local snapshots and caches are allowed only when the host API is asynchronous, incremental, or structurally expensive to query repeatedly.
+
+#### Authority and snapshots
+
+The host remains authoritative for native device and operating-system state.
+The runtime may keep bounded snapshots only to preserve coherent session semantics, stable identifiers, and efficient repeated queries.
+Snapshots must be explicitly scoped, explicitly invalidated, and replaced from authoritative host state instead of silently becoming the source of truth.
+Active host-affine state, external raw exposure, and other live native obligations should act as capture barriers instead of being smuggled into durable images.
+
+#### Ingress and egress
+
+`host/*` is for external host-owned ingress only, such as Android framework callbacks or other embedder-controlled bridges.
+Native platform backends in `platform/*` should use shared runtime ingress mechanisms rather than routing native events back through `host/*`.
+Resources expose normalized events and results through runtime-owned queues and handles instead of leaking backend-native callback shapes directly to callers.
+
+#### Threading and loops
+
+The default target is shared runtime polling or completion infrastructure when the host model fits it.
+When one subsystem or native library requires its own callback pump, use one explicit process-global service loop for that subsystem rather than ad hoc resource-local loops.
+Resource-local threads are a last resort and require a clear reason rooted in host semantics, affinity, or cancellation behavior.
+Queue or thread affinity must be explicit at the wrapper boundary instead of being implied by scattered backend code.
+
+#### Backpressure and shutdown
+
+All runtime-owned queues must be bounded and have explicit overflow behavior.
+Backends should report overflow, cancellation, disconnection, and shutdown through explicit runtime errors or normalized events rather than silently suppressing them.
+Blocking waits must have one clear interruption path for resource close, runtime teardown, and service shutdown.
  
 Compared to other related runtimes like Chromium, Node, or even Unity or Godot, the Destack runtime has a peculiar shape with its explicit model of both "engine", "execution", and "world" semantics.
 The point of explicitly modeling execution like this is to enable end-to-end simulation and replay as a sort of software laboratory. 

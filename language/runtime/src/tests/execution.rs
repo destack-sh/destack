@@ -1,4 +1,6 @@
 #[cfg(target_os = "macos")]
+use serde_json::Value as JsonValue;
+#[cfg(target_os = "macos")]
 use std::fs;
 #[cfg(target_os = "macos")]
 use std::os::unix::fs::PermissionsExt;
@@ -26,6 +28,9 @@ const EXECUTION_HELPER_ENV: &str = "DESTACK_RUNTIME_EXECUTION_HELPER";
 /// Process-wide gate that serializes helper child processes.
 #[cfg(target_os = "macos")]
 static EXECUTION_CHILD_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
+/// Process-wide cache for one resolved helper executable path.
+#[cfg(target_os = "macos")]
+static EXECUTION_HELPER_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 /// Run one execution-sensitive test case through one child helper process when needed.
 #[cfg(target_os = "macos")]
@@ -82,6 +87,19 @@ pub fn run_execution_case(case_name: &str) {
 /// Resolve the runtime execution helper from one explicit runner-provided path.
 #[cfg(target_os = "macos")]
 fn execution_helper_executable() -> PathBuf {
+    if let Some(path) = EXECUTION_HELPER_PATH.get() {
+        return path.clone();
+    }
+
+    let path = resolve_execution_helper_executable();
+    let _ = EXECUTION_HELPER_PATH.set(path.clone());
+
+    path
+}
+
+/// Resolve the runtime execution helper from the environment, local target output, or cargo.
+#[cfg(target_os = "macos")]
+fn resolve_execution_helper_executable() -> PathBuf {
     // prefer the exact helper path provided by the outer runner
     if let Some(path) = std::env::var_os(EXECUTION_HELPER_ENV) {
         let path = PathBuf::from(path);
@@ -110,6 +128,11 @@ fn execution_helper_executable() -> PathBuf {
 
     // fall back to the current target deps directory when cargo test runs directly
     if let Some(path) = discover_execution_helper_beside_current_executable() {
+        return path;
+    }
+
+    // build the helper on demand when raw cargo test did not prebuild it
+    if let Some(path) = build_execution_helper_with_cargo() {
         return path;
     }
 
@@ -149,6 +172,56 @@ fn discover_execution_helper_beside_current_executable() -> Option<PathBuf> {
         }
 
         return Some(path);
+    }
+
+    None
+}
+
+/// Build and resolve the helper executable through cargo when it is not already available.
+#[cfg(target_os = "macos")]
+fn build_execution_helper_with_cargo() -> Option<PathBuf> {
+    let manifest_directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let output = Command::new("cargo")
+        .current_dir(manifest_directory)
+        .args([
+            "test",
+            "-p",
+            "destack_runtime",
+            "--features",
+            "execution",
+            "--test",
+            "runtime_execution",
+            "--no-run",
+            "--message-format=json",
+        ])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = String::from_utf8(output.stdout).ok()?;
+
+    // compiler artifact messages
+    for line in stdout.lines() {
+        let Ok(message) = serde_json::from_str::<JsonValue>(line) else {
+            continue;
+        };
+
+        let target_name = message
+            .get("target")
+            .and_then(|target| target.get("name"))
+            .and_then(JsonValue::as_str);
+        if target_name != Some("runtime_execution") {
+            continue;
+        }
+
+        let executable = message.get("executable").and_then(JsonValue::as_str)?;
+        let path = PathBuf::from(executable);
+        if path_is_executable_file(&path) {
+            return Some(path);
+        }
     }
 
     None

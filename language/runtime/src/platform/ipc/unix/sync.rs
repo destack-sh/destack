@@ -1,4 +1,6 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(any(target_os = "linux", target_os = "android"))]
+use std::time::Instant;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::{core as core_platform, resource};
@@ -18,9 +20,6 @@ const SEMAPHORE_WAIT_OPERATION: &str = "destack.ipc.sync.semaphoreWait";
 const FUTEX_WAIT_OPERATION: &str = "destack.ipc.sync.futexWait";
 /// Wake futex waiters.
 const FUTEX_WAKE_OPERATION: &str = "destack.ipc.sync.futexWake";
-/// Default poll interval for timed semaphore waits on Unix hosts.
-const DEFAULT_SEMAPHORE_POLL_INTERVAL_NS: u64 = 1_000_000;
-
 /// Futex wait operation code for shared mappings.
 #[cfg(any(target_os = "linux", target_os = "android"))]
 const FUTEX_WAIT_OPERATION_CODE: libc::c_int = 0;
@@ -50,12 +49,6 @@ fn relative_timespec(timeout: Duration) -> RuntimeResult<libc::timespec> {
         tv_sec: seconds as libc::time_t,
         tv_nsec: timeout.subsec_nanos() as libc::c_long,
     })
-}
-
-/// Return the configured timed-semaphore poll interval for this runtime.
-fn semaphore_poll_interval(binding: &BindingCallContext) -> Duration {
-    let configured = binding.agent().options.ipc.unix_semaphore_poll_interval_ns;
-    core_platform::duration_from_option_ns(configured, DEFAULT_SEMAPHORE_POLL_INTERVAL_NS, 1)
 }
 
 /// Map one futex word from one shared-memory object and offset.
@@ -556,41 +549,17 @@ pub(crate) unsafe fn destack_ipc_semaphore_wait(
         }
     }
 
-    // handle timed wait mode using polling for broad unix portability
     let timeout = Duration::from_nanos(timeoutns);
-    let start = Instant::now();
-    loop {
-        let rc = unsafe { libc::sem_trywait(semaphore) };
-        if rc == 0 {
-            return Ok(());
-        }
-
-        let errno = core_platform::get_errno();
-        if errno == libc::EINTR {
-            continue;
-        }
-        if errno == libc::EAGAIN {
-            if start.elapsed() >= timeout {
-                return Err(timed_out(
-                    SEMAPHORE_WAIT_OPERATION,
-                    "failed to wait semaphore: timed out",
-                ));
-            }
-
-            std::thread::sleep(semaphore_poll_interval(binding));
-            continue;
-        }
-        if errno == libc::ETIMEDOUT {
-            return Err(timed_out(
-                SEMAPHORE_WAIT_OPERATION,
-                "failed to wait semaphore: timed out",
-            ));
-        }
-
-        return Err(io_error(
+    match core_platform::unix_semaphore_wait_timed(semaphore, timeout) {
+        Ok(core_platform::UnixSemaphoreWaitStatus::Acquired) => Ok(()),
+        Ok(core_platform::UnixSemaphoreWaitStatus::TimedOut) => Err(timed_out(
             SEMAPHORE_WAIT_OPERATION,
-            "sem_trywait",
+            "failed to wait semaphore: timed out",
+        )),
+        Err(_) => Err(io_error(
+            SEMAPHORE_WAIT_OPERATION,
+            "sem_wait",
             "failed to timed-wait semaphore",
-        ));
+        )),
     }
 }

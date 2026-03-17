@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, VecDeque};
-use std::sync::mpsc::sync_channel;
 use std::sync::{Arc, OnceLock, Weak};
 
 use parking_lot::Mutex;
@@ -9,6 +8,14 @@ use parking_lot::Mutex;
 pub(crate) struct WindowsLoopQueue {
     /// Pending callbacks for one bound windows thread.
     pub(super) callbacks: Mutex<VecDeque<WindowsLoopCallback>>,
+}
+
+impl WindowsLoopQueue {
+    /// Queue one callback for later delivery on the bound windows loop thread.
+    pub(crate) fn enqueue_callback(&self, callback: WindowsLoopCallback) {
+        let mut callbacks = self.callbacks.lock();
+        callbacks.push_back(callback);
+    }
 }
 
 /// One queued windows loop callback.
@@ -28,7 +35,7 @@ pub(crate) const WINDOWS_HOST_LOOP_SERVICE_MESSAGE_ID: u32 =
     windows_sys::Win32::UI::WindowsAndMessaging::WM_APP + 0x2541;
 
 /// Register one windows loop callback queue.
-pub(super) fn register_windows_loop_queue(thread_id: u32, queue: &Arc<WindowsLoopQueue>) {
+pub(crate) fn register_windows_loop_queue(thread_id: u32, queue: &Arc<WindowsLoopQueue>) {
     let registry = windows_loop_registry();
     let mut queues_by_thread = registry.queues_by_thread.lock();
 
