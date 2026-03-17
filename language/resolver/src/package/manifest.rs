@@ -15,6 +15,7 @@ impl Resolver {
         cache_policy: CachePolicy,
     ) -> Result<Option<PackageId>, ResolveError> {
         let package_json_path = path.join("package.json");
+        let destack_config_path = path.join("destack.json");
 
         // reuse the cached package entry when possible
         if let Some(package_id) = self.packages.get_id_by_path(path)
@@ -25,56 +26,85 @@ impl Resolver {
             if let Some(ref config) = package.manifest {
                 ctx.track_found_dependency(&config.path);
             }
+            if let Some(ref config) = package.config {
+                ctx.track_found_dependency(&config.path);
+            }
             return Ok(Some(package_id));
         }
 
-        // read the manifest file
-        let bytes = match self.read_path(&package_json_path) {
-            Ok(bytes) => bytes,
+        // read destack config when present so it can override package compatibility fields
+        let destack_config = match self.read_destack_config(path, cache_policy) {
+            Ok(config) => {
+                ctx.track_found_dependency(&config.path);
+                Some(config)
+            }
+            Err(ResolveError::DestackNotFound { .. }) => {
+                ctx.track_missing_dependency(&destack_config_path);
+                None
+            }
+            Err(error) => return Err(error),
+        };
+
+        // read package.json when present, otherwise synthesize a manifest from destack.json
+        let mut package_config = match self.read_path(&package_json_path) {
+            Ok(bytes) => {
+                // materialize the manifest as a tracked file entry
+                let file_id = self
+                    .files
+                    .get_id_by_path(&package_json_path)
+                    .unwrap_or_else(|| self.files.next_id());
+                let (name, uri) = Uri::from_path_with_name(&package_json_path);
+                let file = File::from_bytes_as_json(
+                    file_id,
+                    name,
+                    uri,
+                    Some(package_json_path.clone()),
+                    FileType::Json,
+                    bytes,
+                )
+                .map_err(|_| ResolveError::InvalidPackageJson {
+                    path: package_json_path.clone(),
+                })?;
+                if self.files.get_maybe(file_id).is_some() {
+                    self.files.replace(file);
+                } else {
+                    self.files.insert(file);
+                }
+                let file = self.files.get(file_id);
+
+                // align manifest realpaths with path canonicalization
+                let package_json_realpath = if self.options.canonicalize_symlinks {
+                    self.canonicalize(path)?.join("package.json")
+                } else {
+                    package_json_path.clone()
+                };
+
+                ctx.track_found_dependency(&package_json_path);
+                PackageManifest::parse(&file, package_json_realpath).map_err(|_| {
+                    ResolveError::InvalidPackageJson {
+                        path: package_json_path.clone(),
+                    }
+                })?
+            }
             Err(_) => {
                 ctx.track_missing_dependency(&package_json_path);
-                return Ok(None);
+
+                let Some(config) = destack_config.as_ref() else {
+                    return Ok(None);
+                };
+
+                let realpath = if self.options.canonicalize_symlinks {
+                    self.canonicalize(&config.path)?
+                } else {
+                    config.path.clone()
+                };
+
+                PackageManifest::from_destack(config, realpath)
             }
         };
 
-        // materialize the manifest as a tracked file entry
-        let file_id = self
-            .files
-            .get_id_by_path(&package_json_path)
-            .unwrap_or_else(|| self.files.next_id());
-        let (name, uri) = Uri::from_path_with_name(&package_json_path);
-        let file = File::from_bytes_as_json(
-            file_id,
-            name,
-            uri,
-            Some(package_json_path.clone()),
-            FileType::Json,
-            bytes,
-        )
-        .map_err(|_| ResolveError::InvalidPackageJson {
-            path: package_json_path.clone(),
-        })?;
-        if self.files.get_maybe(file_id).is_some() {
-            self.files.replace(file);
-        } else {
-            self.files.insert(file);
-        }
-        let file = self.files.get(file_id);
-
-        // align manifest realpaths with path canonicalization
-        let package_json_realpath = if self.options.canonicalize_symlinks {
-            self.canonicalize(path)?.join("package.json")
-        } else {
-            package_json_path.clone()
-        };
-
-        // parse the package manifest
-        let package_config =
-            PackageManifest::parse(&file, package_json_realpath).map_err(|_| {
-                ResolveError::InvalidPackageJson {
-                    path: package_json_path.clone(),
-                }
-            })?;
+        // make destack authoritative for overlapping manifest fields
+        package_config.refresh_from_destack(destack_config.as_ref());
 
         // insert or refresh the package registry entry
         let package_id = PackageId::from_path(&package_config.directory);
@@ -86,6 +116,7 @@ impl Resolver {
             package.name = package_config.content.name.clone();
             package.version = package_config.content.version.clone();
             package.manifest = Some(package_config);
+            package.config = destack_config;
         } else {
             let package = Package {
                 id: package_id,
@@ -96,14 +127,12 @@ impl Resolver {
                 name: package_config.content.name.clone(),
                 version: package_config.content.version.clone(),
                 manifest: Some(package_config),
-                dsconfig: None,
+                config: destack_config,
                 tsconfig: None,
                 targets: Default::default(),
             };
             self.packages.insert(package);
         }
-
-        ctx.track_found_dependency(&package_json_path);
         Ok(Some(package_id))
     }
 

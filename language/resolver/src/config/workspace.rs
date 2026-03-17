@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use destack_source::{File, FileType, Uri};
-use destack_workspace::{DsConfig, Workspace, WorkspacesField};
+use destack_workspace::{Destack, Workspace, WorkspacesField};
 use serde::Deserialize;
 
 use crate::{CachePolicy, ResolveError, Resolver};
@@ -17,14 +17,20 @@ impl Resolver {
     /// Discover a workspace from one path.
     ///
     /// Walk up directories looking for:
-    /// 1. `package.json` with a `workspaces` field
-    /// 2. `pnpm-workspace.yaml`
+    /// 1. `destack.json` with a `workspace.members` field
+    /// 2. `package.json` with a `workspaces` field
+    /// 3. `pnpm-workspace.yaml`
     ///
     /// Return a single package workspace if no monorepo root is found.
     pub fn discover_workspace(&self, path: &Path) -> Result<Workspace, ResolveError> {
         // walk up directories looking for a workspace root
         let mut current = path.to_path_buf();
         loop {
+            // check for a Destack workspace root
+            if let Some(workspace) = self.check_destack_workspace(&current)? {
+                return Ok(workspace);
+            }
+
             // check for workspaces in package.json
             if let Some(workspace) = self.check_npm_workspace(&current)? {
                 return Ok(workspace);
@@ -60,22 +66,39 @@ impl Resolver {
         self.attach_workspace_config(workspace)
     }
 
-    /// Attach root dsconfig to the workspace when available.
+    /// Check if a directory contains a Destack workspace root.
+    fn check_destack_workspace(&self, dir: &Path) -> Result<Option<Workspace>, ResolveError> {
+        let Some(config) = self.read_workspace_destack_config(dir)? else {
+            return Ok(None);
+        };
+
+        if config.options.workspace.members.is_empty() {
+            return Ok(None);
+        }
+
+        let package_paths =
+            self.expand_workspace_patterns(dir, &config.options.workspace.members)?;
+        let workspace = Workspace::monorepo(dir.to_path_buf(), package_paths).with_config(config);
+
+        Ok(Some(workspace))
+    }
+
+    /// Attach the root Destack config to the workspace when available.
     fn attach_workspace_config(&self, mut workspace: Workspace) -> Result<Workspace, ResolveError> {
-        // try to load the root dsconfig when present
-        if let Some(dsconfig) = self.read_workspace_dsconfig(&workspace.root)? {
-            workspace = workspace.with_config(dsconfig);
+        // try to load the root Destack config when present
+        if let Some(config) = self.read_workspace_destack_config(&workspace.root)? {
+            workspace = workspace.with_config(config);
         }
 
         Ok(workspace)
     }
 
-    /// Read the workspace root dsconfig when present.
-    fn read_workspace_dsconfig(&self, root: &Path) -> Result<Option<DsConfig>, ResolveError> {
-        let dsconfig_path = root.join("dsconfig.json");
-        match self.read_dsconfig(&dsconfig_path, CachePolicy::UseCache) {
-            Ok(dsconfig) => Ok(Some(dsconfig)),
-            Err(ResolveError::DsConfigNotFound { .. }) => Ok(None),
+    /// Read the workspace root Destack config when present.
+    fn read_workspace_destack_config(&self, root: &Path) -> Result<Option<Destack>, ResolveError> {
+        let destack_config_path = root.join("destack.json");
+        match self.read_destack_config(&destack_config_path, CachePolicy::UseCache) {
+            Ok(config) => Ok(Some(config)),
+            Err(ResolveError::DestackNotFound { .. }) => Ok(None),
             Err(error) => Err(error),
         }
     }
@@ -215,9 +238,8 @@ impl Resolver {
             // expand the supported glob forms manually
             let expanded = self.expand_glob_pattern(root, pattern);
             for path in expanded {
-                // check if it has a package.json
-                let package_json = path.join("package.json");
-                if self.fs().metadata(&package_json).is_ok_and(|m| m.is_file) {
+                // check if it is one project root
+                if self.is_workspace_member_root(&path) {
                     package_paths.push(path);
                 }
             }
@@ -257,6 +279,23 @@ impl Resolver {
         results
     }
 
+    /// Check whether one path looks like a workspace member root.
+    fn is_workspace_member_root(&self, path: &Path) -> bool {
+        let destack_config_path = path.join("destack.json");
+        if self
+            .fs()
+            .metadata(&destack_config_path)
+            .is_ok_and(|metadata| metadata.is_file)
+        {
+            return true;
+        }
+
+        let package_json_path = path.join("package.json");
+        self.fs()
+            .metadata(&package_json_path)
+            .is_ok_and(|metadata| metadata.is_file)
+    }
+
     /// Recursively collect directories.
     fn collect_directories_recursive(&self, root: &Path, base: &str, results: &mut Vec<PathBuf>) {
         let base_path = root.join(base);
@@ -279,6 +318,13 @@ impl Resolver {
     pub fn find_workspace_root(&self, path: &Path) -> Option<PathBuf> {
         let mut current = path.to_path_buf();
         loop {
+            // check for a Destack workspace root
+            if let Ok(Some(config)) = self.read_workspace_destack_config(&current)
+                && !config.options.workspace.members.is_empty()
+            {
+                return Some(current);
+            }
+
             // check for npm/yarn workspaces
             let package_json_path = current.join("package.json");
             if self
