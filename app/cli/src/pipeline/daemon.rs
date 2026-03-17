@@ -21,7 +21,7 @@ use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_source::{
     DiagnosticCollection, DiagnosticOptions, File, FileRegistry, FileType, FileWatchStatus,
 };
-use destack_workspace::{DsConfigRuntimeOptionsJson, OptimizeLevel, Session};
+use destack_workspace::{OptimizeLevel, RuntimeOptionsJson, Session};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -206,7 +206,7 @@ impl CommandOptionsBuilder {
         // build defaults from program settings
         let options = CommonCommandOptions {
             inputs: Vec::new(),
-            allow_dsconfig_fallback: false,
+            allow_destack_config_fallback: false,
             cache_dir: program.cache_dir.clone(),
             config_path: program.config.clone(),
             target: None,
@@ -229,9 +229,9 @@ impl CommandOptionsBuilder {
         self
     }
 
-    /// Allow fallback to dsconfig discovery.
-    pub fn allow_dsconfig_fallback(mut self, allow: bool) -> Self {
-        self.options.allow_dsconfig_fallback = allow;
+    /// Allow fallback to destack.json discovery.
+    pub fn allow_destack_config_fallback(mut self, allow: bool) -> Self {
+        self.options.allow_destack_config_fallback = allow;
         self
     }
 
@@ -248,7 +248,7 @@ impl CommandOptionsBuilder {
     }
 
     /// Set runtime overrides.
-    pub fn runtime_overrides(mut self, overrides: Option<DsConfigRuntimeOptionsJson>) -> Self {
+    pub fn runtime_overrides(mut self, overrides: Option<RuntimeOptionsJson>) -> Self {
         self.options.runtime_overrides = overrides;
         self
     }

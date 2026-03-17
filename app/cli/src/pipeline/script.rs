@@ -7,14 +7,14 @@ use serde_json::Value;
 use crate::common::ProgramArgs;
 use crate::error::{CliError, CliResult};
 use crate::pipeline::workspace::{
-    find_dsconfig, load_dsconfig, resolve_dsconfig_path, workspace_context,
+    find_destack_config, load_destack_config, resolve_destack_config_path, workspace_context,
 };
 
 /// Source of a resolved script command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScriptSource {
-    /// Script came from dsconfig.json tasks.
-    DsConfig,
+    /// Script came from destack.json tasks.
+    Destack,
     /// Script came from package.json scripts.
     PackageJson,
 }
@@ -32,7 +32,7 @@ pub struct ScriptCommand {
     pub source: ScriptSource,
 }
 
-/// Task specification loaded from dsconfig.json.
+/// Task specification loaded from destack.json.
 #[derive(Debug, Clone)]
 pub struct TaskSpec {
     /// The task name.
@@ -45,7 +45,7 @@ pub struct TaskSpec {
     pub cwd: Option<PathBuf>,
 }
 
-/// Resolve a script command from dsconfig tasks or package.json scripts.
+/// Resolve a script command from destack.json tasks or package.json scripts.
 pub fn resolve_script_command(
     program_args: &ProgramArgs,
     script_name: &str,
@@ -55,22 +55,25 @@ pub fn resolve_script_command(
     resolve_script_command_with_resolver(program_args, script_name, &context.resolver, &cwd)
 }
 
-/// Load task specifications from a dsconfig.json file.
+/// Load task specifications from a destack.json file.
 pub fn load_tasks(
     resolver: &destack_resolver::Resolver,
-    dsconfig_path: &Path,
+    destack_config_path: &Path,
 ) -> CliResult<Vec<TaskSpec>> {
-    // read the dsconfig file
-    let content = resolver.fs.read_to_string(dsconfig_path).map_err(|error| {
-        CliError::message(format!(
-            "failed to read {}: {error}",
-            dsconfig_path.display()
-        ))
-    })?;
+    // read the config file
+    let content = resolver
+        .fs
+        .read_to_string(destack_config_path)
+        .map_err(|error| {
+            CliError::message(format!(
+                "failed to read {}: {error}",
+                destack_config_path.display()
+            ))
+        })?;
 
     // parse the config json
     let value: Value = serde_json::from_str(&content)
-        .map_err(|error| CliError::message(format!("invalid dsconfig: {error}")))?;
+        .map_err(|error| CliError::message(format!("invalid destack.json: {error}")))?;
 
     // extract the task map
     let Some(tasks_value) = value.get("tasks") else {
@@ -80,11 +83,11 @@ pub fn load_tasks(
         .as_object()
         .ok_or_else(|| CliError::message("tasks must be an object"))?;
 
-    // resolve the dsconfig directory
-    let dsconfig_dir = dsconfig_path
+    // resolve the config directory
+    let config_dir = destack_config_path
         .parent()
         .map(PathBuf::from)
-        .unwrap_or_else(|| dsconfig_path.to_path_buf());
+        .unwrap_or_else(|| destack_config_path.to_path_buf());
 
     // build task specs from json values
     let mut tasks = Vec::new();
@@ -114,7 +117,7 @@ pub fn load_tasks(
             if path.is_absolute() {
                 path
             } else {
-                dsconfig_dir.join(path)
+                config_dir.join(path)
             }
         });
 
@@ -145,24 +148,24 @@ pub fn shell_command(command: &str) -> Command {
     cmd
 }
 
-/// Resolve a dsconfig task by name.
-fn resolve_dsconfig_task(
+/// Resolve a destack.json task by name.
+fn resolve_destack_config_task(
     program_args: &ProgramArgs,
     name: &str,
     resolver: &destack_resolver::Resolver,
     cwd: &Path,
 ) -> CliResult<Option<TaskSpec>> {
-    let dsconfig_path = if program_args.config.is_some() {
-        Some(resolve_dsconfig_path(program_args, resolver, cwd)?)
+    let destack_config_path = if program_args.config.is_some() {
+        Some(resolve_destack_config_path(program_args, resolver, cwd)?)
     } else {
-        find_dsconfig(resolver, cwd)
+        find_destack_config(resolver, cwd)
     };
 
-    let Some(dsconfig_path) = dsconfig_path else {
+    let Some(destack_config_path) = destack_config_path else {
         return Ok(None);
     };
 
-    let tasks = load_tasks(resolver, &dsconfig_path)?;
+    let tasks = load_tasks(resolver, &destack_config_path)?;
     Ok(tasks.into_iter().find(|task| task.name == name))
 }
 
@@ -173,7 +176,7 @@ pub(crate) fn resolve_script_command_with_resolver(
     resolver: &destack_resolver::Resolver,
     cwd: &Path,
 ) -> CliResult<Option<ScriptCommand>> {
-    if let Some(task) = resolve_dsconfig_task(program_args, script_name, resolver, cwd)? {
+    if let Some(task) = resolve_destack_config_task(program_args, script_name, resolver, cwd)? {
         let cwd = task
             .cwd
             .unwrap_or_else(|| task_base_dir(program_args, resolver, cwd));
@@ -181,7 +184,7 @@ pub(crate) fn resolve_script_command_with_resolver(
             name: task.name,
             command: task.command,
             cwd,
-            source: ScriptSource::DsConfig,
+            source: ScriptSource::Destack,
         }));
     }
 
@@ -254,17 +257,17 @@ fn find_package_json(
     }
 }
 
-/// Resolve the base directory for dsconfig tasks.
+/// Resolve the base directory for destack.json tasks.
 fn task_base_dir(
     program_args: &ProgramArgs,
     resolver: &destack_resolver::Resolver,
     cwd: &Path,
 ) -> PathBuf {
     // resolve base dir for tasks when no cwd override is provided
-    if let Some(path) = find_dsconfig(resolver, cwd)
-        && let Ok(dsconfig) = load_dsconfig(resolver, &path)
+    if let Some(path) = find_destack_config(resolver, cwd)
+        && let Ok(config) = load_destack_config(resolver, &path)
     {
-        return dsconfig.directory;
+        return config.directory;
     }
 
     if let Some(config) = program_args.config.as_ref() {

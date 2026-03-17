@@ -14,7 +14,7 @@ use crate::console;
 /// Template type for initialization.
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
 pub enum Template {
-    /// Minimal project with just dsconfig.json.
+    /// Minimal project with just destack.json.
     #[default]
     Minimal,
     /// Library project with src/index.ds.
@@ -121,35 +121,35 @@ pub fn run(args: &InitArgs) -> i32 {
             .unwrap_or_else(|| "destack-project".to_string())
     });
 
-    // create dsconfig.json
-    let dsconfig_path = dir.join("dsconfig.json");
-    let dsconfig_exists = match fs.exists(&dsconfig_path) {
+    // create destack.json
+    let destack_config_path = dir.join("destack.json");
+    let destack_config_exists = match fs.exists(&destack_config_path) {
         Ok(exists) => exists,
         Err(e) => {
             return report_error(
                 "init",
                 &args.report,
-                &format!("failed to check dsconfig.json: {e}"),
+                &format!("failed to check destack.json: {e}"),
             );
         }
     };
-    if dsconfig_exists && !args.force {
+    if destack_config_exists && !args.force {
         if !args.report.is_json() {
-            console::warn("dsconfig.json already exists (use --force to overwrite)");
+            console::warn("destack.json already exists (use --force to overwrite)");
         }
     } else {
-        let dsconfig = create_dsconfig(&name, args.template);
-        if let Err(e) = fs.write(dsconfig_path.as_path(), dsconfig.as_bytes()) {
+        let config = create_destack_config(&name, args.template);
+        if let Err(e) = fs.write(destack_config_path.as_path(), config.as_bytes()) {
             return report_error(
                 "init",
                 &args.report,
-                &format!("failed to write dsconfig.json: {e}"),
+                &format!("failed to write destack.json: {e}"),
             );
         }
         if !args.report.is_json() {
-            console::info(&format!("created {}", dsconfig_path.display()));
+            console::info(&format!("created {}", destack_config_path.display()));
         }
-        created.push(dsconfig_path.display().to_string());
+        created.push(destack_config_path.display().to_string());
     }
 
     // create source files based on template
@@ -270,8 +270,8 @@ fn create_source_file(
     Ok(())
 }
 
-/// Build the dsconfig.json content for a template.
-fn create_dsconfig(_name: &str, template: Template) -> String {
+/// Build the destack.json content for a template.
+fn create_destack_config(_name: &str, template: Template) -> String {
     // select include patterns by template
     let (include, root_dir) = match template {
         Template::Minimal => (vec!["**/*.ds", "**/*.ts"], None),
@@ -279,7 +279,7 @@ fn create_dsconfig(_name: &str, template: Template) -> String {
     };
 
     // define compiler options for the template
-    let mut compiler_options = json!({
+    let mut compiler = json!({
         "target": "esnext",
         "module": "esnext",
         "strict": true,
@@ -287,19 +287,19 @@ fn create_dsconfig(_name: &str, template: Template) -> String {
     });
     // set rootDir for src-based templates
     if let Some(root_dir) = root_dir {
-        compiler_options["rootDir"] = json!(root_dir);
+        compiler["rootDir"] = json!(root_dir);
     }
 
-    // build the dsconfig payload
-    let dsconfig = json!({
-        "$schema": "https://destack.sh/schemas/dsconfig.schema.json",
-        "compilerOptions": compiler_options,
+    // build the config payload
+    let config = json!({
+        "$schema": "https://destack.sh/schemas/destack.schema.json",
+        "compiler": compiler,
         "include": include,
         "exclude": ["node_modules", "dist"],
     });
 
-    // serialize the dsconfig json
-    serde_json::to_string_pretty(&dsconfig).unwrap_or_else(|_| dsconfig.to_string())
+    // serialize the config json
+    serde_json::to_string_pretty(&config).unwrap_or_else(|_| config.to_string())
 }
 
 const LIB_TEMPLATE: &str = r#"/// Library entry point.

@@ -213,7 +213,7 @@ impl From<PlatformArg> for Platform {
 /// Target configuration arguments for build commands.
 #[derive(Args, Debug, Clone, Default)]
 pub struct TargetArgs {
-    /// Use a named target from dsconfig.json.
+    /// Use a named target from destack.json.
     #[arg(long = "target", short = 't')]
     pub target: Option<String>,
 
@@ -307,7 +307,7 @@ pub struct TargetArgs {
 }
 
 impl TargetArgs {
-    /// Check if this specifies a named target from dsconfig.
+    /// Check if this specifies a named target from destack.json.
     pub fn is_named_target(&self) -> bool {
         self.target.is_some()
     }

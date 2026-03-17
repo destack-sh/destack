@@ -1,7 +1,7 @@
 use std::process::Command;
 
 use destack_source::DiagnosticCollection;
-use destack_workspace::{DsConfig, ExtendsFieldJson};
+use destack_workspace::{Destack, ExtendsFieldJson};
 use serde::{Deserialize, Serialize};
 
 use super::context::CommandContext;
@@ -67,8 +67,8 @@ pub struct CommandDoctorPayload {
     pub available_parallelism: u64,
     /// Workspace metadata.
     pub workspace: CommandDoctorWorkspace,
-    /// Resolved dsconfig path.
-    pub dsconfig: Option<String>,
+    /// Resolved destack.json path.
+    pub config: Option<String>,
     /// Config extends entries.
     pub extends: Option<Vec<String>>,
     /// Default target name.
@@ -99,27 +99,27 @@ impl CommandContext<'_> {
         // resolve workspace context
         let workspace = self.daemon.session.workspace_snapshot();
 
-        // resolve dsconfig
-        let dsconfig_path = if self.common.config_path.is_some() {
-            self.resolve_dsconfig_path(self.common.config_path.as_deref())
+        // resolve config
+        let config_path = if self.common.config_path.is_some() {
+            self.resolve_destack_config_path(self.common.config_path.as_deref())
                 .ok()
         } else {
-            self.find_dsconfig(&self.program.cwd)
+            self.find_destack_config(&self.program.cwd)
         };
-        let dsconfig = dsconfig_path
+        let config = config_path
             .as_ref()
-            .and_then(|path| self.load_dsconfig(path).ok());
+            .and_then(|path| self.load_destack_config(path).ok());
 
-        // collect dsconfig warnings
+        // collect config warnings
         let mut warnings = Vec::new();
-        if dsconfig_path.is_none() {
-            warnings.push("dsconfig.json not found".to_string());
+        if config_path.is_none() {
+            warnings.push("destack.json not found".to_string());
         }
 
         let mut target_names = Vec::new();
         let mut default_target = None;
         let mut extends = Vec::new();
-        if let Some(config) = dsconfig.as_ref() {
+        if let Some(config) = config.as_ref() {
             target_names = config.options.targets.keys().cloned().collect();
             default_target = config.options.default_target.clone();
             extends = list_extends(config);
@@ -168,9 +168,7 @@ impl CommandContext<'_> {
                     None
                 },
             },
-            dsconfig: dsconfig_path
-                .as_ref()
-                .map(|path| path.display().to_string()),
+            config: config_path.as_ref().map(|path| path.display().to_string()),
             extends: if extends.is_empty() {
                 None
             } else {
@@ -248,10 +246,10 @@ fn parse_version_output(stdout: &[u8], stderr: &[u8]) -> Option<String> {
     None
 }
 
-/// Collect extends entries for a dsconfig.
-fn list_extends(dsconfig: &DsConfig) -> Vec<String> {
+/// Collect extends entries for a config.
+fn list_extends(config: &Destack) -> Vec<String> {
     let mut entries = Vec::new();
-    match &dsconfig.content.extends {
+    match &config.content.extends {
         Some(ExtendsFieldJson::Single(value)) => entries.push(value.clone()),
         Some(ExtendsFieldJson::Multiple(values)) => entries.extend(values.clone()),
         None => {}

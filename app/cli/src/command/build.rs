@@ -17,7 +17,7 @@ use crate::pipeline::watch::{
     WatchCompileContext, WatchLoopOptions, build_watch_loop_options, emit_watch_compile_report,
     run_daemon_watch_command, watch_error,
 };
-use crate::pipeline::workspace::{load_dsconfig_for_program, workspace_context};
+use crate::pipeline::workspace::{load_destack_config_for_program, workspace_context};
 use clap::Args;
 
 /// State for build watch mode.
@@ -55,7 +55,7 @@ pub struct BuildArgs {
 
 /// Compile source files and produce output.
 pub fn run(args: &BuildArgs) -> i32 {
-    // resolve target name (prefer dsconfig default target for package builds)
+    // resolve target name (prefer destack.json default target for package builds)
     let target_name = if args.input.has_input() {
         target_name_from_args(&args.target, "default")
     } else {
@@ -63,13 +63,15 @@ pub fn run(args: &BuildArgs) -> i32 {
             Ok(context) => context,
             Err(error) => return report_error("build", &args.report, &error.to_string()),
         };
-        let dsconfig =
-            match load_dsconfig_for_program(&args.program, &context.resolver, &context.session.cwd)
-            {
-                Ok(dsconfig) => dsconfig,
-                Err(error) => return report_error("build", &args.report, &error.to_string()),
-            };
-        dsconfig
+        let config = match load_destack_config_for_program(
+            &args.program,
+            &context.resolver,
+            &context.session.cwd,
+        ) {
+            Ok(config) => config,
+            Err(error) => return report_error("build", &args.report, &error.to_string()),
+        };
+        config
             .options
             .default_target
             .clone()
@@ -109,7 +111,7 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
     // build command options for daemon execution
     let options = CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
         .inputs(inputs)
-        .allow_dsconfig_fallback(!args.input.has_input())
+        .allow_destack_config_fallback(!args.input.has_input())
         .target(target_name.to_string())
         .target_overrides(target_overrides_from_args(&args.target))
         .dry_run(args.dry_run)
@@ -245,7 +247,7 @@ where
         Ok(
             CommandOptionsBuilder::new(&args.program, Some(watch_diagnostic_options.clone()))
                 .inputs(inputs)
-                .allow_dsconfig_fallback(!args.input.has_input())
+                .allow_destack_config_fallback(!args.input.has_input())
                 .target(target_name.to_string())
                 .target_overrides(target_overrides.clone())
                 .build(),

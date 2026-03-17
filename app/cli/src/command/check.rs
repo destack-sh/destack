@@ -531,7 +531,7 @@ fn build_check_command(
     let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
     let common = CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
         .inputs(inputs)
-        .allow_dsconfig_fallback(!args.input.has_input())
+        .allow_destack_config_fallback(!args.input.has_input())
         .build();
     let payload = CommandPayload::Check(CommandCheckOptions {
         lint: !args.no_lint && !args.fix && !args.diff,

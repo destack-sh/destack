@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use destack_source::{DiagnosticOptions, FileType};
 use destack_workspace::{
-    DebugInfoLevel, DsConfigRuntimeOptionsJson, EmitArtifact, LinkMode, LtoMode, OptimizeLevel,
-    OutputFormat, Platform, Runtime, StripLevel, Target,
+    DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, OutputFormat, Platform,
+    Runtime, RuntimeOptionsJson, StripLevel, Target,
 };
 use serde::{Deserialize, Serialize};
 
@@ -261,18 +261,18 @@ pub struct CommandMessagePayload {
 pub struct CommonCommandOptions {
     /// Input sources for the command.
     pub inputs: Vec<CommandInput>,
-    /// Whether dsconfig fallback should resolve inputs when none are provided.
-    pub allow_dsconfig_fallback: bool,
+    /// Whether Destack config fallback should resolve inputs when none are provided.
+    pub allow_destack_config_fallback: bool,
     /// Optional cache directory override.
     pub cache_dir: Option<PathBuf>,
-    /// Optional dsconfig path override.
+    /// Optional Destack config path override.
     pub config_path: Option<PathBuf>,
     /// Optional target name override.
     pub target: Option<String>,
     /// Optional target overrides.
     pub target_overrides: Option<CommandTargetOverrides>,
     /// Optional runtime overrides.
-    pub runtime_overrides: Option<DsConfigRuntimeOptionsJson>,
+    pub runtime_overrides: Option<RuntimeOptionsJson>,
     /// Optional profile name override.
     pub profile: Option<String>,
     /// Optional diagnostic options override.

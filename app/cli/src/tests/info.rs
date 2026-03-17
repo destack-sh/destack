@@ -6,10 +6,10 @@ use serde_json::json;
 
 /// Shows workspace info with a config present.
 #[test]
-fn test_info_with_dsconfig() {
+fn test_info_with_destack_config() {
     // set up a config with a target
     let program = TestProgram::new("info");
-    program.write_dsconfig_with_base(json!({
+    program.write_destack_config_with_base(json!({
         "targets": {
             "js": {},
         },

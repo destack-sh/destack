@@ -1,14 +1,12 @@
 use std::path::PathBuf;
 
 use destack_source::FileId;
-use destack_workspace::{
-    DEFAULT_CACHE_DIR, DsConfig, DsConfigCacheJson, DsConfigJson, DsConfigOptions,
-};
+use destack_workspace::{CacheJson, DEFAULT_CACHE_DIR, Destack, DestackJson, DestackOptions};
 
 use crate::common::ProgramArgs;
 use crate::pipeline::cache::{CacheSource, resolve_cache_location};
 
-/// Resolves CLI cache overrides before dsconfig or defaults.
+/// Resolves CLI cache overrides before config or defaults.
 #[test]
 fn test_resolve_cache_location_override() {
     // setup
@@ -18,31 +16,31 @@ fn test_resolve_cache_location_override() {
     };
     let workspace_root = PathBuf::from("/workspace");
     let cwd = PathBuf::from("/workspace/app");
-    let dsconfig = dsconfig_with_cache("ds-cache", "/workspace/app");
+    let config = destack_config_with_cache("ds-cache", "/workspace/app");
 
     // resolve the location
-    let location = resolve_cache_location(&program, Some(&dsconfig), &workspace_root, &cwd);
+    let location = resolve_cache_location(&program, Some(&config), &workspace_root, &cwd);
 
     // assert override wins
     assert_eq!(location.dir, cwd.join("cache"));
     assert_eq!(location.source, CacheSource::Override);
 }
 
-/// Resolves dsconfig cache dir when no CLI override is provided.
+/// Resolves config cache dir when no CLI override is provided.
 #[test]
-fn test_resolve_cache_location_dsconfig() {
+fn test_resolve_cache_location_destack_config() {
     // setup
     let program = ProgramArgs::default();
     let workspace_root = PathBuf::from("/workspace");
     let cwd = PathBuf::from("/workspace/app");
-    let dsconfig = dsconfig_with_cache(".cache", "/workspace/app");
+    let config = destack_config_with_cache(".cache", "/workspace/app");
 
     // resolve the location
-    let location = resolve_cache_location(&program, Some(&dsconfig), &workspace_root, &cwd);
+    let location = resolve_cache_location(&program, Some(&config), &workspace_root, &cwd);
 
-    // assert dsconfig cache dir is used
+    // assert config cache dir is used
     assert_eq!(location.dir, PathBuf::from("/workspace/app/.cache"));
-    assert_eq!(location.source, CacheSource::DsConfig);
+    assert_eq!(location.source, CacheSource::Destack);
 }
 
 /// Defaults cache to the workspace root when no overrides are present.
@@ -61,11 +59,11 @@ fn test_resolve_cache_location_default() {
     assert_eq!(location.source, CacheSource::Default);
 }
 
-/// Build a dsconfig fixture with a cache setting.
-fn dsconfig_with_cache(cache_dir: &str, config_dir: &str) -> DsConfig {
-    // build the dsconfig json payload
-    let json = DsConfigJson {
-        cache: DsConfigCacheJson {
+/// Build a config fixture with a cache setting.
+fn destack_config_with_cache(cache_dir: &str, config_dir: &str) -> Destack {
+    // build the config json payload
+    let json = DestackJson {
+        cache: CacheJson {
             dir: Some(cache_dir.to_string()),
             ..Default::default()
         },
@@ -73,12 +71,12 @@ fn dsconfig_with_cache(cache_dir: &str, config_dir: &str) -> DsConfig {
     };
 
     // build normalized options from json
-    let options = DsConfigOptions::from(&json);
+    let options = DestackOptions::from(&json);
 
-    // construct a dsconfig fixture
-    let path = PathBuf::from(config_dir).join("dsconfig.json");
+    // construct a config fixture
+    let path = PathBuf::from(config_dir).join("destack.json");
     let directory = PathBuf::from(config_dir);
-    DsConfig {
+    Destack {
         file_id: FileId::new(1),
         path,
         directory,

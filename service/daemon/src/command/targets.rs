@@ -48,23 +48,24 @@ impl CommandContext<'_> {
         // resolve workspace context
         let workspace = self.daemon.session.workspace_snapshot();
 
-        // resolve dsconfig selection
-        let dsconfigs = if options.all {
-            self.load_workspace_dsconfigs(&workspace)?
+        // resolve config selection
+        let configs = if options.all {
+            self.load_workspace_configs(&workspace)?
         } else {
-            let dsconfig_path = self.resolve_dsconfig_path(self.common.config_path.as_deref())?;
-            vec![self.load_dsconfig(&dsconfig_path)?]
+            let config_path =
+                self.resolve_destack_config_path(self.common.config_path.as_deref())?;
+            vec![self.load_destack_config(&config_path)?]
         };
 
-        if dsconfigs.is_empty() {
+        if configs.is_empty() {
             return Err("no targets found".to_string().into());
         }
 
         // collect target details
         let mut entries = Vec::new();
-        for dsconfig in &dsconfigs {
-            let default_target = dsconfig.options.default_target.clone();
-            for (name, target) in &dsconfig.options.targets {
+        for config in &configs {
+            let default_target = config.options.default_target.clone();
+            for (name, target) in &config.options.targets {
                 entries.push(CommandTargetsEntry {
                     name: name.clone(),
                     output: format!("{:?}", target.output),
@@ -73,7 +74,7 @@ impl CommandContext<'_> {
                     out_dir: target.out_dir.display().to_string(),
                     out_file: target.out_file.as_ref().map(|p| p.display().to_string()),
                     default_target: default_target.clone(),
-                    package_dir: dsconfig.directory.display().to_string(),
+                    package_dir: config.directory.display().to_string(),
                 });
             }
         }

@@ -2,17 +2,17 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use destack_source::{File, FileType, PackageId, PathExt, Uri};
-use destack_workspace::{DsConfig, PackageManifest};
+use destack_workspace::{Destack, PackageManifest};
 
 use crate::{CachePolicy, ResolveError, ResolveFrame, Resolver};
 
-/// The resolve frame for one dsconfig extension chain.
+/// The resolve frame for one Destack config extension chain.
 #[derive(Default)]
-pub(crate) struct DsConfigResolveFrame {
+pub(crate) struct DestackResolveFrame {
     extended_configs: Vec<PathBuf>,
 }
 
-impl DsConfigResolveFrame {
+impl DestackResolveFrame {
     /// Execute a closure with one extended file pushed on the stack.
     pub(crate) fn with_extended_file<F, T>(
         &mut self,
@@ -44,22 +44,22 @@ impl DsConfigResolveFrame {
 }
 
 impl Resolver {
-    /// Read the dsconfig.json for a package.
-    pub fn read_package_dsconfig(
+    /// Read the destack.json for a package.
+    pub fn read_package_destack_config(
         &self,
         package_config: &PackageManifest,
         cache_policy: CachePolicy,
-    ) -> Result<DsConfig, ResolveError> {
-        let dsconfig_path = package_config.directory.join("dsconfig.json");
+    ) -> Result<Destack, ResolveError> {
+        let destack_config_path = package_config.directory.join("destack.json");
 
-        // read the package local dsconfig
-        let dsconfig = self.read_dsconfig(&dsconfig_path, cache_policy)?;
+        // read the package local Destack config
+        let config = self.read_destack_config(&destack_config_path, cache_policy)?;
 
-        Ok(dsconfig)
+        Ok(config)
     }
 
-    /// Load the dsconfig for one package into the package registry when present.
-    pub(crate) fn ensure_package_dsconfig(
+    /// Load the Destack config for one package into the package registry when present.
+    pub(crate) fn ensure_package_destack_config(
         &self,
         package_id: PackageId,
         cache_policy: CachePolicy,
@@ -71,63 +71,87 @@ impl Resolver {
             return Ok(());
         };
 
-        // read the package dsconfig if it exists
-        let next_dsconfig = match self.read_dsconfig(&package_path, cache_policy) {
-            Ok(dsconfig) => Some(dsconfig),
-            Err(ResolveError::DsConfigNotFound { .. }) => None,
+        // read the package Destack config if it exists
+        let next_destack_config = match self.read_destack_config(&package_path, cache_policy) {
+            Ok(config) => Some(config),
+            Err(ResolveError::DestackNotFound { .. }) => None,
             Err(error) => return Err(error),
         };
 
         let package = self.packages.get(package_id);
-        package.write().dsconfig = next_dsconfig;
+        let mut package = package.write();
+        package.config = next_destack_config;
+        let config = package.config.clone();
+
+        let next_name_version = config.as_ref().map(|config| {
+            let name = config.options.name.clone();
+            let version = config.options.version.clone();
+            (name, version)
+        });
+
+        if let Some(manifest) = package.manifest.as_mut() {
+            manifest.refresh_from_destack(config.as_ref());
+            let name = manifest.content.name.clone();
+            let version = manifest.content.version.clone();
+            package.name = name;
+            package.version = version;
+        } else if let Some((name, version)) = next_name_version {
+            package.name = name;
+            package.version = version;
+        }
+
         Ok(())
     }
 
-    /// Find one package dsconfig by walking to the nearest package scope first.
-    pub fn find_package_dsconfig(
+    /// Find one package Destack config by walking to the nearest package scope first.
+    pub fn find_package_destack_config(
         &self,
         path: &Path,
         cache_policy: CachePolicy,
-    ) -> Result<Option<DsConfig>, ResolveError> {
+    ) -> Result<Option<Destack>, ResolveError> {
         let mut ctx = ResolveFrame::default();
         let Some(package_id) = self.find_nearest_package_scope(path, &mut ctx)? else {
             return Ok(None);
         };
 
-        self.ensure_package_dsconfig(package_id, cache_policy)?;
+        self.ensure_package_destack_config(package_id, cache_policy)?;
 
         let package = self.packages.get(package_id);
-        Ok(package.read().dsconfig.clone())
+        Ok(package.read().config.clone())
     }
 
-    /// Read and parse a `dsconfig.json` file recursively, handling extends.
-    pub fn read_dsconfig(
+    /// Read and parse a `destack.json` file recursively, handling extends.
+    pub fn read_destack_config(
         &self,
         path: &Path,
         cache_policy: CachePolicy,
-    ) -> Result<DsConfig, ResolveError> {
-        self.read_dsconfig_with_context(path, &mut DsConfigResolveFrame::default(), cache_policy)
+    ) -> Result<Destack, ResolveError> {
+        self.read_destack_config_with_context(
+            path,
+            &mut DestackResolveFrame::default(),
+            cache_policy,
+        )
     }
 
-    /// Read and parse a `dsconfig.json` file recursively, handling extends.
-    pub(crate) fn read_dsconfig_with_context(
+    /// Read and parse a `destack.json` file recursively, handling extends.
+    pub(crate) fn read_destack_config_with_context(
         &self,
         path: &Path,
-        ctx: &mut DsConfigResolveFrame,
+        ctx: &mut DestackResolveFrame,
         cache_policy: CachePolicy,
-    ) -> Result<DsConfig, ResolveError> {
+    ) -> Result<Destack, ResolveError> {
         // parse the local config first
-        let mut dsconfig = self.parse_dsconfig(path, cache_policy)?;
+        let mut config = self.parse_destack_config(path, cache_policy)?;
 
         // reject circular extends chains
-        if ctx.is_already_extended(&dsconfig.path) {
-            return Err(ResolveError::DsConfigCircular {
-                paths: ctx.get_extended_configs_with(dsconfig.path.to_path_buf()),
+        if ctx.is_already_extended(&config.path) {
+            return Err(ResolveError::DestackCircular {
+                paths: ctx.get_extended_configs_with(config.path.to_path_buf()),
             });
         }
 
         // resolve every extended config path up front
-        let extended_dsconfig_paths: Vec<PathBuf> = dsconfig
+        let extended_config_paths: Vec<PathBuf> = config
             .content
             .extends
             .as_ref()
@@ -137,43 +161,43 @@ impl Resolver {
             })
             .unwrap_or_default()
             .into_iter()
-            .map(|specifier| self.get_extended_dsconfig_path(&dsconfig.directory, &specifier))
+            .map(|specifier| self.get_extended_destack_config_path(&config.directory, &specifier))
             .collect::<Result<Vec<_>, _>>()?;
 
         // merge parent configs in order
-        if !extended_dsconfig_paths.is_empty() {
-            let dsconfig_path = dsconfig.path.clone();
-            ctx.with_extended_file(dsconfig_path, |ctx| {
-                for extended_dsconfig_path in extended_dsconfig_paths {
-                    let extended = self.read_dsconfig_with_context(
-                        &extended_dsconfig_path,
+        if !extended_config_paths.is_empty() {
+            let config_path = config.path.clone();
+            ctx.with_extended_file(config_path, |ctx| {
+                for extended_config_path in extended_config_paths {
+                    let extended = self.read_destack_config_with_context(
+                        &extended_config_path,
                         ctx,
                         cache_policy,
                     )?;
-                    dsconfig.extend_from(&extended);
+                    config.extend_from(&extended);
                 }
                 Ok(())
             })?;
         }
 
         // rebuild the derived options after merging
-        dsconfig.build();
+        config.build();
 
-        Ok(dsconfig)
+        Ok(config)
     }
 
-    /// Parse one dsconfig.json file without processing extends.
-    fn parse_dsconfig(
+    /// Parse one destack.json file without processing extends.
+    fn parse_destack_config(
         &self,
         path: &Path,
         cache_policy: CachePolicy,
-    ) -> Result<DsConfig, ResolveError> {
+    ) -> Result<Destack, ResolveError> {
         // normalize the input into a concrete config path
         let meta = self.metadata(path).ok();
-        let dsconfig_path = if meta.is_some_and(|m| m.is_file) {
+        let destack_config_path = if meta.is_some_and(|m| m.is_file) {
             Cow::Borrowed(path)
         } else if meta.is_some_and(|m| m.is_directory) {
-            Cow::Owned(path.join("dsconfig.json"))
+            Cow::Owned(path.join("destack.json"))
         } else {
             let mut os_string = path.to_path_buf().into_os_string();
             os_string.push(".json");
@@ -181,37 +205,37 @@ impl Resolver {
         };
 
         // reuse cached file content when allowed
-        let existing_id = self.files.get_id_by_path(dsconfig_path.as_ref());
+        let existing_id = self.files.get_id_by_path(destack_config_path.as_ref());
         if cache_policy.use_cache()
             && let Some(file_id) = existing_id
             && let Some(file) = self.files.get_maybe(file_id)
         {
-            let dsconfig = DsConfig::parse(&file).map_err(|_| ResolveError::DsConfigInvalid {
-                path: dsconfig_path.to_path_buf(),
+            let config = Destack::parse(&file).map_err(|_| ResolveError::DestackInvalid {
+                path: destack_config_path.to_path_buf(),
             })?;
-            return Ok(dsconfig);
+            return Ok(config);
         }
 
         // read the config file from disk
-        let content = self.read_path_to_string(&dsconfig_path).map_err(|_| {
-            ResolveError::DsConfigNotFound {
+        let content = self
+            .read_path_to_string(&destack_config_path)
+            .map_err(|_| ResolveError::DestackNotFound {
                 path: path.to_path_buf(),
-            }
-        })?;
+            })?;
 
         // reuse file ids to keep incremental mappings stable
         let file_id = existing_id.unwrap_or_else(|| self.files.next_id());
-        let (name, uri) = Uri::from_path_with_name(&*dsconfig_path);
+        let (name, uri) = Uri::from_path_with_name(&*destack_config_path);
         let file = File::from_text_as_jsonc(
             file_id,
             name,
             uri,
-            Some(dsconfig_path.to_path_buf()),
+            Some(destack_config_path.to_path_buf()),
             FileType::Json,
             content,
         )
-        .map_err(|_| ResolveError::DsConfigInvalid {
-            path: dsconfig_path.to_path_buf(),
+        .map_err(|_| ResolveError::DestackInvalid {
+            path: destack_config_path.to_path_buf(),
         })?;
 
         if self.files.get_maybe(file_id).is_some() {
@@ -221,16 +245,16 @@ impl Resolver {
         }
         let file = self.files.get(file_id);
 
-        // parse the dsconfig from the tracked file
-        let dsconfig = DsConfig::parse(&file).map_err(|_| ResolveError::DsConfigInvalid {
-            path: dsconfig_path.to_path_buf(),
+        // parse the Destack config from the tracked file
+        let config = Destack::parse(&file).map_err(|_| ResolveError::DestackInvalid {
+            path: destack_config_path.to_path_buf(),
         })?;
 
-        Ok(dsconfig)
+        Ok(config)
     }
 
-    /// Resolve the path of one extended dsconfig file.
-    fn get_extended_dsconfig_path(
+    /// Resolve the path of one extended Destack config file.
+    fn get_extended_destack_config_path(
         &self,
         directory: &Path,
         specifier: &str,

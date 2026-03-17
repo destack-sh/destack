@@ -6,7 +6,7 @@ use destack_runtime::runtime::engine::Entry;
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
 use destack_workspace::{
-    ArtifactKey, DebugMode, DsConfigRuntimeOptionsJson, Program, Target, TargetId, TrustPolicy,
+    ArtifactKey, DebugMode, Program, RuntimeOptionsJson, Target, TargetId, TrustPolicy,
 };
 use serde::{Deserialize, Serialize};
 
@@ -199,7 +199,7 @@ fn run_entry_module(
     entry_name: &str,
     args: &[String],
     run_mode: CommandRunMode,
-    runtime_overrides: Option<&DsConfigRuntimeOptionsJson>,
+    runtime_overrides: Option<&RuntimeOptionsJson>,
     output: &mut CommandOutputBuffer,
 ) -> super::CommandResult<RunResult> {
     let mut target = target_for_id(program, target_id)
@@ -390,7 +390,7 @@ fn isolate_options_for_target(target: &Target) -> IsolateOptions {
 }
 
 /// Apply runtime overrides to a target.
-fn apply_runtime_overrides(target: &mut Target, overrides: &DsConfigRuntimeOptionsJson) {
+fn apply_runtime_overrides(target: &mut Target, overrides: &RuntimeOptionsJson) {
     let mut runtime_options = target.runtime_options.clone();
     overrides.apply_to(&mut runtime_options);
     target.runtime_options = runtime_options;

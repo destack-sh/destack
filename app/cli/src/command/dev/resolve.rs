@@ -108,7 +108,7 @@ pub fn run(args: &ResolveArgs) -> i32 {
 
     let resolver = Resolver::from_program(&program, options);
 
-    match resolver.resolve(&directory, &args.specifier) {
+    match resolver.resolve_from_directory(&directory, &args.specifier) {
         Ok(resolution) => {
             console::info(&resolution.path().to_string_lossy());
             0

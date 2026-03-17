@@ -34,7 +34,7 @@
         "onLanguage:typescript",
         "onLanguage:typescriptreact",
         "onLanguage:destack-mir",
-        "workspaceContains:dsconfig.json"
+        "workspaceContains:destack.json"
     ],
     "main": "./out/extension.js",
     "files": [
@@ -44,7 +44,7 @@
         "destack.tmTheme.json",
         "destack-mir.tmLanguage.json",
         "destack-mir.json",
-        "dsconfig.schema.json",
+        "destack.schema.json",
         "package.json",
         "LICENSE.txt"
     ],
@@ -250,10 +250,10 @@
         "jsonValidation": [
             {
                 "fileMatch": [
-                    "dsconfig.json",
-                    "*.dsconfig.json"
+                    "destack.json",
+                    "*.destack.json"
                 ],
-                "url": "./dsconfig.schema.json"
+                "url": "./destack.schema.json"
             }
         ]
     },

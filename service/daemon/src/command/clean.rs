@@ -1,5 +1,5 @@
 use destack_source::DiagnosticCollection;
-use destack_workspace::DsConfig;
+use destack_workspace::Destack;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -51,12 +51,12 @@ impl CommandContext<'_> {
         // resolve workspace context
         let workspace = self.daemon.session.workspace_snapshot();
 
-        // resolve dsconfigs based on scope
-        let dsconfigs = if options.all_packages {
-            self.load_workspace_dsconfigs(&workspace)?
+        // resolve destack_configs based on scope
+        let destack_configs = if options.all_packages {
+            self.load_workspace_configs(&workspace)?
         } else {
-            match self.resolve_dsconfig_path(self.common.config_path.as_deref()) {
-                Ok(path) => vec![self.load_dsconfig(&path)?],
+            match self.resolve_destack_config_path(self.common.config_path.as_deref()) {
+                Ok(path) => vec![self.load_destack_config(&path)?],
                 Err(error) => {
                     if clean_dist {
                         return Err(error);
@@ -69,20 +69,20 @@ impl CommandContext<'_> {
         // collect paths for removal
         let mut paths = HashSet::new();
         if clean_dist {
-            for dsconfig in &dsconfigs {
-                collect_output_paths(dsconfig, &mut paths);
+            for config in &destack_configs {
+                collect_output_paths(config, &mut paths);
             }
         }
         if clean_cache {
-            if dsconfigs.is_empty() {
+            if destack_configs.is_empty() {
                 let cache_dir =
                     resolve_cache_dir(self.common.cache_dir.as_ref(), None, &workspace.root, cwd);
                 paths.insert(cache_dir);
             } else {
-                for dsconfig in &dsconfigs {
+                for config in &destack_configs {
                     let cache_dir = resolve_cache_dir(
                         self.common.cache_dir.as_ref(),
-                        Some(dsconfig),
+                        Some(config),
                         &workspace.root,
                         cwd,
                     );
@@ -138,24 +138,24 @@ impl CommandContext<'_> {
     }
 }
 
-/// Collect output paths for a dsconfig.
-fn collect_output_paths(dsconfig: &DsConfig, paths: &mut HashSet<PathBuf>) {
-    if let Some(out_dir) = dsconfig.options.compiler.out_dir.as_ref() {
-        paths.insert(resolve_path(out_dir, &dsconfig.directory));
+/// Collect output paths for one config.
+fn collect_output_paths(config: &Destack, paths: &mut HashSet<PathBuf>) {
+    if let Some(out_dir) = config.options.compiler.out_dir.as_ref() {
+        paths.insert(resolve_path(out_dir, &config.directory));
     }
-    if let Some(declaration_dir) = dsconfig.options.compiler.declaration_dir.as_ref() {
-        paths.insert(resolve_path(declaration_dir, &dsconfig.directory));
+    if let Some(declaration_dir) = config.options.compiler.declaration_dir.as_ref() {
+        paths.insert(resolve_path(declaration_dir, &config.directory));
     }
 
-    for target in dsconfig.options.targets.values() {
-        let out_dir = resolve_path(&target.out_dir, &dsconfig.directory);
+    for target in config.options.targets.values() {
+        let out_dir = resolve_path(&target.out_dir, &config.directory);
         paths.insert(out_dir);
 
         if let Some(out_file) = target.out_file.as_ref() {
-            paths.insert(resolve_path(out_file, &dsconfig.directory));
+            paths.insert(resolve_path(out_file, &config.directory));
         }
         if let Some(declaration_dir) = target.declaration_dir.as_ref() {
-            paths.insert(resolve_path(declaration_dir, &dsconfig.directory));
+            paths.insert(resolve_path(declaration_dir, &config.directory));
         }
     }
 }

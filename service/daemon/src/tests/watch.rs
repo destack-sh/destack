@@ -96,8 +96,8 @@ fn test_watch_batch_requests_rescan_for_config() {
 
     harness
         .test
-        .write_text("dsconfig.json", "{ \"compilerOptions\": {} }");
-    harness.emit("dsconfig.json", FileWatchEventKind::Modified);
+        .write_text("destack.json", "{ \"compiler\": {} }");
+    harness.emit("destack.json", FileWatchEventKind::Modified);
 
     let batch = harness.next_batch();
     let result = harness.apply_batch(&batch);

@@ -2,12 +2,12 @@ use super::tests::TestProgram;
 use crate::pipeline::script::{ScriptSource, load_tasks, resolve_script_command};
 use serde_json::json;
 
-/// Resolves dsconfig tasks before package.json scripts.
+/// Resolves destack.json tasks before package.json scripts.
 #[test]
-fn test_resolve_script_command_prefers_dsconfig() {
+fn test_resolve_script_command_prefers_destack_config() {
     // setup
-    let program = TestProgram::new("script_dsconfig");
-    program.write_dsconfig_with_base(json!({
+    let program = TestProgram::new("script_destack_config");
+    program.write_destack_config_with_base(json!({
         "tasks": {
             "build": "echo ds",
         },
@@ -23,13 +23,13 @@ fn test_resolve_script_command_prefers_dsconfig() {
         .expect("script lookup should succeed")
         .expect("script should be found");
 
-    // assert dsconfig task wins
-    assert_eq!(script.source, ScriptSource::DsConfig);
+    // assert destack.json task wins
+    assert_eq!(script.source, ScriptSource::Destack);
     assert_eq!(script.command, "echo ds");
     assert_eq!(script.cwd, program.root);
 }
 
-/// Resolves package.json scripts when dsconfig tasks are absent.
+/// Resolves package.json scripts when destack.json tasks are absent.
 #[test]
 fn test_resolve_script_command_falls_back_to_package_json() {
     // setup
@@ -51,12 +51,12 @@ fn test_resolve_script_command_falls_back_to_package_json() {
     assert_eq!(script.cwd, program.root);
 }
 
-/// Resolves task working directories relative to dsconfig.
+/// Resolves task working directories relative to destack.json.
 #[test]
 fn test_load_tasks_resolves_relative_cwd() {
     // setup
     let program = TestProgram::new("script_tasks");
-    program.write_dsconfig_with_base(json!({
+    program.write_destack_config_with_base(json!({
         "tasks": {
             "serve": {
                 "command": "echo ok",
@@ -64,10 +64,11 @@ fn test_load_tasks_resolves_relative_cwd() {
             },
         },
     }));
-    let dsconfig_path = program.root.join("dsconfig.json");
+    let destack_config_path = program.root.join("destack.json");
 
     // load tasks from the config
-    let tasks = load_tasks(&program.resolver, &dsconfig_path).expect("task loading should succeed");
+    let tasks =
+        load_tasks(&program.resolver, &destack_config_path).expect("task loading should succeed");
     let task = tasks
         .iter()
         .find(|task| task.name == "serve")

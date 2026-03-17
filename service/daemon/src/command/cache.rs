@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use destack_source::DiagnosticCollection;
-use destack_workspace::{CacheScope, DsConfig, resolve_cache_root_for_scope};
+use destack_workspace::{CacheScope, Destack, resolve_cache_root_for_scope};
 use serde::{Deserialize, Serialize};
 
 use super::context::CommandContext;
@@ -40,17 +40,18 @@ impl CommandContext<'_> {
     ) -> super::CommandResult<CommandOutcome> {
         let workspace = self.daemon.session.workspace_snapshot();
 
-        // resolve dsconfigs based on scope
-        let dsconfigs = if options.all_packages {
-            self.load_workspace_dsconfigs(&workspace)?
+        // resolve configs based on scope
+        let destack_configs = if options.all_packages {
+            self.load_workspace_configs(&workspace)?
         } else {
-            let dsconfig_path = self.resolve_dsconfig_path(self.common.config_path.as_deref())?;
-            vec![self.load_dsconfig(&dsconfig_path)?]
+            let config_path =
+                self.resolve_destack_config_path(self.common.config_path.as_deref())?;
+            vec![self.load_destack_config(&config_path)?]
         };
 
         // collect cache locations
         let mut entries = Vec::new();
-        if dsconfigs.is_empty() {
+        if destack_configs.is_empty() {
             let cache_dir = resolve_cache_dir(
                 self.common.cache_dir.as_ref(),
                 None,
@@ -63,18 +64,18 @@ impl CommandContext<'_> {
                 package_dir: None,
             });
         } else {
-            for dsconfig in dsconfigs {
+            for config in destack_configs {
                 let cache_dir = resolve_cache_dir(
                     self.common.cache_dir.as_ref(),
-                    Some(&dsconfig),
+                    Some(&config),
                     &workspace.root,
                     &self.program.cwd,
                 );
-                let source = cache_source_label(self.common.cache_dir.as_ref(), &dsconfig);
+                let source = cache_source_label(self.common.cache_dir.as_ref(), &config);
                 entries.push(CommandCacheEntry {
                     dir: cache_dir.display().to_string(),
                     source: source.to_string(),
-                    package_dir: Some(dsconfig.directory.display().to_string()),
+                    package_dir: Some(config.directory.display().to_string()),
                 });
             }
         }
@@ -89,7 +90,7 @@ impl CommandContext<'_> {
 /// Resolve the cache directory for a workspace.
 pub(super) fn resolve_cache_dir(
     cache_override: Option<&PathBuf>,
-    dsconfig: Option<&DsConfig>,
+    config: Option<&Destack>,
     workspace_root: &Path,
     cwd: &Path,
 ) -> PathBuf {
@@ -100,11 +101,11 @@ pub(super) fn resolve_cache_dir(
         return cwd.join(cache_dir);
     }
 
-    if let Some(dsconfig) = dsconfig {
+    if let Some(config) = config {
         return resolve_cache_root_for_scope(
-            &dsconfig.directory,
-            dsconfig.options.cache.dir.as_deref(),
-            dsconfig.options.cache.scope,
+            &config.directory,
+            config.options.cache.dir.as_deref(),
+            config.options.cache.scope,
         );
     }
 
@@ -112,11 +113,11 @@ pub(super) fn resolve_cache_dir(
 }
 
 /// Render a cache source label for reporting.
-fn cache_source_label(cache_override: Option<&PathBuf>, dsconfig: &DsConfig) -> &'static str {
+fn cache_source_label(cache_override: Option<&PathBuf>, config: &Destack) -> &'static str {
     if cache_override.is_some() {
         "override"
-    } else if dsconfig.options.cache.dir.is_some() {
-        "dsconfig"
+    } else if config.options.cache.dir.is_some() {
+        "destack"
     } else {
         "default"
     }

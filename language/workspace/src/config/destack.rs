@@ -3,39 +3,44 @@ use std::sync::Arc;
 
 use indexmap::IndexMap;
 use serde::Deserialize;
+use serde_json::Value;
 
 use destack_source::{File, FileContent, FileId};
 
 use crate::{FormatterOptions, LinterOptions, ProfileConfig, ProfileConfigJson, RuntimeOptions};
 
-use crate::config::cache::{DsConfigCacheJson, DsConfigCacheOptions};
-use crate::config::compiler::{DsConfigCompilerOptions, DsConfigCompilerOptionsJson};
-use crate::config::daemon::{DsConfigDaemonJson, DsConfigDaemonOptions};
-use crate::config::formatter::DsConfigFormatterJson;
-use crate::config::linter::DsConfigLinterJson;
-use crate::config::runtime::{
-    DsConfigRuntimeOptionsJson, runtime_options_from_json, runtime_options_with_base,
+use super::account::{
+    AccountJson, AccountOptions, account_options_from_json, extend_account_options,
 };
-use crate::config::target::{DsConfigTargetJson, DsConfigTargetOptions};
-use crate::config::watch::{DsConfigWatchJson, DsConfigWatchOptions};
+use super::cache::{CacheJson, CacheOptions};
+use super::compiler::{CompilerOptions, CompilerOptionsJson};
+use super::daemon::{DaemonJson, DaemonOptions};
+use super::formatter::FormatterJson;
+use super::linter::LinterJson;
+use super::runtime::{RuntimeOptionsJson, runtime_options_from_json, runtime_options_with_base};
+use super::stack::{StackJson, StackOptions};
+use super::target::{TargetJson, TargetOptions};
+use super::task::{TaskJson, TaskOptions};
+use super::watch::{WatchJson, WatchOptions};
+use super::workspace::{WorkspaceJson, WorkspaceOptions};
 
-/// Destack configuration (from `dsconfig.json`, 1:1 with Package).
+/// Destack configuration loaded from `destack.json`.
 #[derive(Debug, Clone)]
-pub struct DsConfig {
-    /// The id of the `dsconfig.json` file.
+pub struct Destack {
+    /// The id of the `destack.json` file.
     pub file_id: FileId,
-    /// Path to the `dsconfig.json` file.
+    /// Path to the `destack.json` file.
     pub path: PathBuf,
-    /// The directory containing the `dsconfig.json` file.
+    /// The directory containing the `destack.json` file.
     pub directory: PathBuf,
     /// The normalized/resolved configuration options.
-    pub options: DsConfigOptions,
-    /// The raw JSON content of the `dsconfig.json` file.
-    pub content: DsConfigJson,
+    pub options: DestackOptions,
+    /// The raw JSON content of the `destack.json` file.
+    pub content: DestackJson,
 }
 
-impl DsConfig {
-    /// Parse a dsconfig from a File with JSON content.
+impl Destack {
+    /// Parse a Destack config from a file with JSON content.
     pub fn parse(file: &Arc<File>) -> Result<Self, serde_json::Error> {
         // extract the JSON value from file content
         let FileContent::Json { value, .. } = &file.content else {
@@ -45,39 +50,110 @@ impl DsConfig {
             )));
         };
 
-        // parse the dsconfig from the JSON value
-        let dsconfig_json: DsConfigJson = serde_json::from_value(value.clone())?;
+        // parse the Destack config from the JSON value
+        let destack_config_json: DestackJson = serde_json::from_value(value.clone())?;
 
         // extract path from file (prefer file.path, fall back to URI conversion)
         let path = file
             .path
             .clone()
             .or_else(|| file.uri.to_path_buf())
-            .expect("dsconfig file must have a valid path");
+            .expect("Destack config file must have a valid path");
         let directory = path
             .parent()
-            .expect("dsconfig.json must have a parent directory")
+            .expect("destack.json must have a parent directory")
             .to_path_buf();
 
         // create initial options from JSON
-        let options = DsConfigOptions::from(&dsconfig_json);
+        let options = DestackOptions::from(&destack_config_json);
 
-        let dsconfig = Self {
+        let config = Self {
             file_id: file.id,
             path,
             directory,
-            content: dsconfig_json,
+            content: destack_config_json,
             options,
         };
-        Ok(dsconfig)
+        Ok(config)
     }
 
-    /// Inherits settings from the given dsconfig into `self`.
+    /// Inherit settings from the given Destack config into `self`.
     ///
     /// Type checking options use "most restrictive wins" semantics:
     /// if parent is stricter, child inherits it unless explicitly overridden.
-    pub fn extend_from(&mut self, dsconfig: &Self) {
-        let parent = &dsconfig.options;
+    pub fn extend_from(&mut self, config: &Self) {
+        let parent = &config.options;
+
+        // inherit flattened package metadata
+        if self.content.name.is_none() {
+            self.options.name = parent.name.clone();
+        }
+        if self.content.version.is_none() {
+            self.options.version = parent.version.clone();
+        }
+        if self.content.r#private.is_none() {
+            self.options.is_private = parent.is_private;
+        }
+        if self.content.description.is_none() {
+            self.options.description = parent.description.clone();
+        }
+        if self.content.license.is_none() {
+            self.options.license = parent.license.clone();
+        }
+        if self.content.repository.is_none() {
+            self.options.repository = parent.repository.clone();
+        }
+        if self.content.homepage.is_none() {
+            self.options.homepage = parent.homepage.clone();
+        }
+        if self.content.keywords.is_none() {
+            self.options.keywords = parent.keywords.clone();
+        }
+        if self.content.package_manager.is_none() {
+            self.options.package_manager = parent.package_manager.clone();
+        }
+        if self.content.module_type.is_none() {
+            self.options.module_type = parent.module_type.clone();
+        }
+        if self.content.engines.is_none() {
+            self.options.engines = parent.engines.clone();
+        }
+        if self.content.exports.is_none() {
+            self.options.exports = parent.exports.clone();
+        }
+        if self.content.imports.is_none() {
+            self.options.imports = parent.imports.clone();
+        }
+        if self.content.dependencies.is_none() {
+            self.options.dependencies = parent.dependencies.clone();
+        }
+        if self.content.dev_dependencies.is_none() {
+            self.options.dev_dependencies = parent.dev_dependencies.clone();
+        }
+        if self.content.peer_dependencies.is_none() {
+            self.options.peer_dependencies = parent.peer_dependencies.clone();
+        }
+        if self.content.optional_dependencies.is_none() {
+            self.options.optional_dependencies = parent.optional_dependencies.clone();
+        }
+
+        // workspace membership is root scoped and does not inherit into child packages
+
+        // inherit tasks
+        if let Some(tasks) = &self.content.tasks {
+            for (name, task_json) in tasks {
+                let mut options = TaskOptions::from(task_json);
+                if let Some(parent_task) = parent.tasks.get(name) {
+                    options.extend_from(parent_task);
+                }
+                self.options.tasks.insert(name.clone(), options);
+            }
+        }
+        for (name, task) in &parent.tasks {
+            if !self.options.tasks.contains_key(name) {
+                self.options.tasks.insert(name.clone(), task.clone());
+            }
+        }
 
         // extend files/include/exclude (child overrides if non-empty)
         if self.options.files.is_empty() {
@@ -541,6 +617,11 @@ impl DsConfig {
         self.options.runtime =
             runtime_options_with_base(&parent.runtime, Some(&self.content.runtime));
 
+        // inherit declared control plane accounts
+        let mut accounts = account_options_from_json(&self.content.accounts);
+        extend_account_options(&mut accounts, &parent.accounts);
+        self.options.accounts = accounts;
+
         // inherit compiler incremental settings (child overrides if explicitly set in JSON)
         if self.content.compiler.incremental.is_none() {
             self.options.compiler.incremental = parent.compiler.incremental;
@@ -558,10 +639,8 @@ impl DsConfig {
         // refresh child targets with merged runtime options
         if let Some(targets) = &self.content.targets {
             for (name, target_json) in targets {
-                let options = DsConfigTargetOptions::from_json_with_runtime(
-                    target_json,
-                    &self.options.runtime,
-                );
+                let options =
+                    TargetOptions::from_json_with_runtime(target_json, &self.options.runtime);
                 self.options.targets.insert(name.clone(), options);
             }
         }
@@ -570,6 +649,24 @@ impl DsConfig {
         for (name, target) in &parent.targets {
             if !self.options.targets.contains_key(name) {
                 self.options.targets.insert(name.clone(), target.clone());
+            }
+        }
+
+        // refresh child stacks against parent stacks so child-only entries still inherit defaults
+        if let Some(stacks) = &self.content.stacks {
+            for (name, stack_json) in stacks {
+                let mut options = StackOptions::from(stack_json);
+                if let Some(parent_stack) = parent.stacks.get(name) {
+                    options.extend_from(parent_stack);
+                }
+                self.options.stacks.insert(name.clone(), options);
+            }
+        }
+
+        // extend stacks (add missing stacks from parent)
+        for (name, stack) in &parent.stacks {
+            if !self.options.stacks.contains_key(name) {
+                self.options.stacks.insert(name.clone(), stack.clone());
             }
         }
 
@@ -584,16 +681,54 @@ impl DsConfig {
         }
     }
 
-    /// "Build" the root dsconfig in place, finalizing options.
+    /// Finalize the root Destack config in place.
     pub fn build(&mut self) {
-        // currently no special build steps needed for dsconfig
+        // currently no special build steps needed for the Destack config
         // this is here for symmetry with TsConfig::build()
     }
 }
 
-/// Normalized Destack package configuration options (from `dsconfig.json`).
+/// Normalized Destack package configuration options (from `destack.json`).
 #[derive(Debug, Clone, Default)]
-pub struct DsConfigOptions {
+pub struct DestackOptions {
+    /// Package name.
+    pub name: Option<String>,
+    /// Package version.
+    pub version: Option<String>,
+    /// Whether the package is private.
+    pub is_private: Option<bool>,
+    /// Package description.
+    pub description: Option<String>,
+    /// Package license identifier.
+    pub license: Option<String>,
+    /// Package repository metadata.
+    pub repository: Option<Value>,
+    /// Package homepage.
+    pub homepage: Option<String>,
+    /// Package keywords.
+    pub keywords: Vec<String>,
+    /// Preferred package manager string.
+    pub package_manager: Option<String>,
+    /// Package module type.
+    pub module_type: Option<String>,
+    /// Package engines.
+    pub engines: IndexMap<String, String>,
+    /// Package exports map.
+    pub exports: Option<Value>,
+    /// Package imports map.
+    pub imports: IndexMap<String, Value>,
+    /// Runtime dependencies.
+    pub dependencies: IndexMap<String, String>,
+    /// Development dependencies.
+    pub dev_dependencies: IndexMap<String, String>,
+    /// Peer dependencies.
+    pub peer_dependencies: IndexMap<String, String>,
+    /// Optional dependencies.
+    pub optional_dependencies: IndexMap<String, String>,
+    /// Named local workflow tasks.
+    pub tasks: IndexMap<String, TaskOptions>,
+    /// Repository wide workspace membership.
+    pub workspace: WorkspaceOptions,
     /// Specific files to include in the project.
     pub files: Vec<String>,
     /// Glob patterns for files to include.
@@ -601,7 +736,7 @@ pub struct DsConfigOptions {
     /// Glob patterns for files to exclude.
     pub exclude: Vec<String>,
     /// Compiler options.
-    pub compiler: DsConfigCompilerOptions,
+    pub compiler: CompilerOptions,
     /// Runtime options.
     pub runtime: RuntimeOptions,
     /// Formatter options.
@@ -609,22 +744,26 @@ pub struct DsConfigOptions {
     /// Linter options.
     pub linter: LinterOptions,
     /// Cache options.
-    pub cache: DsConfigCacheOptions,
+    pub cache: CacheOptions,
     /// Watch options.
-    pub watch: DsConfigWatchOptions,
+    pub watch: WatchOptions,
     /// Daemon options.
-    pub daemon: DsConfigDaemonOptions,
+    pub daemon: DaemonOptions,
     /// Build targets.
-    pub targets: IndexMap<String, DsConfigTargetOptions>,
+    pub targets: IndexMap<String, TargetOptions>,
+    /// Deployment stack definitions.
+    pub stacks: IndexMap<String, StackOptions>,
+    /// Named control-plane accounts.
+    pub accounts: IndexMap<String, AccountOptions>,
     /// Named profiles for semantic configuration.
     pub profiles: IndexMap<String, ProfileConfig>,
     /// Default target for workspace.
     pub default_target: Option<String>,
 }
 
-impl From<&DsConfigJson> for DsConfigOptions {
-    fn from(json: &DsConfigJson) -> Self {
-        let compiler = DsConfigCompilerOptions::from(&json.compiler);
+impl From<&DestackJson> for DestackOptions {
+    fn from(json: &DestackJson) -> Self {
+        let compiler = CompilerOptions::from(&json.compiler);
         let runtime = runtime_options_from_json(Some(&json.runtime));
 
         let targets = json
@@ -636,7 +775,7 @@ impl From<&DsConfigJson> for DsConfigOptions {
                     .map(|(name, target_json)| {
                         (
                             name.clone(),
-                            DsConfigTargetOptions::from_json_with_runtime(target_json, &runtime),
+                            TargetOptions::from_json_with_runtime(target_json, &runtime),
                         )
                     })
                     .collect()
@@ -649,11 +788,42 @@ impl From<&DsConfigJson> for DsConfigOptions {
         let mut linter = LinterOptions::default();
         json.linter.apply(&mut linter);
 
-        let cache = DsConfigCacheOptions::from(&json.cache);
-        let watch = DsConfigWatchOptions::from(&json.watch);
-        let daemon = DsConfigDaemonOptions::from(&json.daemon);
-
+        let cache = CacheOptions::from(&json.cache);
+        let watch = WatchOptions::from(&json.watch);
+        let daemon = DaemonOptions::from(&json.daemon);
         Self {
+            name: json.name.clone(),
+            version: json.version.clone(),
+            is_private: json.r#private,
+            description: json.description.clone(),
+            license: json.license.clone(),
+            repository: json.repository.clone(),
+            homepage: json.homepage.clone(),
+            keywords: json.keywords.clone().unwrap_or_default(),
+            package_manager: json.package_manager.clone(),
+            module_type: json.module_type.clone(),
+            engines: json.engines.clone().unwrap_or_default(),
+            exports: json.exports.clone(),
+            imports: json.imports.clone().unwrap_or_default(),
+            dependencies: json.dependencies.clone().unwrap_or_default(),
+            dev_dependencies: json.dev_dependencies.clone().unwrap_or_default(),
+            peer_dependencies: json.peer_dependencies.clone().unwrap_or_default(),
+            optional_dependencies: json.optional_dependencies.clone().unwrap_or_default(),
+            tasks: json
+                .tasks
+                .as_ref()
+                .map(|tasks| {
+                    tasks
+                        .iter()
+                        .map(|(name, task)| (name.clone(), TaskOptions::from(task)))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            workspace: json
+                .workspace
+                .as_ref()
+                .map(WorkspaceOptions::from)
+                .unwrap_or_default(),
             files: json.files.clone().unwrap_or_default(),
             include: json.include.clone().unwrap_or_default(),
             exclude: json.exclude.clone().unwrap_or_default(),
@@ -664,7 +834,18 @@ impl From<&DsConfigJson> for DsConfigOptions {
             cache,
             watch,
             daemon,
+            accounts: account_options_from_json(&json.accounts),
             targets,
+            stacks: json
+                .stacks
+                .as_ref()
+                .map(|stack_map| {
+                    stack_map
+                        .iter()
+                        .map(|(name, stack_json)| (name.clone(), StackOptions::from(stack_json)))
+                        .collect()
+                })
+                .unwrap_or_default(),
             profiles: json
                 .profiles
                 .as_ref()
@@ -682,12 +863,52 @@ impl From<&DsConfigJson> for DsConfigOptions {
     }
 }
 
-/// DsConfig JSON (usually from `dsconfig.json`)
+/// Destack config JSON, usually from `destack.json`.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigJson {
-    /// Extends other dsconfigs or tsconfigs.
+pub struct DestackJson {
+    /// Package name.
+    pub name: Option<String>,
+    /// Package version.
+    pub version: Option<String>,
+    /// Whether the package is private.
+    #[serde(rename = "private")]
+    pub r#private: Option<bool>,
+    /// Package description.
+    pub description: Option<String>,
+    /// Package license identifier.
+    pub license: Option<String>,
+    /// Package repository metadata.
+    pub repository: Option<Value>,
+    /// Package homepage.
+    pub homepage: Option<String>,
+    /// Package keywords.
+    pub keywords: Option<Vec<String>>,
+    /// Preferred package manager string.
+    pub package_manager: Option<String>,
+    /// Package module type.
+    #[serde(rename = "type")]
+    pub module_type: Option<String>,
+    /// Package engines.
+    pub engines: Option<IndexMap<String, String>>,
+    /// Package exports map.
+    pub exports: Option<Value>,
+    /// Package imports map.
+    pub imports: Option<IndexMap<String, Value>>,
+    /// Runtime dependencies.
+    pub dependencies: Option<IndexMap<String, String>>,
+    /// Development dependencies.
+    pub dev_dependencies: Option<IndexMap<String, String>>,
+    /// Peer dependencies.
+    pub peer_dependencies: Option<IndexMap<String, String>>,
+    /// Optional dependencies.
+    pub optional_dependencies: Option<IndexMap<String, String>>,
+    /// Named local workflow tasks.
+    pub tasks: Option<IndexMap<String, TaskJson>>,
+    /// Repository wide workspace membership.
+    pub workspace: Option<WorkspaceJson>,
+    /// Extends other Destack configs or tsconfigs.
     pub extends: Option<ExtendsFieldJson>,
     /// Specific files to include in the project.
     pub files: Option<Vec<String>>,
@@ -697,41 +918,181 @@ pub struct DsConfigJson {
     pub exclude: Option<Vec<String>>,
     /// Compiler options.
     #[serde(default)]
-    #[serde(alias = "compilerOptions")]
-    pub compiler: DsConfigCompilerOptionsJson,
+    pub compiler: CompilerOptionsJson,
     /// Runtime options.
     #[serde(default)]
-    pub runtime: DsConfigRuntimeOptionsJson,
+    pub runtime: RuntimeOptionsJson,
     /// Formatter options.
     #[serde(default)]
-    pub formatter: DsConfigFormatterJson,
+    pub formatter: FormatterJson,
     /// Linter options.
     #[serde(default)]
-    pub linter: DsConfigLinterJson,
+    pub linter: LinterJson,
     /// Cache options.
     #[serde(default)]
-    pub cache: DsConfigCacheJson,
+    pub cache: CacheJson,
     /// Watch options.
     #[serde(default)]
-    pub watch: DsConfigWatchJson,
+    pub watch: WatchJson,
     /// Daemon options.
     #[serde(default)]
-    pub daemon: DsConfigDaemonJson,
+    pub daemon: DaemonJson,
     /// Build targets.
-    pub targets: Option<IndexMap<String, DsConfigTargetJson>>,
+    pub targets: Option<IndexMap<String, TargetJson>>,
+    /// Deployment stack definitions.
+    pub stacks: Option<IndexMap<String, StackJson>>,
+    /// Named control-plane accounts.
+    pub accounts: Option<IndexMap<String, AccountJson>>,
     /// Named profiles for semantic configuration.
     pub profiles: Option<IndexMap<String, ProfileConfigJson>>,
     /// Default target for workspace.
     pub default_target: Option<String>,
 }
 
-/// Value for the "extends" field of a dsconfig.
+/// Value for the "extends" field of a Destack config.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum ExtendsFieldJson {
-    /// Extend a single dsconfig.
+    /// Extend a single Destack config.
     Single(String),
-    /// Extend multiple dsconfigs.
+    /// Extend multiple Destack configs.
     Multiple(Vec<String>),
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    use serde_json::json;
+
+    use destack_source::{File, FileId, FileType, Uri};
+
+    use super::super::policy::ExecutionModeJson;
+    use super::{Destack, DestackJson};
+
+    /// Parse canonical top-level config keys.
+    #[test]
+    fn test_destack_config_parse_canonical_top_level_keys() {
+        let json: DestackJson = serde_json::from_value(json!({
+            "name": "@destack/app",
+            "version": "0.1.0",
+            "private": true,
+            "tasks": {
+                "dev": "bun --hot src/main.ds"
+            },
+            "workspace": {
+                "members": ["apps/*", "packages/*"],
+                "groups": {
+                    "product": ["apps/web", "apps/api"]
+                }
+            },
+            "compiler": {
+                "strict": true
+            },
+            "runtime": {
+                "execution": "record"
+            },
+            "accounts": {
+                "cloudflareMain": {
+                    "provider": "cloudflare",
+                    "mode": "secret",
+                    "credential": "cloudflare-main"
+                }
+            },
+            "stacks": {
+                "production": {
+                    "targets": ["web"]
+                }
+            }
+        }))
+        .expect("destack config should parse");
+
+        assert_eq!(json.name.as_deref(), Some("@destack/app"));
+        assert_eq!(json.version.as_deref(), Some("0.1.0"));
+        assert_eq!(json.r#private, Some(true));
+        assert_eq!(json.tasks.as_ref().map(|tasks| tasks.len()), Some(1));
+        assert_eq!(
+            json.workspace
+                .as_ref()
+                .and_then(|workspace| workspace.members.as_ref())
+                .map(Vec::len),
+            Some(2)
+        );
+        assert!(json.compiler.strict.unwrap_or(false));
+        assert!(matches!(
+            json.runtime.execution,
+            Some(ExecutionModeJson::Record)
+        ));
+        assert_eq!(json.stacks.as_ref().map(|stacks| stacks.len()), Some(1));
+        assert_eq!(
+            json.accounts.as_ref().map(|accounts| accounts.len()),
+            Some(1)
+        );
+    }
+
+    /// Inherit parent stack defaults into child-defined stacks.
+    #[test]
+    fn test_destack_config_extend_inherits_parent_stack_into_child_entry() {
+        let parent_path = PathBuf::from("/tmp/parent/destack.json");
+        let parent_uri = Uri::from_string("file:///tmp/parent/destack.json");
+        let parent_file = Arc::new(
+            File::from_text_as_json(
+                FileId::new(1),
+                "destack.json".to_string(),
+                parent_uri,
+                Some(parent_path),
+                FileType::Json,
+                json!({
+                    "stacks": {
+                        "production": {
+                            "network": {
+                                "trustedOrigins": ["https://example.com"]
+                            }
+                        }
+                    }
+                })
+                .to_string(),
+            )
+            .expect("parent file should parse as json"),
+        );
+        let child_path = PathBuf::from("/tmp/child/destack.json");
+        let child_uri = Uri::from_string("file:///tmp/child/destack.json");
+        let child_file = Arc::new(
+            File::from_text_as_json(
+                FileId::new(2),
+                "destack.json".to_string(),
+                child_uri,
+                Some(child_path),
+                FileType::Json,
+                json!({
+                    "stacks": {
+                        "production": {
+                            "workloads": {
+                                "api": {
+                                    "target": "api"
+                                }
+                            }
+                        }
+                    }
+                })
+                .to_string(),
+            )
+            .expect("child file should parse as json"),
+        );
+
+        let parent = Destack::parse(&parent_file).expect("parent config should parse");
+        let mut child = Destack::parse(&child_file).expect("child config should parse");
+        child.extend_from(&parent);
+
+        let stack = child
+            .options
+            .stacks
+            .get("production")
+            .expect("merged stack should exist");
+
+        assert_eq!(stack.network.trusted_origins, vec!["https://example.com"]);
+        assert!(stack.workloads.contains_key("api"));
+    }
 }

@@ -4,12 +4,12 @@ use crate::common::ReportArgs;
 use super::tests::{TestProgram, assert_success};
 use serde_json::json;
 
-/// Lists tasks defined in dsconfig.
+/// Lists tasks defined in destack.json.
 #[test]
 fn test_task_list_reads_tasks() {
     // set up a config with tasks
     let program = TestProgram::new("task_list");
-    program.write_dsconfig_with_base(json!({
+    program.write_destack_config_with_base(json!({
         "tasks": {
             "build": "echo build",
         },
@@ -34,7 +34,7 @@ fn test_task_list_reads_tasks() {
 fn test_task_run_dry_run() {
     // set up a config with tasks
     let program = TestProgram::new("task_run_dry");
-    program.write_dsconfig_with_base(json!({
+    program.write_destack_config_with_base(json!({
         "tasks": {
             "build": "echo build",
         },

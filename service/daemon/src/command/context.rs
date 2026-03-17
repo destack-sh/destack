@@ -9,7 +9,7 @@ use destack_source::{
     FileVersion, ModuleId, Uri, glob,
 };
 use destack_workspace::{
-    DsConfig, OptimizeLevel, Program, Target, TargetDiscovery, TargetId, Workspace,
+    Destack, OptimizeLevel, Program, Target, TargetDiscovery, TargetId, Workspace,
 };
 
 use crate::Daemon;
@@ -54,19 +54,19 @@ impl<'a> CommandContext<'a> {
         }
     }
 
-    /// Resolve command inputs, falling back to dsconfig when allowed.
+    /// Resolve command inputs, falling back to the Destack config when allowed.
     pub(super) fn resolve_command_inputs(&self) -> super::CommandResult<Vec<CommandInput>> {
         if !self.common.inputs.is_empty() {
             return Ok(self.common.inputs.clone());
         }
 
-        if !self.common.allow_dsconfig_fallback {
+        if !self.common.allow_destack_config_fallback {
             return Err("no input files provided".to_string().into());
         }
 
-        let dsconfig_path = self.resolve_dsconfig_path(self.common.config_path.as_deref())?;
-        let dsconfig = self.load_dsconfig(&dsconfig_path)?;
-        let inputs = collect_sources_from_dsconfig(&dsconfig, self.common.target.as_deref());
+        let config_path = self.resolve_destack_config_path(self.common.config_path.as_deref())?;
+        let config = self.load_destack_config(&config_path)?;
+        let inputs = collect_sources_from_destack_config(&config, self.common.target.as_deref());
 
         if inputs.is_empty() {
             return Err("no input files provided".to_string().into());
@@ -258,9 +258,9 @@ impl<'a> CommandContext<'a> {
         let package = self.program.packages.get(module.package_id);
         let package = package.read();
 
-        // use dsconfig default target when available
-        if let Some(dsconfig) = package.dsconfig.as_ref()
-            && let Some(target_name) = dsconfig.options.default_target.as_deref()
+        // use the package config default target when available
+        if let Some(config) = package.config.as_ref()
+            && let Some(target_name) = config.options.default_target.as_deref()
         {
             return self.ensure_target_for_module(module_id, target_name, overrides);
         }
@@ -317,39 +317,39 @@ impl<'a> CommandContext<'a> {
         )
     }
 
-    /// Resolve a dsconfig.json path for the current program.
-    pub(super) fn resolve_dsconfig_path(
+    /// Resolve a destack.json path for the current program.
+    pub(super) fn resolve_destack_config_path(
         &self,
         override_path: Option<&Path>,
     ) -> super::CommandResult<PathBuf> {
-        resolve_dsconfig_path(&self.resolver(), self.program.cwd.as_path(), override_path)
+        resolve_destack_config_path(&self.resolver(), self.program.cwd.as_path(), override_path)
     }
 
-    /// Load dsconfig.json for a path.
-    pub(super) fn load_dsconfig(&self, path: &Path) -> super::CommandResult<DsConfig> {
-        load_dsconfig(&self.resolver(), path)
+    /// Load destack.json for a path.
+    pub(super) fn load_destack_config(&self, path: &Path) -> super::CommandResult<Destack> {
+        load_destack_config(&self.resolver(), path)
     }
 
-    /// Find dsconfig.json for a directory.
-    pub(super) fn find_dsconfig(&self, cwd: &Path) -> Option<PathBuf> {
-        find_dsconfig(&self.resolver(), cwd)
+    /// Find destack.json for a directory.
+    pub(super) fn find_destack_config(&self, cwd: &Path) -> Option<PathBuf> {
+        find_destack_config(&self.resolver(), cwd)
     }
 
-    /// Load workspace dsconfig.json files for all packages.
-    pub(super) fn load_workspace_dsconfigs(
+    /// Load workspace destack.json files for all packages.
+    pub(super) fn load_workspace_configs(
         &self,
         workspace: &Workspace,
-    ) -> super::CommandResult<Vec<DsConfig>> {
-        load_workspace_dsconfigs(&self.resolver(), workspace)
+    ) -> super::CommandResult<Vec<Destack>> {
+        load_workspace_configs(&self.resolver(), workspace)
     }
 }
 
-fn resolve_dsconfig_path(
+fn resolve_destack_config_path(
     resolver: &Resolver,
     cwd: &Path,
     override_path: Option<&Path>,
 ) -> super::CommandResult<PathBuf> {
-    let dsconfig_path = if let Some(config_path) = override_path {
+    let destack_config_path = if let Some(config_path) = override_path {
         let resolved = if config_path.is_absolute() {
             config_path.to_path_buf()
         } else {
@@ -357,31 +357,31 @@ fn resolve_dsconfig_path(
         };
         if let Ok(metadata) = resolver.fs.metadata(&resolved) {
             if metadata.is_directory {
-                find_dsconfig(resolver, &resolved)
-                    .ok_or_else(|| "dsconfig.json not found".to_string())?
+                find_destack_config(resolver, &resolved)
+                    .ok_or_else(|| "destack.json not found".to_string())?
             } else {
                 resolved
             }
         } else {
-            return Err("dsconfig.json not found".to_string().into());
+            return Err("destack.json not found".to_string().into());
         }
     } else {
-        find_dsconfig(resolver, cwd).ok_or_else(|| "dsconfig.json not found".to_string())?
+        find_destack_config(resolver, cwd).ok_or_else(|| "destack.json not found".to_string())?
     };
 
-    Ok(dsconfig_path)
+    Ok(destack_config_path)
 }
 
-fn load_dsconfig(resolver: &Resolver, path: &Path) -> super::CommandResult<DsConfig> {
+fn load_destack_config(resolver: &Resolver, path: &Path) -> super::CommandResult<Destack> {
     Ok(resolver
-        .load_dsconfig(path, CachePolicy::UseCache)
+        .read_destack_config(path, CachePolicy::UseCache)
         .map_err(|error| error.to_string())?)
 }
 
-fn find_dsconfig(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
+fn find_destack_config(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
     let mut current = cwd.to_path_buf();
     loop {
-        let candidate = current.join("dsconfig.json");
+        let candidate = current.join("destack.json");
         if resolver
             .fs
             .metadata(&candidate)
@@ -398,52 +398,55 @@ fn find_dsconfig(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
     }
 }
 
-fn load_workspace_dsconfigs(
+fn load_workspace_configs(
     resolver: &Resolver,
     workspace: &Workspace,
-) -> super::CommandResult<Vec<DsConfig>> {
+) -> super::CommandResult<Vec<Destack>> {
     let mut configs = BTreeMap::new();
     for package_path in &workspace.package_paths {
-        if let Some(path) = find_dsconfig(resolver, package_path.as_path()) {
+        if let Some(path) = find_destack_config(resolver, package_path.as_path()) {
             configs.entry(path).or_insert_with(|| package_path.clone());
         }
     }
 
     let mut resolved = Vec::new();
     for (path, _) in configs {
-        resolved.push(load_dsconfig(resolver, &path)?);
+        resolved.push(load_destack_config(resolver, &path)?);
     }
 
     Ok(resolved)
 }
 
-fn collect_sources_from_dsconfig(dsconfig: &DsConfig, target_name: Option<&str>) -> Vec<PathBuf> {
+fn collect_sources_from_destack_config(
+    config: &Destack,
+    target_name: Option<&str>,
+) -> Vec<PathBuf> {
     let selected_target = target_name
         .map(str::to_string)
-        .or_else(|| dsconfig.options.default_target.clone());
+        .or_else(|| config.options.default_target.clone());
     let target_options = selected_target
         .as_deref()
-        .and_then(|name| dsconfig.options.targets.get(name));
+        .and_then(|name| config.options.targets.get(name));
 
     let (entries, includes, excludes, discovery) = if let Some(target) = target_options {
         let includes = if target.include.is_empty() {
-            dsconfig.options.include.clone()
+            config.options.include.clone()
         } else {
             target.include.clone()
         };
-        let mut excludes = dsconfig.options.exclude.clone();
+        let mut excludes = config.options.exclude.clone();
         excludes.extend(target.exclude.iter().cloned());
         (target.entry.clone(), includes, excludes, target.discovery)
     } else {
         (
             Vec::new(),
-            dsconfig.options.include.clone(),
-            dsconfig.options.exclude.clone(),
+            config.options.include.clone(),
+            config.options.exclude.clone(),
             TargetDiscovery::Include,
         )
     };
 
-    let base_dir = dsconfig.directory.clone();
+    let base_dir = config.directory.clone();
     let mut paths = BTreeMap::new();
 
     if discovery == TargetDiscovery::Entry && !entries.is_empty() {
@@ -457,8 +460,8 @@ fn collect_sources_from_dsconfig(dsconfig: &DsConfig, target_name: Option<&str>)
         }
     }
 
-    if paths.is_empty() && !dsconfig.options.files.is_empty() {
-        for file in &dsconfig.options.files {
+    if paths.is_empty() && !config.options.files.is_empty() {
+        for file in &config.options.files {
             let path = base_dir.join(file);
             paths.insert(path, ());
         }

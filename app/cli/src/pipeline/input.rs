@@ -6,7 +6,7 @@ use destack_workspace::TargetDiscovery;
 
 use crate::common::{InputArgs, InputSource, ProgramArgs};
 use crate::error::CliResult;
-use crate::pipeline::workspace::{load_dsconfig_for_program, workspace_context};
+use crate::pipeline::workspace::{load_destack_config_for_program, workspace_context};
 
 /// Errors returned while resolving input sources.
 #[derive(Debug)]
@@ -17,7 +17,7 @@ pub enum ResolveSourcesError {
     Message(String),
 }
 
-/// Resolve input sources, optionally falling back to dsconfig discovery.
+/// Resolve input sources, optionally falling back to Destack config discovery.
 pub fn resolve_sources(
     input: &InputArgs,
     program_args: Option<&ProgramArgs>,
@@ -30,12 +30,12 @@ pub fn resolve_sources(
             .map_err(|error| ResolveSourcesError::Message(error.to_string()));
     }
 
-    // fall back to dsconfig discovery when available
+    // fall back to destack.json discovery when available
     let Some(program_args) = program_args else {
         return Err(ResolveSourcesError::NoInput);
     };
 
-    let sources = collect_sources_from_dsconfig(program_args, target_name)
+    let sources = collect_sources_from_destack_config(program_args, target_name)
         .map_err(|error| ResolveSourcesError::Message(error.to_string()))?;
 
     if sources.is_empty() {
@@ -45,45 +45,45 @@ pub fn resolve_sources(
     Ok(sources)
 }
 
-/// Collect source files using dsconfig discovery rules.
-pub fn collect_sources_from_dsconfig(
+/// Collect source files using Destack config discovery rules.
+pub fn collect_sources_from_destack_config(
     program_args: &ProgramArgs,
     target_name: Option<&str>,
 ) -> CliResult<Vec<InputSource>> {
-    // resolve workspace context and dsconfig
+    // resolve workspace context and config
     let context = workspace_context(program_args, None)?;
-    let dsconfig =
-        load_dsconfig_for_program(program_args, &context.resolver, &context.session.cwd)?;
+    let config =
+        load_destack_config_for_program(program_args, &context.resolver, &context.session.cwd)?;
 
     // select target options from explicit or default target name
     let selected_target = target_name
         .map(str::to_string)
-        .or_else(|| dsconfig.options.default_target.clone());
+        .or_else(|| config.options.default_target.clone());
     let target_options = selected_target
         .as_deref()
-        .and_then(|name| dsconfig.options.targets.get(name));
+        .and_then(|name| config.options.targets.get(name));
 
     // pick discovery rules from target when available
     let (entries, includes, excludes, discovery) = if let Some(target) = target_options {
         let includes = if target.include.is_empty() {
-            dsconfig.options.include.clone()
+            config.options.include.clone()
         } else {
             target.include.clone()
         };
-        let mut excludes = dsconfig.options.exclude.clone();
+        let mut excludes = config.options.exclude.clone();
         excludes.extend(target.exclude.iter().cloned());
         (target.entry.clone(), includes, excludes, target.discovery)
     } else {
         (
             Vec::new(),
-            dsconfig.options.include.clone(),
-            dsconfig.options.exclude.clone(),
+            config.options.include.clone(),
+            config.options.exclude.clone(),
             TargetDiscovery::Include,
         )
     };
 
     // build paths from entry, files, or include globs
-    let base_dir = dsconfig.directory.clone();
+    let base_dir = config.directory.clone();
     let mut paths = BTreeSet::new();
 
     // include explicit entry points for entry discovery
@@ -98,15 +98,15 @@ pub fn collect_sources_from_dsconfig(
         }
     }
 
-    // include explicit files from dsconfig
-    if paths.is_empty() && !dsconfig.options.files.is_empty() {
-        for file in &dsconfig.options.files {
+    // include explicit files from the config
+    if paths.is_empty() && !config.options.files.is_empty() {
+        for file in &config.options.files {
             let path = base_dir.join(file);
             paths.insert(path);
         }
     }
 
-    // include patterns from target or dsconfig
+    // include patterns from the target or config
     if paths.is_empty() {
         let patterns = if includes.is_empty() {
             vec![

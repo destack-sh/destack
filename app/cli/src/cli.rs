@@ -334,7 +334,7 @@ fn build_commands_help(color_enabled: bool) -> String {
         },
         CommandEntry {
             name: "config",
-            example: "dsconfig.json",
+            example: "destack.json",
             help: None,
             group: 2,
         },
