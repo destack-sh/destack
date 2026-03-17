@@ -5,72 +5,68 @@ use std::sync::Arc;
 use destack_workspace::{DsConfig, NodeLinker};
 use indexmap::IndexMap;
 
-/// Resolution options (derived from `oxc-resolver` / `enhanced-resolve`).
+/// The options controlling resolver behavior.
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone)]
 pub struct ResolveOptions {
-    /// Current working directory to start from.
+    /// The working directory used for environment dependent lookups.
     pub cwd: Option<PathBuf>,
 
-    /// How to discover the TypeScript configuration file.
+    /// The TypeScript configuration discovery policy.
     pub tsconfig: Option<TypeScriptOptionsDiscovery>,
 
-    /// Aliases to import or require certain modules more easily.
+    /// The primary alias table.
     pub alias: Alias,
 
-    /// Condition names for exports field which defines entry points of a package.
-    /// The key order in the exports key is significant.
-    /// During condition matching, earlier entries have higher priority and take precedence over later entries.
+    /// The active package export conditions in priority order.
     pub conditions: Vec<String>,
 
-    /// Whether to resolve package.json exports mappings.
+    /// Whether package `exports` mappings are enabled.
     pub resolve_package_json_exports: bool,
 
-    /// Whether to resolve package.json imports mappings.
+    /// Whether package `imports` mappings are enabled.
     pub resolve_package_json_imports: bool,
 
-    /// Whether and how to enforce file extensions.
+    /// The file extension enforcement policy.
     pub enforce_extension: EnforceExtension,
 
-    /// Extension aliases (e.g., `(".js", [".ts", ".tsx"])`).
+    /// The extension alias table.
     pub extension_alias: IndexMap<String, Vec<String>>,
 
-    /// Attempt to resolve these extensions in order (e.g., `[".js", ".json", ".node"]`).
+    /// The extension probe order.
     pub extensions: Vec<String>,
 
-    /// Request passed to resolve is already fully specified.
+    /// Whether incoming requests are already fully specified.
     pub is_fully_specified: bool,
 
-    /// Redirect module requests when normal resolving fails.
+    /// The fallback alias table.
     pub fallback: Alias,
 
-    /// Main files in description files (e.g., `["index"]`).
+    /// The main files probed inside directories.
     pub main_files: Vec<String>,
 
-    /// Directories to resolve modules from (e.g., `["node_modules"]`).
+    /// The module directory names to search while walking parents.
     pub modules: Vec<String>,
 
-    /// Resolve to a context instead of a file.
+    /// Whether directory requests should resolve to the directory itself.
     pub resolve_to_context: bool,
 
-    /// Prefer to resolve module requests as relative requests instead of using modules from node_modules directories.
+    /// Whether bare specifiers should prefer relative resolution first.
     pub prefer_relative: bool,
 
-    /// Prefer to resolve server-relative urls as absolute paths before falling back to resolve in ResolveOptions::roots.
+    /// Whether server relative specifiers should prefer absolute resolution first.
     pub prefer_absolute: bool,
 
-    /// A list of resolve restrictions to restrict the paths that a request can be resolved on.
+    /// The path restrictions applied to resolved candidates.
     pub restrictions: Vec<Restriction>,
 
-    /// A list of directories where requests of server-relative URLs (starting with '/') are resolved.
-    /// On non-Windows systems these requests are resolved as an absolute path first.
+    /// The project roots used for slash prefixed lookups.
     pub roots: Vec<PathBuf>,
 
-    /// Whether to resolve symlinks to their symlinked location, if possible.
-    /// (May cause module resolution to fail when using tools that symlink packages like `npm link`).
+    /// Whether resolved paths should be canonicalized through symlinks.
     pub canonicalize_symlinks: bool,
 
-    /// Whether to resolve modules through Yarn Plug'n'Play manifests (`.pnp.cjs`).
+    /// Whether Yarn Plug'n'Play resolution is enabled.
     pub yarn_pnp: bool,
 }
 
@@ -172,7 +168,7 @@ impl ResolveOptions {
         }
     }
 
-    /// Create a new blank resolve options.
+    /// Create blank resolve options.
     pub fn blank() -> Self {
         Self {
             cwd: None,
@@ -252,7 +248,7 @@ impl ResolveOptions {
         self
     }
 
-    /// Set the skip extension.
+    /// Set whether incoming requests are fully specified.
     pub fn with_is_fully_specified(mut self, is_fully_specified: bool) -> Self {
         self.is_fully_specified = is_fully_specified;
         self
@@ -384,25 +380,25 @@ impl fmt::Display for ResolveOptions {
     }
 }
 
-/// How to enforce file extensions.
+/// The file extension enforcement policy.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub enum EnforceExtension {
-    /// Enforce file extensions (path must include extension).
+    /// Require requests to include their extension.
     Enabled,
-    /// Do not enforce file extensions (resolve tries appending extensions from the list).
+    /// Probe configured extensions when the request omits them.
     #[default]
     Disabled,
 }
 
-/// Alias for [ResolveOptions::alias] and [ResolveOptions::fallback]
+/// The alias table used for primary and fallback rewrites.
 pub type Alias = Vec<(String, Vec<AliasValue>)>;
 
 /// Alias value.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum AliasValue {
-    /// The path value
+    /// The replacement path value.
     Path(String),
-    /// The `false` value
+    /// The explicit ignore value.
     Ignore,
 }
 
@@ -415,12 +411,12 @@ where
     }
 }
 
-/// Restriction for resolution.
+/// The restriction applied to resolved paths.
 #[derive(Clone)]
 pub enum Restriction {
-    /// Prefix path restriction.
+    /// The allowed path prefix.
     Path(PathBuf),
-    /// Function restriction.
+    /// The custom predicate restriction.
     Function(Arc<dyn Fn(&Path) -> bool + Sync + Send>),
 }
 
@@ -449,32 +445,32 @@ impl CachePolicy {
     }
 }
 
-/// How to discover the TypeScript configuration file.
+/// The TypeScript configuration discovery policy.
 #[derive(Debug, Clone)]
 pub enum TypeScriptOptionsDiscovery {
-    /// Auto-discover the TypeScript configuration file.
+    /// Discover the configuration automatically from the issuer path.
     Automatic,
-    /// Manual discovery of the TypeScript configuration file.
+    /// Use one explicit configuration location.
     Manual(TypeScriptOptionsLocation),
 }
 
-/// Location of the TypeScript configuration file.
+/// The explicit TypeScript configuration location.
 #[derive(Debug, Clone)]
 pub struct TypeScriptOptionsLocation {
-    /// Path to the TypeScript configuration file.
+    /// The path to the `tsconfig.json` file.
     pub config_file: PathBuf,
-    /// How to handle references in the TypeScript configuration file.
+    /// The project reference handling policy.
     pub references: TypeScriptOptionsReferences,
 }
 
-/// How to handle references in the TypeScript configuration file.
+/// The TypeScript project reference handling policy.
 #[derive(Debug, Clone)]
 pub enum TypeScriptOptionsReferences {
-    /// Disable references.
+    /// Disable project references.
     Disabled,
-    /// Auto-discover the TypeScript configuration file references.
+    /// Discover project references from the root config.
     Automatic,
-    /// Manually provided paths to the TypeScript configuration files.
+    /// Use the given referenced config paths.
     Paths(Vec<PathBuf>),
 }
 
@@ -485,7 +481,7 @@ mod tests {
     use super::ResolveOptions;
     use destack_workspace::NodeLinker;
 
-    /// Apply node-modules policy and disable yarn pnp.
+    /// Apply node modules policy and disable yarn pnp.
     #[test]
     fn test_apply_node_linker_for_cwd_sets_node_modules_policy() {
         let mut options = ResolveOptions::default().with_yarn_pnp(true);

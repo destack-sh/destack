@@ -11,14 +11,14 @@ use destack_source::{FileMetadata, PathExt};
 #[cfg(not(target_arch = "wasm32"))]
 use pnp::fs::{VPath, VPathInfo, ZipCache};
 
-use crate::{ResolveContext, ResolveError, Resolver, Restriction};
+use crate::{ResolveError, ResolveFrame, Resolver, Restriction};
 
-// thread-local pre-allocated path buffer for path manipulation
+// thread local scratch path buffer
 thread_local! {
     pub(crate) static SCRATCH_PATH: RefCell<PathBuf> = RefCell::new(PathBuf::with_capacity(256));
 }
 
-/// Simple identity hasher for hash sets that already have pre-computed hashes.
+/// The identity hasher for hash sets with precomputed hashes.
 #[derive(Debug, Default)]
 struct IdentityHasher(u64);
 
@@ -36,25 +36,42 @@ impl Hasher for IdentityHasher {
     }
 }
 
-/// Check if a path is inside a modules directory (node_modules).
-#[inline]
-pub(crate) fn is_inside_modules(path: &Path) -> bool {
-    path.components()
-        .any(|c| matches!(c, Component::Normal(name) if name == "node_modules"))
-}
-
-/// Append an extension to a path (e.g., `foo` + `.js` = `foo.js`).
-pub(crate) fn append_extension(path: &Path, extension: &str) -> PathBuf {
-    SCRATCH_PATH.with_borrow_mut(|scratch| {
-        scratch.clear();
-        let os_string = scratch.as_mut_os_string();
-        os_string.push(path.as_os_str());
-        os_string.push(extension);
-        scratch.clone()
-    })
-}
-
 impl Resolver {
+    /// Check if one path lies inside one restricted path.
+    fn is_in_restricted_path(path: &Path, parent: &Path) -> bool {
+        // not a prefix
+        if !path.starts_with(parent) {
+            false
+        }
+        // exact path match
+        else if path.as_os_str().len() == parent.as_os_str().len() {
+            true
+        }
+        // relative path match
+        else {
+            path.strip_prefix(parent)
+                .is_ok_and(|path| path == Path::new("./"))
+        }
+    }
+
+    /// Check if a path is inside a modules directory (node_modules).
+    #[inline]
+    pub(crate) fn is_inside_modules(path: &Path) -> bool {
+        path.components()
+            .any(|c| matches!(c, Component::Normal(name) if name == "node_modules"))
+    }
+
+    /// Append an extension to a path (e.g., `foo` + `.js` = `foo.js`).
+    pub(crate) fn append_extension(path: &Path, extension: &str) -> PathBuf {
+        SCRATCH_PATH.with_borrow_mut(|scratch| {
+            scratch.clear();
+            let os_string = scratch.as_mut_os_string();
+            os_string.push(path.as_os_str());
+            os_string.push(extension);
+            scratch.clone()
+        })
+    }
+
     /// Normalize one Windows path and reject unsupported DOS device forms.
     #[cfg(target_os = "windows")]
     fn normalize_windows_path(path: &Path) -> Result<PathBuf, ResolveError> {
@@ -184,7 +201,7 @@ impl Resolver {
 
     /// Check if a path is a file.
     #[inline]
-    pub(crate) fn is_file(&self, path: &Path, ctx: &mut ResolveContext) -> bool {
+    pub(crate) fn is_file(&self, path: &Path, ctx: &mut ResolveFrame) -> bool {
         match self.metadata(path) {
             Ok(meta) if meta.is_file => {
                 ctx.track_found_dependency(path);
@@ -199,7 +216,7 @@ impl Resolver {
 
     /// Check if a path is a directory.
     #[inline]
-    pub(crate) fn is_directory(&self, path: &Path, ctx: &mut ResolveContext) -> bool {
+    pub(crate) fn is_directory(&self, path: &Path, ctx: &mut ResolveFrame) -> bool {
         match self.metadata(path) {
             Ok(meta) if meta.is_directory => {
                 ctx.track_found_dependency(path);
@@ -232,7 +249,7 @@ impl Resolver {
         Ok(result)
     }
 
-    /// Canonicalize a path with a set of already-visited paths for cycle detection.
+    /// Canonicalize a path with one visited set for cycle detection.
     fn canonicalize_recursive(
         &self,
         path: &Path,
@@ -312,13 +329,14 @@ impl Resolver {
         path.normalize()
     }
 
+    /// Normalize a root path without any platform specific rewrite.
     #[cfg(not(target_os = "windows"))]
     fn normalize_root(path: &Path) -> PathBuf {
         path.to_path_buf()
     }
 
-    /// Load the real path (resolving symlinks if needed).
-    pub(crate) fn load_realpath(&self, path: &Path) -> Result<PathBuf, ResolveError> {
+    /// Finalize one resolved path by applying symlink canonicalization if configured.
+    pub(crate) fn finalize_path(&self, path: &Path) -> Result<PathBuf, ResolveError> {
         if self.options.canonicalize_symlinks {
             self.canonicalize(path)
         } else {
@@ -328,29 +346,11 @@ impl Resolver {
 
     /// Check if a resolved path passes all configured restrictions.
     pub(crate) fn check_restrictions(&self, path: &Path) -> bool {
-        /// Check if a path is inside a restricted path.
-        /// See <https://github.com/webpack/enhanced-resolve/blob/a998c7d218b7a9ec2461fc4fddd1ad5dd7687485/lib/RestrictionsPlugin.js#L19-L24>
-        fn is_in_restricted(path: &Path, parent: &Path) -> bool {
-            // not a prefix
-            if !path.starts_with(parent) {
-                false
-            }
-            // exact path match
-            else if path.as_os_str().len() == parent.as_os_str().len() {
-                true
-            }
-            // relative path match
-            else {
-                path.strip_prefix(parent)
-                    .is_ok_and(|p| p == Path::new("./"))
-            }
-        }
-
         // check all restrictions
         for restriction in &self.options.restrictions {
             match restriction {
                 Restriction::Path(restricted_path) => {
-                    if !is_in_restricted(path, restricted_path) {
+                    if !Self::is_in_restricted_path(path, restricted_path) {
                         return false;
                     }
                 }

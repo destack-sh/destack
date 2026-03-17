@@ -2,11 +2,12 @@ use crate::Resolver;
 use std::cmp::Ordering;
 
 impl Resolver {
+    /// Parse one bare package specifier into package name and subpath.
     pub(crate) fn parse_package_specifier(specifier: &str) -> (&str, &str) {
         // find first slash
         let mut separator_index = specifier.as_bytes().iter().position(|b| *b == b'/');
 
-        // scoped packages have format `@scope/package-name/subpath`
+        // scoped packages have format `@scope/package/subpath`
         if specifier.starts_with('@') {
             if separator_index.is_none() || specifier.is_empty() {
                 // fall through with no separator
@@ -18,7 +19,7 @@ impl Resolver {
             }
         }
 
-        // split at separator
+        // split at the package boundary
         let package_name = separator_index.map_or(specifier, |index| &specifier[..index]);
         let package_subpath = separator_index.map_or("", |index| &specifier[index..]);
         (package_name, package_subpath)

@@ -8,103 +8,186 @@ use std::path::PathBuf;
 pub enum ResolveError {
     /// Path explicitly ignored.
     /// <https://github.com/defunctzombie/package-browser-field-spec#ignore-a-module>
-    Ignored { path: PathBuf },
+    Ignored {
+        /// The ignored path.
+        path: PathBuf,
+    },
 
     /// Module not found.
-    NotFound { specifier: String },
+    NotFound {
+        /// The original import specifier.
+        specifier: String,
+    },
 
     /// Matched alias value not found.
     MatchedAliasNotFound {
+        /// The original import specifier.
         specifier: String,
+        /// The alias key that matched.
         alias_key: String,
     },
 
-    /// TypeScriptOptions not found.
-    TsConfigNotFound { path: PathBuf },
+    /// TypeScript configuration not found.
+    TsConfigNotFound {
+        /// The missing config path.
+        path: PathBuf,
+    },
 
-    /// Invalid tsconfig.
-    TsConfigInvalid { path: PathBuf },
+    /// Invalid TypeScript configuration.
+    TsConfigInvalid {
+        /// The invalid config path.
+        path: PathBuf,
+    },
 
-    /// TypeScriptOptions's project reference path points to itself.
-    TsConfigSelfReference { path: PathBuf },
+    /// TypeScript project reference path points to itself.
+    TsConfigSelfReference {
+        /// The offending config path.
+        path: PathBuf,
+    },
 
     /// Circular tsconfig extends.
-    TsConfigCircular { paths: Vec<PathBuf> },
+    TsConfigCircular {
+        /// The cycle of config paths.
+        paths: Vec<PathBuf>,
+    },
 
     /// DsConfig not found.
-    DsConfigNotFound { path: PathBuf },
+    DsConfigNotFound {
+        /// The missing config path.
+        path: PathBuf,
+    },
 
     /// Invalid dsconfig.
-    DsConfigInvalid { path: PathBuf },
+    DsConfigInvalid {
+        /// The invalid config path.
+        path: PathBuf,
+    },
 
     /// Circular dsconfig extends.
-    DsConfigCircular { paths: Vec<PathBuf> },
+    DsConfigCircular {
+        /// The cycle of config paths.
+        paths: Vec<PathBuf>,
+    },
 
     /// Yarn PnP manifest file was not found from the configured cwd.
     #[cfg(not(target_arch = "wasm32"))]
-    FailedToFindYarnPnpManifest { cwd: PathBuf },
+    FailedToFindYarnPnpManifest {
+        /// The working directory used for the search.
+        cwd: PathBuf,
+    },
 
     /// Yarn PnP returned one resolver error.
     #[cfg(not(target_arch = "wasm32"))]
-    YarnPnpError { error: pnp::Error },
+    YarnPnpError {
+        /// The underlying Yarn PnP error.
+        error: pnp::Error,
+    },
 
     /// IO error.
-    IoError { path: PathBuf, kind: io::ErrorKind },
+    IoError {
+        /// The path involved in the IO failure.
+        path: PathBuf,
+        /// The underlying IO error kind.
+        kind: io::ErrorKind,
+    },
+
+    /// File origin resolution received a non file path.
+    ExpectedFilePath {
+        /// The path that was expected to be a file.
+        path: PathBuf,
+    },
+
+    /// Directory origin resolution received a non directory path.
+    ExpectedDirectoryPath {
+        /// The path that was expected to be a directory.
+        path: PathBuf,
+    },
 
     /// Path won't be able consumable by NodeJS `import` or `require`.
-    UnsupportedPath { path: PathBuf },
+    UnsupportedPath {
+        /// The unsupported path.
+        path: PathBuf,
+    },
 
     /// None of the aliased extensions were found.
     ExtensionAliasNotFound {
+        /// The original requested filename.
         filename: String,
+        /// The alias extensions that were tried.
         tried: String,
+        /// The directory in which probing happened.
         dir: PathBuf,
     },
 
     /// Path specifier cannot be parsed.
     InvalidSpecifier {
+        /// The original specifier text.
         specifier: String,
+        /// The optional parse error detail.
         message: Option<String>,
     },
 
     /// Invalid module specifier (e.g. `#/`).
     InvalidModuleSpecifier {
+        /// The invalid specifier.
         specifier: String,
+        /// The package config path involved in validation.
         package_path: PathBuf,
     },
 
     /// Invalid package target (e.g. `../`).
     InvalidPackageTarget {
+        /// The invalid target value.
         target: String,
+        /// The matching exports or imports key.
         name: String,
+        /// The package config path involved in validation.
         package_path: PathBuf,
     },
 
     /// Package path not exported.
     PackagePathNotExported {
+        /// The requested package subpath.
         subpath: String,
+        /// The owning package directory.
         package_path: PathBuf,
+        /// The package config path.
         package_json_path: PathBuf,
+        /// The active condition names.
         conditions: Vec<String>,
     },
 
     /// Invalid package config.
-    InvalidPackageJson { path: PathBuf },
+    InvalidPackageJson {
+        /// The invalid package config path.
+        path: PathBuf,
+    },
 
     /// Invalid package config default.
-    InvalidPackageConfigDefault { path: PathBuf },
+    InvalidPackageConfigDefault {
+        /// The invalid package config path.
+        path: PathBuf,
+    },
 
     /// Invalid package config directory.
-    InvalidPackageConfigDirectory { path: PathBuf },
+    InvalidPackageConfigDirectory {
+        /// The invalid package config path.
+        path: PathBuf,
+    },
 
     /// Package import not defined.
     PackageImportNotDefined {
+        /// The missing package import specifier.
         specifier: String,
+        /// The package config path.
         package_path: PathBuf,
     },
 
     /// Recursive or too deep dependency.
-    RecursiveDependency { depth: u8 },
+    RecursiveDependency {
+        /// The recursion depth at failure.
+        depth: u8,
+    },
 }
 
 impl ResolveError {
@@ -113,7 +196,7 @@ impl ResolveError {
         matches!(self, Self::Ignored { .. })
     }
 
-    /// Get the numeric sub-code of the error.
+    /// Get the numeric subcode of the error.
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Ignored { .. } => 1,
@@ -131,6 +214,8 @@ impl ResolveError {
             #[cfg(not(target_arch = "wasm32"))]
             Self::YarnPnpError { .. } => 25,
             Self::IoError { .. } => 7,
+            Self::ExpectedFilePath { .. } => 9,
+            Self::ExpectedDirectoryPath { .. } => 12,
             Self::UnsupportedPath { .. } => 8,
             Self::ExtensionAliasNotFound { .. } => 10,
             Self::InvalidSpecifier { .. } => 11,
@@ -174,6 +259,12 @@ impl ResolveError {
             #[cfg(not(target_arch = "wasm32"))]
             Self::YarnPnpError { error } => format!("yarn pnp error: {error}"),
             Self::IoError { path, kind } => format!("IO error at {path:?}: {kind}"),
+            Self::ExpectedFilePath { path } => {
+                format!("expected a file path for file-origin resolution, got {path:?}")
+            }
+            Self::ExpectedDirectoryPath { path } => {
+                format!("expected a directory path for directory-origin resolution, got {path:?}")
+            }
             Self::UnsupportedPath { path } => {
                 format!("path {path:?} contains unsupported construct.")
             }
