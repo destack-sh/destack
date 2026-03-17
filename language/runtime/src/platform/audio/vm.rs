@@ -103,7 +103,7 @@ fn event_to_vm(
                 platform::audio::AudioBackendDisconnectedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: event.payload,
+                    stream: event.stream,
                 },
             ))
         }
@@ -113,14 +113,13 @@ fn event_to_vm(
                 platform::audio::AudioBackendResetEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: event.payload,
+                    stream: event.stream,
                 },
             ))
         }
         AudioEvent::AudioDefaultCaptureChangedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             let device_id = event
-                .payload
                 .device_id
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
@@ -128,14 +127,13 @@ fn event_to_vm(
                 platform::audio::AudioDefaultCaptureChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: platform::audio::AudioDefaultCaptureChangedPayloadVm { device_id },
+                    device_id,
                 },
             ))
         }
         AudioEvent::AudioDefaultLoopbackChangedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             let device_id = event
-                .payload
                 .device_id
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
@@ -143,14 +141,13 @@ fn event_to_vm(
                 platform::audio::AudioDefaultLoopbackChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: platform::audio::AudioDefaultLoopbackChangedPayloadVm { device_id },
+                    device_id,
                 },
             ))
         }
         AudioEvent::AudioDefaultPlaybackChangedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             let device_id = event
-                .payload
                 .device_id
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
@@ -158,14 +155,13 @@ fn event_to_vm(
                 platform::audio::AudioDefaultPlaybackChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: platform::audio::AudioDefaultPlaybackChangedPayloadVm { device_id },
+                    device_id,
                 },
             ))
         }
         AudioEvent::AudioDeviceAddedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             let device_id = event
-                .payload
                 .device_id
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
@@ -173,14 +169,13 @@ fn event_to_vm(
                 platform::audio::AudioDeviceAddedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: platform::audio::AudioDeviceAddedPayloadVm { device_id },
+                    device_id,
                 },
             ))
         }
         AudioEvent::AudioDeviceFormatChangedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             let device_id = event
-                .payload
                 .device_id
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
@@ -188,14 +183,13 @@ fn event_to_vm(
                 platform::audio::AudioDeviceFormatChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: platform::audio::AudioDeviceFormatChangedPayloadVm { device_id },
+                    device_id,
                 },
             ))
         }
         AudioEvent::AudioDeviceRemovedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             let device_id = event
-                .payload
                 .device_id
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
@@ -203,14 +197,13 @@ fn event_to_vm(
                 platform::audio::AudioDeviceRemovedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: platform::audio::AudioDeviceRemovedPayloadVm { device_id },
+                    device_id,
                 },
             ))
         }
         AudioEvent::AudioDeviceReroutedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             let device_id = event
-                .payload
                 .device_id
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
@@ -218,7 +211,7 @@ fn event_to_vm(
                 platform::audio::AudioDeviceReroutedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: platform::audio::AudioDeviceReroutedPayloadVm { device_id },
+                    device_id,
                 },
             ))
         }
@@ -228,7 +221,7 @@ fn event_to_vm(
                 platform::audio::AudioInterruptionBeganEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: event.payload,
+                    stream: event.stream,
                 },
             ))
         }
@@ -238,14 +231,13 @@ fn event_to_vm(
                 platform::audio::AudioInterruptionEndedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: event.payload,
+                    stream: event.stream,
                 },
             ))
         }
         AudioEvent::AudioStreamDeviceChangedEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             let device_id = event
-                .payload
                 .device_id
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
@@ -253,11 +245,9 @@ fn event_to_vm(
                 platform::audio::AudioStreamDeviceChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: platform::audio::AudioStreamDeviceChangedPayloadVm {
-                        stream: event.payload.stream,
-                        status_flags: event.payload.status_flags,
-                        device_id,
-                    },
+                    stream: event.stream,
+                    status_flags: event.status_flags,
+                    device_id,
                 },
             ))
         }
@@ -267,14 +257,14 @@ fn event_to_vm(
                 platform::audio::AudioStreamStateChangedEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: event.payload,
+                    stream: event.stream,
+                    status_flags: event.status_flags,
                 },
             ))
         }
         AudioEvent::AudioStreamXRunEvent(event) => {
             let kind = string_to_vm(context, event.kind)?;
             let device_id = event
-                .payload
                 .device_id
                 .map(|device_id| string_to_vm(context, device_id))
                 .transpose()?;
@@ -282,12 +272,10 @@ fn event_to_vm(
                 platform::audio::AudioStreamXRunEventVm {
                     kind,
                     metadata: event.metadata,
-                    payload: platform::audio::AudioStreamXRunPayloadVm {
-                        stream: event.payload.stream,
-                        status_flags: event.payload.status_flags,
-                        xrun_count_delta: event.payload.xrun_count_delta,
-                        device_id,
-                    },
+                    stream: event.stream,
+                    status_flags: event.status_flags,
+                    xrun_count_delta: event.xrun_count_delta,
+                    device_id,
                 },
             ))
         }

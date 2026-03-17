@@ -85,7 +85,7 @@ pub(crate) use queue::{
 pub(crate) use queue::{
     read_queued_batch, read_queued_item, try_read_queued_batch, try_read_queued_item,
 };
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "ios", windows))]
+#[cfg(any(target_os = "macos", target_os = "ios", windows))]
 pub(crate) use resource::remove_labeled_resource;
 #[cfg(any(
     target_os = "android",

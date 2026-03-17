@@ -7,14 +7,12 @@ use crate::platform::VmSlice;
 use crate::platform::core::BackendSupport;
 use crate::platform::midi::{
     MidiBackend, MidiBackendCapabilityFlags, MidiBackendDescriptor, MidiBackendDescriptorVm,
-    MidiBackendDisconnectedEvent, MidiBackendDisconnectedEventVm, MidiBackendDisconnectedPayload,
-    MidiDataFormat, MidiDataFormatFlags, MidiEvent, MidiEventMetadata, MidiEventSource,
-    MidiEventVm, MidiInputRecord, MidiInputRecordVm, MidiOutputRecord, MidiOutputRecordVm,
-    MidiPortAddedEvent, MidiPortAddedEventVm, MidiPortAddedPayload, MidiPortAddedPayloadVm,
-    MidiPortChangedEvent, MidiPortChangedEventVm, MidiPortChangedPayload, MidiPortChangedPayloadVm,
-    MidiPortDescriptor, MidiPortDescriptorVm, MidiPortDirection, MidiPortRemovedEvent,
-    MidiPortRemovedEventVm, MidiPortRemovedPayload, MidiPortRemovedPayloadVm, MidiProtocol,
-    MidiProtocolFlags, MidiRecordFraming,
+    MidiBackendDisconnectedEvent, MidiBackendDisconnectedEventVm, MidiDataFormat,
+    MidiDataFormatFlags, MidiEvent, MidiEventMetadata, MidiEventSource, MidiEventVm,
+    MidiInputRecord, MidiInputRecordVm, MidiOutputRecord, MidiOutputRecordVm, MidiPortAddedEvent,
+    MidiPortAddedEventVm, MidiPortChangedEvent, MidiPortChangedEventVm, MidiPortDescriptor,
+    MidiPortDescriptorVm, MidiPortDirection, MidiPortRemovedEvent, MidiPortRemovedEventVm,
+    MidiProtocol, MidiProtocolFlags, MidiRecordFraming,
 };
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
@@ -409,10 +407,8 @@ impl MidiEventValue {
             } => MidiEvent::MidiPortAddedEvent(MidiPortAddedEvent {
                 kind: binding.store_string("portAdded"),
                 metadata: metadata.into_native(),
-                payload: MidiPortAddedPayload {
-                    direction,
-                    descriptor: descriptor.into_native(binding),
-                },
+                direction,
+                descriptor: descriptor.into_native(binding),
             }),
             Self::PortRemoved {
                 metadata,
@@ -422,11 +418,9 @@ impl MidiEventValue {
             } => MidiEvent::MidiPortRemovedEvent(MidiPortRemovedEvent {
                 kind: binding.store_string("portRemoved"),
                 metadata: metadata.into_native(),
-                payload: MidiPortRemovedPayload {
-                    direction,
-                    id: binding.store_string(&id),
-                    group_id: group_id.as_ref().map(|value| binding.store_string(value)),
-                },
+                direction,
+                id: binding.store_string(&id),
+                group_id: group_id.as_ref().map(|value| binding.store_string(value)),
             }),
             Self::PortChanged {
                 metadata,
@@ -435,16 +429,14 @@ impl MidiEventValue {
             } => MidiEvent::MidiPortChangedEvent(MidiPortChangedEvent {
                 kind: binding.store_string("portChanged"),
                 metadata: metadata.into_native(),
-                payload: MidiPortChangedPayload {
-                    direction,
-                    descriptor: descriptor.into_native(binding),
-                },
+                direction,
+                descriptor: descriptor.into_native(binding),
             }),
             Self::BackendDisconnected { metadata, flags } => {
                 MidiEvent::MidiBackendDisconnectedEvent(MidiBackendDisconnectedEvent {
                     kind: binding.store_string("backendDisconnected"),
                     metadata: metadata.into_native(),
-                    payload: MidiBackendDisconnectedPayload { flags },
+                    flags,
                 })
             }
         }
@@ -465,10 +457,8 @@ impl MidiEventValue {
                     .string_handle("portAdded")
                     .map_err(Box::<RuntimeError>::from)?,
                 metadata: metadata.into_vm(),
-                payload: MidiPortAddedPayloadVm {
-                    direction,
-                    descriptor: descriptor.into_vm(context)?,
-                },
+                direction,
+                descriptor: descriptor.into_vm(context)?,
             })),
             Self::PortRemoved {
                 metadata,
@@ -480,20 +470,18 @@ impl MidiEventValue {
                     .string_handle("portRemoved")
                     .map_err(Box::<RuntimeError>::from)?,
                 metadata: metadata.into_vm(),
-                payload: MidiPortRemovedPayloadVm {
-                    direction,
-                    id: context
-                        .string_handle(&id)
-                        .map_err(Box::<RuntimeError>::from)?,
-                    group_id: group_id
-                        .as_ref()
-                        .map(|value| {
-                            context
-                                .string_handle(value)
-                                .map_err(Box::<RuntimeError>::from)
-                        })
-                        .transpose()?,
-                },
+                direction,
+                id: context
+                    .string_handle(&id)
+                    .map_err(Box::<RuntimeError>::from)?,
+                group_id: group_id
+                    .as_ref()
+                    .map(|value| {
+                        context
+                            .string_handle(value)
+                            .map_err(Box::<RuntimeError>::from)
+                    })
+                    .transpose()?,
             })),
             Self::PortChanged {
                 metadata,
@@ -504,10 +492,8 @@ impl MidiEventValue {
                     .string_handle("portChanged")
                     .map_err(Box::<RuntimeError>::from)?,
                 metadata: metadata.into_vm(),
-                payload: MidiPortChangedPayloadVm {
-                    direction,
-                    descriptor: descriptor.into_vm(context)?,
-                },
+                direction,
+                descriptor: descriptor.into_vm(context)?,
             })),
             Self::BackendDisconnected { metadata, flags } => Ok(
                 MidiEventVm::MidiBackendDisconnectedEvent(MidiBackendDisconnectedEventVm {
@@ -515,7 +501,7 @@ impl MidiEventValue {
                         .string_handle("backendDisconnected")
                         .map_err(Box::<RuntimeError>::from)?,
                     metadata: metadata.into_vm(),
-                    payload: MidiBackendDisconnectedPayload { flags },
+                    flags,
                 }),
             ),
         }

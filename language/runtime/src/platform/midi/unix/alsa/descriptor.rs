@@ -154,6 +154,5 @@ pub(super) fn endpoint_address(
             "midi endpoint is missing one backend id",
         ));
     };
-
     parse_backend_id(backend_id, operation)
 }

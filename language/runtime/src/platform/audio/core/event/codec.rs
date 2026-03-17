@@ -1,15 +1,9 @@
 use crate::platform::audio::{
-    AudioBackendDisconnectedEvent, AudioBackendDisconnectedPayload, AudioBackendResetEvent,
-    AudioBackendResetPayload, AudioDefaultCaptureChangedEvent, AudioDefaultCaptureChangedPayload,
-    AudioDefaultLoopbackChangedEvent, AudioDefaultLoopbackChangedPayload,
-    AudioDefaultPlaybackChangedEvent, AudioDefaultPlaybackChangedPayload, AudioDeviceAddedEvent,
-    AudioDeviceAddedPayload, AudioDeviceFormatChangedEvent, AudioDeviceFormatChangedPayload,
-    AudioDeviceRemovedEvent, AudioDeviceRemovedPayload, AudioDeviceReroutedEvent,
-    AudioDeviceReroutedPayload, AudioEvent, AudioEventKind, AudioEventMetadata,
-    AudioInterruptionBeganEvent, AudioInterruptionBeganPayload, AudioInterruptionEndedEvent,
-    AudioInterruptionEndedPayload, AudioStreamDeviceChangedEvent, AudioStreamDeviceChangedPayload,
-    AudioStreamStateChangedEvent, AudioStreamStateChangedPayload, AudioStreamXRunEvent,
-    AudioStreamXRunPayload,
+    AudioBackendDisconnectedEvent, AudioBackendResetEvent, AudioDefaultCaptureChangedEvent,
+    AudioDefaultLoopbackChangedEvent, AudioDefaultPlaybackChangedEvent, AudioDeviceAddedEvent,
+    AudioDeviceFormatChangedEvent, AudioDeviceRemovedEvent, AudioDeviceReroutedEvent, AudioEvent,
+    AudioEventKind, AudioEventMetadata, AudioInterruptionBeganEvent, AudioInterruptionEndedEvent,
+    AudioStreamDeviceChangedEvent, AudioStreamStateChangedEvent, AudioStreamXRunEvent,
 };
 use crate::runtime::BindingCallContext;
 
@@ -36,115 +30,101 @@ pub(crate) fn abi_event(ctx: &BindingCallContext, event: AudioEventRecord) -> Au
             AudioEvent::AudioBackendDisconnectedEvent(AudioBackendDisconnectedEvent {
                 kind: ctx.store_string("backendDisconnected"),
                 metadata,
-                payload: AudioBackendDisconnectedPayload {
-                    stream: event.stream,
-                },
+                stream: event.stream,
             })
         }
         AudioEventKind::BackendReset => {
             AudioEvent::AudioBackendResetEvent(AudioBackendResetEvent {
                 kind: ctx.store_string("backendReset"),
                 metadata,
-                payload: AudioBackendResetPayload {
-                    stream: event.stream,
-                },
+                stream: event.stream,
             })
         }
         AudioEventKind::DefaultCaptureChanged => {
             AudioEvent::AudioDefaultCaptureChangedEvent(AudioDefaultCaptureChangedEvent {
                 kind: ctx.store_string("defaultCaptureChanged"),
                 metadata,
-                payload: AudioDefaultCaptureChangedPayload { device_id },
+                device_id,
             })
         }
         AudioEventKind::DefaultLoopbackChanged => {
             AudioEvent::AudioDefaultLoopbackChangedEvent(AudioDefaultLoopbackChangedEvent {
                 kind: ctx.store_string("defaultLoopbackChanged"),
                 metadata,
-                payload: AudioDefaultLoopbackChangedPayload { device_id },
+                device_id,
             })
         }
         AudioEventKind::DefaultPlaybackChanged => {
             AudioEvent::AudioDefaultPlaybackChangedEvent(AudioDefaultPlaybackChangedEvent {
                 kind: ctx.store_string("defaultPlaybackChanged"),
                 metadata,
-                payload: AudioDefaultPlaybackChangedPayload { device_id },
+                device_id,
             })
         }
         AudioEventKind::DeviceAdded => AudioEvent::AudioDeviceAddedEvent(AudioDeviceAddedEvent {
             kind: ctx.store_string("deviceAdded"),
             metadata,
-            payload: AudioDeviceAddedPayload { device_id },
+            device_id,
         }),
         AudioEventKind::DeviceFormatChanged => {
             AudioEvent::AudioDeviceFormatChangedEvent(AudioDeviceFormatChangedEvent {
                 kind: ctx.store_string("deviceFormatChanged"),
                 metadata,
-                payload: AudioDeviceFormatChangedPayload { device_id },
+                device_id,
             })
         }
         AudioEventKind::DeviceRemoved => {
             AudioEvent::AudioDeviceRemovedEvent(AudioDeviceRemovedEvent {
                 kind: ctx.store_string("deviceRemoved"),
                 metadata,
-                payload: AudioDeviceRemovedPayload { device_id },
+                device_id,
             })
         }
         AudioEventKind::DeviceRerouted => {
             AudioEvent::AudioDeviceReroutedEvent(AudioDeviceReroutedEvent {
                 kind: ctx.store_string("deviceRerouted"),
                 metadata,
-                payload: AudioDeviceReroutedPayload { device_id },
+                device_id,
             })
         }
         AudioEventKind::InterruptionBegan => {
             AudioEvent::AudioInterruptionBeganEvent(AudioInterruptionBeganEvent {
                 kind: ctx.store_string("interruptionBegan"),
                 metadata,
-                payload: AudioInterruptionBeganPayload {
-                    stream: event.stream,
-                },
+                stream: event.stream,
             })
         }
         AudioEventKind::InterruptionEnded => {
             AudioEvent::AudioInterruptionEndedEvent(AudioInterruptionEndedEvent {
                 kind: ctx.store_string("interruptionEnded"),
                 metadata,
-                payload: AudioInterruptionEndedPayload {
-                    stream: event.stream,
-                },
+                stream: event.stream,
             })
         }
         AudioEventKind::StreamDeviceChanged => {
             AudioEvent::AudioStreamDeviceChangedEvent(AudioStreamDeviceChangedEvent {
                 kind: ctx.store_string("streamDeviceChanged"),
                 metadata,
-                payload: AudioStreamDeviceChangedPayload {
-                    stream: event.stream,
-                    status_flags: event.status_flags,
-                    device_id,
-                },
+                stream: event.stream,
+                status_flags: event.status_flags,
+                device_id,
             })
         }
         AudioEventKind::StreamStateChanged => {
             AudioEvent::AudioStreamStateChangedEvent(AudioStreamStateChangedEvent {
                 kind: ctx.store_string("streamStateChanged"),
                 metadata,
-                payload: AudioStreamStateChangedPayload {
-                    stream: event.stream,
-                    status_flags: event.status_flags,
-                },
+                stream: event.stream,
+                status_flags: event.status_flags,
             })
         }
         AudioEventKind::StreamXRun => AudioEvent::AudioStreamXRunEvent(AudioStreamXRunEvent {
             kind: ctx.store_string("streamXRun"),
             metadata,
-            payload: AudioStreamXRunPayload {
-                stream: event.stream,
-                status_flags: event.status_flags,
-                xrun_count_delta: event.xrun_count_delta,
-                device_id,
-            },
+            stream: event.stream,
+            status_flags: event.status_flags,
+            xrun_count_delta: event.xrun_count_delta,
+            device_id,
         }),
     }
 }
