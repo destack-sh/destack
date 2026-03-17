@@ -35,102 +35,6 @@ export enum AudioEventSource {
     SyntheticPoll = 2,
 }
 
-/// Device-added event payload.
-export struct AudioDeviceAddedPayload {
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Device-removed event payload.
-export struct AudioDeviceRemovedPayload {
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Default-playback-changed event payload.
-export struct AudioDefaultPlaybackChangedPayload {
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Default-capture-changed event payload.
-export struct AudioDefaultCaptureChangedPayload {
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Default-loopback-changed event payload.
-export struct AudioDefaultLoopbackChangedPayload {
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Device-format-changed event payload.
-export struct AudioDeviceFormatChangedPayload {
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Device-rerouted event payload.
-export struct AudioDeviceReroutedPayload {
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Interruption-began event payload.
-export struct AudioInterruptionBeganPayload {
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-}
-
-/// Interruption-ended event payload.
-export struct AudioInterruptionEndedPayload {
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-}
-
-/// Backend-disconnected event payload.
-export struct AudioBackendDisconnectedPayload {
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-}
-
-/// Stream-xrun event payload.
-export struct AudioStreamXRunPayload {
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-    /// Current stream status flags.
-    statusFlags: AudioStreamStatusFlags;
-    /// Xrun count delta for this event.
-    xrunCountDelta: uint64;
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Stream-device-changed event payload.
-export struct AudioStreamDeviceChangedPayload {
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-    /// Current stream status flags.
-    statusFlags: AudioStreamStatusFlags;
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Stream-state-changed event payload.
-export struct AudioStreamStateChangedPayload {
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-    /// Current stream status flags.
-    statusFlags: AudioStreamStatusFlags;
-}
-
-/// Backend-reset event payload.
-export struct AudioBackendResetPayload {
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-}
-
 /// Shared metadata for all audio events.
 export struct AudioEventMetadata {
     /// Event timestamp in nanoseconds.
@@ -153,8 +57,8 @@ export struct AudioDeviceAddedEvent {
     kind: "deviceAdded";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Device-added payload.
-    payload: AudioDeviceAddedPayload;
+    /// Target device identifier when present.
+    deviceId: string | void;
 }
 
 /// Device-removed event.
@@ -163,8 +67,8 @@ export struct AudioDeviceRemovedEvent {
     kind: "deviceRemoved";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Device-removed payload.
-    payload: AudioDeviceRemovedPayload;
+    /// Target device identifier when present.
+    deviceId: string | void;
 }
 
 /// Default-playback-changed event.
@@ -173,8 +77,8 @@ export struct AudioDefaultPlaybackChangedEvent {
     kind: "defaultPlaybackChanged";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Default-playback-changed payload.
-    payload: AudioDefaultPlaybackChangedPayload;
+    /// Target device identifier when present.
+    deviceId: string | void;
 }
 
 /// Default-capture-changed event.
@@ -183,8 +87,8 @@ export struct AudioDefaultCaptureChangedEvent {
     kind: "defaultCaptureChanged";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Default-capture-changed payload.
-    payload: AudioDefaultCaptureChangedPayload;
+    /// Target device identifier when present.
+    deviceId: string | void;
 }
 
 /// Default-loopback-changed event.
@@ -193,8 +97,8 @@ export struct AudioDefaultLoopbackChangedEvent {
     kind: "defaultLoopbackChanged";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Default-loopback-changed payload.
-    payload: AudioDefaultLoopbackChangedPayload;
+    /// Target device identifier when present.
+    deviceId: string | void;
 }
 
 /// Device-format-changed event.
@@ -203,8 +107,8 @@ export struct AudioDeviceFormatChangedEvent {
     kind: "deviceFormatChanged";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Device-format-changed payload.
-    payload: AudioDeviceFormatChangedPayload;
+    /// Target device identifier when present.
+    deviceId: string | void;
 }
 
 /// Device-rerouted event.
@@ -213,8 +117,8 @@ export struct AudioDeviceReroutedEvent {
     kind: "deviceRerouted";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Device-rerouted payload.
-    payload: AudioDeviceReroutedPayload;
+    /// Target device identifier when present.
+    deviceId: string | void;
 }
 
 /// Interruption-began event.
@@ -223,8 +127,8 @@ export struct AudioInterruptionBeganEvent {
     kind: "interruptionBegan";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Interruption-began payload.
-    payload: AudioInterruptionBeganPayload;
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
 }
 
 /// Interruption-ended event.
@@ -233,8 +137,8 @@ export struct AudioInterruptionEndedEvent {
     kind: "interruptionEnded";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Interruption-ended payload.
-    payload: AudioInterruptionEndedPayload;
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
 }
 
 /// Backend-disconnected event.
@@ -243,8 +147,8 @@ export struct AudioBackendDisconnectedEvent {
     kind: "backendDisconnected";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Backend-disconnected payload.
-    payload: AudioBackendDisconnectedPayload;
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
 }
 
 /// Stream-xrun event.
@@ -253,8 +157,14 @@ export struct AudioStreamXRunEvent {
     kind: "streamXRun";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Stream-xrun payload.
-    payload: AudioStreamXRunPayload;
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
+    /// Current stream status flags.
+    statusFlags: AudioStreamStatusFlags;
+    /// Xrun count delta for this event.
+    xrunCountDelta: uint64;
+    /// Target device identifier when present.
+    deviceId: string | void;
 }
 
 /// Stream-device-changed event.
@@ -263,8 +173,12 @@ export struct AudioStreamDeviceChangedEvent {
     kind: "streamDeviceChanged";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Stream-device-changed payload.
-    payload: AudioStreamDeviceChangedPayload;
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
+    /// Current stream status flags.
+    statusFlags: AudioStreamStatusFlags;
+    /// Target device identifier when present.
+    deviceId: string | void;
 }
 
 /// Stream-state-changed event.
@@ -273,8 +187,10 @@ export struct AudioStreamStateChangedEvent {
     kind: "streamStateChanged";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Stream-state-changed payload.
-    payload: AudioStreamStateChangedPayload;
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
+    /// Current stream status flags.
+    statusFlags: AudioStreamStatusFlags;
 }
 
 /// Backend-reset event.
@@ -283,8 +199,8 @@ export struct AudioBackendResetEvent {
     kind: "backendReset";
     /// Shared event metadata.
     metadata: AudioEventMetadata;
-    /// Backend-reset payload.
-    payload: AudioBackendResetPayload;
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
 }
 
 /// Event subscription options.
