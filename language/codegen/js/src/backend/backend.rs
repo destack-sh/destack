@@ -59,7 +59,7 @@ pub fn generate_module(
     let package = package.read();
     let package_dir = package.path.clone().unwrap_or_else(|| program.cwd.clone());
     let root_dir = package
-        .dsconfig
+        .config
         .as_ref()
         .and_then(|c| c.options.compiler.root_dir.clone());
     drop(package);

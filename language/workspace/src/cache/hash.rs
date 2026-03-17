@@ -100,14 +100,14 @@ mod tests {
     #[test]
     fn test_json_hash_is_order_invariant() {
         let first = json!({
-            "compilerOptions": { "strict": true, "noImplicitAny": true },
+            "compiler": { "strict": true, "noImplicitAny": true },
             "include": ["src"],
             "exclude": ["dist"],
         });
         let second = json!({
             "exclude": ["dist"],
             "include": ["src"],
-            "compilerOptions": { "noImplicitAny": true, "strict": true },
+            "compiler": { "noImplicitAny": true, "strict": true },
         });
 
         // check that the hashes are equal
@@ -118,11 +118,11 @@ mod tests {
     #[test]
     fn test_json_hash_changes_on_value_change() {
         let first = json!({
-            "compilerOptions": { "strict": true },
+            "compiler": { "strict": true },
             "include": ["src"],
         });
         let second = json!({
-            "compilerOptions": { "strict": false },
+            "compiler": { "strict": false },
             "include": ["src"],
         });
 
@@ -134,14 +134,14 @@ mod tests {
     #[test]
     fn test_json_trim_ignores_tooling_sections() {
         let first = json!({
-            "compilerOptions": { "strict": true },
+            "compiler": { "strict": true },
             "cache": { "mode": "disk" },
             "watch": { "debounceMs": 10 },
             "formatter": { "lineWidth": 100 },
             "linter": { "preset": "recommended" },
         });
         let second = json!({
-            "compilerOptions": { "strict": true },
+            "compiler": { "strict": true },
             "cache": { "mode": "memory" },
             "watch": { "debounceMs": 50 },
             "formatter": { "lineWidth": 80 },

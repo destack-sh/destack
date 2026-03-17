@@ -670,7 +670,7 @@ async fn test_lsp_registers_file_watchers() {
 
     // check that the expected watch patterns are registered
     assert!(patterns.iter().any(|pattern| pattern == "**/*.ds"));
-    assert!(patterns.iter().any(|pattern| pattern == "**/dsconfig.json"));
+    assert!(patterns.iter().any(|pattern| pattern == "**/destack.json"));
     assert!(
         patterns
             .iter()
@@ -681,7 +681,7 @@ async fn test_lsp_registers_file_watchers() {
 /// LSP config changes publish diagnostics for invalidated modules.
 #[tokio::test]
 async fn test_lsp_config_change_fanout_publishes_diagnostics() {
-    // set up the workspace root with a package and dsconfig
+    // set up the workspace root with a package and destack.json
     let fs = test_fs("config_fanout");
     let _package_path = fs
         .write_text(
@@ -689,8 +689,8 @@ async fn test_lsp_config_change_fanout_publishes_diagnostics() {
             "{ \"name\": \"fanout\", \"version\": \"0.1.0\" }\n",
         )
         .unwrap();
-    let dsconfig_path = fs
-        .write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n")
+    let destack_config_path = fs
+        .write_text("destack.json", "{ \"compilerOptions\": {} }\n")
         .unwrap();
 
     // write modules with invalid syntax
@@ -710,26 +710,26 @@ async fn test_lsp_config_change_fanout_publishes_diagnostics() {
         .did_open(uri_b.clone(), "export const b = ;\n")
         .await;
 
-    // open the dsconfig for edits
-    let dsconfig_uri = uri_for_path(&dsconfig_path);
+    // open destack.json for edits
+    let destack_config_uri = uri_for_path(&destack_config_path);
     harness
-        .did_open(dsconfig_uri.clone(), "{ \"compilerOptions\": {} }\n")
+        .did_open(destack_config_uri.clone(), "{ \"compilerOptions\": {} }\n")
         .await;
 
     // drain initial diagnostics from didOpen
     let _ = harness.next_diagnostics_for(&uri_a).await;
     let _ = harness.next_diagnostics_for(&uri_b).await;
-    let _ = harness.next_diagnostics_for(&dsconfig_uri).await;
+    let _ = harness.next_diagnostics_for(&destack_config_uri).await;
 
-    // update dsconfig to trigger module invalidation
+    // update destack.json to trigger module invalidation
     fs.write_text(
-        &dsconfig_path,
+        &destack_config_path,
         "{ \"compilerOptions\": { \"noImplicitAny\": true } }\n",
     )
     .unwrap();
     harness
         .did_change(
-            dsconfig_uri.clone(),
+            destack_config_uri.clone(),
             "{ \"compilerOptions\": { \"noImplicitAny\": true } }\n",
             2,
         )
@@ -750,8 +750,8 @@ async fn test_lsp_multi_root_scopes_diagnostics() {
     let fs_b = test_fs("multi_root_b");
     let root_a = fs_a.root().to_path_buf();
     let root_b = fs_b.root().to_path_buf();
-    let _ = fs_a.write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n");
-    let _ = fs_b.write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n");
+    let _ = fs_a.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
+    let _ = fs_b.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
 
     // write invalid modules in both roots
     let module_a = fs_a.write_text("a.ds", "export const a = ;\n").unwrap();
@@ -804,8 +804,8 @@ async fn test_lsp_initialize_workspace_folders_scopes_diagnostics() {
     let fs_b = test_fs("multi_root_initialize_b");
     let root_a = fs_a.root().to_path_buf();
     let root_b = fs_b.root().to_path_buf();
-    let _ = fs_a.write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n");
-    let _ = fs_b.write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n");
+    let _ = fs_a.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
+    let _ = fs_b.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
 
     // write invalid modules in both roots
     let module_a = fs_a.write_text("a.ds", "export const a = ;\n").unwrap();
@@ -868,8 +868,8 @@ async fn test_lsp_will_rename_files_rejects_multi_root_batches() {
     let fs_b = test_fs("will_rename_multi_root_b");
     let root_a = fs_a.root().to_path_buf();
     let root_b = fs_b.root().to_path_buf();
-    let _ = fs_a.write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n");
-    let _ = fs_b.write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n");
+    let _ = fs_a.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
+    let _ = fs_b.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
     let dep_a = fs_a
         .write_text("dep.ds", "export const dep = 1;\n")
         .unwrap();

@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::DsConfig;
+use crate::Destack;
 
 /// Kind of workspace based on how it was discovered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum WorkspaceKind {
-    /// Monorepo with multiple packages (npm/pnpm workspaces).
+    /// Monorepo with multiple member projects.
     Monorepo,
     /// Single package workspace.
     #[default]
@@ -17,7 +17,7 @@ pub enum WorkspaceKind {
 ///
 /// It represents a monorepo or single-package project, containing:
 /// - The root directory of the workspace
-/// - Workspace-wide configuration (from root `dsconfig.json`)
+/// - Workspace-wide configuration (from root `destack.json`)
 /// - Paths to packages within the workspace
 ///
 /// This is distinct from `Session`, which is the runtime state for
@@ -28,9 +28,9 @@ pub struct Workspace {
     pub root: PathBuf,
     /// The kind of workspace (monorepo or single package).
     pub kind: WorkspaceKind,
-    /// The workspace-wide dsconfig (from root `dsconfig.json`).
+    /// The workspace-wide Destack config (from root `destack.json`).
     /// Child packages inherit from this configuration.
-    pub config: Option<Arc<DsConfig>>,
+    pub config: Option<Arc<Destack>>,
     /// Paths to packages within the workspace.
     /// For single-package workspaces, this is just the root.
     /// For monorepos, these are the package directories.
@@ -59,7 +59,7 @@ impl Workspace {
     }
 
     /// Set the workspace-wide configuration.
-    pub fn with_config(mut self, config: DsConfig) -> Self {
+    pub fn with_config(mut self, config: Destack) -> Self {
         self.config = Some(Arc::new(config));
         self
     }

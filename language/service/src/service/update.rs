@@ -282,9 +282,9 @@ impl LanguageService {
                 if path
                     .file_name()
                     .and_then(|name| name.to_str())
-                    .is_some_and(|name| name == "dsconfig.json")
+                    .is_some_and(|name| name == "destack.json")
                 {
-                    let _ = resolver.read_dsconfig(path, CachePolicy::Reload);
+                    let _ = resolver.read_destack_config(path, CachePolicy::Reload);
                 } else {
                     let _ = resolver.reload_tsconfig(path);
                 }
@@ -384,8 +384,8 @@ impl LanguageService {
 
         for package in program.packages.iter() {
             let package = package.read();
-            if let Some(dsconfig) = package.dsconfig.as_ref() {
-                file_ids.insert(dsconfig.file_id);
+            if let Some(config) = package.config.as_ref() {
+                file_ids.insert(config.file_id);
             }
         }
 

@@ -151,7 +151,7 @@ _Changes since v0.50.0._
 - dev(all): automate tag gated release validation and changelog
 - chore(all): bump version to 0.55.4
 - dev(all): align version tooling and publish auth
-- chore(language): regenerate dsconfig schema
+- chore(language): regenerate destack schema
 - dev(all): use symbol.industries for maven
 - dev(all): set up local env symlinks
 - chore(all): reformat .ds files
@@ -200,4 +200,3 @@ _Changes since v0.50.0._
 - perf(language/formatter): extend analysis caches, reduce best_fitting IR
 - perf(language/formatter): cache trivia/derived CST info stuff
 - ... and 52 more
-

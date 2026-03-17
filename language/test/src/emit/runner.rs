@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_compiler::{BuildKey, Compiler, CompilerOptions};
 use destack_source::{File, FileSystem, FileType, PhysicalFileSystem, Uri};
-use destack_workspace::{DsConfig, OutputKey, Session, Target, TargetId};
+use destack_workspace::{Destack, OutputKey, Session, Target, TargetId};
 
 use crate::harness::{
     RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
@@ -40,19 +40,19 @@ pub fn run_emit_tests(options: &TestOptions) -> std::process::ExitCode {
 
 /// Run a single emit test.
 fn run_emit_case(test: &TestCase) -> TestResult {
-    // parse dsconfig.json to get targets
-    let dsconfig_path = test.path.join("dsconfig.json");
-    let dsconfig = match load_dsconfig(&dsconfig_path) {
+    // parse destack.json to get targets
+    let destack_config_path = test.path.join("destack.json");
+    let config = match load_destack_config(&destack_config_path) {
         Ok(config) => config,
         Err(e) => {
             return TestResult::Failed {
-                message: format!("failed to load dsconfig.json: {e}"),
+                message: format!("failed to load destack.json: {e}"),
             };
         }
     };
 
     // extract targets
-    let targets: Vec<(String, Target)> = dsconfig
+    let targets: Vec<(String, Target)> = config
         .options
         .targets
         .iter()
@@ -60,7 +60,7 @@ fn run_emit_case(test: &TestCase) -> TestResult {
         .collect();
     if targets.is_empty() {
         return TestResult::Failed {
-            message: "no targets defined in dsconfig.json".to_string(),
+            message: "no targets defined in destack.json".to_string(),
         };
     }
 
@@ -119,8 +119,8 @@ fn run_emit_case(test: &TestCase) -> TestResult {
         let package = program.packages.get(package_id);
         let mut package = package.write();
 
-        // set dsconfig so root_dir is available for output path resolution
-        package.dsconfig = Some(dsconfig.clone());
+        // set the config so root_dir is available for output path resolution
+        package.config = Some(config.clone());
 
         // add targets, rewriting out_dir to dist-actual/
         for (name, mut target) in targets.clone() {
@@ -183,12 +183,12 @@ fn run_emit_case(test: &TestCase) -> TestResult {
     compare_directory(&dist_expected, &dist_actual)
 }
 
-/// Load dsconfig.json from a path.
-fn load_dsconfig(path: &Path) -> Result<DsConfig, String> {
+/// Load destack.json from a path.
+fn load_destack_config(path: &Path) -> Result<Destack, String> {
     // read the file
     let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
 
-    // create a File object for DsConfig::parse (using JSONC to support comments)
+    // create a File object for Destack::parse (using JSONC to support comments)
     let uri = Uri::from_path(path);
     let file_id = destack_source::FileId::new(0); // temporary id
     let name = path
@@ -208,5 +208,5 @@ fn load_dsconfig(path: &Path) -> Result<DsConfig, String> {
         .map_err(|e| e.to_string())?,
     );
 
-    DsConfig::parse(&file).map_err(|e| e.to_string())
+    Destack::parse(&file).map_err(|e| e.to_string())
 }

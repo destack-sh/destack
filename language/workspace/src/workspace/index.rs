@@ -14,7 +14,7 @@ use destack_source::{
 };
 
 use crate::{
-    CacheScope, CacheStoreError, CacheValidate, DsConfig, ModuleGraph, ModuleGraphKey,
+    CacheScope, CacheStoreError, CacheValidate, Destack, ModuleGraph, ModuleGraphKey,
     ModuleGraphVersion, ModuleSignatureDigest, ModuleSignatureKey, ProfileId, Program, Workspace,
     hash_bytes, hash_json_value, resolve_cache_dir, resolve_cache_root_for_scope,
 };
@@ -425,7 +425,7 @@ impl From<CacheStoreError> for WorkspaceIndexError {
     }
 }
 
-/// Compute a hash for the workspace dsconfig when present.
+/// Compute a hash for the workspace config when present.
 pub fn hash_workspace_config(
     workspace: &Workspace,
     fs: &dyn FileSystem,
@@ -448,19 +448,19 @@ pub fn hash_workspace_config(
     let mut pending: Vec<ConfigCandidate> = package_roots
         .into_iter()
         .map(|root| ConfigCandidate {
-            path: root.join("dsconfig.json"),
+            path: root.join("destack.json"),
             required: false,
         })
         .collect();
 
-    // hash dsconfig contents for each package root
+    // hash config contents for each package root
     let mut hasher = FxHasher::default();
     let mut found_any = false;
     let mut visited = HashSet::new();
 
     while let Some(candidate) = pending.pop() {
-        // resolve dsconfig paths
-        let Some(resolved) = resolve_dsconfig_path(fs, &candidate.path) else {
+        // resolve config paths
+        let Some(resolved) = resolve_destack_config_path(fs, &candidate.path) else {
             if candidate.required {
                 return Err(WorkspaceConfigError::Missing {
                     path: candidate.path,
@@ -551,7 +551,7 @@ pub fn hash_workspace_config(
 }
 
 /// Resolve a config path when the config file exists.
-fn resolve_dsconfig_path(fs: &dyn FileSystem, path: &Path) -> Option<PathBuf> {
+fn resolve_destack_config_path(fs: &dyn FileSystem, path: &Path) -> Option<PathBuf> {
     if fs.exists(path).unwrap_or(false) {
         return Some(path.to_path_buf());
     }
@@ -564,7 +564,7 @@ fn resolve_dsconfig_path(fs: &dyn FileSystem, path: &Path) -> Option<PathBuf> {
     None
 }
 
-/// Resolve a dsconfig extends reference to a canonical path.
+/// Resolve a Destack config extends reference to a canonical path.
 fn resolve_extends_path(directory: &Path, specifier: &str) -> PathBuf {
     if specifier.starts_with('.') || specifier.starts_with('/') {
         return directory.join(specifier);
@@ -576,7 +576,7 @@ fn resolve_extends_path(directory: &Path, specifier: &str) -> PathBuf {
 /// Resolve the cache root directory for a workspace.
 pub fn resolve_workspace_cache_root(
     workspace_root: &Path,
-    workspace_config: Option<&DsConfig>,
+    workspace_config: Option<&Destack>,
     cache_dir_override: Option<&Path>,
 ) -> PathBuf {
     // honor explicit overrides
@@ -584,11 +584,11 @@ pub fn resolve_workspace_cache_root(
         return resolve_cache_dir(cache_dir, workspace_root);
     }
 
-    // honor dsconfig cache settings when present
-    if let Some(dsconfig) = workspace_config {
-        let cache_options = &dsconfig.options.cache;
+    // honor config cache settings when present
+    if let Some(config) = workspace_config {
+        let cache_options = &config.options.cache;
         return resolve_cache_root_for_scope(
-            &dsconfig.directory,
+            &config.directory,
             cache_options.dir.as_deref(),
             cache_options.scope,
         );
@@ -772,15 +772,16 @@ mod tests {
         // set up a workspace with a commented config
         let fs = MemoryFileSystem::new();
         let root = PathBuf::from("/workspace");
-        let dsconfig_path = root.join("dsconfig.json");
+        let destack_config_path = root.join("destack.json");
         let commented = r#"{
   // comment
-  "compilerOptions": { "strict": true }
+  "compiler": { "strict": true }
 }
 "#;
         let stripped =
             strip_json(commented).unwrap_or_else(|error| panic!("failed to strip json: {error}"));
-        fs.add_file(&dsconfig_path, commented.as_bytes()).unwrap();
+        fs.add_file(&destack_config_path, commented.as_bytes())
+            .unwrap();
         let workspace = Workspace::single_package(root);
 
         // compute hash with comments
@@ -789,7 +790,8 @@ mod tests {
             .unwrap_or_else(|| panic!("expected config hash"));
 
         // overwrite config without comments
-        fs.add_file(&dsconfig_path, stripped.as_bytes()).unwrap();
+        fs.add_file(&destack_config_path, stripped.as_bytes())
+            .unwrap();
         let hash_without_comments = hash_workspace_config(&workspace, &fs)
             .unwrap_or_else(|error| panic!("failed to hash config: {error}"))
             .unwrap_or_else(|| panic!("expected config hash"));
@@ -806,13 +808,13 @@ mod tests {
     fn test_hash_workspace_config_tracks_extends() {
         let fs = MemoryFileSystem::new();
         let root = PathBuf::from("/workspace");
-        let dsconfig_path = root.join("dsconfig.json");
+        let destack_config_path = root.join("destack.json");
         let base_path = root.join("base.json");
         fs.add_file(
-            &dsconfig_path,
+            &destack_config_path,
             br#"{
   "extends": "./base.json",
-  "compilerOptions": { "strict": true }
+  "compiler": { "strict": true }
 }
 "#,
         )
@@ -820,7 +822,7 @@ mod tests {
         fs.add_file(
             &base_path,
             br#"{
-  "compilerOptions": { "noImplicitAny": true }
+  "compiler": { "noImplicitAny": true }
 }
 "#,
         )
@@ -840,9 +842,9 @@ mod tests {
     fn test_hash_workspace_config_rejects_missing_extends() {
         let fs = MemoryFileSystem::new();
         let root = PathBuf::from("/workspace");
-        let dsconfig_path = root.join("dsconfig.json");
+        let destack_config_path = root.join("destack.json");
         fs.add_file(
-            &dsconfig_path,
+            &destack_config_path,
             br#"{
   "extends": "./missing.json"
 }
@@ -866,8 +868,9 @@ mod tests {
     fn test_hash_workspace_config_rejects_invalid_json() {
         let fs = MemoryFileSystem::new();
         let root = PathBuf::from("/workspace");
-        let dsconfig_path = root.join("dsconfig.json");
-        fs.add_file(&dsconfig_path, br#"{ "broken": }"#).unwrap();
+        let destack_config_path = root.join("destack.json");
+        fs.add_file(&destack_config_path, br#"{ "broken": }"#)
+            .unwrap();
         let workspace = Workspace::single_package(root);
 
         let error = hash_workspace_config(&workspace, &fs).expect_err("expected parse error");

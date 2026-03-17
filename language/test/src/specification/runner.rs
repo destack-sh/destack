@@ -8,8 +8,8 @@ use destack_compiler::{BuildKey, Compiler, CompilerOptions};
 use destack_parser::source_colorizer;
 use destack_source::{File, FileType, MemoryFileSystem, ModuleId, PrintOptions, Uri};
 use destack_workspace::{
-    ArtifactKey, DsConfig, DsConfigOptions, DsConfigTargetOptions, MemoryCacheStore, OutputFormat,
-    Session, TargetId,
+    ArtifactKey, Destack, DestackOptions, MemoryCacheStore, OutputFormat, Session, TargetId,
+    TargetOptions,
 };
 
 use crate::harness::print::color;
@@ -226,8 +226,9 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
             }
         };
 
-        // apply dsconfig options and targets
-        if let Err(error) = apply_dsconfig_for_spec(&program, module_id, &main_path, prefer_native)
+        // apply config options and targets
+        if let Err(error) =
+            apply_destack_config_for_spec(&program, module_id, &main_path, prefer_native)
         {
             return TestResult::Failed { message: error };
         }
@@ -334,65 +335,65 @@ fn has_explicit_libs(program: &destack_workspace::Program, module_id: ModuleId) 
     };
     let package = program.packages.get(package_id);
     let package = package.read();
-    let Some(dsconfig) = package.dsconfig.as_ref() else {
+    let Some(config) = package.config.as_ref() else {
         return false;
     };
 
     // check compiler lib entries
-    if !dsconfig.options.compiler.lib.is_empty() {
+    if !config.options.compiler.lib.is_empty() {
         return true;
     }
 
     // check target lib entries
-    dsconfig
+    config
         .options
         .targets
         .values()
         .any(|target| target.lib.is_some())
 }
 
-fn apply_dsconfig_for_spec(
+fn apply_destack_config_for_spec(
     program: &destack_workspace::Program,
     module_id: destack_source::ModuleId,
     main_path: &Path,
     prefer_native: bool,
 ) -> Result<(), String> {
-    // locate dsconfig.json in the test root
+    // locate destack.json in the test root
     let root = main_path.parent().unwrap_or_else(|| Path::new("/"));
-    let dsconfig_path = root.join("dsconfig.json");
+    let destack_config_path = root.join("destack.json");
 
-    // skip when no dsconfig.json exists
-    let has_dsconfig = program
+    // skip when no destack.json exists
+    let has_destack_config = program
         .fs
-        .exists(&dsconfig_path)
-        .map_err(|e| format!("failed to stat dsconfig.json: {e}"))?;
-    if !has_dsconfig {
+        .exists(&destack_config_path)
+        .map_err(|e| format!("failed to stat destack.json: {e}"))?;
+    if !has_destack_config {
         // default spec tests to js unless explicitly marked native
         if prefer_native {
             return Ok(());
         }
 
-        // build a default dsconfig for js output
+        // build a default config for js output
         let file_id = program.files.next_id();
-        let mut options = DsConfigOptions::default();
+        let mut options = DestackOptions::default();
         options.compiler.check_ts = true;
         options.compiler.check_js = true;
-        let target = DsConfigTargetOptions {
+        let target = TargetOptions {
             output: OutputFormat::Js,
             ..Default::default()
         };
         options.targets.insert("default".to_string(), target);
         options.default_target = Some("default".to_string());
 
-        let dsconfig = DsConfig {
+        let config = Destack {
             file_id,
-            path: dsconfig_path.clone(),
+            path: destack_config_path.clone(),
             directory: root.to_path_buf(),
             options,
             content: Default::default(),
         };
 
-        // attach the default dsconfig to the package
+        // attach the default config to the package
         let package_id = {
             let module = program.modules.get(module_id);
             let module = module.read();
@@ -400,9 +401,9 @@ fn apply_dsconfig_for_spec(
         };
         let package = program.packages.get(package_id);
         let mut package = package.write();
-        package.dsconfig = Some(dsconfig.clone());
+        package.config = Some(config.clone());
         package.targets.clear();
-        for (name, options) in dsconfig.options.targets.iter() {
+        for (name, options) in config.options.targets.iter() {
             let target = options.to_target(name);
             let target_id = TargetId::new(package_id, name);
             package.targets.insert(target_id, target);
@@ -411,44 +412,41 @@ fn apply_dsconfig_for_spec(
         return Ok(());
     }
 
-    // read and parse dsconfig.json
+    // read and parse destack.json
     let content = program
         .fs
-        .read_to_string(&dsconfig_path)
-        .map_err(|e| format!("failed to read dsconfig.json: {e}"))?;
-    let name = dsconfig_path
+        .read_to_string(&destack_config_path)
+        .map_err(|e| format!("failed to read destack.json: {e}"))?;
+    let name = destack_config_path
         .file_name()
         .unwrap_or_default()
         .to_string_lossy()
         .to_string();
-    let uri = Uri::from_path(&dsconfig_path);
+    let uri = Uri::from_path(&destack_config_path);
     let file_id = program.files.next_id();
     let file = File::from_text_as_jsonc(
         file_id,
         name,
         uri,
-        Some(dsconfig_path),
+        Some(destack_config_path),
         FileType::Json,
         content,
     )
-    .map_err(|e| format!("failed to parse dsconfig.json: {e}"))?;
+    .map_err(|e| format!("failed to parse destack.json: {e}"))?;
     let file = Arc::new(file);
-    let mut dsconfig = DsConfig::parse(&file).map_err(|e| e.to_string())?;
+    let mut config = Destack::parse(&file).map_err(|e| e.to_string())?;
 
     // prefer js defaults for spec tests unless a native target is required
-    if !prefer_native && dsconfig.options.targets.is_empty() {
-        let target = DsConfigTargetOptions {
+    if !prefer_native && config.options.targets.is_empty() {
+        let target = TargetOptions {
             output: OutputFormat::Js,
             ..Default::default()
         };
-        dsconfig
-            .options
-            .targets
-            .insert("default".to_string(), target);
-        dsconfig.options.default_target = Some("default".to_string());
+        config.options.targets.insert("default".to_string(), target);
+        config.options.default_target = Some("default".to_string());
     }
 
-    // attach dsconfig and targets to the module package
+    // attach the config and targets to the module package
     let package_id = {
         let module = program.modules.get(module_id);
         let module = module.read();
@@ -456,9 +454,9 @@ fn apply_dsconfig_for_spec(
     };
     let package = program.packages.get(package_id);
     let mut package = package.write();
-    package.dsconfig = Some(dsconfig.clone());
+    package.config = Some(config.clone());
     package.targets.clear();
-    for (name, options) in dsconfig.options.targets.iter() {
+    for (name, options) in config.options.targets.iter() {
         let target = options.to_target(name);
         let target_id = TargetId::new(package_id, name);
         package.targets.insert(target_id, target);
