@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value};
 use std::collections::HashSet;
 
-use crate::{DsConfig, Target, TargetId, TsConfigId};
+use crate::{Destack, Target, TargetId, TaskOptions, TsConfigId};
 
 /// Kind of package based on how it was discovered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -44,11 +44,11 @@ pub struct Package {
 
     /// The package.json config (None for synthetic/ephemeral packages).
     pub manifest: Option<PackageManifest>,
-    /// The dsconfig.json config (1:1 with package, None if not specified).
-    pub dsconfig: Option<DsConfig>,
+    /// The destack.json config (1:1 with package, None if not specified).
+    pub config: Option<Destack>,
     /// The root tsconfig of the package (in TsConfigRegistry, supports nesting).
     pub tsconfig: Option<TsConfigId>,
-    /// Build targets for this package (usually from `dsconfig.json`.targets).
+    /// Build targets for this package (usually from `destack.json`.targets).
     pub targets: IndexMap<TargetId, Target>,
 }
 
@@ -81,6 +81,8 @@ pub struct PackageManifest {
     pub realpath: PathBuf,
     /// The directory of the `package.json` file.
     pub directory: PathBuf,
+    /// The raw package manifest content before Destack overrides.
+    pub raw_content: PackageJson,
     /// The content of the `package.json` file.
     pub content: PackageJson,
 }
@@ -117,9 +119,40 @@ impl PackageManifest {
             version: package_json.version.clone().unwrap_or_default(),
             realpath,
             directory,
+            raw_content: package_json.clone(),
             content: package_json,
         };
         Ok(package)
+    }
+
+    /// Build a synthetic manifest from one Destack config.
+    pub fn from_destack(config: &Destack, realpath: PathBuf) -> Self {
+        let content = PackageJson::from_destack(config);
+
+        Self {
+            file_id: config.file_id,
+            uri: Uri::from_path(&config.path),
+            path: config.path.clone(),
+            name: content.name.clone().unwrap_or_default(),
+            version: content.version.clone().unwrap_or_default(),
+            realpath,
+            directory: config.directory.clone(),
+            raw_content: content.clone(),
+            content,
+        }
+    }
+
+    /// Refresh effective manifest fields from raw package.json content and Destack overrides.
+    pub fn refresh_from_destack(&mut self, config: Option<&Destack>) {
+        let mut content = self.raw_content.clone();
+
+        if let Some(config) = config {
+            content.apply_destack_overrides(config);
+        }
+
+        self.name = content.name.clone().unwrap_or_default();
+        self.version = content.version.clone().unwrap_or_default();
+        self.content = content;
     }
 }
 
@@ -135,10 +168,43 @@ pub struct PackageJson {
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#version>
     pub version: Option<String>,
 
+    /// Whether the package is private.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#private>
+    #[serde(rename = "private")]
+    pub is_private: Option<bool>,
+
+    /// Package description.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#description>
+    pub description: Option<String>,
+
+    /// Package license identifier.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#license>
+    pub license: Option<String>,
+
+    /// Package repository metadata.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#repository>
+    pub repository: Option<Value>,
+
+    /// Package homepage.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#homepage>
+    pub homepage: Option<String>,
+
+    /// Package keywords.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#keywords>
+    pub keywords: Option<Vec<String>>,
+
+    /// Preferred package manager string.
+    /// <https://nodejs.org/api/packages.html#packagemanager>
+    pub package_manager: Option<String>,
+
     /// Module type: "module" (ESM) or "commonjs" (CJS).
     /// <https://nodejs.org/api/packages.html#type>
     #[serde(rename = "type")]
     pub module_type: Option<String>,
+
+    /// Supported runtime engines.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#engines>
+    pub engines: Option<IndexMap<String, String>>,
 
     /// The "main" entry point.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#main>
@@ -162,6 +228,22 @@ pub struct PackageJson {
     /// <https://nodejs.org/api/packages.html#imports>
     pub imports: Option<Map<String, Value>>,
 
+    /// Runtime dependencies.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#dependencies>
+    pub dependencies: Option<IndexMap<String, String>>,
+
+    /// Development dependencies.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#devdependencies>
+    pub dev_dependencies: Option<IndexMap<String, String>>,
+
+    /// Peer dependencies.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#peerdependencies>
+    pub peer_dependencies: Option<IndexMap<String, String>>,
+
+    /// Optional dependencies.
+    /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#optionaldependencies>
+    pub optional_dependencies: Option<IndexMap<String, String>>,
+
     /// The "scripts" map for CLI tasks.
     /// <https://docs.npmjs.com/cli/v11/using-npm/scripts>
     pub scripts: Option<IndexMap<String, String>>,
@@ -176,6 +258,138 @@ pub struct PackageJson {
 }
 
 impl PackageJson {
+    /// Build package manifest compatibility content from one Destack config.
+    pub fn from_destack(config: &Destack) -> Self {
+        let scripts = Self::scripts_from_tasks(&config.options.tasks);
+        let workspaces = Self::workspaces_from_destack(config);
+
+        Self {
+            name: config.options.name.clone(),
+            version: config.options.version.clone(),
+            is_private: config.options.is_private,
+            description: config.options.description.clone(),
+            license: config.options.license.clone(),
+            repository: config.options.repository.clone(),
+            homepage: config.options.homepage.clone(),
+            keywords: Some(config.options.keywords.clone()),
+            package_manager: config.options.package_manager.clone(),
+            module_type: config.options.module_type.clone(),
+            engines: Some(config.options.engines.clone()),
+            exports: config.options.exports.clone(),
+            imports: Some(config.options.imports.clone().into_iter().collect()),
+            dependencies: Some(config.options.dependencies.clone()),
+            dev_dependencies: Some(config.options.dev_dependencies.clone()),
+            peer_dependencies: Some(config.options.peer_dependencies.clone()),
+            optional_dependencies: Some(config.options.optional_dependencies.clone()),
+            scripts,
+            workspaces,
+            ..Self::default()
+        }
+    }
+
+    /// Apply Destack manifest overrides in place.
+    pub fn apply_destack_overrides(&mut self, config: &Destack) {
+        let scripts = Self::scripts_from_tasks(&config.options.tasks);
+
+        // package identity
+        if let Some(name) = config.options.name.clone() {
+            self.name = Some(name);
+        }
+        if let Some(version) = config.options.version.clone() {
+            self.version = Some(version);
+        }
+        if let Some(is_private) = config.options.is_private {
+            self.is_private = Some(is_private);
+        }
+        if let Some(description) = config.options.description.clone() {
+            self.description = Some(description);
+        }
+        if let Some(license) = config.options.license.clone() {
+            self.license = Some(license);
+        }
+        if let Some(repository) = config.options.repository.clone() {
+            self.repository = Some(repository);
+        }
+        if let Some(homepage) = config.options.homepage.clone() {
+            self.homepage = Some(homepage);
+        }
+        if !config.options.keywords.is_empty() {
+            self.keywords = Some(config.options.keywords.clone());
+        }
+        if let Some(package_manager) = config.options.package_manager.clone() {
+            self.package_manager = Some(package_manager);
+        }
+
+        // module interface
+        if let Some(module_type) = config.options.module_type.clone() {
+            self.module_type = Some(module_type);
+        }
+        if !config.options.engines.is_empty() {
+            self.engines = Some(config.options.engines.clone());
+        }
+        if let Some(exports) = config.options.exports.clone() {
+            self.exports = Some(exports);
+        }
+        if !config.options.imports.is_empty() {
+            self.imports = Some(config.options.imports.clone().into_iter().collect());
+        }
+
+        // dependency intent
+        if !config.options.dependencies.is_empty() {
+            self.dependencies = Some(config.options.dependencies.clone());
+        }
+        if !config.options.dev_dependencies.is_empty() {
+            self.dev_dependencies = Some(config.options.dev_dependencies.clone());
+        }
+        if !config.options.peer_dependencies.is_empty() {
+            self.peer_dependencies = Some(config.options.peer_dependencies.clone());
+        }
+        if !config.options.optional_dependencies.is_empty() {
+            self.optional_dependencies = Some(config.options.optional_dependencies.clone());
+        }
+
+        // task compatibility
+        if let Some(scripts) = scripts {
+            self.scripts = Some(scripts);
+        }
+
+        // workspace compatibility
+        if let Some(workspaces) = Self::workspaces_from_destack(config) {
+            self.workspaces = Some(workspaces);
+        }
+    }
+
+    /// Project package compatibility scripts from Destack tasks.
+    fn scripts_from_tasks(
+        tasks: &IndexMap<String, TaskOptions>,
+    ) -> Option<IndexMap<String, String>> {
+        let scripts: IndexMap<String, String> = tasks
+            .iter()
+            .filter_map(|(name, task)| {
+                task.command
+                    .as_ref()
+                    .map(|command| (name.clone(), command.clone()))
+            })
+            .collect();
+
+        if scripts.is_empty() {
+            return None;
+        }
+
+        Some(scripts)
+    }
+
+    /// Project workspace membership to package manager compatibility.
+    fn workspaces_from_destack(config: &Destack) -> Option<WorkspacesField> {
+        if config.options.workspace.members.is_empty() {
+            return None;
+        }
+
+        Some(WorkspacesField::Patterns(
+            config.options.workspace.members.clone(),
+        ))
+    }
+
     /// Collect ordered package entry targets from package.json fields.
     pub fn entry_targets(&self) -> Vec<String> {
         let mut targets = Vec::new();
@@ -273,8 +487,15 @@ impl WorkspacesField {
 
 #[cfg(test)]
 mod tests {
-    use super::PackageJson;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    use super::{PackageJson, WorkspacesField};
     use serde_json::json;
+
+    use destack_source::{File, FileId, FileType, Uri};
+
+    use crate::Destack;
 
     /// Collect package entry targets in stable field order.
     #[test]
@@ -325,6 +546,155 @@ mod tests {
         assert_eq!(
             package_json.entry_targets(),
             vec!["./dist/index.js", "./dist/other.js"]
+        );
+    }
+
+    /// Project package compatibility fields from one Destack config.
+    #[test]
+    fn test_package_json_from_destack_projects_manifest_fields() {
+        let path = PathBuf::from("/tmp/app/destack.json");
+        let uri = Uri::from_string("file:///tmp/app/destack.json");
+        let file = Arc::new(
+            File::from_text_as_json(
+                FileId::new(1),
+                "destack.json".to_string(),
+                uri,
+                Some(path),
+                FileType::Json,
+                json!({
+                    "name": "@destack/app",
+                    "version": "0.1.0",
+                    "private": true,
+                    "description": "demo app",
+                    "license": "MIT",
+                    "repository": {
+                        "type": "git",
+                        "url": "https://example.com/repo.git"
+                    },
+                    "homepage": "https://example.com",
+                    "keywords": ["destack", "demo"],
+                    "packageManager": "pnpm@10.0.0",
+                    "type": "module",
+                    "engines": {
+                        "node": ">=22"
+                    },
+                    "exports": {
+                        ".": "./dist/index.js"
+                    },
+                    "imports": {
+                        "#app": "./src/index.ts"
+                    },
+                    "dependencies": {
+                        "react": "^19.0.0"
+                    },
+                    "devDependencies": {
+                        "typescript": "^5.9.0"
+                    },
+                    "peerDependencies": {
+                        "react-dom": "^19.0.0"
+                    },
+                    "optionalDependencies": {
+                        "fsevents": "^2.3.0"
+                    },
+                    "tasks": {
+                        "dev": "destack dev",
+                        "build": {
+                            "command": "destack build"
+                        }
+                    },
+                    "workspace": {
+                        "members": ["apps/*", "packages/*"],
+                        "groups": {
+                            "product": ["apps/web", "apps/api"]
+                        }
+                    }
+                })
+                .to_string(),
+            )
+            .expect("destack file should parse as json"),
+        );
+        let config = Destack::parse(&file).expect("destack config should parse");
+
+        let package_json = PackageJson::from_destack(&config);
+
+        assert_eq!(package_json.name.as_deref(), Some("@destack/app"));
+        assert_eq!(package_json.version.as_deref(), Some("0.1.0"));
+        assert_eq!(package_json.is_private, Some(true));
+        assert_eq!(package_json.description.as_deref(), Some("demo app"));
+        assert_eq!(package_json.license.as_deref(), Some("MIT"));
+        assert_eq!(
+            package_json.homepage.as_deref(),
+            Some("https://example.com")
+        );
+        assert_eq!(
+            package_json.keywords.as_ref().cloned(),
+            Some(vec!["destack".to_string(), "demo".to_string()])
+        );
+        assert_eq!(package_json.package_manager.as_deref(), Some("pnpm@10.0.0"));
+        assert_eq!(package_json.module_type.as_deref(), Some("module"));
+        assert_eq!(
+            package_json
+                .engines
+                .as_ref()
+                .and_then(|engines| engines.get("node"))
+                .map(String::as_str),
+            Some(">=22")
+        );
+        assert_eq!(
+            package_json
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.get("react"))
+                .map(String::as_str),
+            Some("^19.0.0")
+        );
+        assert_eq!(
+            package_json
+                .dev_dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.get("typescript"))
+                .map(String::as_str),
+            Some("^5.9.0")
+        );
+        assert_eq!(
+            package_json
+                .peer_dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.get("react-dom"))
+                .map(String::as_str),
+            Some("^19.0.0")
+        );
+        assert_eq!(
+            package_json
+                .optional_dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.get("fsevents"))
+                .map(String::as_str),
+            Some("^2.3.0")
+        );
+        assert_eq!(
+            package_json
+                .scripts
+                .as_ref()
+                .and_then(|scripts| scripts.get("dev"))
+                .map(String::as_str),
+            Some("destack dev")
+        );
+        assert_eq!(
+            package_json
+                .scripts
+                .as_ref()
+                .and_then(|scripts| scripts.get("build"))
+                .map(String::as_str),
+            Some("destack build")
+        );
+        assert_eq!(
+            package_json
+                .workspaces
+                .as_ref()
+                .map(WorkspacesField::patterns)
+                .map(<[String]>::len),
+            Some(2)
         );
     }
 }
