@@ -415,7 +415,7 @@ mod tests {
                     inputs: vec![CommandInput::File {
                         path: "/workspace/app.ds".into(),
                     }],
-                    allow_dsconfig_fallback: false,
+                    allow_destack_config_fallback: false,
                     target: Some("app".to_string()),
                     ..CommonCommandOptions::default()
                 },

@@ -64,10 +64,10 @@ pub fn run(args: &DoctorArgs) -> i32 {
                     console::info(&format!("package: {package}"));
                 }
             }
-            if let Some(path) = payload.dsconfig.as_ref() {
-                console::info(&format!("dsconfig: {path}"));
+            if let Some(path) = payload.config.as_ref() {
+                console::info(&format!("destack.json: {path}"));
             } else {
-                console::warn("dsconfig: not found");
+                console::warn("destack.json: not found");
             }
             if let Some(default_target) = payload.default_target.as_ref() {
                 console::info(&format!("default target: {default_target}"));

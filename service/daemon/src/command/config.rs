@@ -42,22 +42,22 @@ impl CommandContext<'_> {
             .as_deref()
             .or(self.common.config_path.as_deref());
 
-        // resolve dsconfig path
-        let dsconfig_path = self.resolve_dsconfig_path(config_override)?;
+        // resolve config path
+        let config_path = self.resolve_destack_config_path(config_override)?;
 
-        // load dsconfig for summary fields
-        let dsconfig = self.load_dsconfig(&dsconfig_path)?;
+        // load config for summary fields
+        let config = self.load_destack_config(&config_path)?;
 
         // parse raw config json
         let resolver = self.resolver();
-        let config_json = read_config_json(&resolver, &dsconfig_path)?;
+        let config_json = read_config_json(&resolver, &config_path)?;
 
         // collect target metadata
-        let target_names: Vec<String> = dsconfig.options.targets.keys().cloned().collect();
-        let default_target = dsconfig.options.default_target.clone();
+        let target_names: Vec<String> = config.options.targets.keys().cloned().collect();
+        let default_target = config.options.default_target.clone();
 
         let payload = CommandConfigPayload {
-            path: dsconfig_path.display().to_string(),
+            path: config_path.display().to_string(),
             default_target,
             targets: target_names,
             config: config_json,
@@ -70,7 +70,7 @@ impl CommandContext<'_> {
     }
 }
 
-/// Read and parse a dsconfig.json file into JSON.
+/// Read and parse a destack.json file into JSON.
 fn read_config_json(
     resolver: &destack_resolver::Resolver,
     path: &Path,
@@ -79,5 +79,5 @@ fn read_config_json(
         .fs
         .read_to_string(path)
         .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
-    Ok(serde_json::from_str(&content).map_err(|error| format!("invalid dsconfig: {error}"))?)
+    Ok(serde_json::from_str(&content).map_err(|error| format!("invalid destack.json: {error}"))?)
 }

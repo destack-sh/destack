@@ -4,12 +4,12 @@ use crate::common::ReportArgs;
 use super::tests::{TestProgram, assert_success};
 use serde_json::json;
 
-/// Loads configuration from dsconfig.
+/// Loads configuration from destack.json.
 #[test]
-fn test_config_reads_dsconfig() {
-    // set up a basic dsconfig
+fn test_config_reads_destack_config() {
+    // set up a basic config
     let program = TestProgram::new("config");
-    program.write_dsconfig_with_base(json!({
+    program.write_destack_config_with_base(json!({
         "include": ["src/**/*"],
     }));
 

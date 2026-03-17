@@ -406,7 +406,7 @@ fn collect_formattable_files_in_dir(
     }
 }
 
-/// Get formatting options for a file, checking for dsconfig.json.
+/// Get formatting options for a file, checking for destack.json.
 fn get_formatting_options(
     fs: &dyn FileSystem,
     resolver: &Resolver,
@@ -415,10 +415,10 @@ fn get_formatting_options(
     config_override: Option<&Path>,
     default: FormatterOptions,
 ) -> FormatterOptions {
-    let Some(dsconfig_path) = find_dsconfig_json(fs, path, cwd, config_override) else {
+    let Some(destack_config_path) = find_destack_config_json(fs, path, cwd, config_override) else {
         return default;
     };
-    if let Some(options) = load_dsconfig_formatting(resolver, &dsconfig_path) {
+    if let Some(options) = load_destack_config_formatting(resolver, &destack_config_path) {
         return merge_formatter_options(options, default);
     }
     default
@@ -455,7 +455,7 @@ fn format_single_file(
         return FormatResult::Error;
     }
 
-    // get formatting options from dsconfig
+    // get formatting options from destack.json
     let formatting_options =
         get_formatting_options(fs, resolver, path, cwd, config_override, default_formatting);
 
@@ -579,8 +579,8 @@ enum FormatResult {
     Error,
 }
 
-/// Find the nearest dsconfig.json by walking up parent directories.
-fn find_dsconfig_json(
+/// Find the nearest destack.json by walking up parent directories.
+fn find_destack_config_json(
     fs: &dyn FileSystem,
     path: &Path,
     cwd: &Path,
@@ -594,7 +594,7 @@ fn find_dsconfig_json(
         };
         let metadata = fs.metadata(&resolved).ok()?;
         return if metadata.is_directory {
-            Some(resolved.join("dsconfig.json"))
+            Some(resolved.join("destack.json"))
         } else {
             Some(resolved)
         };
@@ -609,9 +609,9 @@ fn find_dsconfig_json(
     };
 
     while let Some(dir) = current {
-        let dsconfig_path = dir.join("dsconfig.json");
-        if fs.exists(&dsconfig_path).unwrap_or(false) {
-            return Some(dsconfig_path);
+        let destack_config_path = dir.join("destack.json");
+        if fs.exists(&destack_config_path).unwrap_or(false) {
+            return Some(destack_config_path);
         }
         current = dir.parent().map(|p| p.to_path_buf());
     }
@@ -619,12 +619,15 @@ fn find_dsconfig_json(
     None
 }
 
-/// Load formatting options from a dsconfig.json file.
-fn load_dsconfig_formatting(resolver: &Resolver, dsconfig_path: &Path) -> Option<FormatterOptions> {
-    let dsconfig = resolver
-        .load_dsconfig(dsconfig_path, CachePolicy::UseCache)
+/// Load formatting options from a destack.json file.
+fn load_destack_config_formatting(
+    resolver: &Resolver,
+    config_path: &Path,
+) -> Option<FormatterOptions> {
+    let config = resolver
+        .read_destack_config(config_path, CachePolicy::UseCache)
         .ok()?;
-    Some(dsconfig.options.formatter)
+    Some(config.options.formatter)
 }
 
 /// Merge formatter options with CLI precedence.

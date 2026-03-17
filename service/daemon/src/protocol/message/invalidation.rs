@@ -29,7 +29,7 @@ pub enum InvalidationKind {
     /// Module source invalidation.
     ModuleSource,
     /// Dsconfig invalidation.
-    DsConfig,
+    Destack,
     /// Tsconfig invalidation.
     TsConfig,
     /// Package manifest invalidation.

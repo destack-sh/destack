@@ -63,16 +63,16 @@ impl CommandContext<'_> {
         &mut self,
         options: &CommandTaskOptions,
     ) -> super::CommandResult<CommandOutcome> {
-        // resolve dsconfig path
-        let dsconfig_path = self.resolve_dsconfig_path(self.common.config_path.as_deref())?;
+        // resolve config path
+        let config_path = self.resolve_destack_config_path(self.common.config_path.as_deref())?;
 
         // load task definitions
         let resolver = self.resolver();
-        let tasks = load_tasks(&resolver, &dsconfig_path)?;
-        let dsconfig_dir = dsconfig_path
+        let tasks = load_tasks(&resolver, &config_path)?;
+        let config_dir = config_path
             .parent()
             .map(PathBuf::from)
-            .unwrap_or_else(|| dsconfig_path.clone());
+            .unwrap_or_else(|| config_path.clone());
 
         match &options.action {
             CommandTaskAction::List => {
@@ -114,7 +114,7 @@ impl CommandContext<'_> {
                     command.push_str(&args.join(" "));
                 }
 
-                let cwd = task.cwd.clone().unwrap_or_else(|| dsconfig_dir.clone());
+                let cwd = task.cwd.clone().unwrap_or_else(|| config_dir.clone());
 
                 if *dry_run {
                     let payload = CommandTaskPayload {
@@ -171,7 +171,7 @@ impl CommandContext<'_> {
     }
 }
 
-/// Task specification loaded from dsconfig.json.
+/// Task specification loaded from destack.json.
 #[derive(Debug, Clone)]
 struct TaskSpec {
     /// The task name.
@@ -184,18 +184,18 @@ struct TaskSpec {
     cwd: Option<PathBuf>,
 }
 
-/// Load task specifications from a dsconfig.json file.
+/// Load task specifications from a destack.json file.
 fn load_tasks(
     resolver: &destack_resolver::Resolver,
-    dsconfig_path: &Path,
+    destack_config_path: &Path,
 ) -> super::CommandResult<Vec<TaskSpec>> {
     let content = resolver
         .fs
-        .read_to_string(dsconfig_path)
-        .map_err(|error| format!("failed to read {}: {error}", dsconfig_path.display()))?;
+        .read_to_string(destack_config_path)
+        .map_err(|error| format!("failed to read {}: {error}", destack_config_path.display()))?;
 
     let value: Value =
-        serde_json::from_str(&content).map_err(|error| format!("invalid dsconfig: {error}"))?;
+        serde_json::from_str(&content).map_err(|error| format!("invalid destack.json: {error}"))?;
 
     let Some(tasks_value) = value.get("tasks") else {
         return Ok(Vec::new());
@@ -204,10 +204,10 @@ fn load_tasks(
         .as_object()
         .ok_or_else(|| "tasks must be an object".to_string())?;
 
-    let dsconfig_dir = dsconfig_path
+    let destack_config_dir = destack_config_path
         .parent()
         .map(PathBuf::from)
-        .unwrap_or_else(|| dsconfig_path.to_path_buf());
+        .unwrap_or_else(|| destack_config_path.to_path_buf());
 
     let mut tasks = Vec::new();
     for (name, value) in tasks_object {
@@ -233,7 +233,7 @@ fn load_tasks(
             if path.is_absolute() {
                 path
             } else {
-                dsconfig_dir.join(path)
+                destack_config_dir.join(path)
             }
         });
 

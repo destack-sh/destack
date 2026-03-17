@@ -591,7 +591,7 @@ fn is_config_path(path: &Path) -> bool {
         return false;
     };
 
-    if file_name == "dsconfig.json" || file_name == "jsconfig.json" {
+    if file_name == "destack.json" || file_name == "jsconfig.json" {
         return true;
     }
 

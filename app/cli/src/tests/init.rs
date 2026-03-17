@@ -8,7 +8,7 @@ use crate::common::{FileSystemOverride, ReportArgs};
 
 /// Initializes a minimal project in memory.
 #[test]
-fn test_init_minimal_creates_dsconfig() {
+fn test_init_minimal_creates_destack_config() {
     // setup
     let fs = Arc::new(MemoryFileSystem::new());
     let root = PathBuf::from("/test/init/minimal");
@@ -24,9 +24,9 @@ fn test_init_minimal_creates_dsconfig() {
     // run init
     let code = run(&args);
 
-    // assert dsconfig exists
+    // assert destack.json exists
     assert_eq!(code, 0);
-    assert!(fs.exists(&root.join("dsconfig.json")).unwrap_or(false));
+    assert!(fs.exists(&root.join("destack.json")).unwrap_or(false));
 }
 
 /// Initializes an app template with the entry file.

@@ -418,7 +418,7 @@ fn compile_and_run_daemon(
     exit_code
 }
 
-/// Attempt to run a dsconfig or package.json script when input is not a file.
+/// Attempt to run a destack.json or package.json script when input is not a file.
 fn try_run_script(request: &RunRequest, fs: &dyn FileSystem, cwd: &Path) -> Option<i32> {
     let command_name = request.command_name;
 
@@ -444,7 +444,7 @@ fn try_run_script(request: &RunRequest, fs: &dyn FileSystem, cwd: &Path) -> Opti
         return None;
     }
 
-    // resolve script command from dsconfig or package.json
+    // resolve script command from destack.json or package.json
     let script_name = candidate.to_string_lossy().to_string();
     let script = match resolve_script_command(&request.program, &script_name) {
         Ok(Some(script)) => script,
@@ -483,7 +483,7 @@ fn try_run_script(request: &RunRequest, fs: &dyn FileSystem, cwd: &Path) -> Opti
     // report structured output when requested
     if request.report.is_json() {
         let source = match script.source {
-            ScriptSource::DsConfig => "dsconfig",
+            ScriptSource::Destack => "destack",
             ScriptSource::PackageJson => "package.json",
         };
         let data = serde_json::json!({

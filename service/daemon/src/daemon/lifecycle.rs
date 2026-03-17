@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use destack_workspace::{DEFAULT_DAEMON_IDLE_SHUTDOWN_MS, DsConfigDaemonOptions};
+use destack_workspace::{DEFAULT_DAEMON_IDLE_SHUTDOWN_MS, DaemonOptions};
 
 /// Shutdown policy options for the daemon server.
 #[derive(Debug, Clone)]
@@ -13,7 +13,7 @@ pub struct DaemonShutdownOptions {
 
 impl DaemonShutdownOptions {
     /// Build shutdown options from daemon config.
-    pub fn from_config(config: &DsConfigDaemonOptions) -> Self {
+    pub fn from_config(config: &DaemonOptions) -> Self {
         // map idle shutdown config to a duration
         let idle_shutdown = config.idle_shutdown_ms.map(Duration::from_millis);
 

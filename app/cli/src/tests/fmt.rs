@@ -205,12 +205,12 @@ fn test_fmt_formats_valid_files_when_other_files_error() {
     assert_eq!(bad_content, "const broken =");
 }
 
-/// Applies formatter options from dsconfig.json.
+/// Applies formatter options from destack.json.
 #[test]
-fn test_fmt_applies_dsconfig_formatter_options() {
+fn test_fmt_applies_destack_config_formatter_options() {
     // set up source and formatter config
-    let program = TestProgram::new("fmt_dsconfig_options");
-    program.write_dsconfig(json!({
+    let program = TestProgram::new("fmt_destack_config_options");
+    program.write_destack_config(json!({
         "formatter": {
             "singleQuote": true
         }
@@ -239,12 +239,12 @@ fn test_fmt_applies_dsconfig_formatter_options() {
     assert_eq!(formatted, "const message = 'hello';\n");
 }
 
-/// Preserves explicit CLI formatter overrides over dsconfig options.
+/// Preserves explicit CLI formatter overrides over destack.json options.
 #[test]
-fn test_fmt_cli_formatter_overrides_dsconfig() {
+fn test_fmt_cli_formatter_overrides_destack_config() {
     // set up source and formatter config
-    let program = TestProgram::new("fmt_cli_overrides_dsconfig");
-    program.write_dsconfig(json!({
+    let program = TestProgram::new("fmt_cli_overrides_destack_config");
+    program.write_destack_config(json!({
         "formatter": {
             "singleQuote": true
         }
@@ -266,7 +266,7 @@ fn test_fmt_cli_formatter_overrides_dsconfig() {
     // run the formatter
     let code = run(&args);
 
-    // assert cli options win over dsconfig
+    // assert cli options win over destack.json
     assert_success(code);
     let formatted = program
         .fs

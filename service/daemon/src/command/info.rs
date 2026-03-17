@@ -46,8 +46,8 @@ pub struct CommandInfoTarget {
 pub struct CommandInfoPayload {
     /// Workspace metadata.
     pub workspace: CommandInfoWorkspace,
-    /// Resolved dsconfig path.
-    pub dsconfig: Option<String>,
+    /// Resolved destack.json path.
+    pub config: Option<String>,
     /// Targets for the active package.
     pub targets: Option<Vec<CommandInfoTarget>>,
     /// Targets for all workspace packages.
@@ -68,25 +68,25 @@ impl CommandContext<'_> {
             .map(|path| path.display().to_string())
             .collect();
 
-        // resolve dsconfig from cwd
-        let dsconfig_path = if self.common.config_path.is_some() {
-            Some(self.resolve_dsconfig_path(self.common.config_path.as_deref())?)
+        // resolve config from cwd
+        let config_path = if self.common.config_path.is_some() {
+            Some(self.resolve_destack_config_path(self.common.config_path.as_deref())?)
         } else {
-            self.find_dsconfig(&self.program.cwd)
+            self.find_destack_config(&self.program.cwd)
         };
-        let dsconfig = dsconfig_path
+        let config = config_path
             .as_ref()
-            .and_then(|path| self.load_dsconfig(path).ok());
+            .and_then(|path| self.load_destack_config(path).ok());
 
         // load workspace configs when requested
         let workspace_configs = if options.all {
-            self.load_workspace_dsconfigs(&workspace).ok()
+            self.load_workspace_configs(&workspace).ok()
         } else {
             None
         };
 
         // derive target summaries
-        let targets = dsconfig.as_ref().map(|config| {
+        let targets = config.as_ref().map(|config| {
             config
                 .options
                 .targets
@@ -137,9 +137,7 @@ impl CommandContext<'_> {
                 kind: format!("{:?}", workspace.kind),
                 packages: package_paths,
             },
-            dsconfig: dsconfig_path
-                .as_ref()
-                .map(|path| path.display().to_string()),
+            config: config_path.as_ref().map(|path| path.display().to_string()),
             targets,
             workspace_targets,
         };

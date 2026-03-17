@@ -153,7 +153,7 @@ fn test_check_watch_handles_config_rescan() {
     // configure the memory watcher
     let watcher = MemoryFileWatcher::new();
     let watch_options = watch_loop_options_for_test(watcher.clone());
-    let config_path = program.root.join("dsconfig.json");
+    let config_path = program.root.join("destack.json");
 
     // capture the observed compile reason
     let observed_reason: RefCell<Option<WatchCompileReason>> = RefCell::new(None);
@@ -167,7 +167,7 @@ fn test_check_watch_handles_config_rescan() {
         None,
         watch_options,
         || {
-            program.write_dsconfig_with_base(json!({}));
+            program.write_destack_config_with_base(json!({}));
             watcher.emit(FileWatchEvent {
                 path: config_path.clone(),
                 previous_path: None,

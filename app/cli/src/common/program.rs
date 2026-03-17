@@ -413,7 +413,7 @@ pub struct ProgramArgs {
     #[arg(long = "cwd", global = true)]
     pub cwd: Option<PathBuf>,
 
-    /// Path to dsconfig.json configuration file.
+    /// Path to destack.json configuration file.
     #[arg(long = "config", short = 'c', global = true)]
     pub config: Option<PathBuf>,
 

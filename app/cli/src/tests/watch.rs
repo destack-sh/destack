@@ -283,13 +283,8 @@ fn test_apply_watch_event_requests_rescan_for_config() {
     let test = TestProgram::new("watch_config");
     let program = test.session.get_or_create_program(test.root.clone());
 
-    let path = test.write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n");
-    register_file(
-        &program,
-        &path,
-        "{ \"compilerOptions\": {} }\n",
-        FileType::Json,
-    );
+    let path = test.write_text("destack.json", "{ \"compiler\": {} }\n");
+    register_file(&program, &path, "{ \"compiler\": {} }\n", FileType::Json);
 
     let daemon = daemon_with_single_worker(test.session.clone());
     let event = FileWatchEvent {
@@ -310,13 +305,8 @@ fn test_run_watch_loop_handles_config_update() {
     let test = TestProgram::new("watch_loop_config");
     let program = test.session.get_or_create_program(test.root.clone());
 
-    let path = test.write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n");
-    register_file(
-        &program,
-        &path,
-        "{ \"compilerOptions\": {} }\n",
-        FileType::Json,
-    );
+    let path = test.write_text("destack.json", "{ \"compiler\": {} }\n");
+    register_file(&program, &path, "{ \"compiler\": {} }\n", FileType::Json);
 
     let harness = WatchLoopHarness::new(test.session.clone());
     let event = FileWatchEvent {

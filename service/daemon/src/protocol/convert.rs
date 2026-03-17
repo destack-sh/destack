@@ -22,7 +22,7 @@ impl From<InvalidationKind> for ProtocolInvalidationKind {
     fn from(kind: InvalidationKind) -> Self {
         match kind {
             InvalidationKind::ModuleSource => ProtocolInvalidationKind::ModuleSource,
-            InvalidationKind::DsConfig => ProtocolInvalidationKind::DsConfig,
+            InvalidationKind::Destack => ProtocolInvalidationKind::Destack,
             InvalidationKind::TsConfig => ProtocolInvalidationKind::TsConfig,
             InvalidationKind::PackageManifest => ProtocolInvalidationKind::PackageManifest,
             InvalidationKind::Unknown => ProtocolInvalidationKind::Unknown,

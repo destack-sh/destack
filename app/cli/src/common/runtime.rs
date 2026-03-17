@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 use destack_workspace::{
-    DsConfigRuntimeOptionsJson, ExecutionModeJson, HeapOptionsJson, RandomModeJson,
-    RandomOptionsJson, ReplayOptionsJson, RuntimeAccessJson, RuntimeWorldJson,
-    SchedulerOptionsJson, SchedulerPolicyJson, TimeModeJson, TimeOptionsJson,
+    ExecutionModeJson, HeapOptionsJson, RandomModeJson, RandomOptionsJson, ReplayOptionsJson,
+    RuntimeAccessJson, RuntimeOptionsJson, RuntimeWorldJson, SchedulerOptionsJson,
+    SchedulerPolicyJson, TimeModeJson, TimeOptionsJson,
 };
 
 /// Runtime configuration arguments for run-like commands.
@@ -187,7 +187,7 @@ impl RuntimeArgs {
     }
 
     /// Convert runtime arguments into runtime option overrides.
-    pub fn to_runtime_overrides(&self) -> Option<DsConfigRuntimeOptionsJson> {
+    pub fn to_runtime_overrides(&self) -> Option<RuntimeOptionsJson> {
         if self.is_empty() {
             return None;
         }
@@ -297,7 +297,7 @@ impl RuntimeArgs {
             None
         };
 
-        Some(DsConfigRuntimeOptionsJson {
+        Some(RuntimeOptionsJson {
             execution: self.execution_mode.map(Into::into),
             world: self.world.map(Into::into),
             access: self.access.map(Into::into),

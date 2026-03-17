@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
-use destack_workspace::{DsConfig, Program, Session, Workspace};
+use destack_workspace::{Destack, Program, Session, Workspace};
 
 use crate::common::ProgramArgs;
 use crate::error::{CliError, CliResult};
@@ -55,12 +55,12 @@ pub fn workspace_context(
     })
 }
 
-/// Locate a dsconfig.json path for a directory.
-pub fn find_dsconfig(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
-    // walk up directories looking for dsconfig.json
+/// Locate a destack.json path for a directory.
+pub fn find_destack_config(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
+    // walk up directories looking for destack.json
     let mut current = cwd.to_path_buf();
     loop {
-        let candidate = current.join("dsconfig.json");
+        let candidate = current.join("destack.json");
         if resolver
             .fs
             .metadata(&candidate)
@@ -78,16 +78,16 @@ pub fn find_dsconfig(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
     None
 }
 
-/// Load and parse a dsconfig.json file.
-pub fn load_dsconfig(resolver: &Resolver, path: &Path) -> CliResult<DsConfig> {
+/// Load and parse a destack.json file.
+pub fn load_destack_config(resolver: &Resolver, path: &Path) -> CliResult<Destack> {
     // map resolver errors into strings
     resolver
-        .load_dsconfig(path, CachePolicy::UseCache)
+        .read_destack_config(path, CachePolicy::UseCache)
         .map_err(|error| CliError::message(error.to_string()))
 }
 
-/// Resolve a dsconfig.json path based on program args.
-pub fn resolve_dsconfig_path(
+/// Resolve a destack.json path based on program args.
+pub fn resolve_destack_config_path(
     program_args: &ProgramArgs,
     resolver: &Resolver,
     cwd: &Path,
@@ -106,8 +106,8 @@ pub fn resolve_dsconfig_path(
             .map_err(|_| CliError::message(format!("config path not found: {}", path.display())))?;
 
         if metadata.is_directory {
-            return find_dsconfig(resolver, &path)
-                .ok_or_else(|| CliError::message("dsconfig.json not found"));
+            return find_destack_config(resolver, &path)
+                .ok_or_else(|| CliError::message("destack.json not found"));
         }
 
         if metadata.is_file {
@@ -121,20 +121,20 @@ pub fn resolve_dsconfig_path(
     }
 
     // fall back to cwd lookup
-    find_dsconfig(resolver, cwd).ok_or_else(|| CliError::message("dsconfig.json not found"))
+    find_destack_config(resolver, cwd).ok_or_else(|| CliError::message("destack.json not found"))
 }
 
-/// Resolve a dsconfig.json path and load it.
-pub fn load_dsconfig_for_program(
+/// Resolve a destack.json path and load it.
+pub fn load_destack_config_for_program(
     program_args: &ProgramArgs,
     resolver: &Resolver,
     cwd: &Path,
-) -> CliResult<DsConfig> {
-    let path = resolve_dsconfig_path(program_args, resolver, cwd)?;
-    load_dsconfig(resolver, &path)
+) -> CliResult<Destack> {
+    let path = resolve_destack_config_path(program_args, resolver, cwd)?;
+    load_destack_config(resolver, &path)
 }
 
-/// Resolve the default target from dsconfig when available.
+/// Resolve the default target from destack.json when available.
 pub fn default_target_for_program(
     program_args: &ProgramArgs,
     resolver: &Resolver,
@@ -142,16 +142,16 @@ pub fn default_target_for_program(
 ) -> CliResult<Option<String>> {
     // honor explicit config paths
     if program_args.config.is_some() {
-        let dsconfig = load_dsconfig_for_program(program_args, resolver, cwd)?;
-        return Ok(dsconfig.options.default_target);
+        let config = load_destack_config_for_program(program_args, resolver, cwd)?;
+        return Ok(config.options.default_target);
     }
 
     // fall back to auto discovery when present
-    let Some(path) = find_dsconfig(resolver, cwd) else {
+    let Some(path) = find_destack_config(resolver, cwd) else {
         return Ok(None);
     };
-    let dsconfig = load_dsconfig(resolver, &path)?;
-    Ok(dsconfig.options.default_target)
+    let config = load_destack_config(resolver, &path)?;
+    Ok(config.options.default_target)
 }
 
 /// Resolve the default target using a session resolver.
@@ -169,27 +169,27 @@ pub fn default_target_for_session(
     default_target_for_program(program_args, &resolver, &session.cwd)
 }
 
-/// Resolve a dsconfig.json for a path and load it.
-pub fn load_dsconfig_for_path(resolver: &Resolver, path: &Path) -> CliResult<DsConfig> {
+/// Resolve a destack.json for a path and load it.
+pub fn load_destack_config_for_path(resolver: &Resolver, path: &Path) -> CliResult<Destack> {
     // resolve the config path from the directory
-    let dsconfig_path = find_dsconfig(resolver, path)
-        .ok_or_else(|| CliError::message("dsconfig.json not found"))?;
+    let destack_config_path = find_destack_config(resolver, path)
+        .ok_or_else(|| CliError::message("destack.json not found"))?;
 
     // load the resolved config
-    load_dsconfig(resolver, &dsconfig_path)
+    load_destack_config(resolver, &destack_config_path)
 }
 
-/// Load dsconfig.json files for all packages in a workspace.
-pub fn load_workspace_dsconfigs(
+/// Load destack.json files for all packages in a workspace.
+pub fn load_workspace_configs(
     resolver: &Resolver,
     workspace: &Workspace,
-) -> CliResult<Vec<DsConfig>> {
+) -> CliResult<Vec<Destack>> {
     // collect unique config paths
     let mut configs = BTreeMap::new();
 
-    // collect dsconfig paths for each package path
+    // collect config paths for each package path
     for package_path in &workspace.package_paths {
-        if let Some(path) = find_dsconfig(resolver, package_path) {
+        if let Some(path) = find_destack_config(resolver, package_path) {
             configs.entry(path).or_insert_with(|| package_path.clone());
         }
     }
@@ -197,7 +197,7 @@ pub fn load_workspace_dsconfigs(
     // load unique configs in a stable order
     let mut resolved = Vec::new();
     for (path, _) in configs {
-        resolved.push(load_dsconfig(resolver, &path)?);
+        resolved.push(load_destack_config(resolver, &path)?);
     }
 
     // return the loaded configs

@@ -49,10 +49,10 @@ pub fn run(args: &InfoArgs) -> i32 {
             for path in &payload.workspace.packages {
                 console::info(&format!("package: {path}"));
             }
-            if let Some(path) = payload.dsconfig.as_ref() {
-                console::info(&format!("dsconfig: {path}"));
+            if let Some(path) = payload.config.as_ref() {
+                console::info(&format!("destack.json: {path}"));
             } else {
-                console::warn("dsconfig: not found");
+                console::warn("destack.json: not found");
             }
             if let Some(targets) = payload.targets.as_deref() {
                 emit_targets("target", targets);

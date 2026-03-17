@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use destack_workspace::{CacheScope, DsConfig, resolve_cache_root_for_scope};
+use destack_workspace::{CacheScope, Destack, resolve_cache_root_for_scope};
 
 use crate::common::ProgramArgs;
 
@@ -9,8 +9,8 @@ use crate::common::ProgramArgs;
 pub enum CacheSource {
     /// Cache directory from CLI override.
     Override,
-    /// Cache directory from dsconfig.json.
-    DsConfig,
+    /// Cache directory from destack.json.
+    Destack,
     /// Default cache directory location.
     Default,
 }
@@ -24,10 +24,10 @@ pub struct CacheLocation {
     pub source: CacheSource,
 }
 
-/// Resolve the cache directory using overrides and dsconfig settings.
+/// Resolve the cache directory using overrides and destack.json settings.
 pub fn resolve_cache_location(
     program_args: &ProgramArgs,
-    dsconfig: Option<&DsConfig>,
+    config: Option<&Destack>,
     workspace_root: &Path,
     cwd: &Path,
 ) -> CacheLocation {
@@ -40,16 +40,16 @@ pub fn resolve_cache_location(
         };
     }
 
-    // fall back to dsconfig cache settings
-    if let Some(dsconfig) = dsconfig {
+    // fall back to config cache settings
+    if let Some(config) = config {
         let dir = resolve_cache_root_for_scope(
-            &dsconfig.directory,
-            dsconfig.options.cache.dir.as_deref(),
-            dsconfig.options.cache.scope,
+            &config.directory,
+            config.options.cache.dir.as_deref(),
+            config.options.cache.scope,
         );
         return CacheLocation {
             dir,
-            source: CacheSource::DsConfig,
+            source: CacheSource::Destack,
         };
     }
 

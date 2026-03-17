@@ -4,13 +4,13 @@ use crate::common::ReportArgs;
 use destack_source::FileSystem;
 use serde_json::json;
 
-/// Cleans compiler output directories from dsconfig.
+/// Cleans compiler output directories from destack.json.
 #[test]
 fn test_clean_removes_out_dir() {
     // setup
     let program = TestProgram::new("clean_out_dir");
-    program.write_dsconfig_with_base(json!({
-        "compilerOptions": {
+    program.write_destack_config_with_base(json!({
+        "compiler": {
             "outDir": "dist",
         },
     }));

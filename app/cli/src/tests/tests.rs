@@ -103,19 +103,19 @@ impl TestProgram {
         self.write_file(relative, &content);
     }
 
-    /// Write a dsconfig.json file with the provided json value.
-    pub(super) fn write_dsconfig(&self, value: Value) {
+    /// Write a destack.json file with the provided json value.
+    pub(super) fn write_destack_config(&self, value: Value) {
         // write the config file
-        self.write_json("dsconfig.json", value);
+        self.write_json("destack.json", value);
     }
 
-    /// Write a dsconfig.json file merged with base compiler options.
-    pub(super) fn write_dsconfig_with_base(&self, extra: Value) {
+    /// Write a destack.json file merged with base compiler options.
+    pub(super) fn write_destack_config_with_base(&self, extra: Value) {
         // build the merged config payload
-        let value = merge_dsconfig_base(extra);
+        let value = merge_destack_config_base(extra);
 
         // write the config file
-        self.write_dsconfig(value);
+        self.write_destack_config(value);
     }
 
     /// Write a package.json file with the provided json value.
@@ -185,17 +185,17 @@ pub(super) fn watch_loop_options_for_test(watcher: MemoryFileWatcher) -> WatchLo
     }
 }
 
-/// Merge compiler options into a base dsconfig payload.
-pub(super) fn merge_dsconfig_base(extra: Value) -> Value {
+/// Merge compiler options into a base destack.json payload.
+pub(super) fn merge_destack_config_base(extra: Value) -> Value {
     let base = json!({
-        "compilerOptions": {
+        "compiler": {
             "target": "esnext",
             "module": "esnext",
         },
     });
 
     // merge compiler options without clobbering defaults
-    merge_json_object(base, extra, &["compilerOptions"])
+    merge_json_object(base, extra, &["compiler"])
 }
 
 /// Merge JSON objects with selective deep merge keys.
