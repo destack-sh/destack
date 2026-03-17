@@ -44,12 +44,12 @@ Aspiritionally, Destack is intended as a meta framework for developing and maint
 ## Higher-Order Programming
 
 It has been more than 50 years since [C introduced higher order programming](https://en.wikipedia.org/wiki/C_(programming_language)#History) as we know it today, yet programming is still astoundingly immature.
-Our tools are a little fancier, sure: new GUIs, new languages, new libraries, new SaaS, and .. that's it - fundamentally, we're still punching keys, making the unit tests turn green, and then shipping without any [_real_ confidence](https://apple.github.io/foundationdb/architecture.html).
+Our tools are a little fancier, sure: new GUIs, new languages, new libraries, new SaaS, and .. that's it - fundamentally, we're still text in, green tests out and some logs out, and then we ship without any [_real_ confidence](https://apple.github.io/foundationdb/flow.html).
 We've just grown accustomed to software being clunky, broken, and slow.
 
 Software "engineering" bears little resemblence to real engineering: 
 we routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it is not well integrated with other software.
-The inscrutability, inefficiency, and instability of software must be solved by reimagining software production end-to-end across all the disparate processes that have remained separate purely by historical circumstance.
+The inscrutability, inefficiency, and instability of software is a whole process problem, and it must be solved by reimagining software production end-to-end across all the incidentally fragmented processes.
 
 Software is very useful, we have a lot of it, and there is about to be much, much more, with exciting new possibilities to integrate symbolic and probabilistic computation.
 The more we can express in software, the higher order the tasks we can program -
