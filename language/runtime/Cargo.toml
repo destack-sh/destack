@@ -92,6 +92,7 @@ getrandom = { workspace = true, features = ["wasm_js"] }
 
 [target.'cfg(any(unix, windows))'.dependencies]
 notify = { workspace = true }
+notify-rust = { workspace = true }
 openssl = { workspace = true, features = ["vendored"] }
 openssl-sys = { workspace = true }
 rustls = { workspace = true, features = ["ring", "std"] }
@@ -102,6 +103,10 @@ windows = { workspace = true, features = [
     "Devices_Bluetooth",
     "Devices_Bluetooth_Advertisement",
     "Devices_Bluetooth_GenericAttributeProfile",
+    "ApplicationModel_Appointments",
+    "ApplicationModel_Contacts",
+    "Data_Xml_Dom",
+    "Devices_Geolocation",
     "Devices_Enumeration",
     "Devices_Radios",
     "Devices_Midi",
@@ -112,6 +117,7 @@ windows = { workspace = true, features = [
     "Media_Devices",
     "Media_MediaProperties",
     "Storage_Streams",
+    "UI_Notifications",
     "Win32_Foundation",
     "Win32_System_Com",
     "Win32_System_WinRT",
@@ -180,6 +186,7 @@ block2 = { workspace = true }
 core-foundation-sys = { workspace = true }
 objc2 = { workspace = true }
 security-framework-sys = { workspace = true }
+objc2-user-notifications = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = { workspace = true }
@@ -196,10 +203,13 @@ dispatch2 = { workspace = true }
 objc2-app-kit = { workspace = true }
 objc2-av-foundation = { workspace = true, features = ["objc2-core-media"] }
 objc2-core-bluetooth = { workspace = true }
+objc2-contacts = { workspace = true }
+objc2-core-location = { workspace = true }
 objc2-core-foundation = { workspace = true }
 objc2-core-graphics = { workspace = true }
 objc2-core-media = { workspace = true }
 objc2-core-video = { workspace = true }
+objc2-event-kit = { workspace = true }
 objc2-foundation = { workspace = true }
 
 [dev-dependencies]
