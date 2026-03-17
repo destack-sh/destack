@@ -13,6 +13,7 @@ use crate::platform::midi::{
     MidiPortDirection, MidiPortDirectionFlags, MidiProtocol,
 };
 use crate::runtime::control::queue::BoundedQueue;
+use crate::runtime::process::service::executor::periodic::PeriodicTaskHandle;
 
 use super::super::service::{WindowsMidiNativeEventRegistry, WindowsMidiService};
 
@@ -94,6 +95,8 @@ pub(crate) struct WindowsMidiEventSession {
     pub(crate) poll_interval: Duration,
     /// Selected delivery kind.
     pub(crate) delivery_kind: WindowsMidiEventDeliveryKind,
+    /// Registered synthetic poll task.
+    pub(crate) poll_task: Option<Arc<PeriodicTaskHandle>>,
     /// Pending event queue.
     pub(crate) queue: Arc<BoundedQueue<MidiEventValue>>,
     /// Next sequence number.

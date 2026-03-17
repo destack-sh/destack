@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::time::Instant;
 
 use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::midi::core::{
     MidiEventValue, MidiPortDescriptorValue, direction_mask_includes, event_poll_interval,
-    event_queue_capacity, event_snapshot_list_flags, refresh_snapshot_event_subscription,
+    event_queue_capacity, event_snapshot_list_flags, push_backend_disconnected_event,
+    read_queued_event, read_queued_event_batch, refresh_snapshot_event_subscription,
     remove_midi_event_resource, require_queued_event, require_queued_event_batch,
     try_pop_queued_event, try_pop_queued_event_batch,
 };
@@ -74,6 +74,54 @@ fn refresh_event_subscription(
         &mut session.snapshot,
         next_snapshot,
         source,
+    )
+}
+
+/// Queue one backend-disconnected event into one subscription.
+fn queue_backend_disconnected_event(
+    session: &mut AndroidEventSession,
+    source: MidiEventSource,
+    flags: u32,
+) -> RuntimeResult<()> {
+    push_backend_disconnected_event(
+        &session.queue,
+        session.backend,
+        session.overflow_policy,
+        &mut session.next_sequence,
+        source,
+        flags,
+    )
+}
+
+/// Register one synthetic poll callback on the owning runtime thread.
+fn register_poll_event_session(
+    binding: &BindingCallContext,
+    session: &Arc<Mutex<AndroidEventSession>>,
+    poll_interval_ns: u64,
+) -> RuntimeResult<crate::platform::ResourceId> {
+    let session = session.clone();
+
+    binding.agent().schedule_runtime_callback(
+        binding,
+        poll_interval_ns,
+        Some(poll_interval_ns),
+        move |binding| {
+            let mut session = session.lock();
+
+            let refresh_result = refresh_event_subscription(
+                binding,
+                &mut session,
+                MidiEventSource::SyntheticPoll,
+                "destack.midi.event.syntheticPoll",
+            );
+            if refresh_result.is_ok() {
+                return Ok(crate::runtime::process::RuntimeScheduledCallbackControl::Keep);
+            }
+
+            queue_backend_disconnected_event(&mut session, MidiEventSource::SyntheticPoll, 0)?;
+
+            Ok(crate::runtime::process::RuntimeScheduledCallbackControl::Cancel)
+        },
     )
 }
 
@@ -150,7 +198,7 @@ pub(crate) fn midi_event_open(
         overflow_policy: options.overflow_policy,
         delivery_kind,
         poll_interval: event_poll_interval(options.poll_interval_ns),
-        last_poll_at: None,
+        poll_callback: None,
         queue: Arc::new(BoundedQueue::new(event_queue_capacity(
             options.queue_capacity,
         ))),
@@ -162,6 +210,12 @@ pub(crate) fn midi_event_open(
             "destack.midi.event.open",
         )?,
     }));
+
+    if matches!(session.lock().delivery_kind, AndroidEventDeliveryKind::Poll) {
+        let poll_interval_ns = session.lock().poll_interval.as_nanos() as u64;
+        let poll_callback = register_poll_event_session(binding, &session, poll_interval_ns)?;
+        session.lock().poll_callback = Some(poll_callback);
+    }
 
     Ok(insert_event_resource(binding, session))
 }
@@ -178,6 +232,13 @@ pub(crate) fn midi_event_close(
         if let AndroidEventDeliveryKind::Native { host_session_id } = session.delivery_kind {
             close_event_session(binding, host_session_id, "destack.midi.event.close")?;
         }
+
+        // cancel the synthetic poll callback before dropping the resource
+        if let Some(poll_callback) = session.poll_callback {
+            binding
+                .agent()
+                .cancel_runtime_callback(binding, poll_callback)?;
+        }
     }
 
     remove_midi_event_resource(binding, handle.0, "destack.midi.event.close", "midi event")
@@ -189,8 +250,8 @@ pub(crate) fn midi_event_read(
     handle: resource::MidiEventHandle,
     timeout_ns: u64,
 ) -> RuntimeResult<MidiEventValue> {
-    let session_state = event_resource(binding, handle, "destack.midi.event.read")?;
-    let mut session = session_state.lock();
+    let session = event_resource(binding, handle, "destack.midi.event.read")?;
+    let mut session = session.lock();
 
     // host-native delivery
     if let AndroidEventDeliveryKind::Native { host_session_id } = session.delivery_kind {
@@ -212,39 +273,12 @@ pub(crate) fn midi_event_read(
         ));
     }
 
-    let deadline = core_platform::timeout_deadline(timeout_ns);
-
-    loop {
-        let should_refresh = session
-            .last_poll_at
-            .map(|last_poll_at| last_poll_at.elapsed() >= session.poll_interval)
-            .unwrap_or(true);
-
-        if should_refresh {
-            refresh_event_subscription(
-                binding,
-                &mut session,
-                MidiEventSource::SyntheticPoll,
-                "destack.midi.event.read",
-            )?;
-            session.last_poll_at = Some(Instant::now());
-        }
-
-        if let Some(event) = try_pop_session_event(&session, "destack.midi.event.read")? {
-            return Ok(event);
-        }
-
-        if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
-            return Err(core_platform::io_would_block(
-                "destack.midi.event.read",
-                "no queued MIDI event is available",
-            ));
-        }
-
-        drop(session);
-        std::thread::sleep(std::time::Duration::from_millis(1));
-        session = session_state.lock();
-    }
+    read_queued_event(
+        &session.queue,
+        timeout_ns,
+        "destack.midi.event.read",
+        "no queued MIDI event is available",
+    )
 }
 
 /// Wait for one batch of Android MIDI topology events.
@@ -254,8 +288,8 @@ pub(crate) fn midi_event_read_batch(
     max_events: u32,
     timeout_ns: u64,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
-    let session_state = event_resource(binding, handle, "destack.midi.event.readBatch")?;
-    let mut session = session_state.lock();
+    let session = event_resource(binding, handle, "destack.midi.event.readBatch")?;
+    let mut session = session.lock();
 
     // host-native delivery
     if let AndroidEventDeliveryKind::Native { host_session_id } = session.delivery_kind {
@@ -277,44 +311,13 @@ pub(crate) fn midi_event_read_batch(
         ));
     }
 
-    let deadline = core_platform::timeout_deadline(timeout_ns);
-
-    loop {
-        let should_refresh = session
-            .last_poll_at
-            .map(|last_poll_at| last_poll_at.elapsed() >= session.poll_interval)
-            .unwrap_or(true);
-
-        if should_refresh {
-            refresh_event_subscription(
-                binding,
-                &mut session,
-                MidiEventSource::SyntheticPoll,
-                "destack.midi.event.readBatch",
-            )?;
-            session.last_poll_at = Some(Instant::now());
-        }
-
-        let events = try_pop_session_event_batch(
-            &session,
-            max_events.max(1) as usize,
-            "destack.midi.event.readBatch",
-        )?;
-        if !events.is_empty() {
-            return Ok(events);
-        }
-
-        if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
-            return Err(core_platform::io_would_block(
-                "destack.midi.event.readBatch",
-                "no queued MIDI events are available",
-            ));
-        }
-
-        drop(session);
-        std::thread::sleep(std::time::Duration::from_millis(1));
-        session = session_state.lock();
-    }
+    read_queued_event_batch(
+        &session.queue,
+        max_events.max(1) as usize,
+        timeout_ns,
+        "destack.midi.event.readBatch",
+        "no queued MIDI events are available",
+    )
 }
 
 /// Poll one Android MIDI topology event without blocking.
@@ -341,15 +344,6 @@ pub(crate) fn midi_event_try_read(
             "no queued MIDI event is available",
         );
     }
-
-    // refresh topology before polling
-    refresh_event_subscription(
-        binding,
-        &mut session,
-        MidiEventSource::SyntheticPoll,
-        "destack.midi.event.tryRead",
-    )?;
-    session.last_poll_at = Some(Instant::now());
 
     require_queued_event(
         try_pop_session_event(&session, "destack.midi.event.tryRead")?,
@@ -383,15 +377,6 @@ pub(crate) fn midi_event_try_read_batch(
             "no queued MIDI events are available",
         );
     }
-
-    // refresh topology before polling
-    refresh_event_subscription(
-        binding,
-        &mut session,
-        MidiEventSource::SyntheticPoll,
-        "destack.midi.event.tryReadBatch",
-    )?;
-    session.last_poll_at = Some(Instant::now());
 
     let events = try_pop_session_event_batch(
         &session,

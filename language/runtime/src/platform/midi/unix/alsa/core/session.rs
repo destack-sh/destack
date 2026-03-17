@@ -18,6 +18,7 @@ use crate::platform::midi::{
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
+use crate::runtime::process::service::executor::periodic::PeriodicTaskHandle;
 
 use super::super::abi::{AlsaApi, snd_midi_event_t, snd_seq_t};
 use super::super::service::{AlsaNativeEventRegistry, AlsaService};
@@ -248,6 +249,8 @@ pub(crate) struct AlsaEventSession {
     pub(crate) poll_interval: Duration,
     /// Selected delivery kind.
     pub(crate) delivery_kind: AlsaEventDeliveryKind,
+    /// Registered synthetic poll task.
+    pub(crate) poll_task: Option<Arc<PeriodicTaskHandle>>,
     /// Pending event queue.
     pub(crate) queue: Arc<BoundedQueue<MidiEventValue>>,
     /// Next sequence number.

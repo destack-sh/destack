@@ -1,14 +1,13 @@
 use std::mem::size_of;
 use std::ptr::addr_of;
 use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
 
 use windows_sys::Win32::Media::Audio::{
-    MHDR_DONE, MIDIHDR, MIDIINCAPSW, MIDIOUTCAPSW, midiInGetDevCapsW, midiInGetNumDevs,
-    midiOutGetDevCapsW, midiOutGetNumDevs,
+    MIDIHDR, MIDIINCAPSW, MIDIOUTCAPSW, midiInGetDevCapsW, midiInGetNumDevs, midiOutGetDevCapsW,
+    midiOutGetNumDevs,
 };
 use windows_sys::Win32::Media::MMSYSERR_NOERROR;
+use windows_sys::Win32::System::Threading::WaitForSingleObject;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core::{self as core_platform};
@@ -135,11 +134,6 @@ pub(crate) unsafe fn input_callback_context(
     unsafe { &*(callback_context_token as *const WinMmInputCallbackContext) }
 }
 
-/// Return one unaligned WinMM header flag value.
-pub(crate) fn header_flags(header: *const MIDIHDR) -> u32 {
-    unsafe { addr_of!((*header).dwFlags).read_unaligned() }
-}
-
 /// Return one unaligned WinMM recorded byte count.
 pub(crate) fn header_bytes_recorded(header: *const MIDIHDR) -> u32 {
     unsafe { addr_of!((*header).dwBytesRecorded).read_unaligned() }
@@ -249,14 +243,24 @@ pub(crate) fn winmm_error(
     )
 }
 
-/// Wait for one prepared output header to complete.
-pub(crate) fn wait_for_output_header_done(header: &MIDIHDR) {
-    loop {
-        let flags = header_flags(header);
-        if flags & MHDR_DONE != 0 {
-            return;
-        }
+/// Wait for one signaled WinMM output completion event.
+pub(crate) fn wait_for_output_completion_event(
+    completion_event: isize,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // block until WinMM signals the session completion event
+    let wait_status = unsafe { WaitForSingleObject(completion_event, u32::MAX) };
+    let wait_status =
+        core_platform::decode_wait_for_single_object_status(wait_status, "WaitForSingleObject")?;
 
-        thread::sleep(Duration::from_millis(1));
+    // successful session output completion
+    if matches!(wait_status, core_platform::WaitStatus::Signaled) {
+        return Ok(());
     }
+
+    Err(core_platform::io_operation_error(
+        operation,
+        None,
+        format!("WaitForSingleObject returned unexpected output wait status {wait_status:?}"),
+    ))
 }

@@ -273,7 +273,7 @@ pub(crate) fn midi_output_write(
     surface_terminal_error(
         "destack.midi.output.write",
         &session.terminal_error,
-        |terminal_error| terminal_error.message(),
+        |terminal_error| terminal_error.message().to_string(),
     )?;
 
     // transport validation

@@ -12,6 +12,7 @@ use crate::platform::midi::{
     MidiPortDirection, MidiPortDirectionFlags, MidiProtocol,
 };
 use crate::runtime::control::queue::BoundedQueue;
+use crate::runtime::process::service::executor::periodic::PeriodicTaskHandle;
 
 use super::super::abi::{JackClient, JackPort};
 use super::native::{
@@ -65,8 +66,12 @@ pub(crate) struct JackEventSession {
     pub(crate) flags: MidiEventSubscriptionFlags,
     /// Overflow policy.
     pub(crate) overflow_policy: MidiEventOverflowPolicy,
+    /// Poll interval for synthetic snapshots.
+    pub(crate) poll_interval: Duration,
     /// Selected delivery kind.
     pub(crate) delivery_kind: JackEventDeliveryKind,
+    /// Registered synthetic poll task.
+    pub(crate) poll_task: Option<Arc<PeriodicTaskHandle>>,
     /// Pending event queue.
     pub(crate) queue: Arc<BoundedQueue<MidiEventValue>>,
     /// Next sequence number.

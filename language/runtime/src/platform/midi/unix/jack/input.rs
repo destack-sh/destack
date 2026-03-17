@@ -4,9 +4,10 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::core::{
-    MidiInputRecordValue, MidiPortDescriptorValue, MidiRecordBytes, read_queued_batch,
-    read_queued_item, remove_midi_input_resource, resolve_descriptor_open_transport,
-    surface_terminal_error, try_read_queued_batch, try_read_queued_item, validate_record_shape,
+    MidiInputRecordValue, MidiPortDescriptorValue, MidiRecordBytes, binding_timestamp_now,
+    input_queue_capacity, read_queued_batch, read_queued_item, remove_midi_input_resource,
+    resolve_descriptor_open_transport, surface_terminal_error, try_read_queued_batch,
+    try_read_queued_item, validate_record_shape,
 };
 use crate::platform::midi::{
     MidiDataFormat, MidiInputPortOpenOptions, MidiPortDirection, MidiPortListOptions, MidiProtocol,
@@ -18,10 +19,9 @@ use crate::runtime::control::queue::BoundedQueue;
 
 use super::core::{
     JackInputCallbackContext, JackInputSession, JackInputSessionKind, JackInputTerminalError,
-    activate_client, binding_timestamp_now, connect_ports, input_queue_capacity,
-    insert_input_resource, internal_input_client_name, jack_event_time_to_mono_ns,
-    native_optional_string, native_string, open_jack_client, port_name, register_input_port,
-    release_input_callback_context, retain_input_callback_context,
+    activate_client, connect_ports, insert_input_resource, internal_input_client_name,
+    jack_event_time_to_mono_ns, native_optional_string, native_string, open_jack_client, port_name,
+    register_input_port, release_input_callback_context, retain_input_callback_context,
 };
 use super::descriptor::{filtered_descriptors, resolve_endpoint, virtual_input_descriptor};
 use super::resource::input_resource;
@@ -295,7 +295,7 @@ pub(crate) fn midi_input_read(
             surface_terminal_error(
                 "destack.midi.input.read",
                 &session.terminal_error,
-                |terminal_error| terminal_error.message(),
+                |terminal_error| terminal_error.message().to_string(),
             )
         },
     )
@@ -320,7 +320,7 @@ pub(crate) fn midi_input_read_batch(
             surface_terminal_error(
                 "destack.midi.input.readBatch",
                 &session.terminal_error,
-                |terminal_error| terminal_error.message(),
+                |terminal_error| terminal_error.message().to_string(),
             )
         },
     )
@@ -341,7 +341,7 @@ pub(crate) fn midi_input_try_read(
             surface_terminal_error(
                 "destack.midi.input.tryRead",
                 &session.terminal_error,
-                |terminal_error| terminal_error.message(),
+                |terminal_error| terminal_error.message().to_string(),
             )
         },
     )
@@ -364,7 +364,7 @@ pub(crate) fn midi_input_try_read_batch(
             surface_terminal_error(
                 "destack.midi.input.tryReadBatch",
                 &session.terminal_error,
-                |terminal_error| terminal_error.message(),
+                |terminal_error| terminal_error.message().to_string(),
             )
         },
     )

@@ -1,12 +1,13 @@
 use std::mem::size_of;
-use std::ptr::addr_of;
+use std::ptr::{addr_of, null};
 use std::sync::Arc;
 
 use windows_sys::Win32::Media::Audio::{
-    HMIDIOUT, MIDIHDR, midiOutLongMsg, midiOutOpen, midiOutPrepareHeader, midiOutShortMsg,
-    midiOutUnprepareHeader,
+    CALLBACK_EVENT, HMIDIOUT, MIDIHDR, midiOutLongMsg, midiOutOpen, midiOutPrepareHeader,
+    midiOutShortMsg, midiOutUnprepareHeader,
 };
 use windows_sys::Win32::Media::MMSYSERR_NOERROR;
+use windows_sys::Win32::System::Threading::{CreateEventW, ResetEvent};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
@@ -22,7 +23,7 @@ use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 
 use super::core::{
-    WinMmOutputSession, insert_output_resource, wait_for_output_header_done, winmm_error,
+    WinMmOutputSession, insert_output_resource, wait_for_output_completion_event, winmm_error,
 };
 use super::descriptor::{filtered_descriptors, resolve_endpoint};
 use super::resource::output_resource;
@@ -71,7 +72,7 @@ fn write_short_message(
 
 /// Write one long WinMM byte payload.
 fn write_long_message(
-    handle: HMIDIOUT,
+    session: &WinMmOutputSession,
     record: &MidiOutputRecordValue,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -88,10 +89,16 @@ fn write_long_message(
         dwReserved: [0; 8],
     };
 
+    // clear stale backend completion before queueing one new long message
+    let reset_status = unsafe { ResetEvent(session.completion_event) };
+    if reset_status == 0 {
+        return Err(core_platform::io_error("ResetEvent"));
+    }
+
     // prepared header
     let prepare_status = unsafe {
         midiOutPrepareHeader(
-            handle,
+            session.handle,
             addr_of!(header).cast_mut(),
             size_of::<MIDIHDR>() as u32,
         )
@@ -107,7 +114,7 @@ fn write_long_message(
     // send long payload
     let send_status = unsafe {
         midiOutLongMsg(
-            handle,
+            session.handle,
             addr_of!(header).cast_mut(),
             size_of::<MIDIHDR>() as u32,
         )
@@ -115,7 +122,7 @@ fn write_long_message(
     if send_status != MMSYSERR_NOERROR {
         unsafe {
             let _ = midiOutUnprepareHeader(
-                handle,
+                session.handle,
                 addr_of!(header).cast_mut(),
                 size_of::<MIDIHDR>() as u32,
             );
@@ -123,13 +130,13 @@ fn write_long_message(
         return Err(winmm_error(operation, "midiOutLongMsg", send_status));
     }
 
-    // wait for send completion
-    wait_for_output_header_done(&header);
+    // wait for backend completion
+    wait_for_output_completion_event(session.completion_event, operation)?;
 
     // header teardown
     let unprepare_status = unsafe {
         midiOutUnprepareHeader(
-            handle,
+            session.handle,
             addr_of!(header).cast_mut(),
             size_of::<MIDIHDR>() as u32,
         )
@@ -196,10 +203,27 @@ pub(crate) fn midi_output_port_open(
         Some(MidiProtocol::Midi1),
     )?;
 
+    // session completion event
+    let completion_event = unsafe { CreateEventW(null(), 1, 0, null()) };
+    if completion_event == 0 {
+        return Err(core_platform::io_error("CreateEventW"));
+    }
+
     // raw output handle
     let mut handle: HMIDIOUT = 0;
-    let open_status = unsafe { midiOutOpen(&mut handle, endpoint.device_id, 0, 0, 0) };
+    let open_status = unsafe {
+        midiOutOpen(
+            &mut handle,
+            endpoint.device_id,
+            completion_event as usize,
+            0,
+            CALLBACK_EVENT,
+        )
+    };
     if open_status != MMSYSERR_NOERROR {
+        unsafe {
+            let _ = windows_sys::Win32::Foundation::CloseHandle(completion_event);
+        }
         return Err(winmm_error(
             "destack.midi.output.port.open",
             "midiOutOpen",
@@ -213,6 +237,7 @@ pub(crate) fn midi_output_port_open(
         data_format,
         protocol,
         handle,
+        completion_event,
     });
 
     Ok(insert_output_resource(binding, session))
@@ -288,7 +313,7 @@ pub(crate) fn midi_output_write(
         }
 
         // long path
-        write_long_message(session.handle, record, "destack.midi.output.write")?;
+        write_long_message(&session, record, "destack.midi.output.write")?;
         written = written.saturating_add(1);
     }
 

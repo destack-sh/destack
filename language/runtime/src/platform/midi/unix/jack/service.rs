@@ -1,8 +1,6 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Condvar, Mutex as StdMutex};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
 
 use parking_lot::Mutex;
 
@@ -18,8 +16,48 @@ use super::core::{
 };
 use super::event::{queue_backend_disconnected_events, refresh_native_event_sessions};
 
-/// Default JACK monitor poll interval.
-const DEFAULT_MONITOR_POLL_INTERVAL: Duration = Duration::from_millis(25);
+/// One JACK monitor wake state.
+#[derive(Debug, Default)]
+struct JackMonitorSignalState {
+    /// Whether one topology refresh is pending.
+    is_pending_refresh: bool,
+    /// Whether the backend disconnected.
+    is_disconnected: bool,
+    /// Whether the monitor should stop.
+    is_stopped: bool,
+}
+
+/// One JACK monitor wake handle shared with callbacks.
+#[derive(Debug, Default)]
+struct JackMonitorSignal {
+    /// Shared wake state.
+    state: StdMutex<JackMonitorSignalState>,
+    /// Wake channel for callback driven refresh.
+    wake: Condvar,
+}
+
+impl JackMonitorSignal {
+    /// Request one topology refresh.
+    fn request_refresh(&self) {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        state.is_pending_refresh = true;
+        self.wake.notify_one();
+    }
+
+    /// Request one disconnect wake.
+    fn request_disconnect(&self) {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        state.is_disconnected = true;
+        self.wake.notify_one();
+    }
+
+    /// Request one monitor shutdown.
+    fn request_stop(&self) {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        state.is_stopped = true;
+        self.wake.notify_one();
+    }
+}
 
 /// One registry of native JACK event subscriptions.
 pub(super) struct JackNativeEventRegistry {
@@ -41,14 +79,14 @@ pub(crate) struct JackService {
     monitor_client: Mutex<Option<JackClientHandle>>,
     /// Live monitor thread.
     monitor_thread: Mutex<Option<JoinHandle<()>>>,
-    /// Stop flag for the monitor thread.
-    stop_flag: Arc<AtomicBool>,
+    /// Wake handle shared with callbacks and the monitor thread.
+    monitor_signal: Arc<JackMonitorSignal>,
 }
 
 impl Drop for JackService {
     /// Stop the monitor thread when the process-global service tears down.
     fn drop(&mut self) {
-        self.stop_flag.store(true, Ordering::Release);
+        self.monitor_signal.request_stop();
 
         let monitor_thread = self.monitor_thread.get_mut().take();
         if let Some(monitor_thread) = monitor_thread {
@@ -76,20 +114,16 @@ pub(crate) fn jack_service(operation: &'static str) -> RuntimeResult<Arc<JackSer
             next_registration_id: 1,
             sessions: BTreeMap::new(),
         }));
-        let stop_flag = Arc::new(AtomicBool::new(false));
-        let pending_refresh = Arc::new(AtomicBool::new(false));
-        let is_disconnected = Arc::new(AtomicBool::new(false));
+        let monitor_signal = Arc::new(JackMonitorSignal::default());
 
         let monitor_client = open_jack_client(library.clone(), operation, &monitor_client_name())?;
-        install_monitor_callbacks(&monitor_client, &pending_refresh, &is_disconnected)?;
+        install_monitor_callbacks(&monitor_client, &monitor_signal)?;
         activate_client(&monitor_client, operation)?;
 
         let monitor_thread = spawn_monitor_thread(
             topology.clone(),
             native_event_registry.clone(),
-            stop_flag.clone(),
-            pending_refresh.clone(),
-            is_disconnected.clone(),
+            monitor_signal.clone(),
         )?;
 
         Ok(JackService {
@@ -98,7 +132,7 @@ pub(crate) fn jack_service(operation: &'static str) -> RuntimeResult<Arc<JackSer
             native_event_registry,
             monitor_client: Mutex::new(Some(monitor_client)),
             monitor_thread: Mutex::new(Some(monitor_thread)),
-            stop_flag,
+            monitor_signal,
         })
     })
 }
@@ -165,17 +199,15 @@ pub(super) fn refresh_local_native_event_sessions(service: &Arc<JackService>) {
 /// Install one set of monitor callbacks on the shared client.
 fn install_monitor_callbacks(
     client: &JackClientHandle,
-    pending_refresh: &Arc<AtomicBool>,
-    is_disconnected: &Arc<AtomicBool>,
+    monitor_signal: &Arc<JackMonitorSignal>,
 ) -> RuntimeResult<()> {
-    let pending_argument = Arc::as_ptr(pending_refresh) as *mut std::ffi::c_void;
-    let disconnect_argument = Arc::as_ptr(is_disconnected) as *mut std::ffi::c_void;
+    let callback_argument = Arc::as_ptr(monitor_signal) as *mut std::ffi::c_void;
 
     let registration_status = unsafe {
         (client.library.api.jack_set_port_registration_callback)(
             client.raw,
             Some(port_registration_callback),
-            pending_argument,
+            callback_argument,
         )
     };
     if registration_status != 0 {
@@ -191,7 +223,7 @@ fn install_monitor_callbacks(
         (client.library.api.jack_set_port_connect_callback)(
             client.raw,
             Some(port_connect_callback),
-            pending_argument,
+            callback_argument,
         )
     };
     if connect_status != 0 {
@@ -205,7 +237,7 @@ fn install_monitor_callbacks(
         (client.library.api.jack_on_shutdown)(
             client.raw,
             Some(shutdown_callback),
-            disconnect_argument,
+            callback_argument,
         );
     }
 
@@ -216,22 +248,38 @@ fn install_monitor_callbacks(
 fn spawn_monitor_thread(
     topology: Arc<Mutex<JackTopologyState>>,
     native_event_registry: Arc<Mutex<JackNativeEventRegistry>>,
-    stop_flag: Arc<AtomicBool>,
-    pending_refresh: Arc<AtomicBool>,
-    is_disconnected: Arc<AtomicBool>,
+    monitor_signal: Arc<JackMonitorSignal>,
 ) -> RuntimeResult<JoinHandle<()>> {
     let builder = thread::Builder::new().name("destack-midi-jack-monitor".to_string());
 
     builder
         .spawn(move || {
             loop {
+                // wait for the next callback or teardown request
+                let mut signal_state = monitor_signal
+                    .state
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner());
+                while !signal_state.is_stopped
+                    && !signal_state.is_disconnected
+                    && !signal_state.is_pending_refresh
+                {
+                    signal_state = monitor_signal
+                        .wake
+                        .wait(signal_state)
+                        .unwrap_or_else(|error| error.into_inner());
+                }
+
                 // stop request
-                if stop_flag.load(Ordering::Acquire) {
+                if signal_state.is_stopped {
                     return;
                 }
 
                 // disconnect
-                if is_disconnected.swap(false, Ordering::AcqRel) {
+                if signal_state.is_disconnected {
+                    signal_state.is_disconnected = false;
+                    drop(signal_state);
+
                     queue_backend_disconnected_events(
                         &native_event_registry,
                         MidiEventSource::Native,
@@ -241,33 +289,31 @@ fn spawn_monitor_thread(
                 }
 
                 // topology refresh
-                if pending_refresh.swap(false, Ordering::AcqRel) {
-                    let next_topology = match query_topology_snapshot("destack.midi.event.refresh")
-                    {
-                        Ok(next_topology) => next_topology,
-                        Err(_) => {
-                            queue_backend_disconnected_events(
-                                &native_event_registry,
-                                MidiEventSource::Native,
-                                0,
-                            );
-                            return;
-                        }
-                    };
+                signal_state.is_pending_refresh = false;
+                drop(signal_state);
 
-                    {
-                        let mut service_topology = topology.lock();
-                        *service_topology = next_topology;
+                let next_topology = match query_topology_snapshot("destack.midi.event.refresh") {
+                    Ok(next_topology) => next_topology,
+                    Err(_) => {
+                        queue_backend_disconnected_events(
+                            &native_event_registry,
+                            MidiEventSource::Native,
+                            0,
+                        );
+                        return;
                     }
+                };
 
-                    let service = match jack_service("destack.midi.event.refresh") {
-                        Ok(service) => service,
-                        Err(_) => return,
-                    };
-                    refresh_native_event_sessions(&service, MidiEventSource::Native);
+                {
+                    let mut service_topology = topology.lock();
+                    *service_topology = next_topology;
                 }
 
-                thread::sleep(DEFAULT_MONITOR_POLL_INTERVAL);
+                let service = match jack_service("destack.midi.event.refresh") {
+                    Ok(service) => service,
+                    Err(_) => return,
+                };
+                refresh_native_event_sessions(&service, MidiEventSource::Native);
             }
         })
         .map_err(|error| {
@@ -285,13 +331,13 @@ unsafe extern "C" fn port_registration_callback(
     _is_registered: libc::c_int,
     argument: *mut std::ffi::c_void,
 ) {
-    let pending = argument.cast::<AtomicBool>();
-    if pending.is_null() {
+    let monitor_signal = argument.cast::<JackMonitorSignal>();
+    if monitor_signal.is_null() {
         return;
     }
 
     unsafe {
-        (*pending).store(true, Ordering::Release);
+        (*monitor_signal).request_refresh();
     }
 }
 
@@ -302,24 +348,24 @@ unsafe extern "C" fn port_connect_callback(
     _is_connected: libc::c_int,
     argument: *mut std::ffi::c_void,
 ) {
-    let pending = argument.cast::<AtomicBool>();
-    if pending.is_null() {
+    let monitor_signal = argument.cast::<JackMonitorSignal>();
+    if monitor_signal.is_null() {
         return;
     }
 
     unsafe {
-        (*pending).store(true, Ordering::Release);
+        (*monitor_signal).request_refresh();
     }
 }
 
 /// Handle one JACK backend shutdown callback.
 unsafe extern "C" fn shutdown_callback(argument: *mut std::ffi::c_void) {
-    let disconnected = argument.cast::<AtomicBool>();
-    if disconnected.is_null() {
+    let monitor_signal = argument.cast::<JackMonitorSignal>();
+    if monitor_signal.is_null() {
         return;
     }
 
     unsafe {
-        (*disconnected).store(true, Ordering::Release);
+        (*monitor_signal).request_disconnect();
     }
 }

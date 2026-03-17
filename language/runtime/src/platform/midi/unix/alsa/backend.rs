@@ -1,5 +1,5 @@
 use super::ffi::alsa_library;
-use crate::platform::core::{BackendSupport, backend_support_from_check};
+use crate::platform::core::{self as core_platform, BackendSupport, backend_support_from_check};
 use crate::platform::midi::core::{
     MidiBackendMetadata, midi_backend_metadata, midi_selector_support, single_midi_backend_metadata,
 };
