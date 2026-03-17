@@ -2173,8 +2173,19 @@
           "format": "uint64",
           "minimum": 0
         },
-        "managedLargeSpanValues": {
-          "description": "Dedicated managed span threshold in values.",
+        "sizeClasses": {
+          "description": "The configured size-class table for small allocations.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HeapSizeClassesJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "managedRunBytes": {
+          "description": "The byte width for managed runs.",
           "type": [
             "integer",
             "null"
@@ -2182,8 +2193,17 @@
           "format": "uint",
           "minimum": 0
         },
-        "rawLargeSpanBytes": {
-          "description": "Dedicated raw span threshold in bytes.",
+        "rawRunBytes": {
+          "description": "The byte width for raw runs.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "chunkBytes": {
+          "description": "The byte width for chunk-backed extent and shared leaves.",
           "type": [
             "integer",
             "null"
@@ -2217,8 +2237,35 @@
           ],
           "format": "uint64",
           "minimum": 0
+        },
+        "maxSharedBytes": {
+          "description": "Hard limit for retained shared-memory bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
         }
       }
+    },
+    "HeapSizeClassesJson": {
+      "description": "Runtime heap size-class configuration for JSON deserialization.",
+      "anyOf": [
+        {
+          "description": "One named built-in size-class table.",
+          "type": "string"
+        },
+        {
+          "description": "One explicit size-class table.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          }
+        }
+      ]
     },
     "RuntimeDiagnosticOptionsJson": {
       "description": "Runtime diagnostics configuration for JSON deserialization.",
@@ -2902,37 +2949,9 @@
       }
     },
     "PlatformHostOptionsJson": {
-      "description": "Host integration options.",
+      "description": "Host runtime options.",
       "type": "object",
       "properties": {
-        "enableLifecycleEvents": {
-          "description": "Whether host lifecycle events are enabled.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "enableWindowEvents": {
-          "description": "Whether host window events are enabled.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "enablePermissionEvents": {
-          "description": "Whether host permission events are enabled.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "enableInterruptionEvents": {
-          "description": "Whether host interruption events are enabled.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "eventQueueCapacity": {
           "description": "Queue capacity for host events before drop behavior applies.",
           "type": [
@@ -2948,34 +2967,6 @@
       "description": "Windows runtime host overrides.",
       "type": "object",
       "properties": {
-        "enableLifecycleEvents": {
-          "description": "Whether host lifecycle events are enabled.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "enableWindowEvents": {
-          "description": "Whether host window events are enabled.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "enablePermissionEvents": {
-          "description": "Whether host permission events are enabled.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "enableInterruptionEvents": {
-          "description": "Whether host interruption events are enabled.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "eventQueueCapacity": {
           "description": "Queue capacity for host events before drop behavior applies.",
           "type": [
