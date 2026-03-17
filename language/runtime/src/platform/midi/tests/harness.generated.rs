@@ -8,20 +8,17 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::midi::tests::MidiHarnessContext;
 use crate::platform::midi::{
     MidiBackend, MidiBackendCapabilityFlags, MidiBackendDescriptor, MidiBackendDescriptorVm,
-    MidiBackendDisconnectedEvent, MidiBackendDisconnectedEventVm, MidiBackendDisconnectedPayload,
-    MidiBackendDisconnectedPayloadVm, MidiBackendSelectionPolicy, MidiDataFormat,
-    MidiDataFormatFlags, MidiEvent, MidiEventDeliveryMode, MidiEventMetadata, MidiEventMetadataVm,
-    MidiEventOverflowPolicy, MidiEventSource, MidiEventSubscriptionFlags,
+    MidiBackendDisconnectedEvent, MidiBackendDisconnectedEventVm, MidiBackendSelectionPolicy,
+    MidiDataFormat, MidiDataFormatFlags, MidiEvent, MidiEventDeliveryMode, MidiEventMetadata,
+    MidiEventMetadataVm, MidiEventOverflowPolicy, MidiEventSource, MidiEventSubscriptionFlags,
     MidiEventSubscriptionOptions, MidiEventSubscriptionOptionsVm, MidiEventVm,
     MidiInputPortOpenOptions, MidiInputPortOpenOptionsVm, MidiInputRecord, MidiInputRecordVm,
     MidiOutputPortOpenOptions, MidiOutputPortOpenOptionsVm, MidiOutputRecord, MidiOutputRecordVm,
-    MidiPortAddedEvent, MidiPortAddedEventVm, MidiPortAddedPayload, MidiPortAddedPayloadVm,
-    MidiPortChangedEvent, MidiPortChangedEventVm, MidiPortChangedPayload, MidiPortChangedPayloadVm,
+    MidiPortAddedEvent, MidiPortAddedEventVm, MidiPortChangedEvent, MidiPortChangedEventVm,
     MidiPortDescriptor, MidiPortDescriptorVm, MidiPortDirection, MidiPortDirectionFlags,
     MidiPortListFlags, MidiPortListOptions, MidiPortListOptionsVm, MidiPortRemovedEvent,
-    MidiPortRemovedEventVm, MidiPortRemovedPayload, MidiPortRemovedPayloadVm, MidiProtocol,
-    MidiProtocolFlags, MidiRecordFraming, MidiVirtualInputCreateOptions,
-    MidiVirtualInputCreateOptionsVm, MidiVirtualOutputCreateOptions,
+    MidiPortRemovedEventVm, MidiProtocol, MidiProtocolFlags, MidiRecordFraming,
+    MidiVirtualInputCreateOptions, MidiVirtualInputCreateOptionsVm, MidiVirtualOutputCreateOptions,
     MidiVirtualOutputCreateOptionsVm, native as midi_native, vm as midi_vm,
 };
 use crate::platform::{

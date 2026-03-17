@@ -12,67 +12,46 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
     AudioBackend, AudioBackendCapabilityFlags, AudioBackendDescriptor, AudioBackendDescriptorValue,
     AudioBackendDescriptorVm, AudioBackendDisconnectedEvent, AudioBackendDisconnectedEventValue,
-    AudioBackendDisconnectedEventVm, AudioBackendDisconnectedPayload,
-    AudioBackendDisconnectedPayloadVm, AudioBackendResetEvent, AudioBackendResetEventValue,
-    AudioBackendResetEventVm, AudioBackendResetPayload, AudioBackendResetPayloadVm,
-    AudioBackendSelectionPolicy, AudioChannelLayout, AudioClockDomain, AudioClockQuality,
-    AudioClockSnapshot, AudioClockSnapshotVm, AudioDefaultCaptureChangedEvent,
+    AudioBackendDisconnectedEventVm, AudioBackendResetEvent, AudioBackendResetEventValue,
+    AudioBackendResetEventVm, AudioBackendSelectionPolicy, AudioChannelLayout, AudioClockDomain,
+    AudioClockQuality, AudioClockSnapshot, AudioClockSnapshotVm, AudioDefaultCaptureChangedEvent,
     AudioDefaultCaptureChangedEventValue, AudioDefaultCaptureChangedEventVm,
-    AudioDefaultCaptureChangedPayload, AudioDefaultCaptureChangedPayloadValue,
-    AudioDefaultCaptureChangedPayloadVm, AudioDefaultLoopbackChangedEvent,
-    AudioDefaultLoopbackChangedEventValue, AudioDefaultLoopbackChangedEventVm,
-    AudioDefaultLoopbackChangedPayload, AudioDefaultLoopbackChangedPayloadValue,
-    AudioDefaultLoopbackChangedPayloadVm, AudioDefaultPlaybackChangedEvent,
+    AudioDefaultLoopbackChangedEvent, AudioDefaultLoopbackChangedEventValue,
+    AudioDefaultLoopbackChangedEventVm, AudioDefaultPlaybackChangedEvent,
     AudioDefaultPlaybackChangedEventValue, AudioDefaultPlaybackChangedEventVm,
-    AudioDefaultPlaybackChangedPayload, AudioDefaultPlaybackChangedPayloadValue,
-    AudioDefaultPlaybackChangedPayloadVm, AudioDeviceAddedEvent, AudioDeviceAddedEventValue,
-    AudioDeviceAddedEventVm, AudioDeviceAddedPayload, AudioDeviceAddedPayloadValue,
-    AudioDeviceAddedPayloadVm, AudioDeviceCapabilityFlags, AudioDeviceDescriptor,
-    AudioDeviceDescriptorValue, AudioDeviceDescriptorVm, AudioDeviceDirection,
-    AudioDeviceFormatChangedEvent, AudioDeviceFormatChangedEventValue,
-    AudioDeviceFormatChangedEventVm, AudioDeviceFormatChangedPayload,
-    AudioDeviceFormatChangedPayloadValue, AudioDeviceFormatChangedPayloadVm, AudioDeviceListFlags,
+    AudioDeviceAddedEvent, AudioDeviceAddedEventValue, AudioDeviceAddedEventVm,
+    AudioDeviceCapabilityFlags, AudioDeviceDescriptor, AudioDeviceDescriptorValue,
+    AudioDeviceDescriptorVm, AudioDeviceDirection, AudioDeviceFormatChangedEvent,
+    AudioDeviceFormatChangedEventValue, AudioDeviceFormatChangedEventVm, AudioDeviceListFlags,
     AudioDeviceListRequest, AudioDeviceListRequestVm, AudioDeviceOpenFlags, AudioDeviceOpenOptions,
     AudioDeviceOpenOptionsVm, AudioDeviceRemovedEvent, AudioDeviceRemovedEventValue,
-    AudioDeviceRemovedEventVm, AudioDeviceRemovedPayload, AudioDeviceRemovedPayloadValue,
-    AudioDeviceRemovedPayloadVm, AudioDeviceReroutedEvent, AudioDeviceReroutedEventValue,
-    AudioDeviceReroutedEventVm, AudioDeviceReroutedPayload, AudioDeviceReroutedPayloadValue,
-    AudioDeviceReroutedPayloadVm, AudioEvent, AudioEventDeliveryMode, AudioEventMetadata,
+    AudioDeviceRemovedEventVm, AudioDeviceReroutedEvent, AudioDeviceReroutedEventValue,
+    AudioDeviceReroutedEventVm, AudioEvent, AudioEventDeliveryMode, AudioEventMetadata,
     AudioEventMetadataVm, AudioEventOverflowPolicy, AudioEventSource, AudioEventSubscriptionFlags,
     AudioEventSubscriptionOptions, AudioEventSubscriptionOptionsVm, AudioEventValue, AudioEventVm,
     AudioInterruptionBeganEvent, AudioInterruptionBeganEventValue, AudioInterruptionBeganEventVm,
-    AudioInterruptionBeganPayload, AudioInterruptionBeganPayloadVm, AudioInterruptionEndedEvent,
-    AudioInterruptionEndedEventValue, AudioInterruptionEndedEventVm, AudioInterruptionEndedPayload,
-    AudioInterruptionEndedPayloadVm, AudioSampleFormat, AudioShareMode, AudioStreamAvailability,
-    AudioStreamAvailabilityVm, AudioStreamClockDomain, AudioStreamConfig, AudioStreamConfigVm,
-    AudioStreamDescriptor, AudioStreamDescriptorValue, AudioStreamDescriptorVm,
-    AudioStreamDeviceChangedEvent, AudioStreamDeviceChangedEventValue,
-    AudioStreamDeviceChangedEventVm, AudioStreamDeviceChangedPayload,
-    AudioStreamDeviceChangedPayloadValue, AudioStreamDeviceChangedPayloadVm, AudioStreamFlags,
+    AudioInterruptionEndedEvent, AudioInterruptionEndedEventValue, AudioInterruptionEndedEventVm,
+    AudioSampleFormat, AudioShareMode, AudioStreamAvailability, AudioStreamAvailabilityVm,
+    AudioStreamClockDomain, AudioStreamConfig, AudioStreamConfigVm, AudioStreamDescriptor,
+    AudioStreamDescriptorValue, AudioStreamDescriptorVm, AudioStreamDeviceChangedEvent,
+    AudioStreamDeviceChangedEventValue, AudioStreamDeviceChangedEventVm, AudioStreamFlags,
     AudioStreamOpenOptions, AudioStreamOpenOptionsVm, AudioStreamRequirementFlags,
     AudioStreamState, AudioStreamStateChangedEvent, AudioStreamStateChangedEventValue,
-    AudioStreamStateChangedEventVm, AudioStreamStateChangedPayload,
-    AudioStreamStateChangedPayloadVm, AudioStreamStateKind, AudioStreamStateVm,
+    AudioStreamStateChangedEventVm, AudioStreamStateKind, AudioStreamStateVm,
     AudioStreamStatusFlags, AudioStreamSupport, AudioStreamSupportValue, AudioStreamSupportVm,
     AudioStreamTiming, AudioStreamTimingVm, AudioStreamTransferMode, AudioStreamXRunEvent,
-    AudioStreamXRunEventValue, AudioStreamXRunEventVm, AudioStreamXRunPayload,
-    AudioStreamXRunPayloadValue, AudioStreamXRunPayloadVm, AudioSupportedEventSubscriptionFlags,
+    AudioStreamXRunEventValue, AudioStreamXRunEventVm, AudioSupportedEventSubscriptionFlags,
     AudioSupportedStreamClockDomains, AudioSupportedStreamFlags,
     AudioSupportedStreamRequirementFlags, AudiobackenddescriptorReplayRecord,
     AudiobackenddisconnectedeventReplayRecord, AudiobackendreseteventReplayRecord,
-    AudiodefaultcapturechangedeventReplayRecord, AudiodefaultcapturechangedpayloadReplayRecord,
-    AudiodefaultloopbackchangedeventReplayRecord, AudiodefaultloopbackchangedpayloadReplayRecord,
-    AudiodefaultplaybackchangedeventReplayRecord, AudiodefaultplaybackchangedpayloadReplayRecord,
-    AudiodeviceaddedeventReplayRecord, AudiodeviceaddedpayloadReplayRecord,
+    AudiodefaultcapturechangedeventReplayRecord, AudiodefaultloopbackchangedeventReplayRecord,
+    AudiodefaultplaybackchangedeventReplayRecord, AudiodeviceaddedeventReplayRecord,
     AudiodevicedescriptorReplayRecord, AudiodeviceformatchangedeventReplayRecord,
-    AudiodeviceformatchangedpayloadReplayRecord, AudiodeviceremovedeventReplayRecord,
-    AudiodeviceremovedpayloadReplayRecord, AudiodevicereroutedeventReplayRecord,
-    AudiodevicereroutedpayloadReplayRecord, AudioeventReplayRecord,
-    AudiointerruptionbeganeventReplayRecord, AudiointerruptionendedeventReplayRecord,
-    AudiostreamdescriptorReplayRecord, AudiostreamdevicechangedeventReplayRecord,
-    AudiostreamdevicechangedpayloadReplayRecord, AudiostreamstatechangedeventReplayRecord,
+    AudiodeviceremovedeventReplayRecord, AudiodevicereroutedeventReplayRecord,
+    AudioeventReplayRecord, AudiointerruptionbeganeventReplayRecord,
+    AudiointerruptionendedeventReplayRecord, AudiostreamdescriptorReplayRecord,
+    AudiostreamdevicechangedeventReplayRecord, AudiostreamstatechangedeventReplayRecord,
     AudiostreamsupportReplayRecord, AudiostreamxruneventReplayRecord,
-    AudiostreamxrunpayloadReplayRecord,
 };
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
@@ -1037,14 +1016,9 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1077,14 +1051,9 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1117,14 +1086,9 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1157,14 +1121,9 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1197,14 +1156,9 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1237,14 +1191,9 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1277,14 +1226,9 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1317,14 +1261,9 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1357,14 +1296,9 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1397,14 +1331,9 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1437,14 +1366,9 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1477,23 +1401,18 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.status_flags.0 as u64, 32));
-                        let field_2: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
+                    };
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.status_flags.0 as u64, 32));
+                    let field_4: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -1523,19 +1442,14 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.status_flags.0 as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
                     };
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.status_flags.0 as u64, 32));
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -1565,25 +1479,22 @@ fn encode_destack_audio_event_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.status_flags.0 as u64, 32));
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.xrun_count_delta, 64));
-                        let field_3: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
+                    };
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.status_flags.0 as u64, 32));
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.xrun_count_delta, 64));
+                    let field_5: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![
+                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                        ])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -1666,14 +1577,9 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1706,14 +1612,9 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1746,14 +1647,9 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1786,14 +1682,9 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1826,14 +1717,9 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1866,14 +1752,9 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1906,14 +1787,9 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1946,14 +1822,9 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -1986,14 +1857,9 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -2026,14 +1892,9 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -2066,14 +1927,9 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
                         .allocate_aggregate(vec![field_0?, field_1?, field_2?])
@@ -2106,23 +1962,18 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.status_flags.0 as u64, 32));
-                        let field_2: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
+                    };
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.status_flags.0 as u64, 32));
+                    let field_4: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -2152,19 +2003,14 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.status_flags.0 as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
                     };
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.status_flags.0 as u64, 32));
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -2194,25 +2040,22 @@ fn encode_destack_audio_event_try_read_result(
                             ])
                             .map_err(Box::<RuntimeError>::from)
                     };
-                    let field_2: RuntimeResult<vm::Value> = {
-                        let field_0: RuntimeResult<vm::Value> = match value.payload.stream {
-                            Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        let field_1: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.status_flags.0 as u64, 32));
-                        let field_2: RuntimeResult<vm::Value> =
-                            Ok(vm::Value::uint(value.payload.xrun_count_delta, 64));
-                        let field_3: RuntimeResult<vm::Value> = match value.payload.device_id {
-                            Some(value) => Ok(value.value()),
-                            None => Ok(vm::Value::VOID),
-                        };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                            .map_err(Box::<RuntimeError>::from)
+                    let field_2: RuntimeResult<vm::Value> = match value.stream {
+                        Some(value) => Ok(vm::Value::uint(value.0.0, 64)),
+                        None => Ok(vm::Value::VOID),
+                    };
+                    let field_3: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.status_flags.0 as u64, 32));
+                    let field_4: RuntimeResult<vm::Value> =
+                        Ok(vm::Value::uint(value.xrun_count_delta, 64));
+                    let field_5: RuntimeResult<vm::Value> = match value.device_id {
+                        Some(value) => Ok(value.value()),
+                        None => Ok(vm::Value::VOID),
                     };
                     context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
+                        .allocate_aggregate(vec![
+                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
+                        ])
                         .map_err(Box::<RuntimeError>::from)
                 }?;
                 context
@@ -5684,19 +5527,16 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_backend_disconnected_event_metadata_backend,
                             flags: result_recorded_audio_backend_disconnected_event_metadata_flags,
                         };
-                        let result_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                        let result_recorded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_backend_disconnected_event_stream_inner = value;
+                            Some(result_recorded_audio_backend_disconnected_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                            stream: result_recorded_audio_backend_disconnected_event_payload_stream,
                         };
                         let result_recorded_audio_backend_disconnected_event = AudiobackenddisconnectedeventReplayRecord {
                             kind: result_recorded_audio_backend_disconnected_event_kind,
                             metadata: result_recorded_audio_backend_disconnected_event_metadata,
-                            payload: result_recorded_audio_backend_disconnected_event_payload,
+                            stream: result_recorded_audio_backend_disconnected_event_stream,
                         };
                         AudioeventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_audio_backend_disconnected_event)
                     }
@@ -5716,19 +5556,16 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_backend_reset_event_metadata_backend,
                             flags: result_recorded_audio_backend_reset_event_metadata_flags,
                         };
-                        let result_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_backend_reset_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_backend_reset_event_payload_stream_inner)
+                        let result_recorded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_backend_reset_event_stream_inner = value;
+                            Some(result_recorded_audio_backend_reset_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                            stream: result_recorded_audio_backend_reset_event_payload_stream,
                         };
                         let result_recorded_audio_backend_reset_event = AudiobackendreseteventReplayRecord {
                             kind: result_recorded_audio_backend_reset_event_kind,
                             metadata: result_recorded_audio_backend_reset_event_metadata,
-                            payload: result_recorded_audio_backend_reset_event_payload,
+                            stream: result_recorded_audio_backend_reset_event_stream,
                         };
                         AudioeventReplayRecord::AudioBackendResetEvent(result_recorded_audio_backend_reset_event)
                     }
@@ -5748,19 +5585,16 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_default_capture_changed_event_metadata_backend,
                             flags: result_recorded_audio_default_capture_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_default_capture_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                        let result_recorded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_default_capture_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_default_capture_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_default_capture_changed_event_payload = AudiodefaultcapturechangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_default_capture_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_default_capture_changed_event = AudiodefaultcapturechangedeventReplayRecord {
                             kind: result_recorded_audio_default_capture_changed_event_kind,
                             metadata: result_recorded_audio_default_capture_changed_event_metadata,
-                            payload: result_recorded_audio_default_capture_changed_event_payload,
+                            device_id: result_recorded_audio_default_capture_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_audio_default_capture_changed_event)
                     }
@@ -5780,19 +5614,16 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_default_loopback_changed_event_metadata_backend,
                             flags: result_recorded_audio_default_loopback_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_default_loopback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                        let result_recorded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_default_loopback_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_default_loopback_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_default_loopback_changed_event_payload = AudiodefaultloopbackchangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_default_loopback_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_default_loopback_changed_event = AudiodefaultloopbackchangedeventReplayRecord {
                             kind: result_recorded_audio_default_loopback_changed_event_kind,
                             metadata: result_recorded_audio_default_loopback_changed_event_metadata,
-                            payload: result_recorded_audio_default_loopback_changed_event_payload,
+                            device_id: result_recorded_audio_default_loopback_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_audio_default_loopback_changed_event)
                     }
@@ -5812,19 +5643,16 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_default_playback_changed_event_metadata_backend,
                             flags: result_recorded_audio_default_playback_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_default_playback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                        let result_recorded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_default_playback_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_default_playback_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_default_playback_changed_event_payload = AudiodefaultplaybackchangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_default_playback_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_default_playback_changed_event = AudiodefaultplaybackchangedeventReplayRecord {
                             kind: result_recorded_audio_default_playback_changed_event_kind,
                             metadata: result_recorded_audio_default_playback_changed_event_metadata,
-                            payload: result_recorded_audio_default_playback_changed_event_payload,
+                            device_id: result_recorded_audio_default_playback_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_audio_default_playback_changed_event)
                     }
@@ -5844,19 +5672,16 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_device_added_event_metadata_backend,
                             flags: result_recorded_audio_device_added_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_added_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_device_added_event_payload_device_id_inner)
+                        let result_recorded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_added_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_added_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_added_event_payload = AudiodeviceaddedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_added_event_payload_device_id,
                         };
                         let result_recorded_audio_device_added_event = AudiodeviceaddedeventReplayRecord {
                             kind: result_recorded_audio_device_added_event_kind,
                             metadata: result_recorded_audio_device_added_event_metadata,
-                            payload: result_recorded_audio_device_added_event_payload,
+                            device_id: result_recorded_audio_device_added_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceAddedEvent(result_recorded_audio_device_added_event)
                     }
@@ -5876,19 +5701,16 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_device_format_changed_event_metadata_backend,
                             flags: result_recorded_audio_device_format_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_format_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                        let result_recorded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_format_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_format_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_format_changed_event_payload = AudiodeviceformatchangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_format_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_device_format_changed_event = AudiodeviceformatchangedeventReplayRecord {
                             kind: result_recorded_audio_device_format_changed_event_kind,
                             metadata: result_recorded_audio_device_format_changed_event_metadata,
-                            payload: result_recorded_audio_device_format_changed_event_payload,
+                            device_id: result_recorded_audio_device_format_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_audio_device_format_changed_event)
                     }
@@ -5908,19 +5730,16 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_device_removed_event_metadata_backend,
                             flags: result_recorded_audio_device_removed_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_removed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_device_removed_event_payload_device_id_inner)
+                        let result_recorded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_removed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_removed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_removed_event_payload = AudiodeviceremovedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_removed_event_payload_device_id,
                         };
                         let result_recorded_audio_device_removed_event = AudiodeviceremovedeventReplayRecord {
                             kind: result_recorded_audio_device_removed_event_kind,
                             metadata: result_recorded_audio_device_removed_event_metadata,
-                            payload: result_recorded_audio_device_removed_event_payload,
+                            device_id: result_recorded_audio_device_removed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceRemovedEvent(result_recorded_audio_device_removed_event)
                     }
@@ -5940,19 +5759,16 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_device_rerouted_event_metadata_backend,
                             flags: result_recorded_audio_device_rerouted_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_rerouted_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                        let result_recorded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_rerouted_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_rerouted_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_rerouted_event_payload = AudiodevicereroutedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_rerouted_event_payload_device_id,
                         };
                         let result_recorded_audio_device_rerouted_event = AudiodevicereroutedeventReplayRecord {
                             kind: result_recorded_audio_device_rerouted_event_kind,
                             metadata: result_recorded_audio_device_rerouted_event_metadata,
-                            payload: result_recorded_audio_device_rerouted_event_payload,
+                            device_id: result_recorded_audio_device_rerouted_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceReroutedEvent(result_recorded_audio_device_rerouted_event)
                     }
@@ -5972,19 +5788,16 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_interruption_began_event_metadata_backend,
                             flags: result_recorded_audio_interruption_began_event_metadata_flags,
                         };
-                        let result_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_interruption_began_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_interruption_began_event_payload_stream_inner)
+                        let result_recorded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_interruption_began_event_stream_inner = value;
+                            Some(result_recorded_audio_interruption_began_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                            stream: result_recorded_audio_interruption_began_event_payload_stream,
                         };
                         let result_recorded_audio_interruption_began_event = AudiointerruptionbeganeventReplayRecord {
                             kind: result_recorded_audio_interruption_began_event_kind,
                             metadata: result_recorded_audio_interruption_began_event_metadata,
-                            payload: result_recorded_audio_interruption_began_event_payload,
+                            stream: result_recorded_audio_interruption_began_event_stream,
                         };
                         AudioeventReplayRecord::AudioInterruptionBeganEvent(result_recorded_audio_interruption_began_event)
                     }
@@ -6004,19 +5817,16 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_interruption_ended_event_metadata_backend,
                             flags: result_recorded_audio_interruption_ended_event_metadata_flags,
                         };
-                        let result_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_interruption_ended_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_interruption_ended_event_payload_stream_inner)
+                        let result_recorded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_interruption_ended_event_stream_inner = value;
+                            Some(result_recorded_audio_interruption_ended_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                            stream: result_recorded_audio_interruption_ended_event_payload_stream,
                         };
                         let result_recorded_audio_interruption_ended_event = AudiointerruptionendedeventReplayRecord {
                             kind: result_recorded_audio_interruption_ended_event_kind,
                             metadata: result_recorded_audio_interruption_ended_event_metadata,
-                            payload: result_recorded_audio_interruption_ended_event_payload,
+                            stream: result_recorded_audio_interruption_ended_event_stream,
                         };
                         AudioeventReplayRecord::AudioInterruptionEndedEvent(result_recorded_audio_interruption_ended_event)
                     }
@@ -6036,28 +5846,25 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_stream_device_changed_event_metadata_backend,
                             flags: result_recorded_audio_stream_device_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                        let result_recorded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_stream_device_changed_event_stream_inner = value;
+                            Some(result_recorded_audio_stream_device_changed_event_stream_inner)
                         } else {
                             None
                         };
-                        let result_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                        let result_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_stream_device_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                        let result_recorded_audio_stream_device_changed_event_status_flags = value.status_flags;
+                        let result_recorded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_stream_device_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_stream_device_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_stream_device_changed_event_payload = AudiostreamdevicechangedpayloadReplayRecord {
-                            stream: result_recorded_audio_stream_device_changed_event_payload_stream,
-                            status_flags: result_recorded_audio_stream_device_changed_event_payload_status_flags,
-                            device_id: result_recorded_audio_stream_device_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_stream_device_changed_event = AudiostreamdevicechangedeventReplayRecord {
                             kind: result_recorded_audio_stream_device_changed_event_kind,
                             metadata: result_recorded_audio_stream_device_changed_event_metadata,
-                            payload: result_recorded_audio_stream_device_changed_event_payload,
+                            stream: result_recorded_audio_stream_device_changed_event_stream,
+                            status_flags: result_recorded_audio_stream_device_changed_event_status_flags,
+                            device_id: result_recorded_audio_stream_device_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_audio_stream_device_changed_event)
                     }
@@ -6077,21 +5884,18 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_stream_state_changed_event_metadata_backend,
                             flags: result_recorded_audio_stream_state_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                        let result_recorded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_stream_state_changed_event_stream_inner = value;
+                            Some(result_recorded_audio_stream_state_changed_event_stream_inner)
                         } else {
                             None
                         };
-                        let result_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                        let result_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                            stream: result_recorded_audio_stream_state_changed_event_payload_stream,
-                            status_flags: result_recorded_audio_stream_state_changed_event_payload_status_flags,
-                        };
+                        let result_recorded_audio_stream_state_changed_event_status_flags = value.status_flags;
                         let result_recorded_audio_stream_state_changed_event = AudiostreamstatechangedeventReplayRecord {
                             kind: result_recorded_audio_stream_state_changed_event_kind,
                             metadata: result_recorded_audio_stream_state_changed_event_metadata,
-                            payload: result_recorded_audio_stream_state_changed_event_payload,
+                            stream: result_recorded_audio_stream_state_changed_event_stream,
+                            status_flags: result_recorded_audio_stream_state_changed_event_status_flags,
                         };
                         AudioeventReplayRecord::AudioStreamStateChangedEvent(result_recorded_audio_stream_state_changed_event)
                     }
@@ -6111,30 +5915,27 @@ fn destack_audio_event_read_replay(
                             backend: result_recorded_audio_stream_x_run_event_metadata_backend,
                             flags: result_recorded_audio_stream_x_run_event_metadata_flags,
                         };
-                        let result_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_stream_x_run_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_stream_x_run_event_payload_stream_inner)
+                        let result_recorded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_stream_x_run_event_stream_inner = value;
+                            Some(result_recorded_audio_stream_x_run_event_stream_inner)
                         } else {
                             None
                         };
-                        let result_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                        let result_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                        let result_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_stream_x_run_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                        let result_recorded_audio_stream_x_run_event_status_flags = value.status_flags;
+                        let result_recorded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                        let result_recorded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_stream_x_run_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_stream_x_run_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_stream_x_run_event_payload = AudiostreamxrunpayloadReplayRecord {
-                            stream: result_recorded_audio_stream_x_run_event_payload_stream,
-                            status_flags: result_recorded_audio_stream_x_run_event_payload_status_flags,
-                            xrun_count_delta: result_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
-                            device_id: result_recorded_audio_stream_x_run_event_payload_device_id,
                         };
                         let result_recorded_audio_stream_x_run_event = AudiostreamxruneventReplayRecord {
                             kind: result_recorded_audio_stream_x_run_event_kind,
                             metadata: result_recorded_audio_stream_x_run_event_metadata,
-                            payload: result_recorded_audio_stream_x_run_event_payload,
+                            stream: result_recorded_audio_stream_x_run_event_stream,
+                            status_flags: result_recorded_audio_stream_x_run_event_status_flags,
+                            xrun_count_delta: result_recorded_audio_stream_x_run_event_xrun_count_delta,
+                            device_id: result_recorded_audio_stream_x_run_event_device_id,
                         };
                         AudioeventReplayRecord::AudioStreamXRunEvent(result_recorded_audio_stream_x_run_event)
                     }
@@ -6178,19 +5979,16 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_backend_disconnected_event_metadata_backend,
                                 flags: value_native_audio_backend_disconnected_event_metadata_flags,
                             };
-                            let value_native_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_backend_disconnected_event_payload_stream_inner = value;
-                                Some(value_native_audio_backend_disconnected_event_payload_stream_inner)
+                            let value_native_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_backend_disconnected_event_stream_inner = value;
+                                Some(value_native_audio_backend_disconnected_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                                stream: value_native_audio_backend_disconnected_event_payload_stream,
                             };
                             let value_native_audio_backend_disconnected_event = AudioBackendDisconnectedEvent {
                                 kind: value_native_audio_backend_disconnected_event_kind,
                                 metadata: value_native_audio_backend_disconnected_event_metadata,
-                                payload: value_native_audio_backend_disconnected_event_payload,
+                                stream: value_native_audio_backend_disconnected_event_stream,
                             };
                             AudioEvent::AudioBackendDisconnectedEvent(value_native_audio_backend_disconnected_event)
                         }
@@ -6210,19 +6008,16 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_backend_reset_event_metadata_backend,
                                 flags: value_native_audio_backend_reset_event_metadata_flags,
                             };
-                            let value_native_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_backend_reset_event_payload_stream_inner = value;
-                                Some(value_native_audio_backend_reset_event_payload_stream_inner)
+                            let value_native_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_backend_reset_event_stream_inner = value;
+                                Some(value_native_audio_backend_reset_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                                stream: value_native_audio_backend_reset_event_payload_stream,
                             };
                             let value_native_audio_backend_reset_event = AudioBackendResetEvent {
                                 kind: value_native_audio_backend_reset_event_kind,
                                 metadata: value_native_audio_backend_reset_event_metadata,
-                                payload: value_native_audio_backend_reset_event_payload,
+                                stream: value_native_audio_backend_reset_event_stream,
                             };
                             AudioEvent::AudioBackendResetEvent(value_native_audio_backend_reset_event)
                         }
@@ -6242,19 +6037,16 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_default_capture_changed_event_metadata_backend,
                                 flags: value_native_audio_default_capture_changed_event_metadata_flags,
                             };
-                            let value_native_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_default_capture_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_default_capture_changed_event_payload_device_id_inner)
+                            let value_native_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_default_capture_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_default_capture_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayload {
-                                device_id: value_native_audio_default_capture_changed_event_payload_device_id,
                             };
                             let value_native_audio_default_capture_changed_event = AudioDefaultCaptureChangedEvent {
                                 kind: value_native_audio_default_capture_changed_event_kind,
                                 metadata: value_native_audio_default_capture_changed_event_metadata,
-                                payload: value_native_audio_default_capture_changed_event_payload,
+                                device_id: value_native_audio_default_capture_changed_event_device_id,
                             };
                             AudioEvent::AudioDefaultCaptureChangedEvent(value_native_audio_default_capture_changed_event)
                         }
@@ -6274,19 +6066,16 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_default_loopback_changed_event_metadata_backend,
                                 flags: value_native_audio_default_loopback_changed_event_metadata_flags,
                             };
-                            let value_native_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_default_loopback_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_default_loopback_changed_event_payload_device_id_inner)
+                            let value_native_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_default_loopback_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_default_loopback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayload {
-                                device_id: value_native_audio_default_loopback_changed_event_payload_device_id,
                             };
                             let value_native_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEvent {
                                 kind: value_native_audio_default_loopback_changed_event_kind,
                                 metadata: value_native_audio_default_loopback_changed_event_metadata,
-                                payload: value_native_audio_default_loopback_changed_event_payload,
+                                device_id: value_native_audio_default_loopback_changed_event_device_id,
                             };
                             AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_audio_default_loopback_changed_event)
                         }
@@ -6306,19 +6095,16 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_default_playback_changed_event_metadata_backend,
                                 flags: value_native_audio_default_playback_changed_event_metadata_flags,
                             };
-                            let value_native_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_default_playback_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_default_playback_changed_event_payload_device_id_inner)
+                            let value_native_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_default_playback_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_default_playback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayload {
-                                device_id: value_native_audio_default_playback_changed_event_payload_device_id,
                             };
                             let value_native_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEvent {
                                 kind: value_native_audio_default_playback_changed_event_kind,
                                 metadata: value_native_audio_default_playback_changed_event_metadata,
-                                payload: value_native_audio_default_playback_changed_event_payload,
+                                device_id: value_native_audio_default_playback_changed_event_device_id,
                             };
                             AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_audio_default_playback_changed_event)
                         }
@@ -6338,19 +6124,16 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_device_added_event_metadata_backend,
                                 flags: value_native_audio_device_added_event_metadata_flags,
                             };
-                            let value_native_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_added_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_device_added_event_payload_device_id_inner)
+                            let value_native_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_device_added_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_device_added_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_device_added_event_payload = AudioDeviceAddedPayload {
-                                device_id: value_native_audio_device_added_event_payload_device_id,
                             };
                             let value_native_audio_device_added_event = AudioDeviceAddedEvent {
                                 kind: value_native_audio_device_added_event_kind,
                                 metadata: value_native_audio_device_added_event_metadata,
-                                payload: value_native_audio_device_added_event_payload,
+                                device_id: value_native_audio_device_added_event_device_id,
                             };
                             AudioEvent::AudioDeviceAddedEvent(value_native_audio_device_added_event)
                         }
@@ -6370,19 +6153,16 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_device_format_changed_event_metadata_backend,
                                 flags: value_native_audio_device_format_changed_event_metadata_flags,
                             };
-                            let value_native_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_format_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_device_format_changed_event_payload_device_id_inner)
+                            let value_native_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_device_format_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_device_format_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayload {
-                                device_id: value_native_audio_device_format_changed_event_payload_device_id,
                             };
                             let value_native_audio_device_format_changed_event = AudioDeviceFormatChangedEvent {
                                 kind: value_native_audio_device_format_changed_event_kind,
                                 metadata: value_native_audio_device_format_changed_event_metadata,
-                                payload: value_native_audio_device_format_changed_event_payload,
+                                device_id: value_native_audio_device_format_changed_event_device_id,
                             };
                             AudioEvent::AudioDeviceFormatChangedEvent(value_native_audio_device_format_changed_event)
                         }
@@ -6402,19 +6182,16 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_device_removed_event_metadata_backend,
                                 flags: value_native_audio_device_removed_event_metadata_flags,
                             };
-                            let value_native_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_removed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_device_removed_event_payload_device_id_inner)
+                            let value_native_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_device_removed_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_device_removed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_device_removed_event_payload = AudioDeviceRemovedPayload {
-                                device_id: value_native_audio_device_removed_event_payload_device_id,
                             };
                             let value_native_audio_device_removed_event = AudioDeviceRemovedEvent {
                                 kind: value_native_audio_device_removed_event_kind,
                                 metadata: value_native_audio_device_removed_event_metadata,
-                                payload: value_native_audio_device_removed_event_payload,
+                                device_id: value_native_audio_device_removed_event_device_id,
                             };
                             AudioEvent::AudioDeviceRemovedEvent(value_native_audio_device_removed_event)
                         }
@@ -6434,19 +6211,16 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_device_rerouted_event_metadata_backend,
                                 flags: value_native_audio_device_rerouted_event_metadata_flags,
                             };
-                            let value_native_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_rerouted_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_device_rerouted_event_payload_device_id_inner)
+                            let value_native_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_device_rerouted_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_device_rerouted_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_device_rerouted_event_payload = AudioDeviceReroutedPayload {
-                                device_id: value_native_audio_device_rerouted_event_payload_device_id,
                             };
                             let value_native_audio_device_rerouted_event = AudioDeviceReroutedEvent {
                                 kind: value_native_audio_device_rerouted_event_kind,
                                 metadata: value_native_audio_device_rerouted_event_metadata,
-                                payload: value_native_audio_device_rerouted_event_payload,
+                                device_id: value_native_audio_device_rerouted_event_device_id,
                             };
                             AudioEvent::AudioDeviceReroutedEvent(value_native_audio_device_rerouted_event)
                         }
@@ -6466,19 +6240,16 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_interruption_began_event_metadata_backend,
                                 flags: value_native_audio_interruption_began_event_metadata_flags,
                             };
-                            let value_native_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_interruption_began_event_payload_stream_inner = value;
-                                Some(value_native_audio_interruption_began_event_payload_stream_inner)
+                            let value_native_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_interruption_began_event_stream_inner = value;
+                                Some(value_native_audio_interruption_began_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                                stream: value_native_audio_interruption_began_event_payload_stream,
                             };
                             let value_native_audio_interruption_began_event = AudioInterruptionBeganEvent {
                                 kind: value_native_audio_interruption_began_event_kind,
                                 metadata: value_native_audio_interruption_began_event_metadata,
-                                payload: value_native_audio_interruption_began_event_payload,
+                                stream: value_native_audio_interruption_began_event_stream,
                             };
                             AudioEvent::AudioInterruptionBeganEvent(value_native_audio_interruption_began_event)
                         }
@@ -6498,19 +6269,16 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_interruption_ended_event_metadata_backend,
                                 flags: value_native_audio_interruption_ended_event_metadata_flags,
                             };
-                            let value_native_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_interruption_ended_event_payload_stream_inner = value;
-                                Some(value_native_audio_interruption_ended_event_payload_stream_inner)
+                            let value_native_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_interruption_ended_event_stream_inner = value;
+                                Some(value_native_audio_interruption_ended_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                                stream: value_native_audio_interruption_ended_event_payload_stream,
                             };
                             let value_native_audio_interruption_ended_event = AudioInterruptionEndedEvent {
                                 kind: value_native_audio_interruption_ended_event_kind,
                                 metadata: value_native_audio_interruption_ended_event_metadata,
-                                payload: value_native_audio_interruption_ended_event_payload,
+                                stream: value_native_audio_interruption_ended_event_stream,
                             };
                             AudioEvent::AudioInterruptionEndedEvent(value_native_audio_interruption_ended_event)
                         }
@@ -6530,28 +6298,25 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_stream_device_changed_event_metadata_backend,
                                 flags: value_native_audio_stream_device_changed_event_metadata_flags,
                             };
-                            let value_native_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_stream_device_changed_event_payload_stream_inner = value;
-                                Some(value_native_audio_stream_device_changed_event_payload_stream_inner)
+                            let value_native_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_stream_device_changed_event_stream_inner = value;
+                                Some(value_native_audio_stream_device_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let value_native_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                            let value_native_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_stream_device_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_stream_device_changed_event_payload_device_id_inner)
+                            let value_native_audio_stream_device_changed_event_status_flags = value.status_flags;
+                            let value_native_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_stream_device_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_stream_device_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayload {
-                                stream: value_native_audio_stream_device_changed_event_payload_stream,
-                                status_flags: value_native_audio_stream_device_changed_event_payload_status_flags,
-                                device_id: value_native_audio_stream_device_changed_event_payload_device_id,
                             };
                             let value_native_audio_stream_device_changed_event = AudioStreamDeviceChangedEvent {
                                 kind: value_native_audio_stream_device_changed_event_kind,
                                 metadata: value_native_audio_stream_device_changed_event_metadata,
-                                payload: value_native_audio_stream_device_changed_event_payload,
+                                stream: value_native_audio_stream_device_changed_event_stream,
+                                status_flags: value_native_audio_stream_device_changed_event_status_flags,
+                                device_id: value_native_audio_stream_device_changed_event_device_id,
                             };
                             AudioEvent::AudioStreamDeviceChangedEvent(value_native_audio_stream_device_changed_event)
                         }
@@ -6571,21 +6336,18 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_stream_state_changed_event_metadata_backend,
                                 flags: value_native_audio_stream_state_changed_event_metadata_flags,
                             };
-                            let value_native_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_stream_state_changed_event_payload_stream_inner = value;
-                                Some(value_native_audio_stream_state_changed_event_payload_stream_inner)
+                            let value_native_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_stream_state_changed_event_stream_inner = value;
+                                Some(value_native_audio_stream_state_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let value_native_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                            let value_native_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                                stream: value_native_audio_stream_state_changed_event_payload_stream,
-                                status_flags: value_native_audio_stream_state_changed_event_payload_status_flags,
-                            };
+                            let value_native_audio_stream_state_changed_event_status_flags = value.status_flags;
                             let value_native_audio_stream_state_changed_event = AudioStreamStateChangedEvent {
                                 kind: value_native_audio_stream_state_changed_event_kind,
                                 metadata: value_native_audio_stream_state_changed_event_metadata,
-                                payload: value_native_audio_stream_state_changed_event_payload,
+                                stream: value_native_audio_stream_state_changed_event_stream,
+                                status_flags: value_native_audio_stream_state_changed_event_status_flags,
                             };
                             AudioEvent::AudioStreamStateChangedEvent(value_native_audio_stream_state_changed_event)
                         }
@@ -6605,30 +6367,27 @@ fn destack_audio_event_read_replay(
                                 backend: value_native_audio_stream_x_run_event_metadata_backend,
                                 flags: value_native_audio_stream_x_run_event_metadata_flags,
                             };
-                            let value_native_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_stream_x_run_event_payload_stream_inner = value;
-                                Some(value_native_audio_stream_x_run_event_payload_stream_inner)
+                            let value_native_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_stream_x_run_event_stream_inner = value;
+                                Some(value_native_audio_stream_x_run_event_stream_inner)
                             } else {
                                 None
                             };
-                            let value_native_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                            let value_native_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                            let value_native_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_stream_x_run_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_stream_x_run_event_payload_device_id_inner)
+                            let value_native_audio_stream_x_run_event_status_flags = value.status_flags;
+                            let value_native_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                            let value_native_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_stream_x_run_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_stream_x_run_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_stream_x_run_event_payload = AudioStreamXRunPayload {
-                                stream: value_native_audio_stream_x_run_event_payload_stream,
-                                status_flags: value_native_audio_stream_x_run_event_payload_status_flags,
-                                xrun_count_delta: value_native_audio_stream_x_run_event_payload_xrun_count_delta,
-                                device_id: value_native_audio_stream_x_run_event_payload_device_id,
                             };
                             let value_native_audio_stream_x_run_event = AudioStreamXRunEvent {
                                 kind: value_native_audio_stream_x_run_event_kind,
                                 metadata: value_native_audio_stream_x_run_event_metadata,
-                                payload: value_native_audio_stream_x_run_event_payload,
+                                stream: value_native_audio_stream_x_run_event_stream,
+                                status_flags: value_native_audio_stream_x_run_event_status_flags,
+                                xrun_count_delta: value_native_audio_stream_x_run_event_xrun_count_delta,
+                                device_id: value_native_audio_stream_x_run_event_device_id,
                             };
                             AudioEvent::AudioStreamXRunEvent(value_native_audio_stream_x_run_event)
                         }
@@ -6682,19 +6441,16 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_backend_disconnected_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_disconnected_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                                stream: result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_backend_disconnected_event = AudiobackenddisconnectedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_backend_disconnected_event_kind,
                                 metadata: result_recorded_item_recorded_audio_backend_disconnected_event_metadata,
-                                payload: result_recorded_item_recorded_audio_backend_disconnected_event_payload,
+                                stream: result_recorded_item_recorded_audio_backend_disconnected_event_stream,
                             };
                             AudioeventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_item_recorded_audio_backend_disconnected_event)
                         }
@@ -6714,19 +6470,16 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_backend_reset_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_backend_reset_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_backend_reset_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_reset_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                                stream: result_recorded_item_recorded_audio_backend_reset_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_backend_reset_event = AudiobackendreseteventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_backend_reset_event_kind,
                                 metadata: result_recorded_item_recorded_audio_backend_reset_event_metadata,
-                                payload: result_recorded_item_recorded_audio_backend_reset_event_payload,
+                                stream: result_recorded_item_recorded_audio_backend_reset_event_stream,
                             };
                             AudioeventReplayRecord::AudioBackendResetEvent(result_recorded_item_recorded_audio_backend_reset_event)
                         }
@@ -6746,19 +6499,16 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_default_capture_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_default_capture_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload = AudiodefaultcapturechangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_default_capture_changed_event = AudiodefaultcapturechangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_default_capture_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_default_capture_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_default_capture_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_default_capture_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_item_recorded_audio_default_capture_changed_event)
                         }
@@ -6778,19 +6528,16 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_default_loopback_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_default_loopback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload = AudiodefaultloopbackchangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_default_loopback_changed_event = AudiodefaultloopbackchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_default_loopback_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_default_loopback_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_default_loopback_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_item_recorded_audio_default_loopback_changed_event)
                         }
@@ -6810,19 +6557,16 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_default_playback_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_default_playback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload = AudiodefaultplaybackchangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_default_playback_changed_event = AudiodefaultplaybackchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_default_playback_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_default_playback_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_default_playback_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_default_playback_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_item_recorded_audio_default_playback_changed_event)
                         }
@@ -6842,19 +6586,16 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_device_added_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_added_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_added_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_added_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_added_event_payload = AudiodeviceaddedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_added_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_added_event = AudiodeviceaddedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_added_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_added_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_added_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_added_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceAddedEvent(result_recorded_item_recorded_audio_device_added_event)
                         }
@@ -6874,19 +6615,16 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_device_format_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_format_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_format_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_format_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_format_changed_event_payload = AudiodeviceformatchangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_format_changed_event = AudiodeviceformatchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_format_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_format_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_format_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_format_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_item_recorded_audio_device_format_changed_event)
                         }
@@ -6906,19 +6644,16 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_device_removed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_removed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_removed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_removed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_removed_event_payload = AudiodeviceremovedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_removed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_removed_event = AudiodeviceremovedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_removed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_removed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_removed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_removed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceRemovedEvent(result_recorded_item_recorded_audio_device_removed_event)
                         }
@@ -6938,19 +6673,16 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_device_rerouted_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_rerouted_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_rerouted_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_rerouted_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_rerouted_event_payload = AudiodevicereroutedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_rerouted_event = AudiodevicereroutedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_rerouted_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_rerouted_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_rerouted_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_rerouted_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceReroutedEvent(result_recorded_item_recorded_audio_device_rerouted_event)
                         }
@@ -6970,19 +6702,16 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_interruption_began_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_interruption_began_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_interruption_began_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_began_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                                stream: result_recorded_item_recorded_audio_interruption_began_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_interruption_began_event = AudiointerruptionbeganeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_interruption_began_event_kind,
                                 metadata: result_recorded_item_recorded_audio_interruption_began_event_metadata,
-                                payload: result_recorded_item_recorded_audio_interruption_began_event_payload,
+                                stream: result_recorded_item_recorded_audio_interruption_began_event_stream,
                             };
                             AudioeventReplayRecord::AudioInterruptionBeganEvent(result_recorded_item_recorded_audio_interruption_began_event)
                         }
@@ -7002,19 +6731,16 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_interruption_ended_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_interruption_ended_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_interruption_ended_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_ended_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                                stream: result_recorded_item_recorded_audio_interruption_ended_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_interruption_ended_event = AudiointerruptionendedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_interruption_ended_event_kind,
                                 metadata: result_recorded_item_recorded_audio_interruption_ended_event_metadata,
-                                payload: result_recorded_item_recorded_audio_interruption_ended_event_payload,
+                                stream: result_recorded_item_recorded_audio_interruption_ended_event_stream,
                             };
                             AudioeventReplayRecord::AudioInterruptionEndedEvent(result_recorded_item_recorded_audio_interruption_ended_event)
                         }
@@ -7034,28 +6760,25 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_status_flags = value.status_flags;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload = AudiostreamdevicechangedpayloadReplayRecord {
-                                stream: result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream,
-                                status_flags: result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags,
-                                device_id: result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_stream_device_changed_event = AudiostreamdevicechangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_stream_device_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_stream_device_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_stream_device_changed_event_payload,
+                                stream: result_recorded_item_recorded_audio_stream_device_changed_event_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_device_changed_event_status_flags,
+                                device_id: result_recorded_item_recorded_audio_stream_device_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_item_recorded_audio_stream_device_changed_event)
                         }
@@ -7075,21 +6798,18 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_stream_state_changed_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_state_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                                stream: result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream,
-                                status_flags: result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags,
-                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_status_flags = value.status_flags;
                             let result_recorded_item_recorded_audio_stream_state_changed_event = AudiostreamstatechangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_stream_state_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_stream_state_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_stream_state_changed_event_payload,
+                                stream: result_recorded_item_recorded_audio_stream_state_changed_event_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_state_changed_event_status_flags,
                             };
                             AudioeventReplayRecord::AudioStreamStateChangedEvent(result_recorded_item_recorded_audio_stream_state_changed_event)
                         }
@@ -7109,30 +6829,27 @@ fn destack_audio_event_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_stream_x_run_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_stream_x_run_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_stream_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_stream_x_run_event_status_flags = value.status_flags;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload = AudiostreamxrunpayloadReplayRecord {
-                                stream: result_recorded_item_recorded_audio_stream_x_run_event_payload_stream,
-                                status_flags: result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags,
-                                xrun_count_delta: result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
-                                device_id: result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_stream_x_run_event = AudiostreamxruneventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_stream_x_run_event_kind,
                                 metadata: result_recorded_item_recorded_audio_stream_x_run_event_metadata,
-                                payload: result_recorded_item_recorded_audio_stream_x_run_event_payload,
+                                stream: result_recorded_item_recorded_audio_stream_x_run_event_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_x_run_event_status_flags,
+                                xrun_count_delta: result_recorded_item_recorded_audio_stream_x_run_event_xrun_count_delta,
+                                device_id: result_recorded_item_recorded_audio_stream_x_run_event_device_id,
                             };
                             AudioeventReplayRecord::AudioStreamXRunEvent(result_recorded_item_recorded_audio_stream_x_run_event)
                         }
@@ -7180,19 +6897,16 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_backend_disconnected_event_metadata_backend,
                                     flags: value_native_decoded_audio_backend_disconnected_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_backend_disconnected_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_backend_disconnected_event_payload_stream_inner)
+                                let value_native_decoded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_backend_disconnected_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_backend_disconnected_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                                    stream: value_native_decoded_audio_backend_disconnected_event_payload_stream,
                                 };
                                 let value_native_decoded_audio_backend_disconnected_event = AudioBackendDisconnectedEvent {
                                     kind: value_native_decoded_audio_backend_disconnected_event_kind,
                                     metadata: value_native_decoded_audio_backend_disconnected_event_metadata,
-                                    payload: value_native_decoded_audio_backend_disconnected_event_payload,
+                                    stream: value_native_decoded_audio_backend_disconnected_event_stream,
                                 };
                                 AudioEvent::AudioBackendDisconnectedEvent(value_native_decoded_audio_backend_disconnected_event)
                             }
@@ -7212,19 +6926,16 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_backend_reset_event_metadata_backend,
                                     flags: value_native_decoded_audio_backend_reset_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_backend_reset_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_backend_reset_event_payload_stream_inner)
+                                let value_native_decoded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_backend_reset_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_backend_reset_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                                    stream: value_native_decoded_audio_backend_reset_event_payload_stream,
                                 };
                                 let value_native_decoded_audio_backend_reset_event = AudioBackendResetEvent {
                                     kind: value_native_decoded_audio_backend_reset_event_kind,
                                     metadata: value_native_decoded_audio_backend_reset_event_metadata,
-                                    payload: value_native_decoded_audio_backend_reset_event_payload,
+                                    stream: value_native_decoded_audio_backend_reset_event_stream,
                                 };
                                 AudioEvent::AudioBackendResetEvent(value_native_decoded_audio_backend_reset_event)
                             }
@@ -7244,19 +6955,16 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_default_capture_changed_event_metadata_backend,
                                     flags: value_native_decoded_audio_default_capture_changed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_default_capture_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_default_capture_changed_event_payload_device_id_inner)
+                                let value_native_decoded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_default_capture_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_default_capture_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayload {
-                                    device_id: value_native_decoded_audio_default_capture_changed_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEvent {
                                     kind: value_native_decoded_audio_default_capture_changed_event_kind,
                                     metadata: value_native_decoded_audio_default_capture_changed_event_metadata,
-                                    payload: value_native_decoded_audio_default_capture_changed_event_payload,
+                                    device_id: value_native_decoded_audio_default_capture_changed_event_device_id,
                                 };
                                 AudioEvent::AudioDefaultCaptureChangedEvent(value_native_decoded_audio_default_capture_changed_event)
                             }
@@ -7276,19 +6984,16 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_default_loopback_changed_event_metadata_backend,
                                     flags: value_native_decoded_audio_default_loopback_changed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_default_loopback_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_default_loopback_changed_event_payload_device_id_inner)
+                                let value_native_decoded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_default_loopback_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_default_loopback_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayload {
-                                    device_id: value_native_decoded_audio_default_loopback_changed_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEvent {
                                     kind: value_native_decoded_audio_default_loopback_changed_event_kind,
                                     metadata: value_native_decoded_audio_default_loopback_changed_event_metadata,
-                                    payload: value_native_decoded_audio_default_loopback_changed_event_payload,
+                                    device_id: value_native_decoded_audio_default_loopback_changed_event_device_id,
                                 };
                                 AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_decoded_audio_default_loopback_changed_event)
                             }
@@ -7308,19 +7013,16 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_default_playback_changed_event_metadata_backend,
                                     flags: value_native_decoded_audio_default_playback_changed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_default_playback_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_default_playback_changed_event_payload_device_id_inner)
+                                let value_native_decoded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_default_playback_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_default_playback_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayload {
-                                    device_id: value_native_decoded_audio_default_playback_changed_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEvent {
                                     kind: value_native_decoded_audio_default_playback_changed_event_kind,
                                     metadata: value_native_decoded_audio_default_playback_changed_event_metadata,
-                                    payload: value_native_decoded_audio_default_playback_changed_event_payload,
+                                    device_id: value_native_decoded_audio_default_playback_changed_event_device_id,
                                 };
                                 AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_decoded_audio_default_playback_changed_event)
                             }
@@ -7340,19 +7042,16 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_device_added_event_metadata_backend,
                                     flags: value_native_decoded_audio_device_added_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_device_added_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_added_event_payload_device_id_inner)
+                                let value_native_decoded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_device_added_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_device_added_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_device_added_event_payload = AudioDeviceAddedPayload {
-                                    device_id: value_native_decoded_audio_device_added_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_device_added_event = AudioDeviceAddedEvent {
                                     kind: value_native_decoded_audio_device_added_event_kind,
                                     metadata: value_native_decoded_audio_device_added_event_metadata,
-                                    payload: value_native_decoded_audio_device_added_event_payload,
+                                    device_id: value_native_decoded_audio_device_added_event_device_id,
                                 };
                                 AudioEvent::AudioDeviceAddedEvent(value_native_decoded_audio_device_added_event)
                             }
@@ -7372,19 +7071,16 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_device_format_changed_event_metadata_backend,
                                     flags: value_native_decoded_audio_device_format_changed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_device_format_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_format_changed_event_payload_device_id_inner)
+                                let value_native_decoded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_device_format_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_device_format_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayload {
-                                    device_id: value_native_decoded_audio_device_format_changed_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_device_format_changed_event = AudioDeviceFormatChangedEvent {
                                     kind: value_native_decoded_audio_device_format_changed_event_kind,
                                     metadata: value_native_decoded_audio_device_format_changed_event_metadata,
-                                    payload: value_native_decoded_audio_device_format_changed_event_payload,
+                                    device_id: value_native_decoded_audio_device_format_changed_event_device_id,
                                 };
                                 AudioEvent::AudioDeviceFormatChangedEvent(value_native_decoded_audio_device_format_changed_event)
                             }
@@ -7404,19 +7100,16 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_device_removed_event_metadata_backend,
                                     flags: value_native_decoded_audio_device_removed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_device_removed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_removed_event_payload_device_id_inner)
+                                let value_native_decoded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_device_removed_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_device_removed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_device_removed_event_payload = AudioDeviceRemovedPayload {
-                                    device_id: value_native_decoded_audio_device_removed_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_device_removed_event = AudioDeviceRemovedEvent {
                                     kind: value_native_decoded_audio_device_removed_event_kind,
                                     metadata: value_native_decoded_audio_device_removed_event_metadata,
-                                    payload: value_native_decoded_audio_device_removed_event_payload,
+                                    device_id: value_native_decoded_audio_device_removed_event_device_id,
                                 };
                                 AudioEvent::AudioDeviceRemovedEvent(value_native_decoded_audio_device_removed_event)
                             }
@@ -7436,19 +7129,16 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_device_rerouted_event_metadata_backend,
                                     flags: value_native_decoded_audio_device_rerouted_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_device_rerouted_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_rerouted_event_payload_device_id_inner)
+                                let value_native_decoded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_device_rerouted_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_device_rerouted_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_device_rerouted_event_payload = AudioDeviceReroutedPayload {
-                                    device_id: value_native_decoded_audio_device_rerouted_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_device_rerouted_event = AudioDeviceReroutedEvent {
                                     kind: value_native_decoded_audio_device_rerouted_event_kind,
                                     metadata: value_native_decoded_audio_device_rerouted_event_metadata,
-                                    payload: value_native_decoded_audio_device_rerouted_event_payload,
+                                    device_id: value_native_decoded_audio_device_rerouted_event_device_id,
                                 };
                                 AudioEvent::AudioDeviceReroutedEvent(value_native_decoded_audio_device_rerouted_event)
                             }
@@ -7468,19 +7158,16 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_interruption_began_event_metadata_backend,
                                     flags: value_native_decoded_audio_interruption_began_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_interruption_began_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_interruption_began_event_payload_stream_inner)
+                                let value_native_decoded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_interruption_began_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_interruption_began_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                                    stream: value_native_decoded_audio_interruption_began_event_payload_stream,
                                 };
                                 let value_native_decoded_audio_interruption_began_event = AudioInterruptionBeganEvent {
                                     kind: value_native_decoded_audio_interruption_began_event_kind,
                                     metadata: value_native_decoded_audio_interruption_began_event_metadata,
-                                    payload: value_native_decoded_audio_interruption_began_event_payload,
+                                    stream: value_native_decoded_audio_interruption_began_event_stream,
                                 };
                                 AudioEvent::AudioInterruptionBeganEvent(value_native_decoded_audio_interruption_began_event)
                             }
@@ -7500,19 +7187,16 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_interruption_ended_event_metadata_backend,
                                     flags: value_native_decoded_audio_interruption_ended_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_interruption_ended_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_interruption_ended_event_payload_stream_inner)
+                                let value_native_decoded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_interruption_ended_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_interruption_ended_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                                    stream: value_native_decoded_audio_interruption_ended_event_payload_stream,
                                 };
                                 let value_native_decoded_audio_interruption_ended_event = AudioInterruptionEndedEvent {
                                     kind: value_native_decoded_audio_interruption_ended_event_kind,
                                     metadata: value_native_decoded_audio_interruption_ended_event_metadata,
-                                    payload: value_native_decoded_audio_interruption_ended_event_payload,
+                                    stream: value_native_decoded_audio_interruption_ended_event_stream,
                                 };
                                 AudioEvent::AudioInterruptionEndedEvent(value_native_decoded_audio_interruption_ended_event)
                             }
@@ -7532,28 +7216,25 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_stream_device_changed_event_metadata_backend,
                                     flags: value_native_decoded_audio_stream_device_changed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_stream_device_changed_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_stream_device_changed_event_payload_stream_inner)
+                                let value_native_decoded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_stream_device_changed_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_stream_device_changed_event_stream_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                                let value_native_decoded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_stream_device_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_stream_device_changed_event_payload_device_id_inner)
+                                let value_native_decoded_audio_stream_device_changed_event_status_flags = value.status_flags;
+                                let value_native_decoded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_stream_device_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_stream_device_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayload {
-                                    stream: value_native_decoded_audio_stream_device_changed_event_payload_stream,
-                                    status_flags: value_native_decoded_audio_stream_device_changed_event_payload_status_flags,
-                                    device_id: value_native_decoded_audio_stream_device_changed_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_stream_device_changed_event = AudioStreamDeviceChangedEvent {
                                     kind: value_native_decoded_audio_stream_device_changed_event_kind,
                                     metadata: value_native_decoded_audio_stream_device_changed_event_metadata,
-                                    payload: value_native_decoded_audio_stream_device_changed_event_payload,
+                                    stream: value_native_decoded_audio_stream_device_changed_event_stream,
+                                    status_flags: value_native_decoded_audio_stream_device_changed_event_status_flags,
+                                    device_id: value_native_decoded_audio_stream_device_changed_event_device_id,
                                 };
                                 AudioEvent::AudioStreamDeviceChangedEvent(value_native_decoded_audio_stream_device_changed_event)
                             }
@@ -7573,21 +7254,18 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_stream_state_changed_event_metadata_backend,
                                     flags: value_native_decoded_audio_stream_state_changed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_stream_state_changed_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_stream_state_changed_event_payload_stream_inner)
+                                let value_native_decoded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_stream_state_changed_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_stream_state_changed_event_stream_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                                let value_native_decoded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                                    stream: value_native_decoded_audio_stream_state_changed_event_payload_stream,
-                                    status_flags: value_native_decoded_audio_stream_state_changed_event_payload_status_flags,
-                                };
+                                let value_native_decoded_audio_stream_state_changed_event_status_flags = value.status_flags;
                                 let value_native_decoded_audio_stream_state_changed_event = AudioStreamStateChangedEvent {
                                     kind: value_native_decoded_audio_stream_state_changed_event_kind,
                                     metadata: value_native_decoded_audio_stream_state_changed_event_metadata,
-                                    payload: value_native_decoded_audio_stream_state_changed_event_payload,
+                                    stream: value_native_decoded_audio_stream_state_changed_event_stream,
+                                    status_flags: value_native_decoded_audio_stream_state_changed_event_status_flags,
                                 };
                                 AudioEvent::AudioStreamStateChangedEvent(value_native_decoded_audio_stream_state_changed_event)
                             }
@@ -7607,30 +7285,27 @@ fn destack_audio_event_read_batch_replay(
                                     backend: value_native_decoded_audio_stream_x_run_event_metadata_backend,
                                     flags: value_native_decoded_audio_stream_x_run_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_stream_x_run_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_stream_x_run_event_payload_stream_inner)
+                                let value_native_decoded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_stream_x_run_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_stream_x_run_event_stream_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                                let value_native_decoded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                                let value_native_decoded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_stream_x_run_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_stream_x_run_event_payload_device_id_inner)
+                                let value_native_decoded_audio_stream_x_run_event_status_flags = value.status_flags;
+                                let value_native_decoded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                                let value_native_decoded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_stream_x_run_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_stream_x_run_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_stream_x_run_event_payload = AudioStreamXRunPayload {
-                                    stream: value_native_decoded_audio_stream_x_run_event_payload_stream,
-                                    status_flags: value_native_decoded_audio_stream_x_run_event_payload_status_flags,
-                                    xrun_count_delta: value_native_decoded_audio_stream_x_run_event_payload_xrun_count_delta,
-                                    device_id: value_native_decoded_audio_stream_x_run_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_stream_x_run_event = AudioStreamXRunEvent {
                                     kind: value_native_decoded_audio_stream_x_run_event_kind,
                                     metadata: value_native_decoded_audio_stream_x_run_event_metadata,
-                                    payload: value_native_decoded_audio_stream_x_run_event_payload,
+                                    stream: value_native_decoded_audio_stream_x_run_event_stream,
+                                    status_flags: value_native_decoded_audio_stream_x_run_event_status_flags,
+                                    xrun_count_delta: value_native_decoded_audio_stream_x_run_event_xrun_count_delta,
+                                    device_id: value_native_decoded_audio_stream_x_run_event_device_id,
                                 };
                                 AudioEvent::AudioStreamXRunEvent(value_native_decoded_audio_stream_x_run_event)
                             }
@@ -7683,19 +7358,16 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_backend_disconnected_event_metadata_backend,
                             flags: result_recorded_audio_backend_disconnected_event_metadata_flags,
                         };
-                        let result_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                        let result_recorded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_backend_disconnected_event_stream_inner = value;
+                            Some(result_recorded_audio_backend_disconnected_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                            stream: result_recorded_audio_backend_disconnected_event_payload_stream,
                         };
                         let result_recorded_audio_backend_disconnected_event = AudiobackenddisconnectedeventReplayRecord {
                             kind: result_recorded_audio_backend_disconnected_event_kind,
                             metadata: result_recorded_audio_backend_disconnected_event_metadata,
-                            payload: result_recorded_audio_backend_disconnected_event_payload,
+                            stream: result_recorded_audio_backend_disconnected_event_stream,
                         };
                         AudioeventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_audio_backend_disconnected_event)
                     }
@@ -7715,19 +7387,16 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_backend_reset_event_metadata_backend,
                             flags: result_recorded_audio_backend_reset_event_metadata_flags,
                         };
-                        let result_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_backend_reset_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_backend_reset_event_payload_stream_inner)
+                        let result_recorded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_backend_reset_event_stream_inner = value;
+                            Some(result_recorded_audio_backend_reset_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                            stream: result_recorded_audio_backend_reset_event_payload_stream,
                         };
                         let result_recorded_audio_backend_reset_event = AudiobackendreseteventReplayRecord {
                             kind: result_recorded_audio_backend_reset_event_kind,
                             metadata: result_recorded_audio_backend_reset_event_metadata,
-                            payload: result_recorded_audio_backend_reset_event_payload,
+                            stream: result_recorded_audio_backend_reset_event_stream,
                         };
                         AudioeventReplayRecord::AudioBackendResetEvent(result_recorded_audio_backend_reset_event)
                     }
@@ -7747,19 +7416,16 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_default_capture_changed_event_metadata_backend,
                             flags: result_recorded_audio_default_capture_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_default_capture_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                        let result_recorded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_default_capture_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_default_capture_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_default_capture_changed_event_payload = AudiodefaultcapturechangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_default_capture_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_default_capture_changed_event = AudiodefaultcapturechangedeventReplayRecord {
                             kind: result_recorded_audio_default_capture_changed_event_kind,
                             metadata: result_recorded_audio_default_capture_changed_event_metadata,
-                            payload: result_recorded_audio_default_capture_changed_event_payload,
+                            device_id: result_recorded_audio_default_capture_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_audio_default_capture_changed_event)
                     }
@@ -7779,19 +7445,16 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_default_loopback_changed_event_metadata_backend,
                             flags: result_recorded_audio_default_loopback_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_default_loopback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                        let result_recorded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_default_loopback_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_default_loopback_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_default_loopback_changed_event_payload = AudiodefaultloopbackchangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_default_loopback_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_default_loopback_changed_event = AudiodefaultloopbackchangedeventReplayRecord {
                             kind: result_recorded_audio_default_loopback_changed_event_kind,
                             metadata: result_recorded_audio_default_loopback_changed_event_metadata,
-                            payload: result_recorded_audio_default_loopback_changed_event_payload,
+                            device_id: result_recorded_audio_default_loopback_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_audio_default_loopback_changed_event)
                     }
@@ -7811,19 +7474,16 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_default_playback_changed_event_metadata_backend,
                             flags: result_recorded_audio_default_playback_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_default_playback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                        let result_recorded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_default_playback_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_default_playback_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_default_playback_changed_event_payload = AudiodefaultplaybackchangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_default_playback_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_default_playback_changed_event = AudiodefaultplaybackchangedeventReplayRecord {
                             kind: result_recorded_audio_default_playback_changed_event_kind,
                             metadata: result_recorded_audio_default_playback_changed_event_metadata,
-                            payload: result_recorded_audio_default_playback_changed_event_payload,
+                            device_id: result_recorded_audio_default_playback_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_audio_default_playback_changed_event)
                     }
@@ -7843,19 +7503,16 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_device_added_event_metadata_backend,
                             flags: result_recorded_audio_device_added_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_added_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_device_added_event_payload_device_id_inner)
+                        let result_recorded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_added_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_added_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_added_event_payload = AudiodeviceaddedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_added_event_payload_device_id,
                         };
                         let result_recorded_audio_device_added_event = AudiodeviceaddedeventReplayRecord {
                             kind: result_recorded_audio_device_added_event_kind,
                             metadata: result_recorded_audio_device_added_event_metadata,
-                            payload: result_recorded_audio_device_added_event_payload,
+                            device_id: result_recorded_audio_device_added_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceAddedEvent(result_recorded_audio_device_added_event)
                     }
@@ -7875,19 +7532,16 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_device_format_changed_event_metadata_backend,
                             flags: result_recorded_audio_device_format_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_format_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                        let result_recorded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_format_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_format_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_format_changed_event_payload = AudiodeviceformatchangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_format_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_device_format_changed_event = AudiodeviceformatchangedeventReplayRecord {
                             kind: result_recorded_audio_device_format_changed_event_kind,
                             metadata: result_recorded_audio_device_format_changed_event_metadata,
-                            payload: result_recorded_audio_device_format_changed_event_payload,
+                            device_id: result_recorded_audio_device_format_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_audio_device_format_changed_event)
                     }
@@ -7907,19 +7561,16 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_device_removed_event_metadata_backend,
                             flags: result_recorded_audio_device_removed_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_removed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_device_removed_event_payload_device_id_inner)
+                        let result_recorded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_removed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_removed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_removed_event_payload = AudiodeviceremovedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_removed_event_payload_device_id,
                         };
                         let result_recorded_audio_device_removed_event = AudiodeviceremovedeventReplayRecord {
                             kind: result_recorded_audio_device_removed_event_kind,
                             metadata: result_recorded_audio_device_removed_event_metadata,
-                            payload: result_recorded_audio_device_removed_event_payload,
+                            device_id: result_recorded_audio_device_removed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceRemovedEvent(result_recorded_audio_device_removed_event)
                     }
@@ -7939,19 +7590,16 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_device_rerouted_event_metadata_backend,
                             flags: result_recorded_audio_device_rerouted_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_rerouted_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                        let result_recorded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_rerouted_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_rerouted_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_rerouted_event_payload = AudiodevicereroutedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_rerouted_event_payload_device_id,
                         };
                         let result_recorded_audio_device_rerouted_event = AudiodevicereroutedeventReplayRecord {
                             kind: result_recorded_audio_device_rerouted_event_kind,
                             metadata: result_recorded_audio_device_rerouted_event_metadata,
-                            payload: result_recorded_audio_device_rerouted_event_payload,
+                            device_id: result_recorded_audio_device_rerouted_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceReroutedEvent(result_recorded_audio_device_rerouted_event)
                     }
@@ -7971,19 +7619,16 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_interruption_began_event_metadata_backend,
                             flags: result_recorded_audio_interruption_began_event_metadata_flags,
                         };
-                        let result_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_interruption_began_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_interruption_began_event_payload_stream_inner)
+                        let result_recorded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_interruption_began_event_stream_inner = value;
+                            Some(result_recorded_audio_interruption_began_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                            stream: result_recorded_audio_interruption_began_event_payload_stream,
                         };
                         let result_recorded_audio_interruption_began_event = AudiointerruptionbeganeventReplayRecord {
                             kind: result_recorded_audio_interruption_began_event_kind,
                             metadata: result_recorded_audio_interruption_began_event_metadata,
-                            payload: result_recorded_audio_interruption_began_event_payload,
+                            stream: result_recorded_audio_interruption_began_event_stream,
                         };
                         AudioeventReplayRecord::AudioInterruptionBeganEvent(result_recorded_audio_interruption_began_event)
                     }
@@ -8003,19 +7648,16 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_interruption_ended_event_metadata_backend,
                             flags: result_recorded_audio_interruption_ended_event_metadata_flags,
                         };
-                        let result_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_interruption_ended_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_interruption_ended_event_payload_stream_inner)
+                        let result_recorded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_interruption_ended_event_stream_inner = value;
+                            Some(result_recorded_audio_interruption_ended_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                            stream: result_recorded_audio_interruption_ended_event_payload_stream,
                         };
                         let result_recorded_audio_interruption_ended_event = AudiointerruptionendedeventReplayRecord {
                             kind: result_recorded_audio_interruption_ended_event_kind,
                             metadata: result_recorded_audio_interruption_ended_event_metadata,
-                            payload: result_recorded_audio_interruption_ended_event_payload,
+                            stream: result_recorded_audio_interruption_ended_event_stream,
                         };
                         AudioeventReplayRecord::AudioInterruptionEndedEvent(result_recorded_audio_interruption_ended_event)
                     }
@@ -8035,28 +7677,25 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_stream_device_changed_event_metadata_backend,
                             flags: result_recorded_audio_stream_device_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                        let result_recorded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_stream_device_changed_event_stream_inner = value;
+                            Some(result_recorded_audio_stream_device_changed_event_stream_inner)
                         } else {
                             None
                         };
-                        let result_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                        let result_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_stream_device_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                        let result_recorded_audio_stream_device_changed_event_status_flags = value.status_flags;
+                        let result_recorded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_stream_device_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_stream_device_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_stream_device_changed_event_payload = AudiostreamdevicechangedpayloadReplayRecord {
-                            stream: result_recorded_audio_stream_device_changed_event_payload_stream,
-                            status_flags: result_recorded_audio_stream_device_changed_event_payload_status_flags,
-                            device_id: result_recorded_audio_stream_device_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_stream_device_changed_event = AudiostreamdevicechangedeventReplayRecord {
                             kind: result_recorded_audio_stream_device_changed_event_kind,
                             metadata: result_recorded_audio_stream_device_changed_event_metadata,
-                            payload: result_recorded_audio_stream_device_changed_event_payload,
+                            stream: result_recorded_audio_stream_device_changed_event_stream,
+                            status_flags: result_recorded_audio_stream_device_changed_event_status_flags,
+                            device_id: result_recorded_audio_stream_device_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_audio_stream_device_changed_event)
                     }
@@ -8076,21 +7715,18 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_stream_state_changed_event_metadata_backend,
                             flags: result_recorded_audio_stream_state_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                        let result_recorded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_stream_state_changed_event_stream_inner = value;
+                            Some(result_recorded_audio_stream_state_changed_event_stream_inner)
                         } else {
                             None
                         };
-                        let result_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                        let result_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                            stream: result_recorded_audio_stream_state_changed_event_payload_stream,
-                            status_flags: result_recorded_audio_stream_state_changed_event_payload_status_flags,
-                        };
+                        let result_recorded_audio_stream_state_changed_event_status_flags = value.status_flags;
                         let result_recorded_audio_stream_state_changed_event = AudiostreamstatechangedeventReplayRecord {
                             kind: result_recorded_audio_stream_state_changed_event_kind,
                             metadata: result_recorded_audio_stream_state_changed_event_metadata,
-                            payload: result_recorded_audio_stream_state_changed_event_payload,
+                            stream: result_recorded_audio_stream_state_changed_event_stream,
+                            status_flags: result_recorded_audio_stream_state_changed_event_status_flags,
                         };
                         AudioeventReplayRecord::AudioStreamStateChangedEvent(result_recorded_audio_stream_state_changed_event)
                     }
@@ -8110,30 +7746,27 @@ fn destack_audio_event_try_read_replay(
                             backend: result_recorded_audio_stream_x_run_event_metadata_backend,
                             flags: result_recorded_audio_stream_x_run_event_metadata_flags,
                         };
-                        let result_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_stream_x_run_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_stream_x_run_event_payload_stream_inner)
+                        let result_recorded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_stream_x_run_event_stream_inner = value;
+                            Some(result_recorded_audio_stream_x_run_event_stream_inner)
                         } else {
                             None
                         };
-                        let result_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                        let result_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                        let result_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_stream_x_run_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                        let result_recorded_audio_stream_x_run_event_status_flags = value.status_flags;
+                        let result_recorded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                        let result_recorded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_stream_x_run_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_stream_x_run_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_stream_x_run_event_payload = AudiostreamxrunpayloadReplayRecord {
-                            stream: result_recorded_audio_stream_x_run_event_payload_stream,
-                            status_flags: result_recorded_audio_stream_x_run_event_payload_status_flags,
-                            xrun_count_delta: result_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
-                            device_id: result_recorded_audio_stream_x_run_event_payload_device_id,
                         };
                         let result_recorded_audio_stream_x_run_event = AudiostreamxruneventReplayRecord {
                             kind: result_recorded_audio_stream_x_run_event_kind,
                             metadata: result_recorded_audio_stream_x_run_event_metadata,
-                            payload: result_recorded_audio_stream_x_run_event_payload,
+                            stream: result_recorded_audio_stream_x_run_event_stream,
+                            status_flags: result_recorded_audio_stream_x_run_event_status_flags,
+                            xrun_count_delta: result_recorded_audio_stream_x_run_event_xrun_count_delta,
+                            device_id: result_recorded_audio_stream_x_run_event_device_id,
                         };
                         AudioeventReplayRecord::AudioStreamXRunEvent(result_recorded_audio_stream_x_run_event)
                     }
@@ -8177,19 +7810,16 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_backend_disconnected_event_metadata_backend,
                                 flags: value_native_audio_backend_disconnected_event_metadata_flags,
                             };
-                            let value_native_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_backend_disconnected_event_payload_stream_inner = value;
-                                Some(value_native_audio_backend_disconnected_event_payload_stream_inner)
+                            let value_native_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_backend_disconnected_event_stream_inner = value;
+                                Some(value_native_audio_backend_disconnected_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                                stream: value_native_audio_backend_disconnected_event_payload_stream,
                             };
                             let value_native_audio_backend_disconnected_event = AudioBackendDisconnectedEvent {
                                 kind: value_native_audio_backend_disconnected_event_kind,
                                 metadata: value_native_audio_backend_disconnected_event_metadata,
-                                payload: value_native_audio_backend_disconnected_event_payload,
+                                stream: value_native_audio_backend_disconnected_event_stream,
                             };
                             AudioEvent::AudioBackendDisconnectedEvent(value_native_audio_backend_disconnected_event)
                         }
@@ -8209,19 +7839,16 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_backend_reset_event_metadata_backend,
                                 flags: value_native_audio_backend_reset_event_metadata_flags,
                             };
-                            let value_native_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_backend_reset_event_payload_stream_inner = value;
-                                Some(value_native_audio_backend_reset_event_payload_stream_inner)
+                            let value_native_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_backend_reset_event_stream_inner = value;
+                                Some(value_native_audio_backend_reset_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                                stream: value_native_audio_backend_reset_event_payload_stream,
                             };
                             let value_native_audio_backend_reset_event = AudioBackendResetEvent {
                                 kind: value_native_audio_backend_reset_event_kind,
                                 metadata: value_native_audio_backend_reset_event_metadata,
-                                payload: value_native_audio_backend_reset_event_payload,
+                                stream: value_native_audio_backend_reset_event_stream,
                             };
                             AudioEvent::AudioBackendResetEvent(value_native_audio_backend_reset_event)
                         }
@@ -8241,19 +7868,16 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_default_capture_changed_event_metadata_backend,
                                 flags: value_native_audio_default_capture_changed_event_metadata_flags,
                             };
-                            let value_native_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_default_capture_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_default_capture_changed_event_payload_device_id_inner)
+                            let value_native_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_default_capture_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_default_capture_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayload {
-                                device_id: value_native_audio_default_capture_changed_event_payload_device_id,
                             };
                             let value_native_audio_default_capture_changed_event = AudioDefaultCaptureChangedEvent {
                                 kind: value_native_audio_default_capture_changed_event_kind,
                                 metadata: value_native_audio_default_capture_changed_event_metadata,
-                                payload: value_native_audio_default_capture_changed_event_payload,
+                                device_id: value_native_audio_default_capture_changed_event_device_id,
                             };
                             AudioEvent::AudioDefaultCaptureChangedEvent(value_native_audio_default_capture_changed_event)
                         }
@@ -8273,19 +7897,16 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_default_loopback_changed_event_metadata_backend,
                                 flags: value_native_audio_default_loopback_changed_event_metadata_flags,
                             };
-                            let value_native_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_default_loopback_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_default_loopback_changed_event_payload_device_id_inner)
+                            let value_native_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_default_loopback_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_default_loopback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayload {
-                                device_id: value_native_audio_default_loopback_changed_event_payload_device_id,
                             };
                             let value_native_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEvent {
                                 kind: value_native_audio_default_loopback_changed_event_kind,
                                 metadata: value_native_audio_default_loopback_changed_event_metadata,
-                                payload: value_native_audio_default_loopback_changed_event_payload,
+                                device_id: value_native_audio_default_loopback_changed_event_device_id,
                             };
                             AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_audio_default_loopback_changed_event)
                         }
@@ -8305,19 +7926,16 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_default_playback_changed_event_metadata_backend,
                                 flags: value_native_audio_default_playback_changed_event_metadata_flags,
                             };
-                            let value_native_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_default_playback_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_default_playback_changed_event_payload_device_id_inner)
+                            let value_native_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_default_playback_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_default_playback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayload {
-                                device_id: value_native_audio_default_playback_changed_event_payload_device_id,
                             };
                             let value_native_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEvent {
                                 kind: value_native_audio_default_playback_changed_event_kind,
                                 metadata: value_native_audio_default_playback_changed_event_metadata,
-                                payload: value_native_audio_default_playback_changed_event_payload,
+                                device_id: value_native_audio_default_playback_changed_event_device_id,
                             };
                             AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_audio_default_playback_changed_event)
                         }
@@ -8337,19 +7955,16 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_device_added_event_metadata_backend,
                                 flags: value_native_audio_device_added_event_metadata_flags,
                             };
-                            let value_native_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_added_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_device_added_event_payload_device_id_inner)
+                            let value_native_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_device_added_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_device_added_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_device_added_event_payload = AudioDeviceAddedPayload {
-                                device_id: value_native_audio_device_added_event_payload_device_id,
                             };
                             let value_native_audio_device_added_event = AudioDeviceAddedEvent {
                                 kind: value_native_audio_device_added_event_kind,
                                 metadata: value_native_audio_device_added_event_metadata,
-                                payload: value_native_audio_device_added_event_payload,
+                                device_id: value_native_audio_device_added_event_device_id,
                             };
                             AudioEvent::AudioDeviceAddedEvent(value_native_audio_device_added_event)
                         }
@@ -8369,19 +7984,16 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_device_format_changed_event_metadata_backend,
                                 flags: value_native_audio_device_format_changed_event_metadata_flags,
                             };
-                            let value_native_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_format_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_device_format_changed_event_payload_device_id_inner)
+                            let value_native_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_device_format_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_device_format_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayload {
-                                device_id: value_native_audio_device_format_changed_event_payload_device_id,
                             };
                             let value_native_audio_device_format_changed_event = AudioDeviceFormatChangedEvent {
                                 kind: value_native_audio_device_format_changed_event_kind,
                                 metadata: value_native_audio_device_format_changed_event_metadata,
-                                payload: value_native_audio_device_format_changed_event_payload,
+                                device_id: value_native_audio_device_format_changed_event_device_id,
                             };
                             AudioEvent::AudioDeviceFormatChangedEvent(value_native_audio_device_format_changed_event)
                         }
@@ -8401,19 +8013,16 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_device_removed_event_metadata_backend,
                                 flags: value_native_audio_device_removed_event_metadata_flags,
                             };
-                            let value_native_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_removed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_device_removed_event_payload_device_id_inner)
+                            let value_native_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_device_removed_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_device_removed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_device_removed_event_payload = AudioDeviceRemovedPayload {
-                                device_id: value_native_audio_device_removed_event_payload_device_id,
                             };
                             let value_native_audio_device_removed_event = AudioDeviceRemovedEvent {
                                 kind: value_native_audio_device_removed_event_kind,
                                 metadata: value_native_audio_device_removed_event_metadata,
-                                payload: value_native_audio_device_removed_event_payload,
+                                device_id: value_native_audio_device_removed_event_device_id,
                             };
                             AudioEvent::AudioDeviceRemovedEvent(value_native_audio_device_removed_event)
                         }
@@ -8433,19 +8042,16 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_device_rerouted_event_metadata_backend,
                                 flags: value_native_audio_device_rerouted_event_metadata_flags,
                             };
-                            let value_native_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_device_rerouted_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_device_rerouted_event_payload_device_id_inner)
+                            let value_native_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_device_rerouted_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_device_rerouted_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_device_rerouted_event_payload = AudioDeviceReroutedPayload {
-                                device_id: value_native_audio_device_rerouted_event_payload_device_id,
                             };
                             let value_native_audio_device_rerouted_event = AudioDeviceReroutedEvent {
                                 kind: value_native_audio_device_rerouted_event_kind,
                                 metadata: value_native_audio_device_rerouted_event_metadata,
-                                payload: value_native_audio_device_rerouted_event_payload,
+                                device_id: value_native_audio_device_rerouted_event_device_id,
                             };
                             AudioEvent::AudioDeviceReroutedEvent(value_native_audio_device_rerouted_event)
                         }
@@ -8465,19 +8071,16 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_interruption_began_event_metadata_backend,
                                 flags: value_native_audio_interruption_began_event_metadata_flags,
                             };
-                            let value_native_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_interruption_began_event_payload_stream_inner = value;
-                                Some(value_native_audio_interruption_began_event_payload_stream_inner)
+                            let value_native_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_interruption_began_event_stream_inner = value;
+                                Some(value_native_audio_interruption_began_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                                stream: value_native_audio_interruption_began_event_payload_stream,
                             };
                             let value_native_audio_interruption_began_event = AudioInterruptionBeganEvent {
                                 kind: value_native_audio_interruption_began_event_kind,
                                 metadata: value_native_audio_interruption_began_event_metadata,
-                                payload: value_native_audio_interruption_began_event_payload,
+                                stream: value_native_audio_interruption_began_event_stream,
                             };
                             AudioEvent::AudioInterruptionBeganEvent(value_native_audio_interruption_began_event)
                         }
@@ -8497,19 +8100,16 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_interruption_ended_event_metadata_backend,
                                 flags: value_native_audio_interruption_ended_event_metadata_flags,
                             };
-                            let value_native_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_interruption_ended_event_payload_stream_inner = value;
-                                Some(value_native_audio_interruption_ended_event_payload_stream_inner)
+                            let value_native_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_interruption_ended_event_stream_inner = value;
+                                Some(value_native_audio_interruption_ended_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                                stream: value_native_audio_interruption_ended_event_payload_stream,
                             };
                             let value_native_audio_interruption_ended_event = AudioInterruptionEndedEvent {
                                 kind: value_native_audio_interruption_ended_event_kind,
                                 metadata: value_native_audio_interruption_ended_event_metadata,
-                                payload: value_native_audio_interruption_ended_event_payload,
+                                stream: value_native_audio_interruption_ended_event_stream,
                             };
                             AudioEvent::AudioInterruptionEndedEvent(value_native_audio_interruption_ended_event)
                         }
@@ -8529,28 +8129,25 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_stream_device_changed_event_metadata_backend,
                                 flags: value_native_audio_stream_device_changed_event_metadata_flags,
                             };
-                            let value_native_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_stream_device_changed_event_payload_stream_inner = value;
-                                Some(value_native_audio_stream_device_changed_event_payload_stream_inner)
+                            let value_native_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_stream_device_changed_event_stream_inner = value;
+                                Some(value_native_audio_stream_device_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let value_native_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                            let value_native_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_stream_device_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_stream_device_changed_event_payload_device_id_inner)
+                            let value_native_audio_stream_device_changed_event_status_flags = value.status_flags;
+                            let value_native_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_stream_device_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_stream_device_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayload {
-                                stream: value_native_audio_stream_device_changed_event_payload_stream,
-                                status_flags: value_native_audio_stream_device_changed_event_payload_status_flags,
-                                device_id: value_native_audio_stream_device_changed_event_payload_device_id,
                             };
                             let value_native_audio_stream_device_changed_event = AudioStreamDeviceChangedEvent {
                                 kind: value_native_audio_stream_device_changed_event_kind,
                                 metadata: value_native_audio_stream_device_changed_event_metadata,
-                                payload: value_native_audio_stream_device_changed_event_payload,
+                                stream: value_native_audio_stream_device_changed_event_stream,
+                                status_flags: value_native_audio_stream_device_changed_event_status_flags,
+                                device_id: value_native_audio_stream_device_changed_event_device_id,
                             };
                             AudioEvent::AudioStreamDeviceChangedEvent(value_native_audio_stream_device_changed_event)
                         }
@@ -8570,21 +8167,18 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_stream_state_changed_event_metadata_backend,
                                 flags: value_native_audio_stream_state_changed_event_metadata_flags,
                             };
-                            let value_native_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_stream_state_changed_event_payload_stream_inner = value;
-                                Some(value_native_audio_stream_state_changed_event_payload_stream_inner)
+                            let value_native_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_stream_state_changed_event_stream_inner = value;
+                                Some(value_native_audio_stream_state_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let value_native_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                            let value_native_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                                stream: value_native_audio_stream_state_changed_event_payload_stream,
-                                status_flags: value_native_audio_stream_state_changed_event_payload_status_flags,
-                            };
+                            let value_native_audio_stream_state_changed_event_status_flags = value.status_flags;
                             let value_native_audio_stream_state_changed_event = AudioStreamStateChangedEvent {
                                 kind: value_native_audio_stream_state_changed_event_kind,
                                 metadata: value_native_audio_stream_state_changed_event_metadata,
-                                payload: value_native_audio_stream_state_changed_event_payload,
+                                stream: value_native_audio_stream_state_changed_event_stream,
+                                status_flags: value_native_audio_stream_state_changed_event_status_flags,
                             };
                             AudioEvent::AudioStreamStateChangedEvent(value_native_audio_stream_state_changed_event)
                         }
@@ -8604,30 +8198,27 @@ fn destack_audio_event_try_read_replay(
                                 backend: value_native_audio_stream_x_run_event_metadata_backend,
                                 flags: value_native_audio_stream_x_run_event_metadata_flags,
                             };
-                            let value_native_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let value_native_audio_stream_x_run_event_payload_stream_inner = value;
-                                Some(value_native_audio_stream_x_run_event_payload_stream_inner)
+                            let value_native_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                let value_native_audio_stream_x_run_event_stream_inner = value;
+                                Some(value_native_audio_stream_x_run_event_stream_inner)
                             } else {
                                 None
                             };
-                            let value_native_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                            let value_native_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                            let value_native_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let value_native_audio_stream_x_run_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                Some(value_native_audio_stream_x_run_event_payload_device_id_inner)
+                            let value_native_audio_stream_x_run_event_status_flags = value.status_flags;
+                            let value_native_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                            let value_native_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                let value_native_audio_stream_x_run_event_device_id_inner = binding.store_string(value.as_str());
+                                Some(value_native_audio_stream_x_run_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let value_native_audio_stream_x_run_event_payload = AudioStreamXRunPayload {
-                                stream: value_native_audio_stream_x_run_event_payload_stream,
-                                status_flags: value_native_audio_stream_x_run_event_payload_status_flags,
-                                xrun_count_delta: value_native_audio_stream_x_run_event_payload_xrun_count_delta,
-                                device_id: value_native_audio_stream_x_run_event_payload_device_id,
                             };
                             let value_native_audio_stream_x_run_event = AudioStreamXRunEvent {
                                 kind: value_native_audio_stream_x_run_event_kind,
                                 metadata: value_native_audio_stream_x_run_event_metadata,
-                                payload: value_native_audio_stream_x_run_event_payload,
+                                stream: value_native_audio_stream_x_run_event_stream,
+                                status_flags: value_native_audio_stream_x_run_event_status_flags,
+                                xrun_count_delta: value_native_audio_stream_x_run_event_xrun_count_delta,
+                                device_id: value_native_audio_stream_x_run_event_device_id,
                             };
                             AudioEvent::AudioStreamXRunEvent(value_native_audio_stream_x_run_event)
                         }
@@ -8680,19 +8271,16 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_backend_disconnected_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_disconnected_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                                stream: result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_backend_disconnected_event = AudiobackenddisconnectedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_backend_disconnected_event_kind,
                                 metadata: result_recorded_item_recorded_audio_backend_disconnected_event_metadata,
-                                payload: result_recorded_item_recorded_audio_backend_disconnected_event_payload,
+                                stream: result_recorded_item_recorded_audio_backend_disconnected_event_stream,
                             };
                             AudioeventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_item_recorded_audio_backend_disconnected_event)
                         }
@@ -8712,19 +8300,16 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_backend_reset_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_backend_reset_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_backend_reset_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_reset_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                                stream: result_recorded_item_recorded_audio_backend_reset_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_backend_reset_event = AudiobackendreseteventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_backend_reset_event_kind,
                                 metadata: result_recorded_item_recorded_audio_backend_reset_event_metadata,
-                                payload: result_recorded_item_recorded_audio_backend_reset_event_payload,
+                                stream: result_recorded_item_recorded_audio_backend_reset_event_stream,
                             };
                             AudioeventReplayRecord::AudioBackendResetEvent(result_recorded_item_recorded_audio_backend_reset_event)
                         }
@@ -8744,19 +8329,16 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_default_capture_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_default_capture_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload = AudiodefaultcapturechangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_default_capture_changed_event = AudiodefaultcapturechangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_default_capture_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_default_capture_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_default_capture_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_default_capture_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_item_recorded_audio_default_capture_changed_event)
                         }
@@ -8776,19 +8358,16 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_default_loopback_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_default_loopback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload = AudiodefaultloopbackchangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_default_loopback_changed_event = AudiodefaultloopbackchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_default_loopback_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_default_loopback_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_default_loopback_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_item_recorded_audio_default_loopback_changed_event)
                         }
@@ -8808,19 +8387,16 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_default_playback_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_default_playback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload = AudiodefaultplaybackchangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_default_playback_changed_event = AudiodefaultplaybackchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_default_playback_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_default_playback_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_default_playback_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_default_playback_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_item_recorded_audio_default_playback_changed_event)
                         }
@@ -8840,19 +8416,16 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_device_added_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_added_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_added_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_added_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_added_event_payload = AudiodeviceaddedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_added_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_added_event = AudiodeviceaddedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_added_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_added_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_added_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_added_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceAddedEvent(result_recorded_item_recorded_audio_device_added_event)
                         }
@@ -8872,19 +8445,16 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_device_format_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_format_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_format_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_format_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_format_changed_event_payload = AudiodeviceformatchangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_format_changed_event = AudiodeviceformatchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_format_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_format_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_format_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_format_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_item_recorded_audio_device_format_changed_event)
                         }
@@ -8904,19 +8474,16 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_device_removed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_removed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_removed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_removed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_removed_event_payload = AudiodeviceremovedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_removed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_removed_event = AudiodeviceremovedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_removed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_removed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_removed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_removed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceRemovedEvent(result_recorded_item_recorded_audio_device_removed_event)
                         }
@@ -8936,19 +8503,16 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_device_rerouted_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_rerouted_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_rerouted_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_rerouted_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_rerouted_event_payload = AudiodevicereroutedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_rerouted_event = AudiodevicereroutedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_rerouted_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_rerouted_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_rerouted_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_rerouted_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceReroutedEvent(result_recorded_item_recorded_audio_device_rerouted_event)
                         }
@@ -8968,19 +8532,16 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_interruption_began_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_interruption_began_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_interruption_began_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_began_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                                stream: result_recorded_item_recorded_audio_interruption_began_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_interruption_began_event = AudiointerruptionbeganeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_interruption_began_event_kind,
                                 metadata: result_recorded_item_recorded_audio_interruption_began_event_metadata,
-                                payload: result_recorded_item_recorded_audio_interruption_began_event_payload,
+                                stream: result_recorded_item_recorded_audio_interruption_began_event_stream,
                             };
                             AudioeventReplayRecord::AudioInterruptionBeganEvent(result_recorded_item_recorded_audio_interruption_began_event)
                         }
@@ -9000,19 +8561,16 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_interruption_ended_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_interruption_ended_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_interruption_ended_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_ended_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                                stream: result_recorded_item_recorded_audio_interruption_ended_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_interruption_ended_event = AudiointerruptionendedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_interruption_ended_event_kind,
                                 metadata: result_recorded_item_recorded_audio_interruption_ended_event_metadata,
-                                payload: result_recorded_item_recorded_audio_interruption_ended_event_payload,
+                                stream: result_recorded_item_recorded_audio_interruption_ended_event_stream,
                             };
                             AudioeventReplayRecord::AudioInterruptionEndedEvent(result_recorded_item_recorded_audio_interruption_ended_event)
                         }
@@ -9032,28 +8590,25 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_status_flags = value.status_flags;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload = AudiostreamdevicechangedpayloadReplayRecord {
-                                stream: result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream,
-                                status_flags: result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags,
-                                device_id: result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_stream_device_changed_event = AudiostreamdevicechangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_stream_device_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_stream_device_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_stream_device_changed_event_payload,
+                                stream: result_recorded_item_recorded_audio_stream_device_changed_event_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_device_changed_event_status_flags,
+                                device_id: result_recorded_item_recorded_audio_stream_device_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_item_recorded_audio_stream_device_changed_event)
                         }
@@ -9073,21 +8628,18 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_stream_state_changed_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_state_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                                stream: result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream,
-                                status_flags: result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags,
-                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_status_flags = value.status_flags;
                             let result_recorded_item_recorded_audio_stream_state_changed_event = AudiostreamstatechangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_stream_state_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_stream_state_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_stream_state_changed_event_payload,
+                                stream: result_recorded_item_recorded_audio_stream_state_changed_event_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_state_changed_event_status_flags,
                             };
                             AudioeventReplayRecord::AudioStreamStateChangedEvent(result_recorded_item_recorded_audio_stream_state_changed_event)
                         }
@@ -9107,30 +8659,27 @@ fn destack_audio_event_try_read_batch_replay(
                                 backend: result_recorded_item_recorded_audio_stream_x_run_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_stream_x_run_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_stream_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
-                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                            let result_recorded_item_recorded_audio_stream_x_run_event_status_flags = value.status_flags;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload = AudiostreamxrunpayloadReplayRecord {
-                                stream: result_recorded_item_recorded_audio_stream_x_run_event_payload_stream,
-                                status_flags: result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags,
-                                xrun_count_delta: result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
-                                device_id: result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_stream_x_run_event = AudiostreamxruneventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_stream_x_run_event_kind,
                                 metadata: result_recorded_item_recorded_audio_stream_x_run_event_metadata,
-                                payload: result_recorded_item_recorded_audio_stream_x_run_event_payload,
+                                stream: result_recorded_item_recorded_audio_stream_x_run_event_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_x_run_event_status_flags,
+                                xrun_count_delta: result_recorded_item_recorded_audio_stream_x_run_event_xrun_count_delta,
+                                device_id: result_recorded_item_recorded_audio_stream_x_run_event_device_id,
                             };
                             AudioeventReplayRecord::AudioStreamXRunEvent(result_recorded_item_recorded_audio_stream_x_run_event)
                         }
@@ -9178,19 +8727,16 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_backend_disconnected_event_metadata_backend,
                                     flags: value_native_decoded_audio_backend_disconnected_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_backend_disconnected_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_backend_disconnected_event_payload_stream_inner)
+                                let value_native_decoded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_backend_disconnected_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_backend_disconnected_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                                    stream: value_native_decoded_audio_backend_disconnected_event_payload_stream,
                                 };
                                 let value_native_decoded_audio_backend_disconnected_event = AudioBackendDisconnectedEvent {
                                     kind: value_native_decoded_audio_backend_disconnected_event_kind,
                                     metadata: value_native_decoded_audio_backend_disconnected_event_metadata,
-                                    payload: value_native_decoded_audio_backend_disconnected_event_payload,
+                                    stream: value_native_decoded_audio_backend_disconnected_event_stream,
                                 };
                                 AudioEvent::AudioBackendDisconnectedEvent(value_native_decoded_audio_backend_disconnected_event)
                             }
@@ -9210,19 +8756,16 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_backend_reset_event_metadata_backend,
                                     flags: value_native_decoded_audio_backend_reset_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_backend_reset_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_backend_reset_event_payload_stream_inner)
+                                let value_native_decoded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_backend_reset_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_backend_reset_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                                    stream: value_native_decoded_audio_backend_reset_event_payload_stream,
                                 };
                                 let value_native_decoded_audio_backend_reset_event = AudioBackendResetEvent {
                                     kind: value_native_decoded_audio_backend_reset_event_kind,
                                     metadata: value_native_decoded_audio_backend_reset_event_metadata,
-                                    payload: value_native_decoded_audio_backend_reset_event_payload,
+                                    stream: value_native_decoded_audio_backend_reset_event_stream,
                                 };
                                 AudioEvent::AudioBackendResetEvent(value_native_decoded_audio_backend_reset_event)
                             }
@@ -9242,19 +8785,16 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_default_capture_changed_event_metadata_backend,
                                     flags: value_native_decoded_audio_default_capture_changed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_default_capture_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_default_capture_changed_event_payload_device_id_inner)
+                                let value_native_decoded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_default_capture_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_default_capture_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayload {
-                                    device_id: value_native_decoded_audio_default_capture_changed_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEvent {
                                     kind: value_native_decoded_audio_default_capture_changed_event_kind,
                                     metadata: value_native_decoded_audio_default_capture_changed_event_metadata,
-                                    payload: value_native_decoded_audio_default_capture_changed_event_payload,
+                                    device_id: value_native_decoded_audio_default_capture_changed_event_device_id,
                                 };
                                 AudioEvent::AudioDefaultCaptureChangedEvent(value_native_decoded_audio_default_capture_changed_event)
                             }
@@ -9274,19 +8814,16 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_default_loopback_changed_event_metadata_backend,
                                     flags: value_native_decoded_audio_default_loopback_changed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_default_loopback_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_default_loopback_changed_event_payload_device_id_inner)
+                                let value_native_decoded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_default_loopback_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_default_loopback_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayload {
-                                    device_id: value_native_decoded_audio_default_loopback_changed_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEvent {
                                     kind: value_native_decoded_audio_default_loopback_changed_event_kind,
                                     metadata: value_native_decoded_audio_default_loopback_changed_event_metadata,
-                                    payload: value_native_decoded_audio_default_loopback_changed_event_payload,
+                                    device_id: value_native_decoded_audio_default_loopback_changed_event_device_id,
                                 };
                                 AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_decoded_audio_default_loopback_changed_event)
                             }
@@ -9306,19 +8843,16 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_default_playback_changed_event_metadata_backend,
                                     flags: value_native_decoded_audio_default_playback_changed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_default_playback_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_default_playback_changed_event_payload_device_id_inner)
+                                let value_native_decoded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_default_playback_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_default_playback_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayload {
-                                    device_id: value_native_decoded_audio_default_playback_changed_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEvent {
                                     kind: value_native_decoded_audio_default_playback_changed_event_kind,
                                     metadata: value_native_decoded_audio_default_playback_changed_event_metadata,
-                                    payload: value_native_decoded_audio_default_playback_changed_event_payload,
+                                    device_id: value_native_decoded_audio_default_playback_changed_event_device_id,
                                 };
                                 AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_decoded_audio_default_playback_changed_event)
                             }
@@ -9338,19 +8872,16 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_device_added_event_metadata_backend,
                                     flags: value_native_decoded_audio_device_added_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_device_added_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_added_event_payload_device_id_inner)
+                                let value_native_decoded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_device_added_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_device_added_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_device_added_event_payload = AudioDeviceAddedPayload {
-                                    device_id: value_native_decoded_audio_device_added_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_device_added_event = AudioDeviceAddedEvent {
                                     kind: value_native_decoded_audio_device_added_event_kind,
                                     metadata: value_native_decoded_audio_device_added_event_metadata,
-                                    payload: value_native_decoded_audio_device_added_event_payload,
+                                    device_id: value_native_decoded_audio_device_added_event_device_id,
                                 };
                                 AudioEvent::AudioDeviceAddedEvent(value_native_decoded_audio_device_added_event)
                             }
@@ -9370,19 +8901,16 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_device_format_changed_event_metadata_backend,
                                     flags: value_native_decoded_audio_device_format_changed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_device_format_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_format_changed_event_payload_device_id_inner)
+                                let value_native_decoded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_device_format_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_device_format_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayload {
-                                    device_id: value_native_decoded_audio_device_format_changed_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_device_format_changed_event = AudioDeviceFormatChangedEvent {
                                     kind: value_native_decoded_audio_device_format_changed_event_kind,
                                     metadata: value_native_decoded_audio_device_format_changed_event_metadata,
-                                    payload: value_native_decoded_audio_device_format_changed_event_payload,
+                                    device_id: value_native_decoded_audio_device_format_changed_event_device_id,
                                 };
                                 AudioEvent::AudioDeviceFormatChangedEvent(value_native_decoded_audio_device_format_changed_event)
                             }
@@ -9402,19 +8930,16 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_device_removed_event_metadata_backend,
                                     flags: value_native_decoded_audio_device_removed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_device_removed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_removed_event_payload_device_id_inner)
+                                let value_native_decoded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_device_removed_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_device_removed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_device_removed_event_payload = AudioDeviceRemovedPayload {
-                                    device_id: value_native_decoded_audio_device_removed_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_device_removed_event = AudioDeviceRemovedEvent {
                                     kind: value_native_decoded_audio_device_removed_event_kind,
                                     metadata: value_native_decoded_audio_device_removed_event_metadata,
-                                    payload: value_native_decoded_audio_device_removed_event_payload,
+                                    device_id: value_native_decoded_audio_device_removed_event_device_id,
                                 };
                                 AudioEvent::AudioDeviceRemovedEvent(value_native_decoded_audio_device_removed_event)
                             }
@@ -9434,19 +8959,16 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_device_rerouted_event_metadata_backend,
                                     flags: value_native_decoded_audio_device_rerouted_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_device_rerouted_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_device_rerouted_event_payload_device_id_inner)
+                                let value_native_decoded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_device_rerouted_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_device_rerouted_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_device_rerouted_event_payload = AudioDeviceReroutedPayload {
-                                    device_id: value_native_decoded_audio_device_rerouted_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_device_rerouted_event = AudioDeviceReroutedEvent {
                                     kind: value_native_decoded_audio_device_rerouted_event_kind,
                                     metadata: value_native_decoded_audio_device_rerouted_event_metadata,
-                                    payload: value_native_decoded_audio_device_rerouted_event_payload,
+                                    device_id: value_native_decoded_audio_device_rerouted_event_device_id,
                                 };
                                 AudioEvent::AudioDeviceReroutedEvent(value_native_decoded_audio_device_rerouted_event)
                             }
@@ -9466,19 +8988,16 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_interruption_began_event_metadata_backend,
                                     flags: value_native_decoded_audio_interruption_began_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_interruption_began_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_interruption_began_event_payload_stream_inner)
+                                let value_native_decoded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_interruption_began_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_interruption_began_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                                    stream: value_native_decoded_audio_interruption_began_event_payload_stream,
                                 };
                                 let value_native_decoded_audio_interruption_began_event = AudioInterruptionBeganEvent {
                                     kind: value_native_decoded_audio_interruption_began_event_kind,
                                     metadata: value_native_decoded_audio_interruption_began_event_metadata,
-                                    payload: value_native_decoded_audio_interruption_began_event_payload,
+                                    stream: value_native_decoded_audio_interruption_began_event_stream,
                                 };
                                 AudioEvent::AudioInterruptionBeganEvent(value_native_decoded_audio_interruption_began_event)
                             }
@@ -9498,19 +9017,16 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_interruption_ended_event_metadata_backend,
                                     flags: value_native_decoded_audio_interruption_ended_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_interruption_ended_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_interruption_ended_event_payload_stream_inner)
+                                let value_native_decoded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_interruption_ended_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_interruption_ended_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                                    stream: value_native_decoded_audio_interruption_ended_event_payload_stream,
                                 };
                                 let value_native_decoded_audio_interruption_ended_event = AudioInterruptionEndedEvent {
                                     kind: value_native_decoded_audio_interruption_ended_event_kind,
                                     metadata: value_native_decoded_audio_interruption_ended_event_metadata,
-                                    payload: value_native_decoded_audio_interruption_ended_event_payload,
+                                    stream: value_native_decoded_audio_interruption_ended_event_stream,
                                 };
                                 AudioEvent::AudioInterruptionEndedEvent(value_native_decoded_audio_interruption_ended_event)
                             }
@@ -9530,28 +9046,25 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_stream_device_changed_event_metadata_backend,
                                     flags: value_native_decoded_audio_stream_device_changed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_stream_device_changed_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_stream_device_changed_event_payload_stream_inner)
+                                let value_native_decoded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_stream_device_changed_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_stream_device_changed_event_stream_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                                let value_native_decoded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_stream_device_changed_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_stream_device_changed_event_payload_device_id_inner)
+                                let value_native_decoded_audio_stream_device_changed_event_status_flags = value.status_flags;
+                                let value_native_decoded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_stream_device_changed_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_stream_device_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayload {
-                                    stream: value_native_decoded_audio_stream_device_changed_event_payload_stream,
-                                    status_flags: value_native_decoded_audio_stream_device_changed_event_payload_status_flags,
-                                    device_id: value_native_decoded_audio_stream_device_changed_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_stream_device_changed_event = AudioStreamDeviceChangedEvent {
                                     kind: value_native_decoded_audio_stream_device_changed_event_kind,
                                     metadata: value_native_decoded_audio_stream_device_changed_event_metadata,
-                                    payload: value_native_decoded_audio_stream_device_changed_event_payload,
+                                    stream: value_native_decoded_audio_stream_device_changed_event_stream,
+                                    status_flags: value_native_decoded_audio_stream_device_changed_event_status_flags,
+                                    device_id: value_native_decoded_audio_stream_device_changed_event_device_id,
                                 };
                                 AudioEvent::AudioStreamDeviceChangedEvent(value_native_decoded_audio_stream_device_changed_event)
                             }
@@ -9571,21 +9084,18 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_stream_state_changed_event_metadata_backend,
                                     flags: value_native_decoded_audio_stream_state_changed_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_stream_state_changed_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_stream_state_changed_event_payload_stream_inner)
+                                let value_native_decoded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_stream_state_changed_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_stream_state_changed_event_stream_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                                let value_native_decoded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                                    stream: value_native_decoded_audio_stream_state_changed_event_payload_stream,
-                                    status_flags: value_native_decoded_audio_stream_state_changed_event_payload_status_flags,
-                                };
+                                let value_native_decoded_audio_stream_state_changed_event_status_flags = value.status_flags;
                                 let value_native_decoded_audio_stream_state_changed_event = AudioStreamStateChangedEvent {
                                     kind: value_native_decoded_audio_stream_state_changed_event_kind,
                                     metadata: value_native_decoded_audio_stream_state_changed_event_metadata,
-                                    payload: value_native_decoded_audio_stream_state_changed_event_payload,
+                                    stream: value_native_decoded_audio_stream_state_changed_event_stream,
+                                    status_flags: value_native_decoded_audio_stream_state_changed_event_status_flags,
                                 };
                                 AudioEvent::AudioStreamStateChangedEvent(value_native_decoded_audio_stream_state_changed_event)
                             }
@@ -9605,30 +9115,27 @@ fn destack_audio_event_try_read_batch_replay(
                                     backend: value_native_decoded_audio_stream_x_run_event_metadata_backend,
                                     flags: value_native_decoded_audio_stream_x_run_event_metadata_flags,
                                 };
-                                let value_native_decoded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let value_native_decoded_audio_stream_x_run_event_payload_stream_inner = value;
-                                    Some(value_native_decoded_audio_stream_x_run_event_payload_stream_inner)
+                                let value_native_decoded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                    let value_native_decoded_audio_stream_x_run_event_stream_inner = value;
+                                    Some(value_native_decoded_audio_stream_x_run_event_stream_inner)
                                 } else {
                                     None
                                 };
-                                let value_native_decoded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                                let value_native_decoded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                                let value_native_decoded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let value_native_decoded_audio_stream_x_run_event_payload_device_id_inner = binding.store_string(value.as_str());
-                                    Some(value_native_decoded_audio_stream_x_run_event_payload_device_id_inner)
+                                let value_native_decoded_audio_stream_x_run_event_status_flags = value.status_flags;
+                                let value_native_decoded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                                let value_native_decoded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                    let value_native_decoded_audio_stream_x_run_event_device_id_inner = binding.store_string(value.as_str());
+                                    Some(value_native_decoded_audio_stream_x_run_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let value_native_decoded_audio_stream_x_run_event_payload = AudioStreamXRunPayload {
-                                    stream: value_native_decoded_audio_stream_x_run_event_payload_stream,
-                                    status_flags: value_native_decoded_audio_stream_x_run_event_payload_status_flags,
-                                    xrun_count_delta: value_native_decoded_audio_stream_x_run_event_payload_xrun_count_delta,
-                                    device_id: value_native_decoded_audio_stream_x_run_event_payload_device_id,
                                 };
                                 let value_native_decoded_audio_stream_x_run_event = AudioStreamXRunEvent {
                                     kind: value_native_decoded_audio_stream_x_run_event_kind,
                                     metadata: value_native_decoded_audio_stream_x_run_event_metadata,
-                                    payload: value_native_decoded_audio_stream_x_run_event_payload,
+                                    stream: value_native_decoded_audio_stream_x_run_event_stream,
+                                    status_flags: value_native_decoded_audio_stream_x_run_event_status_flags,
+                                    xrun_count_delta: value_native_decoded_audio_stream_x_run_event_xrun_count_delta,
+                                    device_id: value_native_decoded_audio_stream_x_run_event_device_id,
                                 };
                                 AudioEvent::AudioStreamXRunEvent(value_native_decoded_audio_stream_x_run_event)
                             }
@@ -13767,19 +13274,16 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_backend_disconnected_event_metadata_backend,
                             flags: result_recorded_audio_backend_disconnected_event_metadata_flags,
                         };
-                        let result_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                        let result_recorded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_backend_disconnected_event_stream_inner = value;
+                            Some(result_recorded_audio_backend_disconnected_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                            stream: result_recorded_audio_backend_disconnected_event_payload_stream,
                         };
                         let result_recorded_audio_backend_disconnected_event = AudiobackenddisconnectedeventReplayRecord {
                             kind: result_recorded_audio_backend_disconnected_event_kind,
                             metadata: result_recorded_audio_backend_disconnected_event_metadata,
-                            payload: result_recorded_audio_backend_disconnected_event_payload,
+                            stream: result_recorded_audio_backend_disconnected_event_stream,
                         };
                         AudioeventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_audio_backend_disconnected_event)
                     }
@@ -13802,19 +13306,16 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_backend_reset_event_metadata_backend,
                             flags: result_recorded_audio_backend_reset_event_metadata_flags,
                         };
-                        let result_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_backend_reset_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_backend_reset_event_payload_stream_inner)
+                        let result_recorded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_backend_reset_event_stream_inner = value;
+                            Some(result_recorded_audio_backend_reset_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                            stream: result_recorded_audio_backend_reset_event_payload_stream,
                         };
                         let result_recorded_audio_backend_reset_event = AudiobackendreseteventReplayRecord {
                             kind: result_recorded_audio_backend_reset_event_kind,
                             metadata: result_recorded_audio_backend_reset_event_metadata,
-                            payload: result_recorded_audio_backend_reset_event_payload,
+                            stream: result_recorded_audio_backend_reset_event_stream,
                         };
                         AudioeventReplayRecord::AudioBackendResetEvent(result_recorded_audio_backend_reset_event)
                     }
@@ -13837,22 +13338,19 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_default_capture_changed_event_metadata_backend,
                             flags: result_recorded_audio_default_capture_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_default_capture_changed_event_payload_device_id_inner = {
-                                let result_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_default_capture_changed_event_device_id_inner = {
+                                let result_recorded_audio_default_capture_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_default_capture_changed_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                            Some(result_recorded_audio_default_capture_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_default_capture_changed_event_payload = AudiodefaultcapturechangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_default_capture_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_default_capture_changed_event = AudiodefaultcapturechangedeventReplayRecord {
                             kind: result_recorded_audio_default_capture_changed_event_kind,
                             metadata: result_recorded_audio_default_capture_changed_event_metadata,
-                            payload: result_recorded_audio_default_capture_changed_event_payload,
+                            device_id: result_recorded_audio_default_capture_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_audio_default_capture_changed_event)
                     }
@@ -13875,22 +13373,19 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_default_loopback_changed_event_metadata_backend,
                             flags: result_recorded_audio_default_loopback_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_default_loopback_changed_event_payload_device_id_inner = {
-                                let result_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_default_loopback_changed_event_device_id_inner = {
+                                let result_recorded_audio_default_loopback_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_default_loopback_changed_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                            Some(result_recorded_audio_default_loopback_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_default_loopback_changed_event_payload = AudiodefaultloopbackchangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_default_loopback_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_default_loopback_changed_event = AudiodefaultloopbackchangedeventReplayRecord {
                             kind: result_recorded_audio_default_loopback_changed_event_kind,
                             metadata: result_recorded_audio_default_loopback_changed_event_metadata,
-                            payload: result_recorded_audio_default_loopback_changed_event_payload,
+                            device_id: result_recorded_audio_default_loopback_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_audio_default_loopback_changed_event)
                     }
@@ -13913,22 +13408,19 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_default_playback_changed_event_metadata_backend,
                             flags: result_recorded_audio_default_playback_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_default_playback_changed_event_payload_device_id_inner = {
-                                let result_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_default_playback_changed_event_device_id_inner = {
+                                let result_recorded_audio_default_playback_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_default_playback_changed_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                            Some(result_recorded_audio_default_playback_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_default_playback_changed_event_payload = AudiodefaultplaybackchangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_default_playback_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_default_playback_changed_event = AudiodefaultplaybackchangedeventReplayRecord {
                             kind: result_recorded_audio_default_playback_changed_event_kind,
                             metadata: result_recorded_audio_default_playback_changed_event_metadata,
-                            payload: result_recorded_audio_default_playback_changed_event_payload,
+                            device_id: result_recorded_audio_default_playback_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_audio_default_playback_changed_event)
                     }
@@ -13951,22 +13443,19 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_device_added_event_metadata_backend,
                             flags: result_recorded_audio_device_added_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_added_event_payload_device_id_inner = {
-                                let result_recorded_audio_device_added_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_device_added_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_added_event_device_id_inner = {
+                                let result_recorded_audio_device_added_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_added_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_device_added_event_payload_device_id_inner)
+                            Some(result_recorded_audio_device_added_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_added_event_payload = AudiodeviceaddedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_added_event_payload_device_id,
                         };
                         let result_recorded_audio_device_added_event = AudiodeviceaddedeventReplayRecord {
                             kind: result_recorded_audio_device_added_event_kind,
                             metadata: result_recorded_audio_device_added_event_metadata,
-                            payload: result_recorded_audio_device_added_event_payload,
+                            device_id: result_recorded_audio_device_added_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceAddedEvent(result_recorded_audio_device_added_event)
                     }
@@ -13989,22 +13478,19 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_device_format_changed_event_metadata_backend,
                             flags: result_recorded_audio_device_format_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_format_changed_event_payload_device_id_inner = {
-                                let result_recorded_audio_device_format_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_device_format_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_format_changed_event_device_id_inner = {
+                                let result_recorded_audio_device_format_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_format_changed_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                            Some(result_recorded_audio_device_format_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_format_changed_event_payload = AudiodeviceformatchangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_format_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_device_format_changed_event = AudiodeviceformatchangedeventReplayRecord {
                             kind: result_recorded_audio_device_format_changed_event_kind,
                             metadata: result_recorded_audio_device_format_changed_event_metadata,
-                            payload: result_recorded_audio_device_format_changed_event_payload,
+                            device_id: result_recorded_audio_device_format_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_audio_device_format_changed_event)
                     }
@@ -14027,22 +13513,19 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_device_removed_event_metadata_backend,
                             flags: result_recorded_audio_device_removed_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_removed_event_payload_device_id_inner = {
-                                let result_recorded_audio_device_removed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_device_removed_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_removed_event_device_id_inner = {
+                                let result_recorded_audio_device_removed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_removed_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_device_removed_event_payload_device_id_inner)
+                            Some(result_recorded_audio_device_removed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_removed_event_payload = AudiodeviceremovedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_removed_event_payload_device_id,
                         };
                         let result_recorded_audio_device_removed_event = AudiodeviceremovedeventReplayRecord {
                             kind: result_recorded_audio_device_removed_event_kind,
                             metadata: result_recorded_audio_device_removed_event_metadata,
-                            payload: result_recorded_audio_device_removed_event_payload,
+                            device_id: result_recorded_audio_device_removed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceRemovedEvent(result_recorded_audio_device_removed_event)
                     }
@@ -14065,22 +13548,19 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_device_rerouted_event_metadata_backend,
                             flags: result_recorded_audio_device_rerouted_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_rerouted_event_payload_device_id_inner = {
-                                let result_recorded_audio_device_rerouted_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_device_rerouted_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_rerouted_event_device_id_inner = {
+                                let result_recorded_audio_device_rerouted_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_rerouted_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                            Some(result_recorded_audio_device_rerouted_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_rerouted_event_payload = AudiodevicereroutedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_rerouted_event_payload_device_id,
                         };
                         let result_recorded_audio_device_rerouted_event = AudiodevicereroutedeventReplayRecord {
                             kind: result_recorded_audio_device_rerouted_event_kind,
                             metadata: result_recorded_audio_device_rerouted_event_metadata,
-                            payload: result_recorded_audio_device_rerouted_event_payload,
+                            device_id: result_recorded_audio_device_rerouted_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceReroutedEvent(result_recorded_audio_device_rerouted_event)
                     }
@@ -14103,19 +13583,16 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_interruption_began_event_metadata_backend,
                             flags: result_recorded_audio_interruption_began_event_metadata_flags,
                         };
-                        let result_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_interruption_began_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_interruption_began_event_payload_stream_inner)
+                        let result_recorded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_interruption_began_event_stream_inner = value;
+                            Some(result_recorded_audio_interruption_began_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                            stream: result_recorded_audio_interruption_began_event_payload_stream,
                         };
                         let result_recorded_audio_interruption_began_event = AudiointerruptionbeganeventReplayRecord {
                             kind: result_recorded_audio_interruption_began_event_kind,
                             metadata: result_recorded_audio_interruption_began_event_metadata,
-                            payload: result_recorded_audio_interruption_began_event_payload,
+                            stream: result_recorded_audio_interruption_began_event_stream,
                         };
                         AudioeventReplayRecord::AudioInterruptionBeganEvent(result_recorded_audio_interruption_began_event)
                     }
@@ -14138,19 +13615,16 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_interruption_ended_event_metadata_backend,
                             flags: result_recorded_audio_interruption_ended_event_metadata_flags,
                         };
-                        let result_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_interruption_ended_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_interruption_ended_event_payload_stream_inner)
+                        let result_recorded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_interruption_ended_event_stream_inner = value;
+                            Some(result_recorded_audio_interruption_ended_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                            stream: result_recorded_audio_interruption_ended_event_payload_stream,
                         };
                         let result_recorded_audio_interruption_ended_event = AudiointerruptionendedeventReplayRecord {
                             kind: result_recorded_audio_interruption_ended_event_kind,
                             metadata: result_recorded_audio_interruption_ended_event_metadata,
-                            payload: result_recorded_audio_interruption_ended_event_payload,
+                            stream: result_recorded_audio_interruption_ended_event_stream,
                         };
                         AudioeventReplayRecord::AudioInterruptionEndedEvent(result_recorded_audio_interruption_ended_event)
                     }
@@ -14173,31 +13647,28 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_stream_device_changed_event_metadata_backend,
                             flags: result_recorded_audio_stream_device_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                        let result_recorded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_stream_device_changed_event_stream_inner = value;
+                            Some(result_recorded_audio_stream_device_changed_event_stream_inner)
                         } else {
                             None
                         };
-                        let result_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                        let result_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_stream_device_changed_event_payload_device_id_inner = {
-                                let result_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_stream_device_changed_event_status_flags = value.status_flags;
+                        let result_recorded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_stream_device_changed_event_device_id_inner = {
+                                let result_recorded_audio_stream_device_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_stream_device_changed_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                            Some(result_recorded_audio_stream_device_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_stream_device_changed_event_payload = AudiostreamdevicechangedpayloadReplayRecord {
-                            stream: result_recorded_audio_stream_device_changed_event_payload_stream,
-                            status_flags: result_recorded_audio_stream_device_changed_event_payload_status_flags,
-                            device_id: result_recorded_audio_stream_device_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_stream_device_changed_event = AudiostreamdevicechangedeventReplayRecord {
                             kind: result_recorded_audio_stream_device_changed_event_kind,
                             metadata: result_recorded_audio_stream_device_changed_event_metadata,
-                            payload: result_recorded_audio_stream_device_changed_event_payload,
+                            stream: result_recorded_audio_stream_device_changed_event_stream,
+                            status_flags: result_recorded_audio_stream_device_changed_event_status_flags,
+                            device_id: result_recorded_audio_stream_device_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_audio_stream_device_changed_event)
                     }
@@ -14220,21 +13691,18 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_stream_state_changed_event_metadata_backend,
                             flags: result_recorded_audio_stream_state_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                        let result_recorded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_stream_state_changed_event_stream_inner = value;
+                            Some(result_recorded_audio_stream_state_changed_event_stream_inner)
                         } else {
                             None
                         };
-                        let result_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                        let result_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                            stream: result_recorded_audio_stream_state_changed_event_payload_stream,
-                            status_flags: result_recorded_audio_stream_state_changed_event_payload_status_flags,
-                        };
+                        let result_recorded_audio_stream_state_changed_event_status_flags = value.status_flags;
                         let result_recorded_audio_stream_state_changed_event = AudiostreamstatechangedeventReplayRecord {
                             kind: result_recorded_audio_stream_state_changed_event_kind,
                             metadata: result_recorded_audio_stream_state_changed_event_metadata,
-                            payload: result_recorded_audio_stream_state_changed_event_payload,
+                            stream: result_recorded_audio_stream_state_changed_event_stream,
+                            status_flags: result_recorded_audio_stream_state_changed_event_status_flags,
                         };
                         AudioeventReplayRecord::AudioStreamStateChangedEvent(result_recorded_audio_stream_state_changed_event)
                     }
@@ -14257,33 +13725,30 @@ fn destack_audio_event_read_vm_replay(
                             backend: result_recorded_audio_stream_x_run_event_metadata_backend,
                             flags: result_recorded_audio_stream_x_run_event_metadata_flags,
                         };
-                        let result_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_stream_x_run_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_stream_x_run_event_payload_stream_inner)
+                        let result_recorded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_stream_x_run_event_stream_inner = value;
+                            Some(result_recorded_audio_stream_x_run_event_stream_inner)
                         } else {
                             None
                         };
-                        let result_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                        let result_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                        let result_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_stream_x_run_event_payload_device_id_inner = {
-                                let result_recorded_audio_stream_x_run_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_stream_x_run_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_stream_x_run_event_status_flags = value.status_flags;
+                        let result_recorded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                        let result_recorded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_stream_x_run_event_device_id_inner = {
+                                let result_recorded_audio_stream_x_run_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_stream_x_run_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                            Some(result_recorded_audio_stream_x_run_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_stream_x_run_event_payload = AudiostreamxrunpayloadReplayRecord {
-                            stream: result_recorded_audio_stream_x_run_event_payload_stream,
-                            status_flags: result_recorded_audio_stream_x_run_event_payload_status_flags,
-                            xrun_count_delta: result_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
-                            device_id: result_recorded_audio_stream_x_run_event_payload_device_id,
                         };
                         let result_recorded_audio_stream_x_run_event = AudiostreamxruneventReplayRecord {
                             kind: result_recorded_audio_stream_x_run_event_kind,
                             metadata: result_recorded_audio_stream_x_run_event_metadata,
-                            payload: result_recorded_audio_stream_x_run_event_payload,
+                            stream: result_recorded_audio_stream_x_run_event_stream,
+                            status_flags: result_recorded_audio_stream_x_run_event_status_flags,
+                            xrun_count_delta: result_recorded_audio_stream_x_run_event_xrun_count_delta,
+                            device_id: result_recorded_audio_stream_x_run_event_device_id,
                         };
                         AudioeventReplayRecord::AudioStreamXRunEvent(result_recorded_audio_stream_x_run_event)
                     }
@@ -14328,19 +13793,16 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_backend_disconnected_event_metadata_backend,
                                 flags: vm_result_audio_backend_disconnected_event_metadata_flags,
                             };
-                            let vm_result_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_backend_disconnected_event_payload_stream_inner = value;
-                                Some(vm_result_audio_backend_disconnected_event_payload_stream_inner)
+                            let vm_result_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_backend_disconnected_event_stream_inner = value;
+                                Some(vm_result_audio_backend_disconnected_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                                stream: vm_result_audio_backend_disconnected_event_payload_stream,
                             };
                             let vm_result_audio_backend_disconnected_event = AudioBackendDisconnectedEventVm {
                                 kind: vm_result_audio_backend_disconnected_event_kind,
                                 metadata: vm_result_audio_backend_disconnected_event_metadata,
-                                payload: vm_result_audio_backend_disconnected_event_payload,
+                                stream: vm_result_audio_backend_disconnected_event_stream,
                             };
                             AudioEventVm::AudioBackendDisconnectedEvent(vm_result_audio_backend_disconnected_event)
                         }
@@ -14360,19 +13822,16 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_backend_reset_event_metadata_backend,
                                 flags: vm_result_audio_backend_reset_event_metadata_flags,
                             };
-                            let vm_result_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_backend_reset_event_payload_stream_inner = value;
-                                Some(vm_result_audio_backend_reset_event_payload_stream_inner)
+                            let vm_result_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_backend_reset_event_stream_inner = value;
+                                Some(vm_result_audio_backend_reset_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                                stream: vm_result_audio_backend_reset_event_payload_stream,
                             };
                             let vm_result_audio_backend_reset_event = AudioBackendResetEventVm {
                                 kind: vm_result_audio_backend_reset_event_kind,
                                 metadata: vm_result_audio_backend_reset_event_metadata,
-                                payload: vm_result_audio_backend_reset_event_payload,
+                                stream: vm_result_audio_backend_reset_event_stream,
                             };
                             AudioEventVm::AudioBackendResetEvent(vm_result_audio_backend_reset_event)
                         }
@@ -14392,19 +13851,16 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_default_capture_changed_event_metadata_backend,
                                 flags: vm_result_audio_default_capture_changed_event_metadata_flags,
                             };
-                            let vm_result_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_default_capture_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_default_capture_changed_event_payload_device_id_inner)
+                            let vm_result_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_default_capture_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_default_capture_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadVm {
-                                device_id: vm_result_audio_default_capture_changed_event_payload_device_id,
                             };
                             let vm_result_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventVm {
                                 kind: vm_result_audio_default_capture_changed_event_kind,
                                 metadata: vm_result_audio_default_capture_changed_event_metadata,
-                                payload: vm_result_audio_default_capture_changed_event_payload,
+                                device_id: vm_result_audio_default_capture_changed_event_device_id,
                             };
                             AudioEventVm::AudioDefaultCaptureChangedEvent(vm_result_audio_default_capture_changed_event)
                         }
@@ -14424,19 +13880,16 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_default_loopback_changed_event_metadata_backend,
                                 flags: vm_result_audio_default_loopback_changed_event_metadata_flags,
                             };
-                            let vm_result_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_default_loopback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_default_loopback_changed_event_payload_device_id_inner)
+                            let vm_result_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_default_loopback_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_default_loopback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadVm {
-                                device_id: vm_result_audio_default_loopback_changed_event_payload_device_id,
                             };
                             let vm_result_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventVm {
                                 kind: vm_result_audio_default_loopback_changed_event_kind,
                                 metadata: vm_result_audio_default_loopback_changed_event_metadata,
-                                payload: vm_result_audio_default_loopback_changed_event_payload,
+                                device_id: vm_result_audio_default_loopback_changed_event_device_id,
                             };
                             AudioEventVm::AudioDefaultLoopbackChangedEvent(vm_result_audio_default_loopback_changed_event)
                         }
@@ -14456,19 +13909,16 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_default_playback_changed_event_metadata_backend,
                                 flags: vm_result_audio_default_playback_changed_event_metadata_flags,
                             };
-                            let vm_result_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_default_playback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_default_playback_changed_event_payload_device_id_inner)
+                            let vm_result_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_default_playback_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_default_playback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadVm {
-                                device_id: vm_result_audio_default_playback_changed_event_payload_device_id,
                             };
                             let vm_result_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventVm {
                                 kind: vm_result_audio_default_playback_changed_event_kind,
                                 metadata: vm_result_audio_default_playback_changed_event_metadata,
-                                payload: vm_result_audio_default_playback_changed_event_payload,
+                                device_id: vm_result_audio_default_playback_changed_event_device_id,
                             };
                             AudioEventVm::AudioDefaultPlaybackChangedEvent(vm_result_audio_default_playback_changed_event)
                         }
@@ -14488,19 +13938,16 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_device_added_event_metadata_backend,
                                 flags: vm_result_audio_device_added_event_metadata_flags,
                             };
-                            let vm_result_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_added_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_device_added_event_payload_device_id_inner)
+                            let vm_result_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_device_added_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_device_added_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_device_added_event_payload = AudioDeviceAddedPayloadVm {
-                                device_id: vm_result_audio_device_added_event_payload_device_id,
                             };
                             let vm_result_audio_device_added_event = AudioDeviceAddedEventVm {
                                 kind: vm_result_audio_device_added_event_kind,
                                 metadata: vm_result_audio_device_added_event_metadata,
-                                payload: vm_result_audio_device_added_event_payload,
+                                device_id: vm_result_audio_device_added_event_device_id,
                             };
                             AudioEventVm::AudioDeviceAddedEvent(vm_result_audio_device_added_event)
                         }
@@ -14520,19 +13967,16 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_device_format_changed_event_metadata_backend,
                                 flags: vm_result_audio_device_format_changed_event_metadata_flags,
                             };
-                            let vm_result_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_format_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_device_format_changed_event_payload_device_id_inner)
+                            let vm_result_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_device_format_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_device_format_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadVm {
-                                device_id: vm_result_audio_device_format_changed_event_payload_device_id,
                             };
                             let vm_result_audio_device_format_changed_event = AudioDeviceFormatChangedEventVm {
                                 kind: vm_result_audio_device_format_changed_event_kind,
                                 metadata: vm_result_audio_device_format_changed_event_metadata,
-                                payload: vm_result_audio_device_format_changed_event_payload,
+                                device_id: vm_result_audio_device_format_changed_event_device_id,
                             };
                             AudioEventVm::AudioDeviceFormatChangedEvent(vm_result_audio_device_format_changed_event)
                         }
@@ -14552,19 +13996,16 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_device_removed_event_metadata_backend,
                                 flags: vm_result_audio_device_removed_event_metadata_flags,
                             };
-                            let vm_result_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_removed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_device_removed_event_payload_device_id_inner)
+                            let vm_result_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_device_removed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_device_removed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_device_removed_event_payload = AudioDeviceRemovedPayloadVm {
-                                device_id: vm_result_audio_device_removed_event_payload_device_id,
                             };
                             let vm_result_audio_device_removed_event = AudioDeviceRemovedEventVm {
                                 kind: vm_result_audio_device_removed_event_kind,
                                 metadata: vm_result_audio_device_removed_event_metadata,
-                                payload: vm_result_audio_device_removed_event_payload,
+                                device_id: vm_result_audio_device_removed_event_device_id,
                             };
                             AudioEventVm::AudioDeviceRemovedEvent(vm_result_audio_device_removed_event)
                         }
@@ -14584,19 +14025,16 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_device_rerouted_event_metadata_backend,
                                 flags: vm_result_audio_device_rerouted_event_metadata_flags,
                             };
-                            let vm_result_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_rerouted_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_device_rerouted_event_payload_device_id_inner)
+                            let vm_result_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_device_rerouted_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_device_rerouted_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadVm {
-                                device_id: vm_result_audio_device_rerouted_event_payload_device_id,
                             };
                             let vm_result_audio_device_rerouted_event = AudioDeviceReroutedEventVm {
                                 kind: vm_result_audio_device_rerouted_event_kind,
                                 metadata: vm_result_audio_device_rerouted_event_metadata,
-                                payload: vm_result_audio_device_rerouted_event_payload,
+                                device_id: vm_result_audio_device_rerouted_event_device_id,
                             };
                             AudioEventVm::AudioDeviceReroutedEvent(vm_result_audio_device_rerouted_event)
                         }
@@ -14616,19 +14054,16 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_interruption_began_event_metadata_backend,
                                 flags: vm_result_audio_interruption_began_event_metadata_flags,
                             };
-                            let vm_result_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_interruption_began_event_payload_stream_inner = value;
-                                Some(vm_result_audio_interruption_began_event_payload_stream_inner)
+                            let vm_result_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_interruption_began_event_stream_inner = value;
+                                Some(vm_result_audio_interruption_began_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                                stream: vm_result_audio_interruption_began_event_payload_stream,
                             };
                             let vm_result_audio_interruption_began_event = AudioInterruptionBeganEventVm {
                                 kind: vm_result_audio_interruption_began_event_kind,
                                 metadata: vm_result_audio_interruption_began_event_metadata,
-                                payload: vm_result_audio_interruption_began_event_payload,
+                                stream: vm_result_audio_interruption_began_event_stream,
                             };
                             AudioEventVm::AudioInterruptionBeganEvent(vm_result_audio_interruption_began_event)
                         }
@@ -14648,19 +14083,16 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_interruption_ended_event_metadata_backend,
                                 flags: vm_result_audio_interruption_ended_event_metadata_flags,
                             };
-                            let vm_result_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_interruption_ended_event_payload_stream_inner = value;
-                                Some(vm_result_audio_interruption_ended_event_payload_stream_inner)
+                            let vm_result_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_interruption_ended_event_stream_inner = value;
+                                Some(vm_result_audio_interruption_ended_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                                stream: vm_result_audio_interruption_ended_event_payload_stream,
                             };
                             let vm_result_audio_interruption_ended_event = AudioInterruptionEndedEventVm {
                                 kind: vm_result_audio_interruption_ended_event_kind,
                                 metadata: vm_result_audio_interruption_ended_event_metadata,
-                                payload: vm_result_audio_interruption_ended_event_payload,
+                                stream: vm_result_audio_interruption_ended_event_stream,
                             };
                             AudioEventVm::AudioInterruptionEndedEvent(vm_result_audio_interruption_ended_event)
                         }
@@ -14680,28 +14112,25 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_stream_device_changed_event_metadata_backend,
                                 flags: vm_result_audio_stream_device_changed_event_metadata_flags,
                             };
-                            let vm_result_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_stream_device_changed_event_payload_stream_inner = value;
-                                Some(vm_result_audio_stream_device_changed_event_payload_stream_inner)
+                            let vm_result_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_stream_device_changed_event_stream_inner = value;
+                                Some(vm_result_audio_stream_device_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let vm_result_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                            let vm_result_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_stream_device_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_stream_device_changed_event_payload_device_id_inner)
+                            let vm_result_audio_stream_device_changed_event_status_flags = value.status_flags;
+                            let vm_result_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_stream_device_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_stream_device_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadVm {
-                                stream: vm_result_audio_stream_device_changed_event_payload_stream,
-                                status_flags: vm_result_audio_stream_device_changed_event_payload_status_flags,
-                                device_id: vm_result_audio_stream_device_changed_event_payload_device_id,
                             };
                             let vm_result_audio_stream_device_changed_event = AudioStreamDeviceChangedEventVm {
                                 kind: vm_result_audio_stream_device_changed_event_kind,
                                 metadata: vm_result_audio_stream_device_changed_event_metadata,
-                                payload: vm_result_audio_stream_device_changed_event_payload,
+                                stream: vm_result_audio_stream_device_changed_event_stream,
+                                status_flags: vm_result_audio_stream_device_changed_event_status_flags,
+                                device_id: vm_result_audio_stream_device_changed_event_device_id,
                             };
                             AudioEventVm::AudioStreamDeviceChangedEvent(vm_result_audio_stream_device_changed_event)
                         }
@@ -14721,21 +14150,18 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_stream_state_changed_event_metadata_backend,
                                 flags: vm_result_audio_stream_state_changed_event_metadata_flags,
                             };
-                            let vm_result_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_stream_state_changed_event_payload_stream_inner = value;
-                                Some(vm_result_audio_stream_state_changed_event_payload_stream_inner)
+                            let vm_result_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_stream_state_changed_event_stream_inner = value;
+                                Some(vm_result_audio_stream_state_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let vm_result_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                            let vm_result_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                                stream: vm_result_audio_stream_state_changed_event_payload_stream,
-                                status_flags: vm_result_audio_stream_state_changed_event_payload_status_flags,
-                            };
+                            let vm_result_audio_stream_state_changed_event_status_flags = value.status_flags;
                             let vm_result_audio_stream_state_changed_event = AudioStreamStateChangedEventVm {
                                 kind: vm_result_audio_stream_state_changed_event_kind,
                                 metadata: vm_result_audio_stream_state_changed_event_metadata,
-                                payload: vm_result_audio_stream_state_changed_event_payload,
+                                stream: vm_result_audio_stream_state_changed_event_stream,
+                                status_flags: vm_result_audio_stream_state_changed_event_status_flags,
                             };
                             AudioEventVm::AudioStreamStateChangedEvent(vm_result_audio_stream_state_changed_event)
                         }
@@ -14755,30 +14181,27 @@ fn destack_audio_event_read_vm_replay(
                                 backend: vm_result_audio_stream_x_run_event_metadata_backend,
                                 flags: vm_result_audio_stream_x_run_event_metadata_flags,
                             };
-                            let vm_result_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_stream_x_run_event_payload_stream_inner = value;
-                                Some(vm_result_audio_stream_x_run_event_payload_stream_inner)
+                            let vm_result_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_stream_x_run_event_stream_inner = value;
+                                Some(vm_result_audio_stream_x_run_event_stream_inner)
                             } else {
                                 None
                             };
-                            let vm_result_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                            let vm_result_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                            let vm_result_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_stream_x_run_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_stream_x_run_event_payload_device_id_inner)
+                            let vm_result_audio_stream_x_run_event_status_flags = value.status_flags;
+                            let vm_result_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                            let vm_result_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_stream_x_run_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_stream_x_run_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_stream_x_run_event_payload = AudioStreamXRunPayloadVm {
-                                stream: vm_result_audio_stream_x_run_event_payload_stream,
-                                status_flags: vm_result_audio_stream_x_run_event_payload_status_flags,
-                                xrun_count_delta: vm_result_audio_stream_x_run_event_payload_xrun_count_delta,
-                                device_id: vm_result_audio_stream_x_run_event_payload_device_id,
                             };
                             let vm_result_audio_stream_x_run_event = AudioStreamXRunEventVm {
                                 kind: vm_result_audio_stream_x_run_event_kind,
                                 metadata: vm_result_audio_stream_x_run_event_metadata,
-                                payload: vm_result_audio_stream_x_run_event_payload,
+                                stream: vm_result_audio_stream_x_run_event_stream,
+                                status_flags: vm_result_audio_stream_x_run_event_status_flags,
+                                xrun_count_delta: vm_result_audio_stream_x_run_event_xrun_count_delta,
+                                device_id: vm_result_audio_stream_x_run_event_device_id,
                             };
                             AudioEventVm::AudioStreamXRunEvent(vm_result_audio_stream_x_run_event)
                         }
@@ -14840,19 +14263,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_backend_disconnected_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_disconnected_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                                stream: result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_backend_disconnected_event = AudiobackenddisconnectedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_backend_disconnected_event_kind,
                                 metadata: result_recorded_item_recorded_audio_backend_disconnected_event_metadata,
-                                payload: result_recorded_item_recorded_audio_backend_disconnected_event_payload,
+                                stream: result_recorded_item_recorded_audio_backend_disconnected_event_stream,
                             };
                             AudioeventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_item_recorded_audio_backend_disconnected_event)
                         }
@@ -14875,19 +14295,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_backend_reset_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_backend_reset_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_backend_reset_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_reset_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                                stream: result_recorded_item_recorded_audio_backend_reset_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_backend_reset_event = AudiobackendreseteventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_backend_reset_event_kind,
                                 metadata: result_recorded_item_recorded_audio_backend_reset_event_metadata,
-                                payload: result_recorded_item_recorded_audio_backend_reset_event_payload,
+                                stream: result_recorded_item_recorded_audio_backend_reset_event_stream,
                             };
                             AudioeventReplayRecord::AudioBackendResetEvent(result_recorded_item_recorded_audio_backend_reset_event)
                         }
@@ -14910,22 +14327,19 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_default_capture_changed_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_default_capture_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_default_capture_changed_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_default_capture_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload = AudiodefaultcapturechangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_default_capture_changed_event = AudiodefaultcapturechangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_default_capture_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_default_capture_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_default_capture_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_default_capture_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_item_recorded_audio_default_capture_changed_event)
                         }
@@ -14948,22 +14362,19 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_default_loopback_changed_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_default_loopback_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_default_loopback_changed_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_default_loopback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload = AudiodefaultloopbackchangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_default_loopback_changed_event = AudiodefaultloopbackchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_default_loopback_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_default_loopback_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_default_loopback_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_item_recorded_audio_default_loopback_changed_event)
                         }
@@ -14986,22 +14397,19 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_default_playback_changed_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_default_playback_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_default_playback_changed_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_default_playback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload = AudiodefaultplaybackchangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_default_playback_changed_event = AudiodefaultplaybackchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_default_playback_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_default_playback_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_default_playback_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_default_playback_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_item_recorded_audio_default_playback_changed_event)
                         }
@@ -15024,22 +14432,19 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_device_added_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_added_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_added_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_added_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_added_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_device_added_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_added_event_payload = AudiodeviceaddedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_added_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_added_event = AudiodeviceaddedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_added_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_added_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_added_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_added_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceAddedEvent(result_recorded_item_recorded_audio_device_added_event)
                         }
@@ -15062,22 +14467,19 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_device_format_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_format_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_format_changed_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_format_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_format_changed_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_device_format_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_format_changed_event_payload = AudiodeviceformatchangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_format_changed_event = AudiodeviceformatchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_format_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_format_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_format_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_format_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_item_recorded_audio_device_format_changed_event)
                         }
@@ -15100,22 +14502,19 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_device_removed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_removed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_removed_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_removed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_removed_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_device_removed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_removed_event_payload = AudiodeviceremovedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_removed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_removed_event = AudiodeviceremovedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_removed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_removed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_removed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_removed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceRemovedEvent(result_recorded_item_recorded_audio_device_removed_event)
                         }
@@ -15138,22 +14537,19 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_device_rerouted_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_rerouted_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_rerouted_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_rerouted_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_rerouted_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_device_rerouted_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_rerouted_event_payload = AudiodevicereroutedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_rerouted_event = AudiodevicereroutedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_rerouted_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_rerouted_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_rerouted_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_rerouted_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceReroutedEvent(result_recorded_item_recorded_audio_device_rerouted_event)
                         }
@@ -15176,19 +14572,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_interruption_began_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_interruption_began_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_interruption_began_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_began_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                                stream: result_recorded_item_recorded_audio_interruption_began_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_interruption_began_event = AudiointerruptionbeganeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_interruption_began_event_kind,
                                 metadata: result_recorded_item_recorded_audio_interruption_began_event_metadata,
-                                payload: result_recorded_item_recorded_audio_interruption_began_event_payload,
+                                stream: result_recorded_item_recorded_audio_interruption_began_event_stream,
                             };
                             AudioeventReplayRecord::AudioInterruptionBeganEvent(result_recorded_item_recorded_audio_interruption_began_event)
                         }
@@ -15211,19 +14604,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_interruption_ended_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_interruption_ended_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_interruption_ended_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_ended_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                                stream: result_recorded_item_recorded_audio_interruption_ended_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_interruption_ended_event = AudiointerruptionendedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_interruption_ended_event_kind,
                                 metadata: result_recorded_item_recorded_audio_interruption_ended_event_metadata,
-                                payload: result_recorded_item_recorded_audio_interruption_ended_event_payload,
+                                stream: result_recorded_item_recorded_audio_interruption_ended_event_stream,
                             };
                             AudioeventReplayRecord::AudioInterruptionEndedEvent(result_recorded_item_recorded_audio_interruption_ended_event)
                         }
@@ -15246,31 +14636,28 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_status_flags = value.status_flags;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_stream_device_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_stream_device_changed_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload = AudiostreamdevicechangedpayloadReplayRecord {
-                                stream: result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream,
-                                status_flags: result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags,
-                                device_id: result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_stream_device_changed_event = AudiostreamdevicechangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_stream_device_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_stream_device_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_stream_device_changed_event_payload,
+                                stream: result_recorded_item_recorded_audio_stream_device_changed_event_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_device_changed_event_status_flags,
+                                device_id: result_recorded_item_recorded_audio_stream_device_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_item_recorded_audio_stream_device_changed_event)
                         }
@@ -15293,21 +14680,18 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_stream_state_changed_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_state_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                                stream: result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream,
-                                status_flags: result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags,
-                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_status_flags = value.status_flags;
                             let result_recorded_item_recorded_audio_stream_state_changed_event = AudiostreamstatechangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_stream_state_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_stream_state_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_stream_state_changed_event_payload,
+                                stream: result_recorded_item_recorded_audio_stream_state_changed_event_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_state_changed_event_status_flags,
                             };
                             AudioeventReplayRecord::AudioStreamStateChangedEvent(result_recorded_item_recorded_audio_stream_state_changed_event)
                         }
@@ -15330,33 +14714,30 @@ fn destack_audio_event_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_stream_x_run_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_stream_x_run_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_stream_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_stream_x_run_event_status_flags = value.status_flags;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_stream_x_run_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_stream_x_run_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload = AudiostreamxrunpayloadReplayRecord {
-                                stream: result_recorded_item_recorded_audio_stream_x_run_event_payload_stream,
-                                status_flags: result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags,
-                                xrun_count_delta: result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
-                                device_id: result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_stream_x_run_event = AudiostreamxruneventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_stream_x_run_event_kind,
                                 metadata: result_recorded_item_recorded_audio_stream_x_run_event_metadata,
-                                payload: result_recorded_item_recorded_audio_stream_x_run_event_payload,
+                                stream: result_recorded_item_recorded_audio_stream_x_run_event_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_x_run_event_status_flags,
+                                xrun_count_delta: result_recorded_item_recorded_audio_stream_x_run_event_xrun_count_delta,
+                                device_id: result_recorded_item_recorded_audio_stream_x_run_event_device_id,
                             };
                             AudioeventReplayRecord::AudioStreamXRunEvent(result_recorded_item_recorded_audio_stream_x_run_event)
                         }
@@ -15405,19 +14786,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_backend_disconnected_event_metadata_backend,
                                     flags: vm_result_item_value_audio_backend_disconnected_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_backend_disconnected_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_backend_disconnected_event_payload_stream_inner)
+                                let vm_result_item_value_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_backend_disconnected_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_backend_disconnected_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                                    stream: vm_result_item_value_audio_backend_disconnected_event_payload_stream,
                                 };
                                 let vm_result_item_value_audio_backend_disconnected_event = AudioBackendDisconnectedEventVm {
                                     kind: vm_result_item_value_audio_backend_disconnected_event_kind,
                                     metadata: vm_result_item_value_audio_backend_disconnected_event_metadata,
-                                    payload: vm_result_item_value_audio_backend_disconnected_event_payload,
+                                    stream: vm_result_item_value_audio_backend_disconnected_event_stream,
                                 };
                                 AudioEventVm::AudioBackendDisconnectedEvent(vm_result_item_value_audio_backend_disconnected_event)
                             }
@@ -15437,19 +14815,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_backend_reset_event_metadata_backend,
                                     flags: vm_result_item_value_audio_backend_reset_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_backend_reset_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_backend_reset_event_payload_stream_inner)
+                                let vm_result_item_value_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_backend_reset_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_backend_reset_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                                    stream: vm_result_item_value_audio_backend_reset_event_payload_stream,
                                 };
                                 let vm_result_item_value_audio_backend_reset_event = AudioBackendResetEventVm {
                                     kind: vm_result_item_value_audio_backend_reset_event_kind,
                                     metadata: vm_result_item_value_audio_backend_reset_event_metadata,
-                                    payload: vm_result_item_value_audio_backend_reset_event_payload,
+                                    stream: vm_result_item_value_audio_backend_reset_event_stream,
                                 };
                                 AudioEventVm::AudioBackendResetEvent(vm_result_item_value_audio_backend_reset_event)
                             }
@@ -15469,19 +14844,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_default_capture_changed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_default_capture_changed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_default_capture_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_default_capture_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadVm {
-                                    device_id: vm_result_item_value_audio_default_capture_changed_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventVm {
                                     kind: vm_result_item_value_audio_default_capture_changed_event_kind,
                                     metadata: vm_result_item_value_audio_default_capture_changed_event_metadata,
-                                    payload: vm_result_item_value_audio_default_capture_changed_event_payload,
+                                    device_id: vm_result_item_value_audio_default_capture_changed_event_device_id,
                                 };
                                 AudioEventVm::AudioDefaultCaptureChangedEvent(vm_result_item_value_audio_default_capture_changed_event)
                             }
@@ -15501,19 +14873,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_default_loopback_changed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_default_loopback_changed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_default_loopback_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_default_loopback_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadVm {
-                                    device_id: vm_result_item_value_audio_default_loopback_changed_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventVm {
                                     kind: vm_result_item_value_audio_default_loopback_changed_event_kind,
                                     metadata: vm_result_item_value_audio_default_loopback_changed_event_metadata,
-                                    payload: vm_result_item_value_audio_default_loopback_changed_event_payload,
+                                    device_id: vm_result_item_value_audio_default_loopback_changed_event_device_id,
                                 };
                                 AudioEventVm::AudioDefaultLoopbackChangedEvent(vm_result_item_value_audio_default_loopback_changed_event)
                             }
@@ -15533,19 +14902,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_default_playback_changed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_default_playback_changed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_default_playback_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_default_playback_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadVm {
-                                    device_id: vm_result_item_value_audio_default_playback_changed_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventVm {
                                     kind: vm_result_item_value_audio_default_playback_changed_event_kind,
                                     metadata: vm_result_item_value_audio_default_playback_changed_event_metadata,
-                                    payload: vm_result_item_value_audio_default_playback_changed_event_payload,
+                                    device_id: vm_result_item_value_audio_default_playback_changed_event_device_id,
                                 };
                                 AudioEventVm::AudioDefaultPlaybackChangedEvent(vm_result_item_value_audio_default_playback_changed_event)
                             }
@@ -15565,19 +14931,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_device_added_event_metadata_backend,
                                     flags: vm_result_item_value_audio_device_added_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_added_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_device_added_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_device_added_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_device_added_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_device_added_event_payload = AudioDeviceAddedPayloadVm {
-                                    device_id: vm_result_item_value_audio_device_added_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_device_added_event = AudioDeviceAddedEventVm {
                                     kind: vm_result_item_value_audio_device_added_event_kind,
                                     metadata: vm_result_item_value_audio_device_added_event_metadata,
-                                    payload: vm_result_item_value_audio_device_added_event_payload,
+                                    device_id: vm_result_item_value_audio_device_added_event_device_id,
                                 };
                                 AudioEventVm::AudioDeviceAddedEvent(vm_result_item_value_audio_device_added_event)
                             }
@@ -15597,19 +14960,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_device_format_changed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_device_format_changed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_device_format_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_device_format_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadVm {
-                                    device_id: vm_result_item_value_audio_device_format_changed_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_device_format_changed_event = AudioDeviceFormatChangedEventVm {
                                     kind: vm_result_item_value_audio_device_format_changed_event_kind,
                                     metadata: vm_result_item_value_audio_device_format_changed_event_metadata,
-                                    payload: vm_result_item_value_audio_device_format_changed_event_payload,
+                                    device_id: vm_result_item_value_audio_device_format_changed_event_device_id,
                                 };
                                 AudioEventVm::AudioDeviceFormatChangedEvent(vm_result_item_value_audio_device_format_changed_event)
                             }
@@ -15629,19 +14989,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_device_removed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_device_removed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_removed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_device_removed_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_device_removed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_device_removed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_device_removed_event_payload = AudioDeviceRemovedPayloadVm {
-                                    device_id: vm_result_item_value_audio_device_removed_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_device_removed_event = AudioDeviceRemovedEventVm {
                                     kind: vm_result_item_value_audio_device_removed_event_kind,
                                     metadata: vm_result_item_value_audio_device_removed_event_metadata,
-                                    payload: vm_result_item_value_audio_device_removed_event_payload,
+                                    device_id: vm_result_item_value_audio_device_removed_event_device_id,
                                 };
                                 AudioEventVm::AudioDeviceRemovedEvent(vm_result_item_value_audio_device_removed_event)
                             }
@@ -15661,19 +15018,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_device_rerouted_event_metadata_backend,
                                     flags: vm_result_item_value_audio_device_rerouted_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_device_rerouted_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_device_rerouted_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadVm {
-                                    device_id: vm_result_item_value_audio_device_rerouted_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_device_rerouted_event = AudioDeviceReroutedEventVm {
                                     kind: vm_result_item_value_audio_device_rerouted_event_kind,
                                     metadata: vm_result_item_value_audio_device_rerouted_event_metadata,
-                                    payload: vm_result_item_value_audio_device_rerouted_event_payload,
+                                    device_id: vm_result_item_value_audio_device_rerouted_event_device_id,
                                 };
                                 AudioEventVm::AudioDeviceReroutedEvent(vm_result_item_value_audio_device_rerouted_event)
                             }
@@ -15693,19 +15047,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_interruption_began_event_metadata_backend,
                                     flags: vm_result_item_value_audio_interruption_began_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_interruption_began_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_interruption_began_event_payload_stream_inner)
+                                let vm_result_item_value_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_interruption_began_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_interruption_began_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                                    stream: vm_result_item_value_audio_interruption_began_event_payload_stream,
                                 };
                                 let vm_result_item_value_audio_interruption_began_event = AudioInterruptionBeganEventVm {
                                     kind: vm_result_item_value_audio_interruption_began_event_kind,
                                     metadata: vm_result_item_value_audio_interruption_began_event_metadata,
-                                    payload: vm_result_item_value_audio_interruption_began_event_payload,
+                                    stream: vm_result_item_value_audio_interruption_began_event_stream,
                                 };
                                 AudioEventVm::AudioInterruptionBeganEvent(vm_result_item_value_audio_interruption_began_event)
                             }
@@ -15725,19 +15076,16 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_interruption_ended_event_metadata_backend,
                                     flags: vm_result_item_value_audio_interruption_ended_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_interruption_ended_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_interruption_ended_event_payload_stream_inner)
+                                let vm_result_item_value_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_interruption_ended_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_interruption_ended_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                                    stream: vm_result_item_value_audio_interruption_ended_event_payload_stream,
                                 };
                                 let vm_result_item_value_audio_interruption_ended_event = AudioInterruptionEndedEventVm {
                                     kind: vm_result_item_value_audio_interruption_ended_event_kind,
                                     metadata: vm_result_item_value_audio_interruption_ended_event_metadata,
-                                    payload: vm_result_item_value_audio_interruption_ended_event_payload,
+                                    stream: vm_result_item_value_audio_interruption_ended_event_stream,
                                 };
                                 AudioEventVm::AudioInterruptionEndedEvent(vm_result_item_value_audio_interruption_ended_event)
                             }
@@ -15757,28 +15105,25 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_stream_device_changed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_stream_device_changed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_stream_device_changed_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_stream_device_changed_event_payload_stream_inner)
+                                let vm_result_item_value_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_stream_device_changed_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_stream_device_changed_event_stream_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                                let vm_result_item_value_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_stream_device_changed_event_status_flags = value.status_flags;
+                                let vm_result_item_value_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_stream_device_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_stream_device_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadVm {
-                                    stream: vm_result_item_value_audio_stream_device_changed_event_payload_stream,
-                                    status_flags: vm_result_item_value_audio_stream_device_changed_event_payload_status_flags,
-                                    device_id: vm_result_item_value_audio_stream_device_changed_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_stream_device_changed_event = AudioStreamDeviceChangedEventVm {
                                     kind: vm_result_item_value_audio_stream_device_changed_event_kind,
                                     metadata: vm_result_item_value_audio_stream_device_changed_event_metadata,
-                                    payload: vm_result_item_value_audio_stream_device_changed_event_payload,
+                                    stream: vm_result_item_value_audio_stream_device_changed_event_stream,
+                                    status_flags: vm_result_item_value_audio_stream_device_changed_event_status_flags,
+                                    device_id: vm_result_item_value_audio_stream_device_changed_event_device_id,
                                 };
                                 AudioEventVm::AudioStreamDeviceChangedEvent(vm_result_item_value_audio_stream_device_changed_event)
                             }
@@ -15798,21 +15143,18 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_stream_state_changed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_stream_state_changed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_stream_state_changed_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_stream_state_changed_event_payload_stream_inner)
+                                let vm_result_item_value_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_stream_state_changed_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_stream_state_changed_event_stream_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                                let vm_result_item_value_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                                    stream: vm_result_item_value_audio_stream_state_changed_event_payload_stream,
-                                    status_flags: vm_result_item_value_audio_stream_state_changed_event_payload_status_flags,
-                                };
+                                let vm_result_item_value_audio_stream_state_changed_event_status_flags = value.status_flags;
                                 let vm_result_item_value_audio_stream_state_changed_event = AudioStreamStateChangedEventVm {
                                     kind: vm_result_item_value_audio_stream_state_changed_event_kind,
                                     metadata: vm_result_item_value_audio_stream_state_changed_event_metadata,
-                                    payload: vm_result_item_value_audio_stream_state_changed_event_payload,
+                                    stream: vm_result_item_value_audio_stream_state_changed_event_stream,
+                                    status_flags: vm_result_item_value_audio_stream_state_changed_event_status_flags,
                                 };
                                 AudioEventVm::AudioStreamStateChangedEvent(vm_result_item_value_audio_stream_state_changed_event)
                             }
@@ -15832,30 +15174,27 @@ fn destack_audio_event_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_stream_x_run_event_metadata_backend,
                                     flags: vm_result_item_value_audio_stream_x_run_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_stream_x_run_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_stream_x_run_event_payload_stream_inner)
+                                let vm_result_item_value_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_stream_x_run_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_stream_x_run_event_stream_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                                let vm_result_item_value_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                                let vm_result_item_value_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_stream_x_run_event_status_flags = value.status_flags;
+                                let vm_result_item_value_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                                let vm_result_item_value_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_stream_x_run_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_stream_x_run_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_stream_x_run_event_payload = AudioStreamXRunPayloadVm {
-                                    stream: vm_result_item_value_audio_stream_x_run_event_payload_stream,
-                                    status_flags: vm_result_item_value_audio_stream_x_run_event_payload_status_flags,
-                                    xrun_count_delta: vm_result_item_value_audio_stream_x_run_event_payload_xrun_count_delta,
-                                    device_id: vm_result_item_value_audio_stream_x_run_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_stream_x_run_event = AudioStreamXRunEventVm {
                                     kind: vm_result_item_value_audio_stream_x_run_event_kind,
                                     metadata: vm_result_item_value_audio_stream_x_run_event_metadata,
-                                    payload: vm_result_item_value_audio_stream_x_run_event_payload,
+                                    stream: vm_result_item_value_audio_stream_x_run_event_stream,
+                                    status_flags: vm_result_item_value_audio_stream_x_run_event_status_flags,
+                                    xrun_count_delta: vm_result_item_value_audio_stream_x_run_event_xrun_count_delta,
+                                    device_id: vm_result_item_value_audio_stream_x_run_event_device_id,
                                 };
                                 AudioEventVm::AudioStreamXRunEvent(vm_result_item_value_audio_stream_x_run_event)
                             }
@@ -15914,19 +15253,16 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_backend_disconnected_event_metadata_backend,
                             flags: result_recorded_audio_backend_disconnected_event_metadata_flags,
                         };
-                        let result_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                        let result_recorded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_backend_disconnected_event_stream_inner = value;
+                            Some(result_recorded_audio_backend_disconnected_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                            stream: result_recorded_audio_backend_disconnected_event_payload_stream,
                         };
                         let result_recorded_audio_backend_disconnected_event = AudiobackenddisconnectedeventReplayRecord {
                             kind: result_recorded_audio_backend_disconnected_event_kind,
                             metadata: result_recorded_audio_backend_disconnected_event_metadata,
-                            payload: result_recorded_audio_backend_disconnected_event_payload,
+                            stream: result_recorded_audio_backend_disconnected_event_stream,
                         };
                         AudioeventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_audio_backend_disconnected_event)
                     }
@@ -15949,19 +15285,16 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_backend_reset_event_metadata_backend,
                             flags: result_recorded_audio_backend_reset_event_metadata_flags,
                         };
-                        let result_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_backend_reset_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_backend_reset_event_payload_stream_inner)
+                        let result_recorded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_backend_reset_event_stream_inner = value;
+                            Some(result_recorded_audio_backend_reset_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                            stream: result_recorded_audio_backend_reset_event_payload_stream,
                         };
                         let result_recorded_audio_backend_reset_event = AudiobackendreseteventReplayRecord {
                             kind: result_recorded_audio_backend_reset_event_kind,
                             metadata: result_recorded_audio_backend_reset_event_metadata,
-                            payload: result_recorded_audio_backend_reset_event_payload,
+                            stream: result_recorded_audio_backend_reset_event_stream,
                         };
                         AudioeventReplayRecord::AudioBackendResetEvent(result_recorded_audio_backend_reset_event)
                     }
@@ -15984,22 +15317,19 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_default_capture_changed_event_metadata_backend,
                             flags: result_recorded_audio_default_capture_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_default_capture_changed_event_payload_device_id_inner = {
-                                let result_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_default_capture_changed_event_device_id_inner = {
+                                let result_recorded_audio_default_capture_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_default_capture_changed_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                            Some(result_recorded_audio_default_capture_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_default_capture_changed_event_payload = AudiodefaultcapturechangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_default_capture_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_default_capture_changed_event = AudiodefaultcapturechangedeventReplayRecord {
                             kind: result_recorded_audio_default_capture_changed_event_kind,
                             metadata: result_recorded_audio_default_capture_changed_event_metadata,
-                            payload: result_recorded_audio_default_capture_changed_event_payload,
+                            device_id: result_recorded_audio_default_capture_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_audio_default_capture_changed_event)
                     }
@@ -16022,22 +15352,19 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_default_loopback_changed_event_metadata_backend,
                             flags: result_recorded_audio_default_loopback_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_default_loopback_changed_event_payload_device_id_inner = {
-                                let result_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_default_loopback_changed_event_device_id_inner = {
+                                let result_recorded_audio_default_loopback_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_default_loopback_changed_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                            Some(result_recorded_audio_default_loopback_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_default_loopback_changed_event_payload = AudiodefaultloopbackchangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_default_loopback_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_default_loopback_changed_event = AudiodefaultloopbackchangedeventReplayRecord {
                             kind: result_recorded_audio_default_loopback_changed_event_kind,
                             metadata: result_recorded_audio_default_loopback_changed_event_metadata,
-                            payload: result_recorded_audio_default_loopback_changed_event_payload,
+                            device_id: result_recorded_audio_default_loopback_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_audio_default_loopback_changed_event)
                     }
@@ -16060,22 +15387,19 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_default_playback_changed_event_metadata_backend,
                             flags: result_recorded_audio_default_playback_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_default_playback_changed_event_payload_device_id_inner = {
-                                let result_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_default_playback_changed_event_device_id_inner = {
+                                let result_recorded_audio_default_playback_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_default_playback_changed_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                            Some(result_recorded_audio_default_playback_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_default_playback_changed_event_payload = AudiodefaultplaybackchangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_default_playback_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_default_playback_changed_event = AudiodefaultplaybackchangedeventReplayRecord {
                             kind: result_recorded_audio_default_playback_changed_event_kind,
                             metadata: result_recorded_audio_default_playback_changed_event_metadata,
-                            payload: result_recorded_audio_default_playback_changed_event_payload,
+                            device_id: result_recorded_audio_default_playback_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_audio_default_playback_changed_event)
                     }
@@ -16098,22 +15422,19 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_device_added_event_metadata_backend,
                             flags: result_recorded_audio_device_added_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_added_event_payload_device_id_inner = {
-                                let result_recorded_audio_device_added_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_device_added_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_added_event_device_id_inner = {
+                                let result_recorded_audio_device_added_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_added_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_device_added_event_payload_device_id_inner)
+                            Some(result_recorded_audio_device_added_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_added_event_payload = AudiodeviceaddedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_added_event_payload_device_id,
                         };
                         let result_recorded_audio_device_added_event = AudiodeviceaddedeventReplayRecord {
                             kind: result_recorded_audio_device_added_event_kind,
                             metadata: result_recorded_audio_device_added_event_metadata,
-                            payload: result_recorded_audio_device_added_event_payload,
+                            device_id: result_recorded_audio_device_added_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceAddedEvent(result_recorded_audio_device_added_event)
                     }
@@ -16136,22 +15457,19 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_device_format_changed_event_metadata_backend,
                             flags: result_recorded_audio_device_format_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_format_changed_event_payload_device_id_inner = {
-                                let result_recorded_audio_device_format_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_device_format_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_format_changed_event_device_id_inner = {
+                                let result_recorded_audio_device_format_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_format_changed_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                            Some(result_recorded_audio_device_format_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_format_changed_event_payload = AudiodeviceformatchangedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_format_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_device_format_changed_event = AudiodeviceformatchangedeventReplayRecord {
                             kind: result_recorded_audio_device_format_changed_event_kind,
                             metadata: result_recorded_audio_device_format_changed_event_metadata,
-                            payload: result_recorded_audio_device_format_changed_event_payload,
+                            device_id: result_recorded_audio_device_format_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_audio_device_format_changed_event)
                     }
@@ -16174,22 +15492,19 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_device_removed_event_metadata_backend,
                             flags: result_recorded_audio_device_removed_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_removed_event_payload_device_id_inner = {
-                                let result_recorded_audio_device_removed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_device_removed_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_removed_event_device_id_inner = {
+                                let result_recorded_audio_device_removed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_removed_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_device_removed_event_payload_device_id_inner)
+                            Some(result_recorded_audio_device_removed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_removed_event_payload = AudiodeviceremovedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_removed_event_payload_device_id,
                         };
                         let result_recorded_audio_device_removed_event = AudiodeviceremovedeventReplayRecord {
                             kind: result_recorded_audio_device_removed_event_kind,
                             metadata: result_recorded_audio_device_removed_event_metadata,
-                            payload: result_recorded_audio_device_removed_event_payload,
+                            device_id: result_recorded_audio_device_removed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceRemovedEvent(result_recorded_audio_device_removed_event)
                     }
@@ -16212,22 +15527,19 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_device_rerouted_event_metadata_backend,
                             flags: result_recorded_audio_device_rerouted_event_metadata_flags,
                         };
-                        let result_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_device_rerouted_event_payload_device_id_inner = {
-                                let result_recorded_audio_device_rerouted_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_device_rerouted_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_device_rerouted_event_device_id_inner = {
+                                let result_recorded_audio_device_rerouted_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_rerouted_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                            Some(result_recorded_audio_device_rerouted_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_device_rerouted_event_payload = AudiodevicereroutedpayloadReplayRecord {
-                            device_id: result_recorded_audio_device_rerouted_event_payload_device_id,
                         };
                         let result_recorded_audio_device_rerouted_event = AudiodevicereroutedeventReplayRecord {
                             kind: result_recorded_audio_device_rerouted_event_kind,
                             metadata: result_recorded_audio_device_rerouted_event_metadata,
-                            payload: result_recorded_audio_device_rerouted_event_payload,
+                            device_id: result_recorded_audio_device_rerouted_event_device_id,
                         };
                         AudioeventReplayRecord::AudioDeviceReroutedEvent(result_recorded_audio_device_rerouted_event)
                     }
@@ -16250,19 +15562,16 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_interruption_began_event_metadata_backend,
                             flags: result_recorded_audio_interruption_began_event_metadata_flags,
                         };
-                        let result_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_interruption_began_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_interruption_began_event_payload_stream_inner)
+                        let result_recorded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_interruption_began_event_stream_inner = value;
+                            Some(result_recorded_audio_interruption_began_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                            stream: result_recorded_audio_interruption_began_event_payload_stream,
                         };
                         let result_recorded_audio_interruption_began_event = AudiointerruptionbeganeventReplayRecord {
                             kind: result_recorded_audio_interruption_began_event_kind,
                             metadata: result_recorded_audio_interruption_began_event_metadata,
-                            payload: result_recorded_audio_interruption_began_event_payload,
+                            stream: result_recorded_audio_interruption_began_event_stream,
                         };
                         AudioeventReplayRecord::AudioInterruptionBeganEvent(result_recorded_audio_interruption_began_event)
                     }
@@ -16285,19 +15594,16 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_interruption_ended_event_metadata_backend,
                             flags: result_recorded_audio_interruption_ended_event_metadata_flags,
                         };
-                        let result_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_interruption_ended_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_interruption_ended_event_payload_stream_inner)
+                        let result_recorded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_interruption_ended_event_stream_inner = value;
+                            Some(result_recorded_audio_interruption_ended_event_stream_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                            stream: result_recorded_audio_interruption_ended_event_payload_stream,
                         };
                         let result_recorded_audio_interruption_ended_event = AudiointerruptionendedeventReplayRecord {
                             kind: result_recorded_audio_interruption_ended_event_kind,
                             metadata: result_recorded_audio_interruption_ended_event_metadata,
-                            payload: result_recorded_audio_interruption_ended_event_payload,
+                            stream: result_recorded_audio_interruption_ended_event_stream,
                         };
                         AudioeventReplayRecord::AudioInterruptionEndedEvent(result_recorded_audio_interruption_ended_event)
                     }
@@ -16320,31 +15626,28 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_stream_device_changed_event_metadata_backend,
                             flags: result_recorded_audio_stream_device_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                        let result_recorded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_stream_device_changed_event_stream_inner = value;
+                            Some(result_recorded_audio_stream_device_changed_event_stream_inner)
                         } else {
                             None
                         };
-                        let result_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                        let result_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_stream_device_changed_event_payload_device_id_inner = {
-                                let result_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_stream_device_changed_event_status_flags = value.status_flags;
+                        let result_recorded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_stream_device_changed_event_device_id_inner = {
+                                let result_recorded_audio_stream_device_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_stream_device_changed_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                            Some(result_recorded_audio_stream_device_changed_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_stream_device_changed_event_payload = AudiostreamdevicechangedpayloadReplayRecord {
-                            stream: result_recorded_audio_stream_device_changed_event_payload_stream,
-                            status_flags: result_recorded_audio_stream_device_changed_event_payload_status_flags,
-                            device_id: result_recorded_audio_stream_device_changed_event_payload_device_id,
                         };
                         let result_recorded_audio_stream_device_changed_event = AudiostreamdevicechangedeventReplayRecord {
                             kind: result_recorded_audio_stream_device_changed_event_kind,
                             metadata: result_recorded_audio_stream_device_changed_event_metadata,
-                            payload: result_recorded_audio_stream_device_changed_event_payload,
+                            stream: result_recorded_audio_stream_device_changed_event_stream,
+                            status_flags: result_recorded_audio_stream_device_changed_event_status_flags,
+                            device_id: result_recorded_audio_stream_device_changed_event_device_id,
                         };
                         AudioeventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_audio_stream_device_changed_event)
                     }
@@ -16367,21 +15670,18 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_stream_state_changed_event_metadata_backend,
                             flags: result_recorded_audio_stream_state_changed_event_metadata_flags,
                         };
-                        let result_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                        let result_recorded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_stream_state_changed_event_stream_inner = value;
+                            Some(result_recorded_audio_stream_state_changed_event_stream_inner)
                         } else {
                             None
                         };
-                        let result_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                        let result_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                            stream: result_recorded_audio_stream_state_changed_event_payload_stream,
-                            status_flags: result_recorded_audio_stream_state_changed_event_payload_status_flags,
-                        };
+                        let result_recorded_audio_stream_state_changed_event_status_flags = value.status_flags;
                         let result_recorded_audio_stream_state_changed_event = AudiostreamstatechangedeventReplayRecord {
                             kind: result_recorded_audio_stream_state_changed_event_kind,
                             metadata: result_recorded_audio_stream_state_changed_event_metadata,
-                            payload: result_recorded_audio_stream_state_changed_event_payload,
+                            stream: result_recorded_audio_stream_state_changed_event_stream,
+                            status_flags: result_recorded_audio_stream_state_changed_event_status_flags,
                         };
                         AudioeventReplayRecord::AudioStreamStateChangedEvent(result_recorded_audio_stream_state_changed_event)
                     }
@@ -16404,33 +15704,30 @@ fn destack_audio_event_try_read_vm_replay(
                             backend: result_recorded_audio_stream_x_run_event_metadata_backend,
                             flags: result_recorded_audio_stream_x_run_event_metadata_flags,
                         };
-                        let result_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                            let result_recorded_audio_stream_x_run_event_payload_stream_inner = value;
-                            Some(result_recorded_audio_stream_x_run_event_payload_stream_inner)
+                        let result_recorded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                            let result_recorded_audio_stream_x_run_event_stream_inner = value;
+                            Some(result_recorded_audio_stream_x_run_event_stream_inner)
                         } else {
                             None
                         };
-                        let result_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                        let result_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                        let result_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                            let result_recorded_audio_stream_x_run_event_payload_device_id_inner = {
-                                let result_recorded_audio_stream_x_run_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_audio_stream_x_run_event_payload_device_id_inner_ref.as_str().to_string()
+                        let result_recorded_audio_stream_x_run_event_status_flags = value.status_flags;
+                        let result_recorded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                        let result_recorded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                            let result_recorded_audio_stream_x_run_event_device_id_inner = {
+                                let result_recorded_audio_stream_x_run_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_stream_x_run_event_device_id_inner_ref.as_str().to_string()
                             };
-                            Some(result_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                            Some(result_recorded_audio_stream_x_run_event_device_id_inner)
                         } else {
                             None
-                        };
-                        let result_recorded_audio_stream_x_run_event_payload = AudiostreamxrunpayloadReplayRecord {
-                            stream: result_recorded_audio_stream_x_run_event_payload_stream,
-                            status_flags: result_recorded_audio_stream_x_run_event_payload_status_flags,
-                            xrun_count_delta: result_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
-                            device_id: result_recorded_audio_stream_x_run_event_payload_device_id,
                         };
                         let result_recorded_audio_stream_x_run_event = AudiostreamxruneventReplayRecord {
                             kind: result_recorded_audio_stream_x_run_event_kind,
                             metadata: result_recorded_audio_stream_x_run_event_metadata,
-                            payload: result_recorded_audio_stream_x_run_event_payload,
+                            stream: result_recorded_audio_stream_x_run_event_stream,
+                            status_flags: result_recorded_audio_stream_x_run_event_status_flags,
+                            xrun_count_delta: result_recorded_audio_stream_x_run_event_xrun_count_delta,
+                            device_id: result_recorded_audio_stream_x_run_event_device_id,
                         };
                         AudioeventReplayRecord::AudioStreamXRunEvent(result_recorded_audio_stream_x_run_event)
                     }
@@ -16475,19 +15772,16 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_backend_disconnected_event_metadata_backend,
                                 flags: vm_result_audio_backend_disconnected_event_metadata_flags,
                             };
-                            let vm_result_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_backend_disconnected_event_payload_stream_inner = value;
-                                Some(vm_result_audio_backend_disconnected_event_payload_stream_inner)
+                            let vm_result_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_backend_disconnected_event_stream_inner = value;
+                                Some(vm_result_audio_backend_disconnected_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                                stream: vm_result_audio_backend_disconnected_event_payload_stream,
                             };
                             let vm_result_audio_backend_disconnected_event = AudioBackendDisconnectedEventVm {
                                 kind: vm_result_audio_backend_disconnected_event_kind,
                                 metadata: vm_result_audio_backend_disconnected_event_metadata,
-                                payload: vm_result_audio_backend_disconnected_event_payload,
+                                stream: vm_result_audio_backend_disconnected_event_stream,
                             };
                             AudioEventVm::AudioBackendDisconnectedEvent(vm_result_audio_backend_disconnected_event)
                         }
@@ -16507,19 +15801,16 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_backend_reset_event_metadata_backend,
                                 flags: vm_result_audio_backend_reset_event_metadata_flags,
                             };
-                            let vm_result_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_backend_reset_event_payload_stream_inner = value;
-                                Some(vm_result_audio_backend_reset_event_payload_stream_inner)
+                            let vm_result_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_backend_reset_event_stream_inner = value;
+                                Some(vm_result_audio_backend_reset_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                                stream: vm_result_audio_backend_reset_event_payload_stream,
                             };
                             let vm_result_audio_backend_reset_event = AudioBackendResetEventVm {
                                 kind: vm_result_audio_backend_reset_event_kind,
                                 metadata: vm_result_audio_backend_reset_event_metadata,
-                                payload: vm_result_audio_backend_reset_event_payload,
+                                stream: vm_result_audio_backend_reset_event_stream,
                             };
                             AudioEventVm::AudioBackendResetEvent(vm_result_audio_backend_reset_event)
                         }
@@ -16539,19 +15830,16 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_default_capture_changed_event_metadata_backend,
                                 flags: vm_result_audio_default_capture_changed_event_metadata_flags,
                             };
-                            let vm_result_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_default_capture_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_default_capture_changed_event_payload_device_id_inner)
+                            let vm_result_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_default_capture_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_default_capture_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadVm {
-                                device_id: vm_result_audio_default_capture_changed_event_payload_device_id,
                             };
                             let vm_result_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventVm {
                                 kind: vm_result_audio_default_capture_changed_event_kind,
                                 metadata: vm_result_audio_default_capture_changed_event_metadata,
-                                payload: vm_result_audio_default_capture_changed_event_payload,
+                                device_id: vm_result_audio_default_capture_changed_event_device_id,
                             };
                             AudioEventVm::AudioDefaultCaptureChangedEvent(vm_result_audio_default_capture_changed_event)
                         }
@@ -16571,19 +15859,16 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_default_loopback_changed_event_metadata_backend,
                                 flags: vm_result_audio_default_loopback_changed_event_metadata_flags,
                             };
-                            let vm_result_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_default_loopback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_default_loopback_changed_event_payload_device_id_inner)
+                            let vm_result_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_default_loopback_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_default_loopback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadVm {
-                                device_id: vm_result_audio_default_loopback_changed_event_payload_device_id,
                             };
                             let vm_result_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventVm {
                                 kind: vm_result_audio_default_loopback_changed_event_kind,
                                 metadata: vm_result_audio_default_loopback_changed_event_metadata,
-                                payload: vm_result_audio_default_loopback_changed_event_payload,
+                                device_id: vm_result_audio_default_loopback_changed_event_device_id,
                             };
                             AudioEventVm::AudioDefaultLoopbackChangedEvent(vm_result_audio_default_loopback_changed_event)
                         }
@@ -16603,19 +15888,16 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_default_playback_changed_event_metadata_backend,
                                 flags: vm_result_audio_default_playback_changed_event_metadata_flags,
                             };
-                            let vm_result_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_default_playback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_default_playback_changed_event_payload_device_id_inner)
+                            let vm_result_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_default_playback_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_default_playback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadVm {
-                                device_id: vm_result_audio_default_playback_changed_event_payload_device_id,
                             };
                             let vm_result_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventVm {
                                 kind: vm_result_audio_default_playback_changed_event_kind,
                                 metadata: vm_result_audio_default_playback_changed_event_metadata,
-                                payload: vm_result_audio_default_playback_changed_event_payload,
+                                device_id: vm_result_audio_default_playback_changed_event_device_id,
                             };
                             AudioEventVm::AudioDefaultPlaybackChangedEvent(vm_result_audio_default_playback_changed_event)
                         }
@@ -16635,19 +15917,16 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_device_added_event_metadata_backend,
                                 flags: vm_result_audio_device_added_event_metadata_flags,
                             };
-                            let vm_result_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_added_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_device_added_event_payload_device_id_inner)
+                            let vm_result_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_device_added_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_device_added_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_device_added_event_payload = AudioDeviceAddedPayloadVm {
-                                device_id: vm_result_audio_device_added_event_payload_device_id,
                             };
                             let vm_result_audio_device_added_event = AudioDeviceAddedEventVm {
                                 kind: vm_result_audio_device_added_event_kind,
                                 metadata: vm_result_audio_device_added_event_metadata,
-                                payload: vm_result_audio_device_added_event_payload,
+                                device_id: vm_result_audio_device_added_event_device_id,
                             };
                             AudioEventVm::AudioDeviceAddedEvent(vm_result_audio_device_added_event)
                         }
@@ -16667,19 +15946,16 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_device_format_changed_event_metadata_backend,
                                 flags: vm_result_audio_device_format_changed_event_metadata_flags,
                             };
-                            let vm_result_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_format_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_device_format_changed_event_payload_device_id_inner)
+                            let vm_result_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_device_format_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_device_format_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadVm {
-                                device_id: vm_result_audio_device_format_changed_event_payload_device_id,
                             };
                             let vm_result_audio_device_format_changed_event = AudioDeviceFormatChangedEventVm {
                                 kind: vm_result_audio_device_format_changed_event_kind,
                                 metadata: vm_result_audio_device_format_changed_event_metadata,
-                                payload: vm_result_audio_device_format_changed_event_payload,
+                                device_id: vm_result_audio_device_format_changed_event_device_id,
                             };
                             AudioEventVm::AudioDeviceFormatChangedEvent(vm_result_audio_device_format_changed_event)
                         }
@@ -16699,19 +15975,16 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_device_removed_event_metadata_backend,
                                 flags: vm_result_audio_device_removed_event_metadata_flags,
                             };
-                            let vm_result_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_removed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_device_removed_event_payload_device_id_inner)
+                            let vm_result_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_device_removed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_device_removed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_device_removed_event_payload = AudioDeviceRemovedPayloadVm {
-                                device_id: vm_result_audio_device_removed_event_payload_device_id,
                             };
                             let vm_result_audio_device_removed_event = AudioDeviceRemovedEventVm {
                                 kind: vm_result_audio_device_removed_event_kind,
                                 metadata: vm_result_audio_device_removed_event_metadata,
-                                payload: vm_result_audio_device_removed_event_payload,
+                                device_id: vm_result_audio_device_removed_event_device_id,
                             };
                             AudioEventVm::AudioDeviceRemovedEvent(vm_result_audio_device_removed_event)
                         }
@@ -16731,19 +16004,16 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_device_rerouted_event_metadata_backend,
                                 flags: vm_result_audio_device_rerouted_event_metadata_flags,
                             };
-                            let vm_result_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_device_rerouted_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_device_rerouted_event_payload_device_id_inner)
+                            let vm_result_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_device_rerouted_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_device_rerouted_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadVm {
-                                device_id: vm_result_audio_device_rerouted_event_payload_device_id,
                             };
                             let vm_result_audio_device_rerouted_event = AudioDeviceReroutedEventVm {
                                 kind: vm_result_audio_device_rerouted_event_kind,
                                 metadata: vm_result_audio_device_rerouted_event_metadata,
-                                payload: vm_result_audio_device_rerouted_event_payload,
+                                device_id: vm_result_audio_device_rerouted_event_device_id,
                             };
                             AudioEventVm::AudioDeviceReroutedEvent(vm_result_audio_device_rerouted_event)
                         }
@@ -16763,19 +16033,16 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_interruption_began_event_metadata_backend,
                                 flags: vm_result_audio_interruption_began_event_metadata_flags,
                             };
-                            let vm_result_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_interruption_began_event_payload_stream_inner = value;
-                                Some(vm_result_audio_interruption_began_event_payload_stream_inner)
+                            let vm_result_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_interruption_began_event_stream_inner = value;
+                                Some(vm_result_audio_interruption_began_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                                stream: vm_result_audio_interruption_began_event_payload_stream,
                             };
                             let vm_result_audio_interruption_began_event = AudioInterruptionBeganEventVm {
                                 kind: vm_result_audio_interruption_began_event_kind,
                                 metadata: vm_result_audio_interruption_began_event_metadata,
-                                payload: vm_result_audio_interruption_began_event_payload,
+                                stream: vm_result_audio_interruption_began_event_stream,
                             };
                             AudioEventVm::AudioInterruptionBeganEvent(vm_result_audio_interruption_began_event)
                         }
@@ -16795,19 +16062,16 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_interruption_ended_event_metadata_backend,
                                 flags: vm_result_audio_interruption_ended_event_metadata_flags,
                             };
-                            let vm_result_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_interruption_ended_event_payload_stream_inner = value;
-                                Some(vm_result_audio_interruption_ended_event_payload_stream_inner)
+                            let vm_result_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_interruption_ended_event_stream_inner = value;
+                                Some(vm_result_audio_interruption_ended_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                                stream: vm_result_audio_interruption_ended_event_payload_stream,
                             };
                             let vm_result_audio_interruption_ended_event = AudioInterruptionEndedEventVm {
                                 kind: vm_result_audio_interruption_ended_event_kind,
                                 metadata: vm_result_audio_interruption_ended_event_metadata,
-                                payload: vm_result_audio_interruption_ended_event_payload,
+                                stream: vm_result_audio_interruption_ended_event_stream,
                             };
                             AudioEventVm::AudioInterruptionEndedEvent(vm_result_audio_interruption_ended_event)
                         }
@@ -16827,28 +16091,25 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_stream_device_changed_event_metadata_backend,
                                 flags: vm_result_audio_stream_device_changed_event_metadata_flags,
                             };
-                            let vm_result_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_stream_device_changed_event_payload_stream_inner = value;
-                                Some(vm_result_audio_stream_device_changed_event_payload_stream_inner)
+                            let vm_result_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_stream_device_changed_event_stream_inner = value;
+                                Some(vm_result_audio_stream_device_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let vm_result_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                            let vm_result_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_stream_device_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_stream_device_changed_event_payload_device_id_inner)
+                            let vm_result_audio_stream_device_changed_event_status_flags = value.status_flags;
+                            let vm_result_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_stream_device_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_stream_device_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadVm {
-                                stream: vm_result_audio_stream_device_changed_event_payload_stream,
-                                status_flags: vm_result_audio_stream_device_changed_event_payload_status_flags,
-                                device_id: vm_result_audio_stream_device_changed_event_payload_device_id,
                             };
                             let vm_result_audio_stream_device_changed_event = AudioStreamDeviceChangedEventVm {
                                 kind: vm_result_audio_stream_device_changed_event_kind,
                                 metadata: vm_result_audio_stream_device_changed_event_metadata,
-                                payload: vm_result_audio_stream_device_changed_event_payload,
+                                stream: vm_result_audio_stream_device_changed_event_stream,
+                                status_flags: vm_result_audio_stream_device_changed_event_status_flags,
+                                device_id: vm_result_audio_stream_device_changed_event_device_id,
                             };
                             AudioEventVm::AudioStreamDeviceChangedEvent(vm_result_audio_stream_device_changed_event)
                         }
@@ -16868,21 +16129,18 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_stream_state_changed_event_metadata_backend,
                                 flags: vm_result_audio_stream_state_changed_event_metadata_flags,
                             };
-                            let vm_result_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_stream_state_changed_event_payload_stream_inner = value;
-                                Some(vm_result_audio_stream_state_changed_event_payload_stream_inner)
+                            let vm_result_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_stream_state_changed_event_stream_inner = value;
+                                Some(vm_result_audio_stream_state_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let vm_result_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                            let vm_result_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                                stream: vm_result_audio_stream_state_changed_event_payload_stream,
-                                status_flags: vm_result_audio_stream_state_changed_event_payload_status_flags,
-                            };
+                            let vm_result_audio_stream_state_changed_event_status_flags = value.status_flags;
                             let vm_result_audio_stream_state_changed_event = AudioStreamStateChangedEventVm {
                                 kind: vm_result_audio_stream_state_changed_event_kind,
                                 metadata: vm_result_audio_stream_state_changed_event_metadata,
-                                payload: vm_result_audio_stream_state_changed_event_payload,
+                                stream: vm_result_audio_stream_state_changed_event_stream,
+                                status_flags: vm_result_audio_stream_state_changed_event_status_flags,
                             };
                             AudioEventVm::AudioStreamStateChangedEvent(vm_result_audio_stream_state_changed_event)
                         }
@@ -16902,30 +16160,27 @@ fn destack_audio_event_try_read_vm_replay(
                                 backend: vm_result_audio_stream_x_run_event_metadata_backend,
                                 flags: vm_result_audio_stream_x_run_event_metadata_flags,
                             };
-                            let vm_result_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let vm_result_audio_stream_x_run_event_payload_stream_inner = value;
-                                Some(vm_result_audio_stream_x_run_event_payload_stream_inner)
+                            let vm_result_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                let vm_result_audio_stream_x_run_event_stream_inner = value;
+                                Some(vm_result_audio_stream_x_run_event_stream_inner)
                             } else {
                                 None
                             };
-                            let vm_result_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                            let vm_result_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                            let vm_result_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let vm_result_audio_stream_x_run_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                Some(vm_result_audio_stream_x_run_event_payload_device_id_inner)
+                            let vm_result_audio_stream_x_run_event_status_flags = value.status_flags;
+                            let vm_result_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                            let vm_result_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                let vm_result_audio_stream_x_run_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                Some(vm_result_audio_stream_x_run_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let vm_result_audio_stream_x_run_event_payload = AudioStreamXRunPayloadVm {
-                                stream: vm_result_audio_stream_x_run_event_payload_stream,
-                                status_flags: vm_result_audio_stream_x_run_event_payload_status_flags,
-                                xrun_count_delta: vm_result_audio_stream_x_run_event_payload_xrun_count_delta,
-                                device_id: vm_result_audio_stream_x_run_event_payload_device_id,
                             };
                             let vm_result_audio_stream_x_run_event = AudioStreamXRunEventVm {
                                 kind: vm_result_audio_stream_x_run_event_kind,
                                 metadata: vm_result_audio_stream_x_run_event_metadata,
-                                payload: vm_result_audio_stream_x_run_event_payload,
+                                stream: vm_result_audio_stream_x_run_event_stream,
+                                status_flags: vm_result_audio_stream_x_run_event_status_flags,
+                                xrun_count_delta: vm_result_audio_stream_x_run_event_xrun_count_delta,
+                                device_id: vm_result_audio_stream_x_run_event_device_id,
                             };
                             AudioEventVm::AudioStreamXRunEvent(vm_result_audio_stream_x_run_event)
                         }
@@ -16986,19 +16241,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_backend_disconnected_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_disconnected_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                                stream: result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_backend_disconnected_event = AudiobackenddisconnectedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_backend_disconnected_event_kind,
                                 metadata: result_recorded_item_recorded_audio_backend_disconnected_event_metadata,
-                                payload: result_recorded_item_recorded_audio_backend_disconnected_event_payload,
+                                stream: result_recorded_item_recorded_audio_backend_disconnected_event_stream,
                             };
                             AudioeventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_item_recorded_audio_backend_disconnected_event)
                         }
@@ -17021,19 +16273,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_backend_reset_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_backend_reset_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_backend_reset_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_reset_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                                stream: result_recorded_item_recorded_audio_backend_reset_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_backend_reset_event = AudiobackendreseteventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_backend_reset_event_kind,
                                 metadata: result_recorded_item_recorded_audio_backend_reset_event_metadata,
-                                payload: result_recorded_item_recorded_audio_backend_reset_event_payload,
+                                stream: result_recorded_item_recorded_audio_backend_reset_event_stream,
                             };
                             AudioeventReplayRecord::AudioBackendResetEvent(result_recorded_item_recorded_audio_backend_reset_event)
                         }
@@ -17056,22 +16305,19 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_default_capture_changed_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_default_capture_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_default_capture_changed_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_default_capture_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload = AudiodefaultcapturechangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_default_capture_changed_event = AudiodefaultcapturechangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_default_capture_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_default_capture_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_default_capture_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_default_capture_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_item_recorded_audio_default_capture_changed_event)
                         }
@@ -17094,22 +16340,19 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_default_loopback_changed_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_default_loopback_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_default_loopback_changed_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_default_loopback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload = AudiodefaultloopbackchangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_default_loopback_changed_event = AudiodefaultloopbackchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_default_loopback_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_default_loopback_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_default_loopback_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_item_recorded_audio_default_loopback_changed_event)
                         }
@@ -17132,22 +16375,19 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_default_playback_changed_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_default_playback_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_default_playback_changed_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_default_playback_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload = AudiodefaultplaybackchangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_default_playback_changed_event = AudiodefaultplaybackchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_default_playback_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_default_playback_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_default_playback_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_default_playback_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_item_recorded_audio_default_playback_changed_event)
                         }
@@ -17170,22 +16410,19 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_device_added_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_added_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_added_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_added_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_added_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_device_added_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_added_event_payload = AudiodeviceaddedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_added_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_added_event = AudiodeviceaddedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_added_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_added_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_added_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_added_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceAddedEvent(result_recorded_item_recorded_audio_device_added_event)
                         }
@@ -17208,22 +16445,19 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_device_format_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_format_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_format_changed_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_format_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_format_changed_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_device_format_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_format_changed_event_payload = AudiodeviceformatchangedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_format_changed_event = AudiodeviceformatchangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_format_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_format_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_format_changed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_format_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_item_recorded_audio_device_format_changed_event)
                         }
@@ -17246,22 +16480,19 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_device_removed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_removed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_removed_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_removed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_removed_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_device_removed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_removed_event_payload = AudiodeviceremovedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_removed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_removed_event = AudiodeviceremovedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_removed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_removed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_removed_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_removed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceRemovedEvent(result_recorded_item_recorded_audio_device_removed_event)
                         }
@@ -17284,22 +16515,19 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_device_rerouted_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_device_rerouted_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_device_rerouted_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_rerouted_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_rerouted_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_device_rerouted_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_device_rerouted_event_payload = AudiodevicereroutedpayloadReplayRecord {
-                                device_id: result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_device_rerouted_event = AudiodevicereroutedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_device_rerouted_event_kind,
                                 metadata: result_recorded_item_recorded_audio_device_rerouted_event_metadata,
-                                payload: result_recorded_item_recorded_audio_device_rerouted_event_payload,
+                                device_id: result_recorded_item_recorded_audio_device_rerouted_event_device_id,
                             };
                             AudioeventReplayRecord::AudioDeviceReroutedEvent(result_recorded_item_recorded_audio_device_rerouted_event)
                         }
@@ -17322,19 +16550,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_interruption_began_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_interruption_began_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_interruption_began_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_began_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                                stream: result_recorded_item_recorded_audio_interruption_began_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_interruption_began_event = AudiointerruptionbeganeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_interruption_began_event_kind,
                                 metadata: result_recorded_item_recorded_audio_interruption_began_event_metadata,
-                                payload: result_recorded_item_recorded_audio_interruption_began_event_payload,
+                                stream: result_recorded_item_recorded_audio_interruption_began_event_stream,
                             };
                             AudioeventReplayRecord::AudioInterruptionBeganEvent(result_recorded_item_recorded_audio_interruption_began_event)
                         }
@@ -17357,19 +16582,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_interruption_ended_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_interruption_ended_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_interruption_ended_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_ended_event_stream_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                                stream: result_recorded_item_recorded_audio_interruption_ended_event_payload_stream,
                             };
                             let result_recorded_item_recorded_audio_interruption_ended_event = AudiointerruptionendedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_interruption_ended_event_kind,
                                 metadata: result_recorded_item_recorded_audio_interruption_ended_event_metadata,
-                                payload: result_recorded_item_recorded_audio_interruption_ended_event_payload,
+                                stream: result_recorded_item_recorded_audio_interruption_ended_event_stream,
                             };
                             AudioeventReplayRecord::AudioInterruptionEndedEvent(result_recorded_item_recorded_audio_interruption_ended_event)
                         }
@@ -17392,31 +16614,28 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_status_flags = value.status_flags;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_stream_device_changed_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_stream_device_changed_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload = AudiostreamdevicechangedpayloadReplayRecord {
-                                stream: result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream,
-                                status_flags: result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags,
-                                device_id: result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_stream_device_changed_event = AudiostreamdevicechangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_stream_device_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_stream_device_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_stream_device_changed_event_payload,
+                                stream: result_recorded_item_recorded_audio_stream_device_changed_event_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_device_changed_event_status_flags,
+                                device_id: result_recorded_item_recorded_audio_stream_device_changed_event_device_id,
                             };
                             AudioeventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_item_recorded_audio_stream_device_changed_event)
                         }
@@ -17439,21 +16658,18 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_stream_state_changed_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_state_changed_event_stream_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                                stream: result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream,
-                                status_flags: result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags,
-                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_status_flags = value.status_flags;
                             let result_recorded_item_recorded_audio_stream_state_changed_event = AudiostreamstatechangedeventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_stream_state_changed_event_kind,
                                 metadata: result_recorded_item_recorded_audio_stream_state_changed_event_metadata,
-                                payload: result_recorded_item_recorded_audio_stream_state_changed_event_payload,
+                                stream: result_recorded_item_recorded_audio_stream_state_changed_event_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_state_changed_event_status_flags,
                             };
                             AudioeventReplayRecord::AudioStreamStateChangedEvent(result_recorded_item_recorded_audio_stream_state_changed_event)
                         }
@@ -17476,33 +16692,30 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                 backend: result_recorded_item_recorded_audio_stream_x_run_event_metadata_backend,
                                 flags: result_recorded_item_recorded_audio_stream_x_run_event_metadata_flags,
                             };
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner = value;
-                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner)
+                            let result_recorded_item_recorded_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_stream_inner)
                             } else {
                                 None
                             };
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner = {
-                                    let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                    result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner_ref.as_str().to_string()
+                            let result_recorded_item_recorded_audio_stream_x_run_event_status_flags = value.status_flags;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_stream_x_run_event_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_stream_x_run_event_device_id_inner_ref.as_str().to_string()
                                 };
-                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_device_id_inner)
                             } else {
                                 None
-                            };
-                            let result_recorded_item_recorded_audio_stream_x_run_event_payload = AudiostreamxrunpayloadReplayRecord {
-                                stream: result_recorded_item_recorded_audio_stream_x_run_event_payload_stream,
-                                status_flags: result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags,
-                                xrun_count_delta: result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
-                                device_id: result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id,
                             };
                             let result_recorded_item_recorded_audio_stream_x_run_event = AudiostreamxruneventReplayRecord {
                                 kind: result_recorded_item_recorded_audio_stream_x_run_event_kind,
                                 metadata: result_recorded_item_recorded_audio_stream_x_run_event_metadata,
-                                payload: result_recorded_item_recorded_audio_stream_x_run_event_payload,
+                                stream: result_recorded_item_recorded_audio_stream_x_run_event_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_x_run_event_status_flags,
+                                xrun_count_delta: result_recorded_item_recorded_audio_stream_x_run_event_xrun_count_delta,
+                                device_id: result_recorded_item_recorded_audio_stream_x_run_event_device_id,
                             };
                             AudioeventReplayRecord::AudioStreamXRunEvent(result_recorded_item_recorded_audio_stream_x_run_event)
                         }
@@ -17551,19 +16764,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_backend_disconnected_event_metadata_backend,
                                     flags: vm_result_item_value_audio_backend_disconnected_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_backend_disconnected_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_backend_disconnected_event_payload_stream_inner)
+                                let vm_result_item_value_audio_backend_disconnected_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_backend_disconnected_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_backend_disconnected_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
-                                    stream: vm_result_item_value_audio_backend_disconnected_event_payload_stream,
                                 };
                                 let vm_result_item_value_audio_backend_disconnected_event = AudioBackendDisconnectedEventVm {
                                     kind: vm_result_item_value_audio_backend_disconnected_event_kind,
                                     metadata: vm_result_item_value_audio_backend_disconnected_event_metadata,
-                                    payload: vm_result_item_value_audio_backend_disconnected_event_payload,
+                                    stream: vm_result_item_value_audio_backend_disconnected_event_stream,
                                 };
                                 AudioEventVm::AudioBackendDisconnectedEvent(vm_result_item_value_audio_backend_disconnected_event)
                             }
@@ -17583,19 +16793,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_backend_reset_event_metadata_backend,
                                     flags: vm_result_item_value_audio_backend_reset_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_backend_reset_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_backend_reset_event_payload_stream_inner)
+                                let vm_result_item_value_audio_backend_reset_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_backend_reset_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_backend_reset_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_backend_reset_event_payload = AudioBackendResetPayload {
-                                    stream: vm_result_item_value_audio_backend_reset_event_payload_stream,
                                 };
                                 let vm_result_item_value_audio_backend_reset_event = AudioBackendResetEventVm {
                                     kind: vm_result_item_value_audio_backend_reset_event_kind,
                                     metadata: vm_result_item_value_audio_backend_reset_event_metadata,
-                                    payload: vm_result_item_value_audio_backend_reset_event_payload,
+                                    stream: vm_result_item_value_audio_backend_reset_event_stream,
                                 };
                                 AudioEventVm::AudioBackendResetEvent(vm_result_item_value_audio_backend_reset_event)
                             }
@@ -17615,19 +16822,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_default_capture_changed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_default_capture_changed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_default_capture_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_default_capture_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_default_capture_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadVm {
-                                    device_id: vm_result_item_value_audio_default_capture_changed_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventVm {
                                     kind: vm_result_item_value_audio_default_capture_changed_event_kind,
                                     metadata: vm_result_item_value_audio_default_capture_changed_event_metadata,
-                                    payload: vm_result_item_value_audio_default_capture_changed_event_payload,
+                                    device_id: vm_result_item_value_audio_default_capture_changed_event_device_id,
                                 };
                                 AudioEventVm::AudioDefaultCaptureChangedEvent(vm_result_item_value_audio_default_capture_changed_event)
                             }
@@ -17647,19 +16851,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_default_loopback_changed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_default_loopback_changed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_default_loopback_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_default_loopback_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_default_loopback_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadVm {
-                                    device_id: vm_result_item_value_audio_default_loopback_changed_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventVm {
                                     kind: vm_result_item_value_audio_default_loopback_changed_event_kind,
                                     metadata: vm_result_item_value_audio_default_loopback_changed_event_metadata,
-                                    payload: vm_result_item_value_audio_default_loopback_changed_event_payload,
+                                    device_id: vm_result_item_value_audio_default_loopback_changed_event_device_id,
                                 };
                                 AudioEventVm::AudioDefaultLoopbackChangedEvent(vm_result_item_value_audio_default_loopback_changed_event)
                             }
@@ -17679,19 +16880,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_default_playback_changed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_default_playback_changed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_default_playback_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_default_playback_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_default_playback_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadVm {
-                                    device_id: vm_result_item_value_audio_default_playback_changed_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventVm {
                                     kind: vm_result_item_value_audio_default_playback_changed_event_kind,
                                     metadata: vm_result_item_value_audio_default_playback_changed_event_metadata,
-                                    payload: vm_result_item_value_audio_default_playback_changed_event_payload,
+                                    device_id: vm_result_item_value_audio_default_playback_changed_event_device_id,
                                 };
                                 AudioEventVm::AudioDefaultPlaybackChangedEvent(vm_result_item_value_audio_default_playback_changed_event)
                             }
@@ -17711,19 +16909,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_device_added_event_metadata_backend,
                                     flags: vm_result_item_value_audio_device_added_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_added_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_device_added_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_device_added_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_device_added_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_device_added_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_device_added_event_payload = AudioDeviceAddedPayloadVm {
-                                    device_id: vm_result_item_value_audio_device_added_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_device_added_event = AudioDeviceAddedEventVm {
                                     kind: vm_result_item_value_audio_device_added_event_kind,
                                     metadata: vm_result_item_value_audio_device_added_event_metadata,
-                                    payload: vm_result_item_value_audio_device_added_event_payload,
+                                    device_id: vm_result_item_value_audio_device_added_event_device_id,
                                 };
                                 AudioEventVm::AudioDeviceAddedEvent(vm_result_item_value_audio_device_added_event)
                             }
@@ -17743,19 +16938,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_device_format_changed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_device_format_changed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_device_format_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_device_format_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_device_format_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadVm {
-                                    device_id: vm_result_item_value_audio_device_format_changed_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_device_format_changed_event = AudioDeviceFormatChangedEventVm {
                                     kind: vm_result_item_value_audio_device_format_changed_event_kind,
                                     metadata: vm_result_item_value_audio_device_format_changed_event_metadata,
-                                    payload: vm_result_item_value_audio_device_format_changed_event_payload,
+                                    device_id: vm_result_item_value_audio_device_format_changed_event_device_id,
                                 };
                                 AudioEventVm::AudioDeviceFormatChangedEvent(vm_result_item_value_audio_device_format_changed_event)
                             }
@@ -17775,19 +16967,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_device_removed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_device_removed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_removed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_device_removed_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_device_removed_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_device_removed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_device_removed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_device_removed_event_payload = AudioDeviceRemovedPayloadVm {
-                                    device_id: vm_result_item_value_audio_device_removed_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_device_removed_event = AudioDeviceRemovedEventVm {
                                     kind: vm_result_item_value_audio_device_removed_event_kind,
                                     metadata: vm_result_item_value_audio_device_removed_event_metadata,
-                                    payload: vm_result_item_value_audio_device_removed_event_payload,
+                                    device_id: vm_result_item_value_audio_device_removed_event_device_id,
                                 };
                                 AudioEventVm::AudioDeviceRemovedEvent(vm_result_item_value_audio_device_removed_event)
                             }
@@ -17807,19 +16996,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_device_rerouted_event_metadata_backend,
                                     flags: vm_result_item_value_audio_device_rerouted_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_device_rerouted_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_device_rerouted_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_device_rerouted_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadVm {
-                                    device_id: vm_result_item_value_audio_device_rerouted_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_device_rerouted_event = AudioDeviceReroutedEventVm {
                                     kind: vm_result_item_value_audio_device_rerouted_event_kind,
                                     metadata: vm_result_item_value_audio_device_rerouted_event_metadata,
-                                    payload: vm_result_item_value_audio_device_rerouted_event_payload,
+                                    device_id: vm_result_item_value_audio_device_rerouted_event_device_id,
                                 };
                                 AudioEventVm::AudioDeviceReroutedEvent(vm_result_item_value_audio_device_rerouted_event)
                             }
@@ -17839,19 +17025,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_interruption_began_event_metadata_backend,
                                     flags: vm_result_item_value_audio_interruption_began_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_interruption_began_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_interruption_began_event_payload_stream_inner)
+                                let vm_result_item_value_audio_interruption_began_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_interruption_began_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_interruption_began_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
-                                    stream: vm_result_item_value_audio_interruption_began_event_payload_stream,
                                 };
                                 let vm_result_item_value_audio_interruption_began_event = AudioInterruptionBeganEventVm {
                                     kind: vm_result_item_value_audio_interruption_began_event_kind,
                                     metadata: vm_result_item_value_audio_interruption_began_event_metadata,
-                                    payload: vm_result_item_value_audio_interruption_began_event_payload,
+                                    stream: vm_result_item_value_audio_interruption_began_event_stream,
                                 };
                                 AudioEventVm::AudioInterruptionBeganEvent(vm_result_item_value_audio_interruption_began_event)
                             }
@@ -17871,19 +17054,16 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_interruption_ended_event_metadata_backend,
                                     flags: vm_result_item_value_audio_interruption_ended_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_interruption_ended_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_interruption_ended_event_payload_stream_inner)
+                                let vm_result_item_value_audio_interruption_ended_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_interruption_ended_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_interruption_ended_event_stream_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
-                                    stream: vm_result_item_value_audio_interruption_ended_event_payload_stream,
                                 };
                                 let vm_result_item_value_audio_interruption_ended_event = AudioInterruptionEndedEventVm {
                                     kind: vm_result_item_value_audio_interruption_ended_event_kind,
                                     metadata: vm_result_item_value_audio_interruption_ended_event_metadata,
-                                    payload: vm_result_item_value_audio_interruption_ended_event_payload,
+                                    stream: vm_result_item_value_audio_interruption_ended_event_stream,
                                 };
                                 AudioEventVm::AudioInterruptionEndedEvent(vm_result_item_value_audio_interruption_ended_event)
                             }
@@ -17903,28 +17083,25 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_stream_device_changed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_stream_device_changed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_stream_device_changed_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_stream_device_changed_event_payload_stream_inner)
+                                let vm_result_item_value_audio_stream_device_changed_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_stream_device_changed_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_stream_device_changed_event_stream_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
-                                let vm_result_item_value_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_stream_device_changed_event_status_flags = value.status_flags;
+                                let vm_result_item_value_audio_stream_device_changed_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_stream_device_changed_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_stream_device_changed_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadVm {
-                                    stream: vm_result_item_value_audio_stream_device_changed_event_payload_stream,
-                                    status_flags: vm_result_item_value_audio_stream_device_changed_event_payload_status_flags,
-                                    device_id: vm_result_item_value_audio_stream_device_changed_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_stream_device_changed_event = AudioStreamDeviceChangedEventVm {
                                     kind: vm_result_item_value_audio_stream_device_changed_event_kind,
                                     metadata: vm_result_item_value_audio_stream_device_changed_event_metadata,
-                                    payload: vm_result_item_value_audio_stream_device_changed_event_payload,
+                                    stream: vm_result_item_value_audio_stream_device_changed_event_stream,
+                                    status_flags: vm_result_item_value_audio_stream_device_changed_event_status_flags,
+                                    device_id: vm_result_item_value_audio_stream_device_changed_event_device_id,
                                 };
                                 AudioEventVm::AudioStreamDeviceChangedEvent(vm_result_item_value_audio_stream_device_changed_event)
                             }
@@ -17944,21 +17121,18 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_stream_state_changed_event_metadata_backend,
                                     flags: vm_result_item_value_audio_stream_state_changed_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_stream_state_changed_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_stream_state_changed_event_payload_stream_inner)
+                                let vm_result_item_value_audio_stream_state_changed_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_stream_state_changed_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_stream_state_changed_event_stream_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
-                                let vm_result_item_value_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
-                                    stream: vm_result_item_value_audio_stream_state_changed_event_payload_stream,
-                                    status_flags: vm_result_item_value_audio_stream_state_changed_event_payload_status_flags,
-                                };
+                                let vm_result_item_value_audio_stream_state_changed_event_status_flags = value.status_flags;
                                 let vm_result_item_value_audio_stream_state_changed_event = AudioStreamStateChangedEventVm {
                                     kind: vm_result_item_value_audio_stream_state_changed_event_kind,
                                     metadata: vm_result_item_value_audio_stream_state_changed_event_metadata,
-                                    payload: vm_result_item_value_audio_stream_state_changed_event_payload,
+                                    stream: vm_result_item_value_audio_stream_state_changed_event_stream,
+                                    status_flags: vm_result_item_value_audio_stream_state_changed_event_status_flags,
                                 };
                                 AudioEventVm::AudioStreamStateChangedEvent(vm_result_item_value_audio_stream_state_changed_event)
                             }
@@ -17978,30 +17152,27 @@ fn destack_audio_event_try_read_batch_vm_replay(
                                     backend: vm_result_item_value_audio_stream_x_run_event_metadata_backend,
                                     flags: vm_result_item_value_audio_stream_x_run_event_metadata_flags,
                                 };
-                                let vm_result_item_value_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
-                                    let vm_result_item_value_audio_stream_x_run_event_payload_stream_inner = value;
-                                    Some(vm_result_item_value_audio_stream_x_run_event_payload_stream_inner)
+                                let vm_result_item_value_audio_stream_x_run_event_stream = if let Some(value) = value.stream {
+                                    let vm_result_item_value_audio_stream_x_run_event_stream_inner = value;
+                                    Some(vm_result_item_value_audio_stream_x_run_event_stream_inner)
                                 } else {
                                     None
                                 };
-                                let vm_result_item_value_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
-                                let vm_result_item_value_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
-                                let vm_result_item_value_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
-                                    let vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
-                                    Some(vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner)
+                                let vm_result_item_value_audio_stream_x_run_event_status_flags = value.status_flags;
+                                let vm_result_item_value_audio_stream_x_run_event_xrun_count_delta = value.xrun_count_delta;
+                                let vm_result_item_value_audio_stream_x_run_event_device_id = if let Some(value) = value.device_id {
+                                    let vm_result_item_value_audio_stream_x_run_event_device_id_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
+                                    Some(vm_result_item_value_audio_stream_x_run_event_device_id_inner)
                                 } else {
                                     None
-                                };
-                                let vm_result_item_value_audio_stream_x_run_event_payload = AudioStreamXRunPayloadVm {
-                                    stream: vm_result_item_value_audio_stream_x_run_event_payload_stream,
-                                    status_flags: vm_result_item_value_audio_stream_x_run_event_payload_status_flags,
-                                    xrun_count_delta: vm_result_item_value_audio_stream_x_run_event_payload_xrun_count_delta,
-                                    device_id: vm_result_item_value_audio_stream_x_run_event_payload_device_id,
                                 };
                                 let vm_result_item_value_audio_stream_x_run_event = AudioStreamXRunEventVm {
                                     kind: vm_result_item_value_audio_stream_x_run_event_kind,
                                     metadata: vm_result_item_value_audio_stream_x_run_event_metadata,
-                                    payload: vm_result_item_value_audio_stream_x_run_event_payload,
+                                    stream: vm_result_item_value_audio_stream_x_run_event_stream,
+                                    status_flags: vm_result_item_value_audio_stream_x_run_event_status_flags,
+                                    xrun_count_delta: vm_result_item_value_audio_stream_x_run_event_xrun_count_delta,
+                                    device_id: vm_result_item_value_audio_stream_x_run_event_device_id,
                                 };
                                 AudioEventVm::AudioStreamXRunEvent(vm_result_item_value_audio_stream_x_run_event)
                             }
