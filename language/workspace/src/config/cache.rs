@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Cache configuration options.
 #[derive(Debug, Clone, Default)]
-pub struct DsConfigCacheOptions {
+pub struct CacheOptions {
     /// Cache mode.
     pub mode: CacheMode,
     /// Cache directory path.
@@ -65,7 +65,7 @@ pub enum CacheScope {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigCacheJson {
+pub struct CacheJson {
     /// Cache mode.
     pub mode: Option<CacheModeJson>,
     /// Cache directory path.
@@ -80,8 +80,8 @@ pub struct DsConfigCacheJson {
     pub scope: Option<CacheScopeJson>,
 }
 
-impl From<&DsConfigCacheJson> for DsConfigCacheOptions {
-    fn from(json: &DsConfigCacheJson) -> Self {
+impl From<&CacheJson> for CacheOptions {
+    fn from(json: &CacheJson) -> Self {
         Self {
             mode: json.mode.map(CacheMode::from).unwrap_or_default(),
             dir: json.dir.as_ref().map(PathBuf::from),

@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::{BorrowMode, EsTarget, ModuleDetection, ModuleResolution, ModuleTarget};
 
-/// Path alias mapping (resolved from dsconfig paths).
+/// Path alias mapping (resolved from Destack config paths).
 pub type DsPathAliases = IndexMap<String, Vec<String>>;
 
 /// Normalized Destack compiler options.
@@ -13,7 +13,7 @@ pub type DsPathAliases = IndexMap<String, Vec<String>>;
 /// **By default, strict mode is ON.**
 /// Destack defaults to stricter type checking than TypeScript.
 #[derive(Debug, Clone)]
-pub struct DsConfigCompilerOptions {
+pub struct CompilerOptions {
     // module resolution
     /// Base URL for resolving non-relative module names.
     pub base_url: Option<PathBuf>,
@@ -191,7 +191,7 @@ pub struct DsConfigCompilerOptions {
     pub skip_lib_check: bool,
 }
 
-impl Default for DsConfigCompilerOptions {
+impl Default for CompilerOptions {
     fn default() -> Self {
         // defaults to strict mode ON (stricter than TypeScript)
         let strict = true;
@@ -302,7 +302,7 @@ impl Default for DsConfigCompilerOptions {
     }
 }
 
-impl DsConfigCompilerOptions {
+impl CompilerOptions {
     /// Enable strict-mode defaults.
     pub fn apply_strict_defaults(&mut self) {
         // lock the strict umbrella flag and parser strictness
@@ -581,7 +581,7 @@ impl ImplicitCollectionConversionPolicy {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DsConfigCompilerOptionsJson {
+pub struct CompilerOptionsJson {
     // module resolution
     /// Base URL for resolving non-relative module names.
     pub base_url: Option<String>,
@@ -763,8 +763,8 @@ pub struct DsConfigCompilerOptionsJson {
     pub skip_lib_check: Option<bool>,
 }
 
-impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
-    fn from(json: &DsConfigCompilerOptionsJson) -> Self {
+impl From<&CompilerOptionsJson> for CompilerOptions {
+    fn from(json: &CompilerOptionsJson) -> Self {
         let module_resolution = json
             .module_resolution
             .as_deref()
@@ -1035,14 +1035,14 @@ impl From<&DsConfigCompilerOptionsJson> for DsConfigCompilerOptions {
 
 #[cfg(test)]
 mod tests {
-    use super::{DsConfigCompilerOptions, DsConfigCompilerOptionsJson, NodeLinker};
+    use super::{CompilerOptions, CompilerOptionsJson, NodeLinker};
     use crate::ModuleResolution;
 
     /// Parse js_as_jsx as false by default.
     #[test]
     fn test_parse_compiler_options_js_as_jsx_default_false() {
-        let json = DsConfigCompilerOptionsJson::default();
-        let options = DsConfigCompilerOptions::from(&json);
+        let json = CompilerOptionsJson::default();
+        let options = CompilerOptions::from(&json);
 
         assert!(!options.js_as_jsx);
     }
@@ -1050,11 +1050,11 @@ mod tests {
     /// Parse js_as_jsx when the JSON field is enabled.
     #[test]
     fn test_parse_compiler_options_js_as_jsx_true() {
-        let json = DsConfigCompilerOptionsJson {
+        let json = CompilerOptionsJson {
             js_as_jsx: Some(true),
-            ..DsConfigCompilerOptionsJson::default()
+            ..CompilerOptionsJson::default()
         };
-        let options = DsConfigCompilerOptions::from(&json);
+        let options = CompilerOptions::from(&json);
 
         assert!(options.js_as_jsx);
     }
@@ -1062,11 +1062,11 @@ mod tests {
     /// Parse es module interop as synthetic default imports when enabled.
     #[test]
     fn test_parse_compiler_options_es_module_interop_enables_synthetic_defaults() {
-        let json = DsConfigCompilerOptionsJson {
+        let json = CompilerOptionsJson {
             es_module_interop: Some(true),
-            ..DsConfigCompilerOptionsJson::default()
+            ..CompilerOptionsJson::default()
         };
-        let options = DsConfigCompilerOptions::from(&json);
+        let options = CompilerOptions::from(&json);
 
         assert!(options.es_module_interop);
         assert!(options.allow_synthetic_default_imports);
@@ -1075,12 +1075,12 @@ mod tests {
     /// Parse explicit synthetic default overrides over es module interop.
     #[test]
     fn test_parse_compiler_options_synthetic_default_imports_override() {
-        let json = DsConfigCompilerOptionsJson {
+        let json = CompilerOptionsJson {
             es_module_interop: Some(true),
             allow_synthetic_default_imports: Some(false),
-            ..DsConfigCompilerOptionsJson::default()
+            ..CompilerOptionsJson::default()
         };
-        let options = DsConfigCompilerOptions::from(&json);
+        let options = CompilerOptions::from(&json);
 
         assert!(options.es_module_interop);
         assert!(!options.allow_synthetic_default_imports);
@@ -1089,11 +1089,11 @@ mod tests {
     /// Parse module resolution package defaults from moduleResolution.
     #[test]
     fn test_parse_compiler_options_module_resolution_sets_package_defaults() {
-        let json = DsConfigCompilerOptionsJson {
+        let json = CompilerOptionsJson {
             module_resolution: Some("node16".to_string()),
-            ..DsConfigCompilerOptionsJson::default()
+            ..CompilerOptionsJson::default()
         };
-        let options = DsConfigCompilerOptions::from(&json);
+        let options = CompilerOptions::from(&json);
 
         assert_eq!(options.module_resolution, ModuleResolution::Node16);
         assert!(options.resolve_package_json_exports);
@@ -1103,8 +1103,8 @@ mod tests {
     /// Parse node linker as auto by default.
     #[test]
     fn test_parse_compiler_options_node_linker_default_auto() {
-        let json = DsConfigCompilerOptionsJson::default();
-        let options = DsConfigCompilerOptions::from(&json);
+        let json = CompilerOptionsJson::default();
+        let options = CompilerOptions::from(&json);
 
         assert_eq!(options.node_linker, NodeLinker::Auto);
     }
@@ -1112,11 +1112,11 @@ mod tests {
     /// Parse explicit node linker values from compiler options.
     #[test]
     fn test_parse_compiler_options_node_linker_explicit_value() {
-        let json = DsConfigCompilerOptionsJson {
+        let json = CompilerOptionsJson {
             node_linker: Some("pnp".to_string()),
-            ..DsConfigCompilerOptionsJson::default()
+            ..CompilerOptionsJson::default()
         };
-        let options = DsConfigCompilerOptions::from(&json);
+        let options = CompilerOptions::from(&json);
 
         assert_eq!(options.node_linker, NodeLinker::Pnp);
     }
@@ -1124,13 +1124,13 @@ mod tests {
     /// Parse no internal import policy from compiler options.
     #[test]
     fn test_parse_compiler_options_no_internal_import_policy() {
-        let json = DsConfigCompilerOptionsJson {
+        let json = CompilerOptionsJson {
             no_internal_import: Some(super::DiagnosticPolicyJson::Value(
                 super::DiagnosticPolicyValueJson::Warn,
             )),
-            ..DsConfigCompilerOptionsJson::default()
+            ..CompilerOptionsJson::default()
         };
-        let options = DsConfigCompilerOptions::from(&json);
+        let options = CompilerOptions::from(&json);
 
         assert!(options.no_internal_import.is_warn());
     }
