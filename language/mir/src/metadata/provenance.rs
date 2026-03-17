@@ -106,6 +106,8 @@ impl ProvenanceTable {
         parents: Vec<ProvenanceId>,
     ) -> ProvenanceId {
         let id = ProvenanceId::new(self.records.len() as u32);
+        let origins = dedup_stable(origins);
+        let parents = dedup_stable(parents);
 
         self.records.push(Provenance {
             kind,
@@ -122,12 +124,66 @@ impl ProvenanceTable {
     }
 
     /// Create direct provenance from one DIR origin.
-    pub fn create_direct(&mut self, origin: u32) -> ProvenanceId {
+    pub fn direct(&mut self, origin: u32) -> ProvenanceId {
         self.create(ProvenanceKind::Direct, None, vec![origin], Vec::new())
+    }
+
+    /// Create synthetic provenance.
+    pub fn synthetic(
+        &mut self,
+        reason: Option<ProvenanceReason>,
+        parents: Vec<ProvenanceId>,
+    ) -> ProvenanceId {
+        self.create(ProvenanceKind::Synthetic, reason, Vec::new(), parents)
+    }
+
+    /// Create derived provenance.
+    pub fn derived(
+        &mut self,
+        reason: Option<ProvenanceReason>,
+        origins: Vec<u32>,
+        parents: Vec<ProvenanceId>,
+    ) -> ProvenanceId {
+        self.create(ProvenanceKind::Derived, reason, origins, parents)
+    }
+
+    /// Create merged provenance.
+    pub fn merged(&mut self, origins: Vec<u32>, parents: Vec<ProvenanceId>) -> ProvenanceId {
+        self.create(ProvenanceKind::Merged, None, origins, parents)
+    }
+
+    /// Create inlined provenance.
+    pub fn inlined(&mut self, origins: Vec<u32>, parents: Vec<ProvenanceId>) -> ProvenanceId {
+        self.create(ProvenanceKind::Inlined, None, origins, parents)
+    }
+
+    /// Create optimized provenance.
+    pub fn optimized(&mut self, origins: Vec<u32>, parents: Vec<ProvenanceId>) -> ProvenanceId {
+        self.create(ProvenanceKind::Optimized, None, origins, parents)
+    }
+
+    /// Return whether one provenance id exists.
+    pub fn contains(&self, id: ProvenanceId) -> bool {
+        id.index() < self.records.len()
     }
 
     /// Get one provenance record by id.
     pub fn record(&self, id: ProvenanceId) -> &Provenance {
         &self.records[id.index()]
     }
+}
+
+/// Deduplicate a short vector while preserving the first occurrence of each element.
+fn dedup_stable<T: PartialEq>(items: Vec<T>) -> Vec<T> {
+    let mut deduped = Vec::with_capacity(items.len());
+
+    for item in items {
+        if deduped.iter().any(|existing| existing == &item) {
+            continue;
+        }
+
+        deduped.push(item);
+    }
+
+    deduped
 }

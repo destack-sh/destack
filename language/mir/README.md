@@ -166,6 +166,30 @@ The layout table stores concrete size, alignment, and field offsets for aggregat
 The layout table is the single source of truth for physical layout across optimizer, VM, and codegen.
 Union metadata describes logical union semantics, while the layout table describes physical offsets.
 
+### Debug and provenance metadata
+
+MIR carries source-debug metadata and semantic-origin metadata as separate tables.
+`NodeTree.debug_table` is the user-facing source debug model.
+`NodeTree.provenance_table` is the MIR-to-DIR origin model.
+These tables are related, but they are not the same thing.
+
+The debug model follows LLVM, DWARF, and rustc-style prior art.
+Bindings are modeled explicitly rather than inferring everything from locals or SSA values.
+Inline provenance is modeled explicitly through `DebugInlineSite`.
+Binding locations are modeled as half-open ranges rather than one binding-to-one-location maps.
+Each debug range starts at either `FunctionEntry` or one specific instruction and may end at the first instruction after the range.
+Debug values may be direct locations, composites built from fragments, or state-only records such as `OptimizedOut` and `Undefined`.
+Coroutine lowering has a reserved debug home in `DebugCoroutineState`.
+
+The provenance model records where MIR nodes came from semantically.
+Each record stores a stable `ProvenanceKind`, an optional `ProvenanceReason`, zero or more DIR origins, and zero or more parent MIR provenance records.
+The stable kinds are `Direct`, `Synthetic`, `Derived`, `Merged`, `Inlined`, and `Optimized`.
+Specific lowering causes, such as runtime checks or closure lowering, live in `ProvenanceReason` rather than bloating the core kind taxonomy.
+Node attachment is separate from record storage, so MIR nodes may either point at one provenance record or remain unattached when no semantic origin is available.
+
+The MIR validator treats debug and provenance as first-class metadata domains.
+Debug scopes, inline sites, binding ranges, provenance records, parent chains, reverse indices, and cross-table attachments are all validated explicitly.
+
 ## Intrinsics
 
 Intrinsics are primitive operations handled directly by backends.

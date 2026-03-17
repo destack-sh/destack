@@ -821,7 +821,7 @@ block0(v0: i32):
             vec![mir::DebugBindingLocationRange {
                 binding: binding_id,
                 location: mir::DebugValueLocation::Value(param_value),
-                start: None,
+                start: mir::DebugRangeStart::function_entry(),
                 end: None,
             }],
         );
@@ -840,7 +840,7 @@ block0(v0: i32):
             &vec![mir::DebugBindingLocationRange {
                 binding: binding_id,
                 location: mir::DebugValueLocation::State(mir::DebugValueState::Undefined),
-                start: None,
+                start: mir::DebugRangeStart::function_entry(),
                 end: None,
             }]
         );

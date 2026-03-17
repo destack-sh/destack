@@ -225,7 +225,7 @@ block0:
             vec![mir::DebugBindingLocationRange {
                 binding: binding_id,
                 location: mir::DebugValueLocation::Global(global_id),
-                start: None,
+                start: mir::DebugRangeStart::function_entry(),
                 end: None,
             }],
         );

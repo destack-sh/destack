@@ -844,7 +844,7 @@ block0:
             vec![mir::DebugBindingLocationRange {
                 binding: binding_id,
                 location: mir::DebugValueLocation::Value(destination),
-                start: Some(instruction_id),
+                start: mir::DebugRangeStart::instruction(instruction_id),
                 end: None,
             }],
         );
@@ -871,7 +871,7 @@ block0:
             &vec![mir::DebugBindingLocationRange {
                 binding: binding_id,
                 location: mir::DebugValueLocation::Global(global_id),
-                start: Some(instruction_id),
+                start: mir::DebugRangeStart::instruction(instruction_id),
                 end: None,
             }]
         );

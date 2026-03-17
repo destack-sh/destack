@@ -611,7 +611,7 @@ extern function @dead(i32) -> i32"#;
                 location: mir::DebugValueLocation::Value(
                     test.tree.get(dead_id).parameters[0].value,
                 ),
-                start: Some(dead_instruction),
+                start: mir::DebugRangeStart::instruction(dead_instruction),
                 end: None,
             }],
         );
@@ -636,7 +636,7 @@ extern function @dead(i32) -> i32"#;
             Some(&vec![mir::DebugBindingLocationRange {
                 binding: binding_id,
                 location: mir::DebugValueLocation::State(mir::DebugValueState::Undefined),
-                start: Some(dead_instruction),
+                start: mir::DebugRangeStart::instruction(dead_instruction),
                 end: None,
             }])
         );
