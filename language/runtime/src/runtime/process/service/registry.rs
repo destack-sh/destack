@@ -37,14 +37,7 @@ impl<S> Default for CachedServiceHandle<S> {
 impl<S> CachedServiceHandle<S> {
     /// Return one cached typed service handle from one infallible builder.
     pub(crate) fn get_or_init(&self, builder: impl FnOnce() -> Arc<S>) -> Arc<S> {
-        if let Some(service) = self.service.get() {
-            return service.clone();
-        }
-
-        let service = builder();
-        let _ = self.service.set(service.clone());
-
-        self.service.get().cloned().unwrap_or(service)
+        self.service.get_or_init(builder).clone()
     }
 
     /// Return one cached typed service handle from one fallible builder.
@@ -57,9 +50,10 @@ impl<S> CachedServiceHandle<S> {
         }
 
         let service = builder()?;
-        let _ = self.service.set(service.clone());
-
-        Ok(self.service.get().cloned().unwrap_or(service))
+        match self.service.set(service.clone()) {
+            Ok(()) => Ok(service),
+            Err(service) => Ok(self.service.get().cloned().unwrap_or(service)),
+        }
     }
 }
 

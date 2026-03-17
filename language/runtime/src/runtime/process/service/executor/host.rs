@@ -7,16 +7,21 @@ use crate::diagnostic::RuntimeResult;
 use crate::host::apple::message::is_process_main_context;
 #[cfg(target_os = "macos")]
 use crate::platform::core::{self as core_platform};
+#[cfg(windows)]
+use crate::platform::core::{self as core_platform};
 
 use super::super::affinity::ServiceHostLoop;
 #[cfg(target_os = "macos")]
 use super::super::unix::call_process_main_thread;
 #[cfg(windows)]
 use super::super::windows::{
-    call_process_windows_message_loop, try_bind_windows_message_loop, windows_loop_queue,
+    WINDOWS_HOST_LOOP_SERVICE_MESSAGE_ID, WindowsLoopQueue, register_windows_loop_queue,
+    windows_loop_queue,
 };
 #[cfg(windows)]
 use std::sync::Arc;
+#[cfg(windows)]
+use std::sync::mpsc::sync_channel;
 
 /// One host-loop-bound executor for one host-affine platform service.
 pub(crate) struct HostLoopExecutor {
@@ -30,7 +35,7 @@ pub(crate) struct HostLoopExecutor {
     pub(crate) is_bound: AtomicBool,
     /// Queued callbacks for one windows message loop.
     #[cfg(windows)]
-    pub(crate) windows_queue: Arc<super::super::windows::WindowsLoopQueue>,
+    pub(crate) windows_queue: Arc<WindowsLoopQueue>,
     /// The bound windows thread id for one windows message loop.
     #[cfg(windows)]
     pub(crate) windows_thread_id: OnceLock<u32>,
@@ -67,7 +72,7 @@ impl HostLoopExecutor {
 
             #[cfg(windows)]
             ServiceHostLoop::WindowsMessageLoop => {
-                call_process_windows_message_loop(operation, self, _callback)
+                self.call_windows_message_loop(operation, _callback)
             }
         }
     }
@@ -145,8 +150,122 @@ impl HostLoopExecutor {
 
 #[cfg(windows)]
 impl HostLoopExecutor {
+    /// Execute one callback on the bound windows message loop.
+    fn call_windows_message_loop<R>(
+        &self,
+        operation: &'static str,
+        callback: impl FnOnce() -> RuntimeResult<R> + Send + 'static,
+    ) -> RuntimeResult<R>
+    where
+        R: Send + 'static,
+    {
+        // run directly when the current thread already owns the host loop
+        if self.try_bind_windows_message_loop() || self.is_current_bound_thread() {
+            return callback();
+        }
+
+        let Some(thread_id) = self.windows_thread_id.get().copied() else {
+            return Err(core_platform::io_operation_error(
+                operation,
+                None,
+                format!(
+                    "loop service {} has no bound windows message loop thread",
+                    self.name
+                ),
+            ));
+        };
+
+        let (result_tx, result_rx) = sync_channel::<RuntimeResult<R>>(1);
+
+        // queue one callback for the bound windows message loop
+        {
+            let mut callbacks = self.windows_queue.callbacks.lock();
+            callbacks.push_back(Box::new(move || {
+                let _result_delivered = result_tx.send(callback()).is_ok();
+            }));
+        }
+
+        // wake the bound message loop thread to service the callback
+        let dispatched = unsafe {
+            windows_sys::Win32::UI::WindowsAndMessaging::PostThreadMessageW(
+                thread_id,
+                WINDOWS_HOST_LOOP_SERVICE_MESSAGE_ID,
+                0,
+                0,
+            )
+        };
+        if dispatched == 0 {
+            return Err(core_platform::io_operation_error(
+                operation,
+                None,
+                format!(
+                    "failed to post loop callback to windows thread {thread_id}: {}",
+                    core_platform::last_error_code()
+                ),
+            ));
+        }
+
+        // wait for the windows loop callback result
+        result_rx.recv().map_err(|error| {
+            core_platform::io_operation_error(
+                operation,
+                None,
+                format!(
+                    "failed to receive windows loop callback result for {}: {error}",
+                    self.name
+                ),
+            )
+        })?
+    }
+
     /// Bind the current windows message loop thread on first use.
     pub(crate) fn try_bind_windows_message_loop(&self) -> bool {
-        try_bind_windows_message_loop(self)
+        if self.is_current_bound_thread() {
+            return true;
+        }
+
+        if self.is_bound.load(std::sync::atomic::Ordering::Acquire) {
+            return false;
+        }
+
+        let current_thread_id = std::thread::current().id();
+        let current_windows_thread_id =
+            unsafe { windows_sys::Win32::System::Threading::GetCurrentThreadId() };
+        let mut message =
+            unsafe { std::mem::zeroed::<windows_sys::Win32::UI::WindowsAndMessaging::MSG>() };
+
+        // create the thread message queue before other threads post callbacks to it
+        unsafe {
+            windows_sys::Win32::UI::WindowsAndMessaging::PeekMessageW(
+                &mut message,
+                0,
+                0,
+                0,
+                windows_sys::Win32::UI::WindowsAndMessaging::PM_NOREMOVE,
+            );
+        }
+
+        // bind the first observed windows message loop thread
+        if self.thread_id.set(current_thread_id).is_err() {
+            return self.is_current_bound_thread();
+        }
+
+        if self
+            .windows_thread_id
+            .set(current_windows_thread_id)
+            .is_err()
+        {
+            return self
+                .windows_thread_id
+                .get()
+                .copied()
+                .is_some_and(|thread_id| thread_id == current_windows_thread_id);
+        }
+
+        register_windows_loop_queue(current_windows_thread_id, &self.windows_queue);
+        self.is_bound
+            .store(true, std::sync::atomic::Ordering::Release);
+
+        true
     }
 }

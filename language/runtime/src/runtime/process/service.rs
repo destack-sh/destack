@@ -66,5 +66,3 @@ where
         self.subscribers.retain(|_, weak| weak.strong_count() > 0);
     }
 }
-
-// FUGU #Architecture: cleanup

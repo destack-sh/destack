@@ -1,8 +1,4 @@
-#![allow(clippy::missing_const_for_thread_local)]
-
-use std::any::Any;
-use std::cell::{Cell, Ref, RefCell};
-use std::ptr;
+use std::cell::Ref;
 use std::time::Duration;
 
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
@@ -14,117 +10,17 @@ use crate::runtime::bindings::{
 };
 use crate::runtime::policy::BindingDispatchDecision;
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::scheduler::{
-    EventLoop, EventLoopScope, MicrotaskId, TaskId, current_event_loop_scope,
-};
+use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
 use crate::runtime::trace::{EntropySubject, Trace};
 use crate::runtime::world::World;
 use crate::simulation::Simulation;
 
-use super::{Agent, ExecutionContext, ExecutionContextId, binding_affinity_name};
+use super::{
+    Agent, EventLoopScope, ExecutionContext, ExecutionContextId, binding_affinity_name,
+    current_agent_context, current_event_loop_scope, with_binding_call_arena,
+};
 use crate::runtime::{Hooks, NativeSlice, NativeStringRef, NativeStringSlice, PolicyCallId};
 use destack_workspace::{RuntimeAccess, RuntimeDiagnosticLevel, TimeMode};
-
-thread_local! {
-    /// TLS slot for the current runtime execution context.
-    static CURRENT_AGENT_CONTEXT: Cell<CurrentAgentContext> = const { Cell::new(CurrentAgentContext::empty()) };
-    /// TLS slot for the current binding call context.
-    static BINDING_CALL_CONTEXT: Cell<*const BindingCallContext> = const { Cell::new(ptr::null()) };
-    /// TLS storage for native ABI references returned by bindings.
-    static BINDING_CALL_ARENA: BindingCallArena = const { BindingCallArena::new() };
-}
-
-/// Current runtime execution context for VM callback bridging.
-#[derive(Debug, Clone, Copy)]
-struct CurrentAgentContext {
-    /// Agent pointer for callback dispatch.
-    agent: *const Agent,
-    /// Event loop pointer for callback dispatch.
-    event_loop: *const EventLoop,
-    /// Host pointer for callback dispatch.
-    host: *const HostSession,
-    /// World pointer for replay, time, random, and policy.
-    world: *const World,
-    /// Execution context identifier for callback dispatch.
-    execution_context_id: ExecutionContextId,
-    /// Whether this execution scope runs on the process main context.
-    is_process_main: bool,
-}
-
-impl CurrentAgentContext {
-    /// Return one empty runtime execution context.
-    const fn empty() -> Self {
-        Self {
-            agent: ptr::null(),
-            event_loop: ptr::null(),
-            host: ptr::null(),
-            world: ptr::null(),
-            execution_context_id: ExecutionContextId(0),
-            is_process_main: false,
-        }
-    }
-
-    /// Return whether this execution context is available.
-    const fn is_empty(self) -> bool {
-        self.agent.is_null()
-            || self.event_loop.is_null()
-            || self.host.is_null()
-            || self.world.is_null()
-    }
-}
-
-/// Guard that restores the previous current-agent execution context.
-#[derive(Debug)]
-pub(crate) struct CurrentAgentContextGuard {
-    /// Previous current-agent execution context.
-    previous: CurrentAgentContext,
-}
-
-impl Drop for CurrentAgentContextGuard {
-    /// Restore the previous current-agent execution context.
-    fn drop(&mut self) {
-        CURRENT_AGENT_CONTEXT.with(|slot| slot.set(self.previous));
-    }
-}
-
-/// Enter one current-agent execution context for VM callback dispatch.
-pub(crate) fn enter_current_agent_context(
-    agent: *const Agent,
-    event_loop: *const EventLoop,
-    host: *const HostSession,
-    world: *const World,
-    is_process_main: bool,
-) -> CurrentAgentContextGuard {
-    let event_loop = unsafe { &*event_loop };
-    let execution_context_id = event_loop.execution_context_id();
-    let next = CurrentAgentContext {
-        agent,
-        event_loop: event_loop as *const EventLoop,
-        host,
-        world,
-        execution_context_id,
-        is_process_main,
-    };
-    let previous = CURRENT_AGENT_CONTEXT.with(|slot| {
-        let previous = slot.get();
-        slot.set(next);
-        previous
-    });
-
-    CurrentAgentContextGuard { previous }
-}
-
-/// Return the current-agent execution context when available.
-fn current_agent_context() -> Option<CurrentAgentContext> {
-    CURRENT_AGENT_CONTEXT.with(|slot| {
-        let context = slot.get();
-        if context.is_empty() {
-            return None;
-        }
-
-        Some(context)
-    })
-}
 
 /// TLS payload for native runtime calls.
 #[derive(Debug, Clone)]
@@ -204,6 +100,16 @@ impl BindingCallContext {
 
     /// Create one VM binding call context from the current-agent execution scope.
     pub(crate) fn from_current_agent_for_vm() -> RuntimeResult<Self> {
+        Self::from_current_agent(BindingEngine::Vm)
+    }
+
+    /// Create one native binding call context from the current-agent execution scope.
+    pub(crate) fn from_current_agent_for_native() -> RuntimeResult<Self> {
+        Self::from_current_agent(BindingEngine::Native)
+    }
+
+    /// Create one binding call context from the current-agent execution scope.
+    fn from_current_agent(engine: BindingEngine) -> RuntimeResult<Self> {
         let context = current_agent_context()
             .ok_or_else(|| RuntimeError::BindingCallContextMissing.boxed())?;
         Ok(Self::from_raw(
@@ -211,7 +117,7 @@ impl BindingCallContext {
             context.event_loop,
             context.host,
             context.world,
-            BindingEngine::Vm,
+            engine,
         )
         .with_execution_context(ExecutionContext::new(
             context.execution_context_id,
@@ -348,7 +254,11 @@ impl BindingCallContext {
 
     /// Service runtime-owned host ingress for the active runtime.
     pub(crate) fn service_runtime_ingress(&self) -> RuntimeResult<()> {
-        self.host().service_ingress()
+        // host owned ingress
+        self.host().service_ingress()?;
+
+        // agent local runtime callbacks
+        self.agent().service_runtime_callbacks(self)
     }
 
     /// Wait for one binding result while runtime-owned host ingress makes progress.
@@ -485,32 +395,32 @@ impl BindingCallContext {
 
     /// Clear call-local storage for native bindings.
     pub fn clear_values(&self) {
-        BINDING_CALL_ARENA.with(|arena| arena.clear());
+        with_binding_call_arena(|arena| arena.clear());
     }
 
     /// Store a string for the duration of the current call.
     pub fn store_string(&self, value: &str) -> NativeStringRef {
-        BINDING_CALL_ARENA.with(|arena| arena.store_string(value))
+        with_binding_call_arena(|arena| arena.store_string(value))
     }
 
     /// Store an optional string for the duration of the current call.
     pub fn store_string_option(&self, value: Option<&String>) -> NativeStringRef {
-        BINDING_CALL_ARENA.with(|arena| arena.store_string_option(value))
+        with_binding_call_arena(|arena| arena.store_string_option(value))
     }
 
     /// Store a slice for the duration of the current call.
     pub fn store_slice<T: 'static>(&self, values: Vec<T>) -> NativeSlice<T> {
-        BINDING_CALL_ARENA.with(|arena| arena.store_slice(values))
+        with_binding_call_arena(|arena| arena.store_slice(values))
     }
 
     /// Store an array for the duration of the current call.
     pub fn store_array<T: 'static>(&self, values: Vec<T>) -> NativeArray<T> {
-        BINDING_CALL_ARENA.with(|arena| arena.store_array(values))
+        with_binding_call_arena(|arena| arena.store_array(values))
     }
 
     /// Store a string slice for the duration of the current call.
     pub fn store_string_slice(&self, values: Vec<NativeStringRef>) -> NativeStringSlice {
-        BINDING_CALL_ARENA.with(|arena| arena.store_string_slice(values))
+        with_binding_call_arena(|arena| arena.store_string_slice(values))
     }
 
     /// Return one policy-violation error for one binding descriptor.
@@ -696,132 +606,5 @@ pub(crate) const fn execution_context_satisfies(
             None => false,
         },
         BindingAffinity::ProcessMain => execution_context.is_process_main,
-    }
-}
-
-/// Guard that restores the previous TLS binding call context.
-#[derive(Debug)]
-pub struct BindingCallGuard {
-    /// Previous TLS context pointer.
-    previous: *const BindingCallContext,
-}
-
-impl Drop for BindingCallGuard {
-    /// Restore the previous binding call context.
-    fn drop(&mut self) {
-        BINDING_CALL_CONTEXT.with(|slot| slot.set(self.previous));
-    }
-}
-
-/// Enter a binding call context for native bindings.
-#[inline]
-pub fn enter_binding_call_context(context: &BindingCallContext) -> BindingCallGuard {
-    // swap in the new TLS context and capture the previous one
-    let previous = BINDING_CALL_CONTEXT.with(|slot| {
-        let previous = slot.get();
-        slot.set(context as *const BindingCallContext);
-        previous
-    });
-
-    BindingCallGuard { previous }
-}
-
-/// Access the current binding call context for native bindings.
-#[inline]
-pub fn with_binding_call_context<T>(
-    f: impl FnOnce(&BindingCallContext) -> RuntimeResult<T>,
-) -> RuntimeResult<T> {
-    // read the TLS context pointer
-    let context = BINDING_CALL_CONTEXT.with(|slot| slot.get());
-    if context.is_null() {
-        return Err(RuntimeError::BindingCallContextMissing.boxed());
-    }
-
-    // safety: pointer is set by enter_binding_call_context
-    let context = unsafe { &*context };
-
-    // clear call-local value storage
-    context.clear_values();
-    f(context)
-}
-
-/// Per-call storage for native ABI references returned by bindings.
-///
-/// Stored pointers are valid until the next runtime call on the same native thread.
-#[derive(Debug, Default)]
-pub struct BindingCallArena {
-    /// Owned strings backing native string references.
-    strings: RefCell<Vec<Box<str>>>,
-    /// Owned slices backing native slice references.
-    values: RefCell<Vec<Box<dyn Any>>>,
-}
-
-impl BindingCallArena {
-    /// Create an empty call arena.
-    pub const fn new() -> Self {
-        Self {
-            strings: RefCell::new(Vec::new()),
-            values: RefCell::new(Vec::new()),
-        }
-    }
-
-    /// Clear all stored references.
-    pub fn clear(&self) {
-        self.strings.borrow_mut().clear();
-        self.values.borrow_mut().clear();
-    }
-
-    /// Store a string and return a native string reference.
-    pub fn store_string(&self, value: &str) -> NativeStringRef {
-        let mut strings = self.strings.borrow_mut();
-        strings.push(value.to_owned().into_boxed_str());
-
-        let stored = strings.last().expect("stored string must be available");
-        NativeStringRef::from(stored.as_ref())
-    }
-
-    /// Store an optional string and return a native string reference.
-    pub fn store_string_option(&self, value: Option<&String>) -> NativeStringRef {
-        match value {
-            Some(value) => self.store_string(value),
-            None => NativeStringRef {
-                data: ptr::null(),
-                len: 0,
-            },
-        }
-    }
-
-    /// Store a slice and return a native slice reference.
-    pub fn store_slice<T: 'static>(&self, values: Vec<T>) -> NativeSlice<T> {
-        let mut boxed = values.into_boxed_slice();
-        let data = boxed.as_mut_ptr();
-        let len = boxed.len() as u32;
-        self.values.borrow_mut().push(Box::new(boxed));
-
-        NativeSlice { data, len }
-    }
-
-    /// Store a slice and return a native array reference.
-    pub fn store_array<T: 'static>(&self, values: Vec<T>) -> NativeArray<T> {
-        let mut boxed = values.into_boxed_slice();
-        let data = boxed.as_mut_ptr();
-        let len = boxed.len() as u32;
-        self.values.borrow_mut().push(Box::new(boxed));
-
-        NativeArray {
-            data,
-            len,
-            capacity: len,
-        }
-    }
-
-    /// Store a string slice and return a native string slice.
-    pub fn store_string_slice(&self, values: Vec<NativeStringRef>) -> NativeStringSlice {
-        let mut boxed = values.into_boxed_slice();
-        let data = boxed.as_mut_ptr() as *const NativeStringRef;
-        let len = boxed.len() as u32;
-        self.values.borrow_mut().push(Box::new(boxed));
-
-        NativeStringSlice { data, len }
     }
 }

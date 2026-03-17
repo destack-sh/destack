@@ -7,14 +7,18 @@ use crate::runtime::engine::{
 };
 use crate::runtime::poller::HostPoller;
 use crate::runtime::scheduler::{
-    EventLoopScope, Microtask, Runnable, Task, TaskId, TaskStatus, current_event_loop_scope,
-    enter_event_loop_scope,
+    Microtask, Runnable, Task, TaskId, TaskStatus, Timer, TimerHandle,
 };
+use crate::runtime::time::timer::on_event_loop_timer_fire;
 use crate::runtime::world::World;
 use destack_heap as heap;
 use destack_workspace::TimeMode;
 
-use super::{Agent, enter_current_agent_context};
+use super::{
+    Agent, BindingCallContext, EventLoopScope, RuntimeScheduledCallbackHandle,
+    current_event_loop_scope, enter_binding_call_context, enter_current_agent_context,
+    enter_event_loop_scope,
+};
 
 impl Agent {
     /// Run an entrypoint through the event loop.
@@ -259,6 +263,7 @@ impl Agent {
 
         Ok(progressed)
     }
+
     /// Tick the loop once and return progress and optional target output.
     fn tick_loop(
         &mut self,
@@ -368,34 +373,46 @@ impl Agent {
     }
 
     /// Deliver one fired timer into the watched task queue.
-    pub(crate) fn deliver_timer_wake(
-        &mut self,
-        world: &World,
-        timer: crate::runtime::scheduler::Timer,
-    ) -> RuntimeResult<()> {
-        let should_dispatch = crate::runtime::time::timer::on_event_loop_timer_fire(
-            &self.resources,
-            world.clock(),
-            world.time_mode(),
-            resource::TimerHandle(timer.handle),
-        )?;
-        if should_dispatch {
-            // dispatch a timer watch task when one is registered
-            if let Some(task) = self.event_loop.task_for_timer(timer) {
-                self.enqueue_prepared_task(world, task)?;
-            }
+    pub(crate) fn deliver_timer_wake(&mut self, world: &World, timer: Timer) -> RuntimeResult<()> {
+        // runtime-owned scheduled callbacks
+        match timer.handle {
+            TimerHandle::Internal(handle) => {
+                let binding = BindingCallContext::from_current_agent_for_native()?;
+                let _guard = enter_binding_call_context(&binding);
 
-            // one-shot timers no longer need a dispatch watch after firing
-            if timer.interval.is_none() {
-                self.event_loop.unwatch_timer(timer.handle);
+                self.runtime_callbacks.service_due_callback(
+                    &binding,
+                    RuntimeScheduledCallbackHandle::from_internal_id(handle),
+                )?;
+
+                Ok(())
+            }
+            TimerHandle::Resource(handle) => {
+                let should_dispatch = on_event_loop_timer_fire(
+                    &self.resources,
+                    world.clock(),
+                    world.time_mode(),
+                    resource::TimerHandle(handle),
+                )?;
+                if should_dispatch {
+                    // dispatch a timer watch task when one is registered
+                    if let Some(task) = self.event_loop.task_for_timer(timer) {
+                        self.enqueue_prepared_task(world, task)?;
+                    }
+
+                    // one-shot timers no longer need a dispatch watch after firing
+                    if timer.interval.is_none() {
+                        self.event_loop.unwatch_timer(handle);
+                    }
+                }
+                // stale and inactive timer fires must not dispatch callbacks
+                else {
+                    self.event_loop.unwatch_timer(handle);
+                }
+
+                Ok(())
             }
         }
-        // stale and inactive timer fires must not dispatch callbacks
-        else {
-            self.event_loop.unwatch_timer(timer.handle);
-        }
-
-        Ok(())
     }
 
     /// Enqueue one yielded continuation as a task.
