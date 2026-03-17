@@ -15,7 +15,7 @@ fn tsconfig_discovery_virtual_file_importer() {
     });
 
     let resolved_path = resolver
-        .resolve("\0virtual-module", "random-import")
+        .resolve_from_directory("\0virtual-module", "random-import")
         .map(|f| f.full_path());
     assert_eq!(
         resolved_path,
@@ -96,7 +96,9 @@ fn test_extend_tsconfig_paths() {
     });
 
     // Test that paths are resolved correctly after inheritance
-    let resolved_path = resolver.resolve(&f, "@/test").map(|f| f.full_path());
+    let resolved_path = resolver
+        .resolve_from_directory(&f, "@/test")
+        .map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f.join("src/test.ts")));
 }
 
@@ -141,7 +143,9 @@ fn test_extend_tsconfig_template_variables() {
     });
 
     // Test that template variables work correctly with extends
-    let resolved_path = resolver.resolve(&f, "@/utils").map(|f| f.full_path());
+    let resolved_path = resolver
+        .resolve_from_directory(&f, "@/utils")
+        .map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f.join("src/utils.ts")));
 }
 
@@ -235,7 +239,7 @@ fn test_paths_prefer_over_package_exports_subpath() {
     });
 
     let resolved_path = resolver
-        .resolve(
+        .resolve_from_directory(
             fixture.join("src"),
             "@angular/compiler-cli/private/localize",
         )
@@ -245,4 +249,231 @@ fn test_paths_prefer_over_package_exports_subpath() {
         resolved_path,
         Ok(fixture.join("packages/compiler-cli/private/localize.ts"))
     );
+}
+
+/// Effective tsconfig lookup should follow solution references for files.
+#[test]
+fn test_find_tsconfig_prefers_referenced_solution_for_file() {
+    let fixture = super::fixture_root().join("tsconfig/cases/find-solution-references");
+
+    let resolver = Resolver::physical(ResolveOptions {
+        tsconfig: Some(TypeScriptOptionsDiscovery::Automatic),
+        ..ResolveOptions::default()
+    });
+
+    // each source file should map to its referenced project tsconfig
+    let foo_tsconfig_id = resolver
+        .find_tsconfig_for_file(&fixture.join("src/foo.ts"))
+        .expect("expected file lookup to succeed")
+        .expect("expected foo tsconfig");
+    let bar_tsconfig_id = resolver
+        .find_tsconfig_for_file(&fixture.join("src/bar.ts"))
+        .expect("expected file lookup to succeed")
+        .expect("expected bar tsconfig");
+
+    let foo_tsconfig = resolver.get_tsconfig(foo_tsconfig_id);
+    let bar_tsconfig = resolver.get_tsconfig(bar_tsconfig_id);
+
+    assert_eq!(foo_tsconfig.path, fixture.join("tsconfig.foo.json"));
+    assert_eq!(bar_tsconfig.path, fixture.join("tsconfig.bar.json"));
+}
+
+/// File-origin tsconfig lookup should reject directories loudly.
+#[test]
+fn test_find_tsconfig_for_file_rejects_directory_input() {
+    let fixture = super::fixture_root().join("tsconfig/cases/find-solution-references");
+
+    let resolver = Resolver::physical(ResolveOptions {
+        tsconfig: Some(TypeScriptOptionsDiscovery::Automatic),
+        ..ResolveOptions::default()
+    });
+
+    let directory = fixture.join("src");
+    let tsconfig_id = resolver.find_tsconfig_for_file(&directory);
+
+    assert_eq!(
+        tsconfig_id,
+        Err(ResolveError::ExpectedFilePath {
+            path: directory.clone()
+        })
+    );
+}
+
+/// Directory-origin tsconfig lookup should reject files loudly.
+#[test]
+fn test_find_tsconfig_for_directory_rejects_file_input() {
+    let fixture = super::fixture_root().join("tsconfig/cases/find-solution-references");
+
+    let resolver = Resolver::physical(ResolveOptions {
+        tsconfig: Some(TypeScriptOptionsDiscovery::Automatic),
+        ..ResolveOptions::default()
+    });
+
+    let file = fixture.join("src/foo.ts");
+    let tsconfig_id = resolver.find_tsconfig_for_directory(&file);
+
+    assert_eq!(
+        tsconfig_id,
+        Err(ResolveError::ExpectedDirectoryPath { path: file.clone() })
+    );
+}
+
+/// File origin resolution should disambiguate referenced projects.
+#[test]
+fn test_resolve_from_file_prefers_referenced_solution_project() {
+    let fixture = super::fixture_root().join("tsconfig/cases/find-solution-references");
+
+    let resolver = Resolver::physical(ResolveOptions {
+        tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
+            TypeScriptOptionsLocation {
+                config_file: fixture.join("tsconfig.json"),
+                references: TypeScriptOptionsReferences::Automatic,
+            },
+        )),
+        extensions: vec![".ts".into(), ".js".into()],
+        ..ResolveOptions::default()
+    });
+
+    // file origin should select the referenced project that owns the file
+    let foo_resolution = resolver
+        .resolve_from_file(fixture.join("src/foo.ts"), "@/util")
+        .map(|resolution| resolution.full_path());
+    let bar_resolution = resolver
+        .resolve_from_file(fixture.join("src/bar.ts"), "@/util")
+        .map(|resolution| resolution.full_path());
+
+    assert_eq!(foo_resolution, Ok(fixture.join("src/foo/util.ts")));
+    assert_eq!(bar_resolution, Ok(fixture.join("src/bar/util.ts")));
+}
+
+/// File-origin resolution should reject directories loudly.
+#[test]
+fn test_resolve_from_file_rejects_directory_input() {
+    let fixture = super::fixture_root().join("tsconfig/cases/find-solution-references");
+
+    let resolver = Resolver::physical(ResolveOptions {
+        tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
+            TypeScriptOptionsLocation {
+                config_file: fixture.join("tsconfig.json"),
+                references: TypeScriptOptionsReferences::Automatic,
+            },
+        )),
+        extensions: vec![".ts".into(), ".js".into()],
+        ..ResolveOptions::default()
+    });
+
+    let directory = fixture.join("src");
+    let resolution = resolver.resolve_from_file(&directory, "@/util");
+
+    assert_eq!(
+        resolution,
+        Err(ResolveError::ExpectedFilePath {
+            path: directory.clone()
+        })
+    );
+}
+
+/// Directory-origin resolution should reject files loudly.
+#[test]
+fn test_resolve_from_directory_rejects_file_input() {
+    let fixture = super::fixture_root().join("tsconfig/cases/find-solution-references");
+
+    let resolver = Resolver::physical(ResolveOptions {
+        tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
+            TypeScriptOptionsLocation {
+                config_file: fixture.join("tsconfig.json"),
+                references: TypeScriptOptionsReferences::Automatic,
+            },
+        )),
+        extensions: vec![".ts".into(), ".js".into()],
+        ..ResolveOptions::default()
+    });
+
+    let file = fixture.join("src/foo.ts");
+    let resolution = resolver.resolve_from_directory(&file, "@/util");
+
+    assert_eq!(
+        resolution,
+        Err(ResolveError::ExpectedDirectoryPath { path: file.clone() })
+    );
+}
+
+/// Directory origin should remain heuristic when multiple referenced projects overlap.
+#[test]
+fn test_resolve_from_directory_remains_heuristic_for_solution_project() {
+    let fixture = super::fixture_root().join("tsconfig/cases/find-solution-references");
+
+    let resolver = Resolver::physical(ResolveOptions {
+        tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
+            TypeScriptOptionsLocation {
+                config_file: fixture.join("tsconfig.json"),
+                references: TypeScriptOptionsReferences::Automatic,
+            },
+        )),
+        extensions: vec![".ts".into(), ".js".into()],
+        ..ResolveOptions::default()
+    });
+
+    // directory origin does not identify which referenced project owns the import
+    let resolution = resolver
+        .resolve_from_directory(fixture.join("src"), "@/util")
+        .map(|resolution| resolution.full_path());
+
+    assert_eq!(resolution, Ok(fixture.join("src/foo/util.ts")));
+}
+
+/// Manual solution configs should still select the referenced project for paths.
+#[test]
+fn test_manual_tsconfig_prefers_referenced_project_paths() {
+    let fixture = super::fixture_root().join("tsconfig/cases/manual-solution-references");
+
+    let resolver = Resolver::physical(ResolveOptions {
+        tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
+            TypeScriptOptionsLocation {
+                config_file: fixture.join("tsconfig.json"),
+                references: TypeScriptOptionsReferences::Automatic,
+            },
+        )),
+        extensions: vec![".ts".into(), ".js".into()],
+        ..ResolveOptions::default()
+    });
+
+    // referenced project aliases should resolve even when the root config is manual
+    let resolved_path = resolver
+        .resolve_from_directory(fixture.join("packages/foo/src"), "@/util")
+        .map(|resolution| resolution.full_path());
+
+    assert_eq!(
+        resolved_path,
+        Ok(fixture.join("packages/foo/src/aliased/util.ts"))
+    );
+}
+
+/// Derived tsconfig options should track merged and built content.
+#[test]
+fn test_extend_tsconfig_refreshes_options() {
+    let fixture = super::fixture_root().join("tsconfig/cases/extends");
+
+    let resolver = Resolver::physical(ResolveOptions {
+        tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
+            TypeScriptOptionsLocation {
+                config_file: fixture.join("tsconfig.json"),
+                references: TypeScriptOptionsReferences::Automatic,
+            },
+        )),
+        ..ResolveOptions::default()
+    });
+
+    // derived options should reflect inherited content instead of raw parse state
+    let tsconfig_id = resolver.resolve_tsconfig(&fixture).expect("resolved");
+    let tsconfig = resolver.get_tsconfig(tsconfig_id);
+
+    assert_eq!(
+        tsconfig.options.compiler.base_url,
+        Some(fixture.join("src"))
+    );
+    assert!(tsconfig.options.compiler.allow_js);
+    assert!(tsconfig.options.compiler.emit_decorator_metadata);
+    assert!(tsconfig.options.compiler.use_define_for_class_fields);
+    assert!(tsconfig.options.compiler.rewrite_relative_import_extensions);
 }
