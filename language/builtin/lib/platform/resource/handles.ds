@@ -240,6 +240,9 @@ export newtype GpuPipelineHandle = ResourceId;
 /// Handle for one serial-port endpoint.
 export newtype SerialPortHandle = ResourceId;
 
+/// Handle for one serial topology watch stream.
+export newtype SerialWatchHandle = ResourceId;
+
 /// Handle for one USB device endpoint.
 export newtype UsbDeviceHandle = ResourceId;
 
@@ -249,6 +252,9 @@ export newtype UsbWatchHandle = ResourceId;
 /// Handle for one Bluetooth scan session.
 export newtype BluetoothScanHandle = ResourceId;
 
+/// Handle for one Bluetooth adapter watch stream.
+export newtype BluetoothAdapterWatchHandle = ResourceId;
+
 /// Handle for one Bluetooth device session.
 export newtype BluetoothDeviceHandle = ResourceId;
 
@@ -257,6 +263,9 @@ export newtype BluetoothSubscriptionHandle = ResourceId;
 
 /// Handle for one camera device endpoint.
 export newtype CameraDeviceHandle = ResourceId;
+
+/// Handle for one camera topology watch stream.
+export newtype CameraWatchHandle = ResourceId;
 
 /// Handle for one camera stream endpoint.
 export newtype CameraStreamHandle = ResourceId;

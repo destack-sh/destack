@@ -1,7 +1,7 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { OsPath } from "../fs/path.ds";
-import { SerialPortHandle } from "../resource/index.ds";
+import { SerialPortHandle, SerialWatchHandle } from "../resource/index.ds";
 
 /// Serial parity mode.
 export enum SerialParity {
@@ -111,6 +111,35 @@ export struct SerialPortDescriptor {
     bluetoothServiceClassId?: string;
 }
 
+/// Shared metadata for serial topology events.
+export struct SerialWatchEventMetadata {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this watch stream.
+    sequence: uint64;
+    /// Serial endpoint descriptor payload.
+    port: SerialPortDescriptor;
+}
+
+/// Serial-attached event.
+export struct SerialAttachedEvent {
+    /// Discriminator for this serial watch event variant.
+    kind: "attached";
+    /// Shared event metadata.
+    metadata: SerialWatchEventMetadata;
+}
+
+/// Serial-detached event.
+export struct SerialDetachedEvent {
+    /// Discriminator for this serial watch event variant.
+    kind: "detached";
+    /// Shared event metadata.
+    metadata: SerialWatchEventMetadata;
+}
+
+/// Serial topology event.
+export newtype SerialWatchEvent = SerialAttachedEvent | SerialDetachedEvent;
+
 /// Serial input signal state.
 export struct SerialInputSignals {
     /// Clear-to-send line state.
@@ -149,31 +178,6 @@ export enum SerialErrorKind {
     BufferOverflow = 6,
 }
 
-/// Read-ready event payload.
-export struct SerialReadReadyPayload {
-    /// Estimated number of readable bytes.
-    availableBytes?: uint64;
-}
-
-/// Modem-status changed event payload.
-export struct SerialModemStatusPayload {
-    /// Current serial input signal state.
-    signals: SerialInputSignals;
-}
-
-/// Disconnected serial event payload.
-export struct SerialDisconnectedPayload {}
-
-/// Serial error event payload.
-export struct SerialErrorPayload {
-    /// Normalized error classification.
-    kind: SerialErrorKind;
-    /// Backend-specific error code when available.
-    backendCode?: int32;
-    /// Backend-specific detail value when available.
-    backendDetail?: int32;
-}
-
 /// Shared metadata for all serial events.
 export struct SerialEventMetadata {
     /// Event timestamp in nanoseconds.
@@ -188,8 +192,8 @@ export struct SerialReadReadyEvent {
     kind: "readReady";
     /// Shared event metadata.
     metadata: SerialEventMetadata;
-    /// Read-ready payload.
-    payload: SerialReadReadyPayload;
+    /// Estimated number of readable bytes.
+    availableBytes?: uint64;
 }
 
 /// Modem-status-changed serial event.
@@ -198,8 +202,8 @@ export struct SerialModemStatusChangedEvent {
     kind: "modemStatusChanged";
     /// Shared event metadata.
     metadata: SerialEventMetadata;
-    /// Modem-status payload.
-    payload: SerialModemStatusPayload;
+    /// Current serial input signal state.
+    signals: SerialInputSignals;
 }
 
 /// Error serial event.
@@ -208,8 +212,12 @@ export struct SerialErrorEvent {
     kind: "error";
     /// Shared event metadata.
     metadata: SerialEventMetadata;
-    /// Error payload.
-    payload: SerialErrorPayload;
+    /// Normalized error classification.
+    errorKind: SerialErrorKind;
+    /// Backend-specific error code when available.
+    backendCode?: int32;
+    /// Backend-specific detail value when available.
+    backendDetail?: int32;
 }
 
 /// Disconnected serial event.
@@ -218,8 +226,6 @@ export struct SerialDisconnectedEvent {
     kind: "disconnected";
     /// Shared event metadata.
     metadata: SerialEventMetadata;
-    /// Disconnected payload.
-    payload: SerialDisconnectedPayload;
 }
 
 /// Serial event.
@@ -233,12 +239,12 @@ export newtype SerialEvent =
 declare namespace device {
     /// List serial endpoints.
     ///
-    /// Enumerate available host serial endpoints and return stable identifiers.
-    /// Enumeration ordering follows host backend behavior.
+    /// Enumerate serial endpoints that are currently reachable from the host namespace and return stable descriptor snapshots for them.
+    /// Descriptor identity is topology based rather than open-handle based, so callers can compare enumeration results across watch and open lifetimes.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses `/dev/tty*` style enumeration on Unix-like hosts and SetupAPI COM-port enumeration on Windows.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses SetupAPI serial device interfaces on Windows, IOKit serial-service enumeration on macOS, and tty enumeration with sysfs or udev identity enrichment on Linux-class Unix.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -260,13 +266,133 @@ declare namespace device {
     })
     export function serialList(): Result<Slice<SerialPortDescriptor>, PlatformError>;
 
-    /// Open serial endpoint.
+    /// Open a serial topology watch stream.
     ///
-    /// Open one serial endpoint with explicit line configuration and host open policy.
+    /// Open a watch stream that reports serial endpoint attach and detach transitions as ordered topology events.
+    /// The stream is scoped to host namespace changes rather than to any individual open port session.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses termios-family open operations on Unix-like hosts and CreateFile serial APIs on Windows.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses device notifications on Windows, IOKit matching notifications on macOS, and udev or devd style serial topology monitors on Linux-class Unix.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.serial.watchOpen", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.serial.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function serialWatchOpen(): Result<SerialWatchHandle, PlatformError>;
+
+    /// Close a serial topology watch stream.
+    ///
+    /// Close one opened serial topology watch stream and release its host subscription state.
+    /// Closing a watch never closes or mutates any separately opened serial port session.
+    ///
+    /// # Platform
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses device-notification teardown on Windows, IOKit matching-notification teardown on macOS, and monitor teardown on Linux-class Unix.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.serial.watchClose", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.serial.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function serialWatchClose(handle: SerialWatchHandle): Result<void, PlatformError>;
+
+    /// Read one serial topology event.
+    ///
+    /// Wait for the next queued serial topology event from one opened watch stream.
+    /// The returned event carries the full descriptor snapshot so callers do not need to race a follow-up list call.
+    ///
+    /// # Platform
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses watch queues fed by device notifications on Windows, IOKit matching callbacks on macOS, and monitor events on Linux-class Unix.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.serial.watchRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.serial.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "sometimes",
+        affinity: "any",
+    })
+    export function serialWatchRead(
+        handle: SerialWatchHandle,
+        timeoutNs: uint64,
+    ): Result<SerialWatchEvent, PlatformError>;
+
+    /// Poll one serial topology event without blocking.
+    ///
+    /// Read the next queued serial topology event from one opened watch stream without waiting.
+    /// This operation only consumes already published attach or detach events.
+    ///
+    /// # Platform
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses watch queues fed by device notifications on Windows, IOKit matching callbacks on macOS, and monitor events on Linux-class Unix.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.serial.watchTryRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.serial.control"],
+        platforms: ["windows", "unix"],
+        simulation: "stub",
+        scope: "host",
+        blocking: "never",
+        affinity: "any",
+    })
+    export function serialWatchTryRead(handle: SerialWatchHandle): Result<SerialWatchEvent, PlatformError>;
+
+    /// Open a serial endpoint.
+    ///
+    /// Open one serial endpoint with explicit line configuration and host buffering policy.
+    /// Opening establishes a long lived session whose configuration, events, and I/O remain isolated from later topology churn.
+    ///
+    /// # Platform
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses overlapped serial handles with DCB and timeout configuration on Windows and POSIX open plus termios session setup on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -291,13 +417,14 @@ declare namespace device {
         options: SerialPortOpenOptions,
     ): Result<SerialPortHandle, PlatformError>;
 
-    /// Close serial endpoint.
+    /// Close a serial endpoint.
     ///
-    /// Close one opened serial endpoint and release host resources.
+    /// Close one opened serial endpoint and release its underlying host session.
+    /// Closing a port also terminates its event stream and any pending read or write waits owned by that session.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific serial close operations.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses handle teardown and wait cancellation on Windows and file-descriptor close on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -319,13 +446,14 @@ declare namespace device {
     })
     export function serialClose(handle: SerialPortHandle): Result<void, PlatformError>;
 
-    /// Read serial endpoint descriptor.
+    /// Read a serial endpoint descriptor.
     ///
-    /// Read one stable descriptor snapshot for one opened serial endpoint.
+    /// Read the stable descriptor associated with one opened serial endpoint.
+    /// The descriptor reports topology identity and metadata, not transient line state.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend descriptor and device-metadata queries.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses the session's bound topology identity with metadata gathered from SetupAPI on Windows, IOKit on macOS, and sysfs or udev on Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -345,17 +473,16 @@ declare namespace device {
         blocking: "sometimes",
         affinity: "any",
     })
-    export function serialDescriptor(
-        handle: SerialPortHandle,
-    ): Result<SerialPortDescriptor, PlatformError>;
+    export function serialDescriptor(handle: SerialPortHandle): Result<SerialPortDescriptor, PlatformError>;
 
     /// Read serial endpoint configuration.
     ///
-    /// Read one line-configuration snapshot for one opened serial endpoint.
+    /// Read the current line configuration for one opened serial endpoint.
+    /// The returned snapshot reflects the active host serial driver state rather than only the original open options.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend serial line-configuration queries.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses GetCommState on Windows and tcgetattr on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -377,13 +504,14 @@ declare namespace device {
     })
     export function serialConfig(handle: SerialPortHandle): Result<SerialPortConfig, PlatformError>;
 
-    /// Reconfigure serial endpoint.
+    /// Reconfigure a serial endpoint.
     ///
-    /// Apply one serial line configuration on one opened endpoint.
+    /// Apply one complete serial line configuration to one opened endpoint.
+    /// Configuration updates take effect on the live session and govern subsequent I/O and event behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses termios reconfiguration on Unix-like hosts and DCB reconfiguration on Windows.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses SetCommState and related serial control calls on Windows and termios attribute updates on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -410,12 +538,12 @@ declare namespace device {
 
     /// Read serial bytes.
     ///
-    /// Read bytes into caller memory from one opened serial endpoint.
-    /// Partial reads are preserved exactly as reported by the host backend.
+    /// Read bytes directly into caller memory from one opened serial endpoint.
+    /// Partial completion is preserved exactly so callers can build their own framing and buffering policy.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend read operations with timeout handling.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses overlapped ReadFile on Windows and blocking or deadline-bounded reads on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -443,12 +571,12 @@ declare namespace device {
 
     /// Poll serial bytes without blocking.
     ///
-    /// Read bytes into caller memory from one opened serial endpoint without waiting.
-    /// Empty queue state is reported through ioWouldBlock.
+    /// Read bytes directly into caller memory from one opened serial endpoint without waiting for new input.
+    /// This operation only reports bytes that are already buffered by the host serial stack.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend nonblocking serial read operations.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses nonblocking overlapped completion checks on Windows and nonblocking read paths on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -476,10 +604,11 @@ declare namespace device {
     /// Write serial bytes.
     ///
     /// Write one byte sequence to one opened serial endpoint.
+    /// Partial completion is preserved exactly so callers can retry or pace writes explicitly.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend serial write operations with timeout handling.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses overlapped WriteFile on Windows and write or writev class serial output on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -507,11 +636,12 @@ declare namespace device {
 
     /// Drain serial output.
     ///
-    /// Wait until queued outbound bytes drain on one opened serial endpoint.
+    /// Wait until queued outbound bytes for one opened serial endpoint have left the host transmit queue.
+    /// This is a transport flush barrier, not a close or cancellation operation.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend serial drain operations.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses transmit-empty waits on Windows and tcdrain on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -536,10 +666,11 @@ declare namespace device {
     /// Discard queued inbound serial bytes.
     ///
     /// Drop queued unread inbound bytes for one opened serial endpoint.
+    /// This affects host receive buffers only and does not synthesize a disconnect or error condition.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses termios and Win32 purge APIs where available.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses PurgeComm receive-flush flags on Windows and tcflush with TCIFLUSH on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -564,10 +695,11 @@ declare namespace device {
     /// Discard queued outbound serial bytes.
     ///
     /// Drop queued unwritten outbound bytes for one opened serial endpoint.
+    /// This operation aborts buffered transmit data without modifying the line configuration.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses termios and Win32 purge APIs where available.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses PurgeComm transmit-flush flags on Windows and tcflush with TCOFLUSH on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -591,11 +723,12 @@ declare namespace device {
 
     /// Read serial input signal state.
     ///
-    /// Return current serial input signal state for one opened endpoint.
+    /// Return the current modem input signal state for one opened endpoint.
+    /// Signal sampling is instantaneous and does not consume the serial event stream.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend modem-status APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses GetCommModemStatus on Windows and modem-bit reads such as TIOCMGET on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -615,17 +748,16 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function serialGetSignals(
-        handle: SerialPortHandle,
-    ): Result<SerialInputSignals, PlatformError>;
+    export function serialGetSignals(handle: SerialPortHandle): Result<SerialInputSignals, PlatformError>;
 
     /// Update serial output signal state.
     ///
     /// Apply one partial output signal update for one opened endpoint.
+    /// Fields that are omitted leave the corresponding line state unchanged.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend serial line-control APIs.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses EscapeCommFunction and serial control ioctls on Windows and modem-control ioctls on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -650,13 +782,14 @@ declare namespace device {
         signals: SerialOutputSignals,
     ): Result<void, PlatformError>;
 
-    /// Wait for one serial event.
+    /// Read one serial event.
     ///
-    /// Wait for one pending serial event for one opened endpoint.
+    /// Wait for the next pending serial event for one opened endpoint.
+    /// Events report readiness, modem transitions, disconnects, and line errors without forcing callers to poll control state.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend serial event queues where available.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses WaitCommEvent driven ingress on Windows and kqueue or poll class readiness plus modem-status sources on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -683,11 +816,12 @@ declare namespace device {
 
     /// Poll one serial event without blocking.
     ///
-    /// Poll one pending serial event for one opened endpoint.
+    /// Read the next pending serial event for one opened endpoint without waiting for new host activity.
+    /// This operation only consumes events that have already been published into the session queue.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses backend nonblocking serial event polling where available.
+    /// macOS, Linux-class Unix, and Windows.
+    /// Uses session event queues fed by WaitCommEvent on Windows and readiness monitors on macOS and Linux-class Unix.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -697,7 +831,7 @@ declare namespace device {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.device.serial.tryEvent", {
+    @binding("destack.device.serial.tryReadEvent", {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.serial.control"],
@@ -707,5 +841,5 @@ declare namespace device {
         blocking: "never",
         affinity: "any",
     })
-    export function serialTryEvent(handle: SerialPortHandle): Result<SerialEvent, PlatformError>;
+    export function serialTryReadEvent(handle: SerialPortHandle): Result<SerialEvent, PlatformError>;
 }
