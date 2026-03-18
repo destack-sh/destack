@@ -17,8 +17,8 @@ pub struct StackConfigOptions {
     pub annotations: IndexMap<String, String>,
     /// Provider-specific lowering overrides.
     pub provider: Option<Value>,
-    /// Extra config metadata.
-    pub config: Option<Value>,
+    /// Extra config arguments.
+    pub with: Option<Value>,
 }
 
 impl StackConfigOptions {
@@ -30,8 +30,8 @@ impl StackConfigOptions {
         if self.provider.is_none() {
             self.provider = parent.provider.clone();
         }
-        if self.config.is_none() {
-            self.config = parent.config.clone();
+        if self.with.is_none() {
+            self.with = parent.with.clone();
         }
         if self.data.is_empty() {
             self.data = parent.data.clone();
@@ -50,7 +50,7 @@ impl From<&StackConfigJson> for StackConfigOptions {
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
             provider: json.provider.clone(),
-            config: json.config.clone(),
+            with: json.with.clone(),
         }
     }
 }
@@ -73,6 +73,6 @@ pub struct StackConfigJson {
     pub annotations: Option<IndexMap<String, String>>,
     /// Provider-specific lowering overrides.
     pub provider: Option<Value>,
-    /// Extra config metadata.
-    pub config: Option<Value>,
+    /// Extra config arguments.
+    pub with: Option<Value>,
 }

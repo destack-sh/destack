@@ -26,8 +26,8 @@ pub struct StackRunOptions {
     pub trigger: StackTriggerOptions,
     /// Delivery configuration.
     pub delivery: StackDeliveryOptions,
-    /// Extra run metadata.
-    pub config: Option<Value>,
+    /// Extra run arguments.
+    pub with: Option<Value>,
 }
 
 impl StackRunOptions {
@@ -42,8 +42,8 @@ impl StackRunOptions {
         if self.mount.is_none() {
             self.mount = parent.mount.clone();
         }
-        if self.config.is_none() {
-            self.config = parent.config.clone();
+        if self.with.is_none() {
+            self.with = parent.with.clone();
         }
 
         self.assets.extend_from(&parent.assets);
@@ -65,7 +65,7 @@ impl From<&StackRunJson> for StackRunOptions {
                 .unwrap_or_default(),
             trigger: StackTriggerOptions::from(&json.trigger),
             delivery: StackDeliveryOptions::from(&json.delivery),
-            config: json.config.clone(),
+            with: json.with.clone(),
         }
     }
 }
@@ -218,8 +218,8 @@ pub struct StackRunJson {
     /// Delivery configuration.
     #[serde(default)]
     pub delivery: StackDeliveryJson,
-    /// Extra run metadata.
-    pub config: Option<Value>,
+    /// Extra run arguments.
+    pub with: Option<Value>,
 }
 
 /// Trigger configuration JSON.
