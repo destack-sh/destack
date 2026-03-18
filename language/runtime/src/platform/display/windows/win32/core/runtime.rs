@@ -8,7 +8,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::core::{HostRuntimeRegistry, RuntimeIngressObserver};
+use crate::host::core::{HostRuntimeId, HostRuntimeRegistry, RuntimeIngressObserver};
 use crate::platform::display::WindowCursorMode;
 use crate::platform::display::windows::win32::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
@@ -17,7 +17,7 @@ use crate::platform::display::windows::win32::model::{MonitorSnapshot, Win32Wind
 use crate::platform::display::windows::win32::{core, publish_monitor_topology_deltas};
 use crate::platform::resource;
 use crate::runtime::{
-    BindingCallContext, RuntimeEventLog, RuntimeId, RuntimeSnapshotCache, RuntimeStreamRegistry,
+    BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
 
 /// Runtime-owned mutable state for the Win32 display backend.
@@ -277,7 +277,10 @@ impl Win32RuntimeState {
     }
 
     /// Register one host-owned ingress observer for this runtime.
-    pub(crate) fn register_runtime_ingress(self: &Arc<Self>, runtime_id: RuntimeId) {
+    pub(crate) fn register_runtime_ingress(
+        self: &Arc<Self>,
+        host_runtime_id: HostRuntimeId,
+    ) -> RuntimeResult<()> {
         let observer = self
             .runtime_ingress_observer
             .get_or_init(|| {
@@ -288,7 +291,7 @@ impl Win32RuntimeState {
             .clone();
         let observer: Arc<dyn RuntimeIngressObserver> = observer;
 
-        HostRuntimeRegistry::register_runtime_ingress_observer(runtime_id, &observer);
+        HostRuntimeRegistry::register_runtime_ingress_observer(host_runtime_id, &observer)
     }
 
     /// Register this runtime with the Win32 display service once.

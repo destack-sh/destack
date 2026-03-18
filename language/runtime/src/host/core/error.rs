@@ -25,3 +25,12 @@ pub(crate) fn missing_host_queue(runtime_id: u64, platform: Platform) -> Box<Run
     ))
     .boxed()
 }
+
+/// Return one missing runtime-host queue error without a platform tag.
+pub(crate) fn missing_host_queue_registration(runtime_id: u64) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::generic(
+        Some(PlatformErrorCode::IoNotFound),
+        format!("missing host queue registration for runtime {runtime_id}"),
+    ))
+    .boxed()
+}

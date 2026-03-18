@@ -5,7 +5,7 @@ use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 use super::delegate::AppKitWindowDelegate;
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
 use crate::host::apple::execution::with_process_main_context_marker_if_needed;
-use crate::host::core::{HostRuntimeRegistry, RuntimeIngressObserver};
+use crate::host::core::{HostRuntimeId, HostRuntimeRegistry, RuntimeIngressObserver};
 use crate::platform::display::unix::appkit::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
@@ -15,7 +15,7 @@ use crate::platform::display::{WindowPosition, WindowTheme};
 use crate::platform::{ResourceTable, core as core_platform, resource};
 use crate::runtime::world::World;
 use crate::runtime::{
-    BindingCallContext, RuntimeEventLog, RuntimeId, RuntimeSnapshotCache, RuntimeStreamRegistry,
+    BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
 use dispatch2::MainThreadBound;
 use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSImage, NSWindow};
@@ -268,7 +268,10 @@ impl AppKitRuntimeState {
     }
 
     /// Register one host-owned ingress observer for this runtime.
-    pub(crate) fn register_runtime_ingress(self: &Arc<Self>, runtime_id: RuntimeId) {
+    pub(crate) fn register_runtime_ingress(
+        self: &Arc<Self>,
+        host_runtime_id: HostRuntimeId,
+    ) -> RuntimeResult<()> {
         let observer = self
             .runtime_ingress_observer
             .get_or_init(|| {
@@ -279,7 +282,7 @@ impl AppKitRuntimeState {
             .clone();
         let observer: Arc<dyn RuntimeIngressObserver> = observer;
 
-        HostRuntimeRegistry::register_runtime_ingress_observer(runtime_id, &observer);
+        HostRuntimeRegistry::register_runtime_ingress_observer(host_runtime_id, &observer)
     }
 
     /// Register this runtime with the AppKit display service once.

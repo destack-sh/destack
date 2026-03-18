@@ -31,7 +31,7 @@ impl X11DisplayService {
         // keep runtime registration explicit and one-time through the service boundary
         self.executor
             .call("destack.display.service.x11.register", move || {
-                runtime_state.register_runtime_ingress(context);
+                runtime_state.register_runtime_ingress(context)?;
                 Ok(())
             })
             .expect("x11 display service registration should succeed");

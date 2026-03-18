@@ -31,7 +31,7 @@ impl WaylandDisplayService {
         // keep runtime registration explicit and one-time through the service boundary
         self.executor
             .call("destack.display.service.wayland.register", move || {
-                runtime_state.register_runtime_ingress(context);
+                runtime_state.register_runtime_ingress(context)?;
                 Ok(())
             })
             .expect("wayland display service registration should succeed");

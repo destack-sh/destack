@@ -7,7 +7,7 @@ use rustc_hash::FxHashMap;
 use crate::diagnostic::RuntimeResult;
 use crate::host::HostEvent;
 use crate::host::core::Platform;
-use crate::host::core::error::missing_host_queue;
+use crate::host::core::error::{missing_host_queue, missing_host_queue_registration};
 use crate::host::core::queue::HostQueue;
 
 /// Shared allocator for process-global host runtime routing ids.
@@ -25,11 +25,6 @@ pub(crate) fn next_host_runtime_id() -> HostRuntimeId {
 /// Cleanup hook run when one runtime host queue registration is removed.
 pub(crate) type HostCleanup = fn(host_runtime_id: HostRuntimeId);
 
-/// Shared runtime ingress observer entry.
-type RuntimeIngressEntry = Weak<dyn RuntimeIngressObserver>;
-/// Shared host event observer entry.
-type HostEventEntry = Weak<dyn HostEventObserver>;
-
 /// Shared process-global host runtime registry.
 static HOST_RUNTIME_REGISTRY: OnceLock<RwLock<HostRuntimeRegistry>> = OnceLock::new();
 
@@ -45,13 +40,6 @@ pub(crate) trait HostEventObserver: std::fmt::Debug + Send + Sync {
     fn observe_host_event(&self, event: &HostEvent) -> RuntimeResult<()>;
 }
 
-/// Runtime-scoped ingress handle resolved from the process-global registry.
-#[derive(Debug, Clone)]
-pub(crate) struct HostIngressHandle {
-    /// Resolved runtime-owned host queue.
-    queue: Arc<HostQueue>,
-}
-
 /// Registration guard for one host runtime queue.
 #[derive(Debug)]
 pub(crate) struct HostRegistrationGuard {
@@ -64,10 +52,6 @@ pub(crate) struct HostRegistrationGuard {
 pub(crate) struct HostRuntimeRegistry {
     /// Queue entries keyed by runtime id.
     runtime_queues: FxHashMap<HostRuntimeId, HostRuntimeRegistryEntry>,
-    /// Runtime ingress observers keyed by runtime id.
-    runtime_ingress_observers: FxHashMap<HostRuntimeId, Vec<RuntimeIngressEntry>>,
-    /// Host event observers keyed by runtime id.
-    host_event_observers: FxHashMap<HostRuntimeId, Vec<HostEventEntry>>,
 }
 
 /// Shared registry entry metadata for one host runtime queue.
@@ -119,8 +103,6 @@ impl HostRuntimeRegistry {
             }
 
             registry.runtime_queues.remove(&host_runtime_id);
-            registry.runtime_ingress_observers.remove(&host_runtime_id);
-            registry.host_event_observers.remove(&host_runtime_id);
         }
 
         let entry = HostRuntimeRegistryEntry {
@@ -140,71 +122,48 @@ impl HostRuntimeRegistry {
         platform: Platform,
     ) -> RuntimeResult<Arc<HostQueue>> {
         let mut registry = Self::shared().write();
-
         registry.queue_for_runtime_inner(host_runtime_id, platform)
-    }
-
-    /// Resolve one runtime-scoped host ingress handle.
-    pub(crate) fn ingress_handle_for_runtime(
-        host_runtime_id: HostRuntimeId,
-        platform: Platform,
-    ) -> RuntimeResult<HostIngressHandle> {
-        let queue = Self::queue_for_runtime(host_runtime_id, platform)?;
-
-        Ok(HostIngressHandle { queue })
     }
 
     /// Register one runtime ingress observer.
     pub(crate) fn register_runtime_ingress_observer(
         host_runtime_id: HostRuntimeId,
         observer: &Arc<dyn RuntimeIngressObserver>,
-    ) {
-        let mut registry = Self::shared().write();
+    ) -> RuntimeResult<()> {
+        let queue = {
+            let mut registry = Self::shared().write();
+            registry.queue_for_runtime_id_inner(host_runtime_id)?
+        };
 
-        registry.register_runtime_ingress_observer_inner(host_runtime_id, observer);
-    }
+        queue.register_runtime_ingress_observer(observer);
 
-    /// Register one host event observer.
-    pub(crate) fn register_host_event_observer(
-        host_runtime_id: HostRuntimeId,
-        observer: &Arc<dyn HostEventObserver>,
-    ) {
-        let mut registry = Self::shared().write();
-
-        registry.register_host_event_observer_inner(host_runtime_id, observer);
+        Ok(())
     }
 
     /// Dispatch one host event to observers for one runtime id.
+    #[cfg(test)]
     pub(crate) fn dispatch_host_event(
         host_runtime_id: HostRuntimeId,
         event: &HostEvent,
     ) -> RuntimeResult<()> {
-        let observers = {
+        let queue = {
             let mut registry = Self::shared().write();
-
-            registry.collect_host_event_observers(host_runtime_id)
+            registry.queue_for_runtime_id_inner(host_runtime_id)?
         };
 
-        // callbacks after lock release
-        for observer in observers {
-            observer.observe_host_event(event)?;
-        }
+        queue.dispatch_host_event(event)?;
 
         Ok(())
     }
 
     /// Service ingress for one runtime id.
     pub(crate) fn process_runtime_ingress(host_runtime_id: HostRuntimeId) -> RuntimeResult<()> {
-        let observers = {
+        let queue = {
             let mut registry = Self::shared().write();
-
-            registry.collect_runtime_ingress_observers(host_runtime_id)
+            registry.queue_for_runtime_id_inner(host_runtime_id)?
         };
 
-        // callbacks after lock release
-        for observer in observers {
-            observer.process_runtime_ingress()?;
-        }
+        queue.process_runtime_ingress()?;
 
         Ok(())
     }
@@ -212,15 +171,13 @@ impl HostRuntimeRegistry {
     /// Service ingress for every registered runtime.
     #[cfg(feature = "execution")]
     pub(crate) fn process_all_runtime_ingress() -> RuntimeResult<()> {
-        let observers = {
+        let queues = {
             let mut registry = Self::shared().write();
-
-            registry.collect_all_runtime_ingress_observers()
+            registry.collect_all_runtime_queues()
         };
 
-        // callbacks after lock release
-        for observer in observers {
-            observer.process_runtime_ingress()?;
+        for queue in queues {
+            queue.process_runtime_ingress()?;
         }
 
         Ok(())
@@ -230,9 +187,6 @@ impl HostRuntimeRegistry {
     pub(crate) fn unregister_runtime(host_runtime_id: HostRuntimeId) {
         let cleanup = {
             let mut registry = Self::shared().write();
-
-            registry.runtime_ingress_observers.remove(&host_runtime_id);
-            registry.host_event_observers.remove(&host_runtime_id);
             registry
                 .runtime_queues
                 .remove(&host_runtime_id)
@@ -266,133 +220,40 @@ impl HostRuntimeRegistry {
         Ok(queue)
     }
 
-    /// Register one runtime ingress observer in the current registry state.
-    fn register_runtime_ingress_observer_inner(
+    /// Resolve one queue entry from the current registry state without platform filtering.
+    fn queue_for_runtime_id_inner(
         &mut self,
         host_runtime_id: HostRuntimeId,
-        observer: &Arc<dyn RuntimeIngressObserver>,
-    ) {
-        prune_observer_map(&mut self.runtime_ingress_observers);
+    ) -> RuntimeResult<Arc<HostQueue>> {
+        let Some(entry) = self.runtime_queues.get(&host_runtime_id) else {
+            return Err(missing_host_queue_registration(host_runtime_id.0));
+        };
+        let platform = entry.platform;
 
-        let observers = self
-            .runtime_ingress_observers
-            .entry(host_runtime_id)
-            .or_default();
-        let observer_pointer = Arc::as_ptr(observer) as *const ();
-        let is_registered = observers.iter().any(|weak| {
-            let Some(existing) = weak.upgrade() else {
-                return false;
-            };
-
-            Arc::as_ptr(&existing) as *const () == observer_pointer
-        });
-
-        if !is_registered {
-            observers.push(Arc::downgrade(observer));
-        }
-    }
-
-    /// Register one host event observer in the current registry state.
-    fn register_host_event_observer_inner(
-        &mut self,
-        host_runtime_id: HostRuntimeId,
-        observer: &Arc<dyn HostEventObserver>,
-    ) {
-        prune_observer_map(&mut self.host_event_observers);
-
-        let observers = self
-            .host_event_observers
-            .entry(host_runtime_id)
-            .or_default();
-        let observer_pointer = Arc::as_ptr(observer) as *const ();
-        let is_registered = observers.iter().any(|weak| {
-            let Some(existing) = weak.upgrade() else {
-                return false;
-            };
-
-            Arc::as_ptr(&existing) as *const () == observer_pointer
-        });
-
-        if !is_registered {
-            observers.push(Arc::downgrade(observer));
-        }
-    }
-
-    /// Collect live ingress observers for one runtime id.
-    fn collect_runtime_ingress_observers(
-        &mut self,
-        host_runtime_id: HostRuntimeId,
-    ) -> Vec<Arc<dyn RuntimeIngressObserver>> {
-        let Some(observers) = self.runtime_ingress_observers.get_mut(&host_runtime_id) else {
-            return Vec::new();
+        let Some(queue) = entry.queue.upgrade() else {
+            self.runtime_queues.remove(&host_runtime_id);
+            return Err(missing_host_queue(host_runtime_id.0, platform));
         };
 
-        observers.retain(|weak| weak.upgrade().is_some());
-        if observers.is_empty() {
-            self.runtime_ingress_observers.remove(&host_runtime_id);
-            return Vec::new();
-        }
-
-        observers.iter().filter_map(Weak::upgrade).collect()
-    }
-
-    /// Collect live host event observers for one runtime id.
-    fn collect_host_event_observers(
-        &mut self,
-        host_runtime_id: HostRuntimeId,
-    ) -> Vec<Arc<dyn HostEventObserver>> {
-        let Some(observers) = self.host_event_observers.get_mut(&host_runtime_id) else {
-            return Vec::new();
-        };
-
-        observers.retain(|weak| weak.upgrade().is_some());
-        if observers.is_empty() {
-            self.host_event_observers.remove(&host_runtime_id);
-            return Vec::new();
-        }
-
-        observers.iter().filter_map(Weak::upgrade).collect()
+        Ok(queue)
     }
 
     /// Collect live ingress observers for every runtime id.
     #[cfg(feature = "execution")]
-    fn collect_all_runtime_ingress_observers(&mut self) -> Vec<Arc<dyn RuntimeIngressObserver>> {
-        let mut live_observers = Vec::new();
+    fn collect_all_runtime_queues(&mut self) -> Vec<Arc<HostQueue>> {
+        let mut queues = Vec::new();
 
-        self.runtime_ingress_observers.retain(|_, observers| {
-            observers.retain(|weak| weak.upgrade().is_some());
+        self.runtime_queues.retain(|_, entry| {
+            let Some(queue) = entry.queue.upgrade() else {
+                return false;
+            };
 
-            for observer in observers.iter().filter_map(Weak::upgrade) {
-                live_observers.push(observer);
-            }
-
-            !observers.is_empty()
+            queues.push(queue);
+            true
         });
 
-        live_observers
+        queues
     }
-}
-
-impl HostIngressHandle {
-    /// Publish one normalized host event into the runtime queue.
-    pub(crate) fn publish_event(&self, event: HostEvent) {
-        self.queue.enqueue(event);
-    }
-
-    /// Wake one blocked host poller for this runtime.
-    pub(crate) fn wake(&self) -> RuntimeResult<()> {
-        self.queue.poll_wake_handle().wake()
-    }
-}
-
-/// Remove dead observer entries from one runtime-keyed map.
-fn prune_observer_map<T: ?Sized>(
-    observers_by_runtime: &mut FxHashMap<HostRuntimeId, Vec<Weak<T>>>,
-) {
-    observers_by_runtime.retain(|_, observers| {
-        observers.retain(|weak| weak.upgrade().is_some());
-        !observers.is_empty()
-    });
 }
 
 #[cfg(test)]
@@ -569,13 +430,21 @@ mod tests {
             callback_count: Arc::clone(&callback_count),
         });
 
-        HostRuntimeRegistry::register_runtime_ingress_observer(runtime_id, &observer);
+        let queue = Arc::new(HostQueue::new(runtime_id));
+        let registration = HostRuntimeRegistry::register_queue(
+            Platform::Android,
+            runtime_id,
+            Arc::downgrade(&queue),
+            None,
+        );
+
+        HostRuntimeRegistry::register_runtime_ingress_observer(runtime_id, &observer).unwrap();
         HostRuntimeRegistry::process_runtime_ingress(runtime_id).unwrap();
 
         let callback_count = callback_count.load(Ordering::Relaxed);
         assert_eq!(callback_count, 1);
 
-        HostRuntimeRegistry::unregister_runtime(runtime_id);
+        drop(registration);
     }
 
     #[test]
@@ -587,7 +456,15 @@ mod tests {
             callback_count: Arc::clone(&callback_count),
         });
 
-        HostRuntimeRegistry::register_host_event_observer(runtime_id, &observer);
+        let queue = Arc::new(HostQueue::new(runtime_id));
+        let registration = HostRuntimeRegistry::register_queue(
+            Platform::Android,
+            runtime_id,
+            Arc::downgrade(&queue),
+            None,
+        );
+
+        queue.register_observer_and_snapshot(&observer);
         HostRuntimeRegistry::dispatch_host_event(
             runtime_id,
             &HostEvent::Lifecycle(HostLifecycleEvent {
@@ -599,7 +476,7 @@ mod tests {
         let callback_count = callback_count.load(Ordering::Relaxed);
         assert_eq!(callback_count, 1);
 
-        HostRuntimeRegistry::unregister_runtime(runtime_id);
+        drop(registration);
     }
 
     #[cfg(feature = "execution")]
@@ -618,8 +495,25 @@ mod tests {
             callback_count: Arc::clone(&second_callback_count),
         });
 
-        HostRuntimeRegistry::register_runtime_ingress_observer(first_runtime_id, &first_observer);
-        HostRuntimeRegistry::register_runtime_ingress_observer(second_runtime_id, &second_observer);
+        let first_queue = Arc::new(HostQueue::new(first_runtime_id));
+        let second_queue = Arc::new(HostQueue::new(second_runtime_id));
+        let first_registration = HostRuntimeRegistry::register_queue(
+            Platform::Android,
+            first_runtime_id,
+            Arc::downgrade(&first_queue),
+            None,
+        );
+        let second_registration = HostRuntimeRegistry::register_queue(
+            Platform::Android,
+            second_runtime_id,
+            Arc::downgrade(&second_queue),
+            None,
+        );
+
+        HostRuntimeRegistry::register_runtime_ingress_observer(first_runtime_id, &first_observer)
+            .unwrap();
+        HostRuntimeRegistry::register_runtime_ingress_observer(second_runtime_id, &second_observer)
+            .unwrap();
         HostRuntimeRegistry::process_all_runtime_ingress().unwrap();
 
         let first_callback_count = first_callback_count.load(Ordering::Relaxed);
@@ -627,7 +521,7 @@ mod tests {
         assert_eq!(first_callback_count, 1);
         assert_eq!(second_callback_count, 1);
 
-        HostRuntimeRegistry::unregister_runtime(first_runtime_id);
-        HostRuntimeRegistry::unregister_runtime(second_runtime_id);
+        drop(first_registration);
+        drop(second_registration);
     }
 }

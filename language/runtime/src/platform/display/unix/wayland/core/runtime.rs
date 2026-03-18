@@ -249,8 +249,11 @@ impl WaylandRuntimeState {
     }
 
     /// Register one host-owned ingress observer for this runtime.
-    pub(crate) fn register_runtime_ingress(self: &Arc<Self>, context: &BindingCallContext) {
-        let runtime_id = context.agent().runtime_id;
+    pub(crate) fn register_runtime_ingress(
+        self: &Arc<Self>,
+        context: &BindingCallContext,
+    ) -> RuntimeResult<()> {
+        let host_runtime_id = context.host().host_runtime_id();
 
         let observer = self
             .runtime_ingress_observer
@@ -262,7 +265,7 @@ impl WaylandRuntimeState {
             .clone();
         let observer: Arc<dyn RuntimeIngressObserver> = observer;
 
-        HostRuntimeRegistry::register_runtime_ingress_observer(runtime_id, &observer);
+        HostRuntimeRegistry::register_runtime_ingress_observer(host_runtime_id, &observer)
     }
 
     /// Register this runtime with the wayland display service once.
