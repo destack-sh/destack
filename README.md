@@ -35,7 +35,7 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Bridge**](bridge/README.md): Two-way bridges for integrating the Destack universe.
 - [**Destack Platform**](platform/README.md): First-party site, apps, and services (hosting the above).
 
-The architecture of Destack is designed more for "do-it-yourself software" than regular "ready-to-wear software" - in that sense, Destack is a sort of meta-framework for developing and maintaining correct, optimal, integrated software stacks.
+The architecture of Destack is optimized for "do-it-yourself software" over "ready-to-wear software", as a sort of meta-framework for developing and maintaining correct, optimal, integrated software stacks.
 We do provide some common [apps](app/README.md) and [templates](template/README.md) built on top of our [incrementally granular building blocks](https://caseymuratori.com/blog_0016), but the entire Destack is optimized for programmers of all stripers building their _own_ software processes in one integrated system.
 
 
