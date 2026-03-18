@@ -59,7 +59,7 @@ const STREAM_START_OPTIONAL_ERRORS: [PlatformErrorCode; 3] = [
 
 /// Randomized interleaving operation for stream and event stress tests.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum StreamInterleavingOperation {
+enum StreamInterleavingTask {
     /// Open stream resources.
     Open,
     /// Close stream resources.
@@ -78,7 +78,7 @@ enum StreamInterleavingOperation {
     ReadState,
 }
 
-impl StreamInterleavingOperation {
+impl StreamInterleavingTask {
     /// Draw one deterministic operation from one random sequence.
     fn draw(random: &mut DeterministicSequence) -> Self {
         match random.next_index(8) {
@@ -556,8 +556,8 @@ fn test_audio_stream_randomized_interleaving_on_null_duplex() {
         let mut last_event_dropped_count = 0u64;
 
         for _ in 0..RANDOM_NULL_INTERLEAVING_ITERATIONS {
-            match StreamInterleavingOperation::draw(&mut random) {
-                StreamInterleavingOperation::Open => {
+            match StreamInterleavingTask::draw(&mut random) {
+                StreamInterleavingTask::Open => {
                     if stream_handle.is_some() {
                         continue;
                     }
@@ -567,7 +567,7 @@ fn test_audio_stream_randomized_interleaving_on_null_duplex() {
                     stream_handle = Some(opened_stream);
                     is_running = true;
                 }
-                StreamInterleavingOperation::Close => {
+                StreamInterleavingTask::Close => {
                     close_event_handle(&mut context, &mut event_handle)?;
                     close_stream_device_pair(
                         &mut context,
@@ -576,7 +576,7 @@ fn test_audio_stream_randomized_interleaving_on_null_duplex() {
                         &mut is_running,
                     )?;
                 }
-                StreamInterleavingOperation::ToggleRunning => {
+                StreamInterleavingTask::ToggleRunning => {
                     let Some(stream_handle_value) = stream_handle else {
                         continue;
                     };
@@ -594,7 +594,7 @@ fn test_audio_stream_randomized_interleaving_on_null_duplex() {
                     let stream_state = stream_state_from_value(stream_state);
                     is_running = stream_state.running;
                 }
-                StreamInterleavingOperation::TryWrite => {
+                StreamInterleavingTask::TryWrite => {
                     let Some(stream_handle_value) = stream_handle else {
                         continue;
                     };
@@ -606,7 +606,7 @@ fn test_audio_stream_randomized_interleaving_on_null_duplex() {
                         &[PlatformErrorCode::IoWouldBlock],
                     )?;
                 }
-                StreamInterleavingOperation::TryRead => {
+                StreamInterleavingTask::TryRead => {
                     let Some(stream_handle_value) = stream_handle else {
                         continue;
                     };
@@ -622,7 +622,7 @@ fn test_audio_stream_randomized_interleaving_on_null_duplex() {
                         assert!(byte_len(&mut context, read)? <= RANDOM_STREAM_IO_BYTES);
                     }
                 }
-                StreamInterleavingOperation::ToggleEventSubscription => {
+                StreamInterleavingTask::ToggleEventSubscription => {
                     let Some(stream_handle_value) = stream_handle else {
                         continue;
                     };
@@ -640,7 +640,7 @@ fn test_audio_stream_randomized_interleaving_on_null_duplex() {
                     last_event_sequence = 0;
                     last_event_dropped_count = 0;
                 }
-                StreamInterleavingOperation::TryReadEventBatch => {
+                StreamInterleavingTask::TryReadEventBatch => {
                     let Some(event_handle_value) = event_handle else {
                         continue;
                     };
@@ -659,7 +659,7 @@ fn test_audio_stream_randomized_interleaving_on_null_duplex() {
                         &mut last_event_dropped_count,
                     );
                 }
-                StreamInterleavingOperation::ReadState => {
+                StreamInterleavingTask::ReadState => {
                     let Some(stream_handle_value) = stream_handle else {
                         continue;
                     };
@@ -714,8 +714,8 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
         let mut last_event_dropped_count = 0u64;
 
         for _ in 0..RANDOM_HOST_INTERLEAVING_ITERATIONS {
-            match StreamInterleavingOperation::draw(&mut random) {
-                StreamInterleavingOperation::Open => {
+            match StreamInterleavingTask::draw(&mut random) {
+                StreamInterleavingTask::Open => {
                     if stream_handle.is_some() {
                         continue;
                     }
@@ -794,7 +794,7 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                     let stream_state = stream_state_from_value(stream_state);
                     is_running = stream_state.running;
                 }
-                StreamInterleavingOperation::Close => {
+                StreamInterleavingTask::Close => {
                     close_event_handle(&mut context, &mut event_handle)?;
                     close_stream_device_pair(
                         &mut context,
@@ -803,7 +803,7 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                         &mut is_running,
                     )?;
                 }
-                StreamInterleavingOperation::ToggleRunning => {
+                StreamInterleavingTask::ToggleRunning => {
                     let Some(stream_handle_value) = stream_handle else {
                         continue;
                     };
@@ -825,7 +825,7 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                     let stream_state = stream_state_from_value(stream_state);
                     is_running = stream_state.running;
                 }
-                StreamInterleavingOperation::TryWrite => {
+                StreamInterleavingTask::TryWrite => {
                     let Some(stream_handle_value) = stream_handle else {
                         continue;
                     };
@@ -837,7 +837,7 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                         &STREAM_IO_TRANSIENT_ALLOWED_ERRORS,
                     )?;
                 }
-                StreamInterleavingOperation::TryRead => {
+                StreamInterleavingTask::TryRead => {
                     let Some(stream_handle_value) = stream_handle else {
                         continue;
                     };
@@ -853,7 +853,7 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                         assert!(byte_len(&mut context, read)? <= RANDOM_STREAM_IO_BYTES);
                     }
                 }
-                StreamInterleavingOperation::ToggleEventSubscription => {
+                StreamInterleavingTask::ToggleEventSubscription => {
                     let Some(stream_handle_value) = stream_handle else {
                         continue;
                     };
@@ -880,7 +880,7 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                     last_event_sequence = 0;
                     last_event_dropped_count = 0;
                 }
-                StreamInterleavingOperation::TryReadEventBatch => {
+                StreamInterleavingTask::TryReadEventBatch => {
                     let Some(event_handle_value) = event_handle else {
                         continue;
                     };
@@ -903,7 +903,7 @@ fn test_audio_stream_randomized_interleaving_on_available_host_backend() {
                         &mut last_event_dropped_count,
                     );
                 }
-                StreamInterleavingOperation::ReadState => {
+                StreamInterleavingTask::ReadState => {
                     let Some(stream_handle_value) = stream_handle else {
                         continue;
                     };

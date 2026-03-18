@@ -7,8 +7,7 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::midi::MidiEventSource;
-use crate::runtime::process::service::affinity::ServiceAffinity;
-use crate::runtime::process::service::{self};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService, start_with_policy};
 
 use super::core::{
     JackClientHandle, JackEndpointInfo, JackTopologyState, activate_client, jack_error,
@@ -97,17 +96,13 @@ impl Drop for JackService {
     }
 }
 
-impl JackService {
-    /// The host-affinity domain for the JACK backend service.
-    pub(crate) const AFFINITY: ServiceAffinity = ServiceAffinity::CallerThread;
+impl GlobalService for JackService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 
 /// Return the shared JACK MIDI service.
 pub(crate) fn jack_service(operation: &'static str) -> RuntimeResult<Arc<JackService>> {
-    service::global_service(|| {
-        let service_affinity = JackService::AFFINITY;
-        debug_assert!(matches!(service_affinity, ServiceAffinity::CallerThread));
-
+    JackService::global(|| {
         let library = require_jack_library(operation)?;
         let topology = Arc::new(Mutex::new(query_topology_snapshot(operation)?));
         let native_event_registry = Arc::new(Mutex::new(JackNativeEventRegistry {
@@ -250,10 +245,11 @@ fn spawn_monitor_thread(
     native_event_registry: Arc<Mutex<JackNativeEventRegistry>>,
     monitor_signal: Arc<JackMonitorSignal>,
 ) -> RuntimeResult<JoinHandle<()>> {
-    let builder = thread::Builder::new().name("destack-midi-jack-monitor".to_string());
-
-    builder
-        .spawn(move || {
+    start_with_policy(
+        "destack-midi-jack-monitor",
+        "destack.midi.jack.monitor.spawn",
+        ExecutionPolicy::global(ExecutionMode::Loop),
+        move || {
             loop {
                 // wait for the next callback or teardown request
                 let mut signal_state = monitor_signal
@@ -315,14 +311,8 @@ fn spawn_monitor_thread(
                 };
                 refresh_native_event_sessions(&service, MidiEventSource::Native);
             }
-        })
-        .map_err(|error| {
-            core_platform::io_operation_error(
-                "destack.midi.jack.monitor.spawn",
-                None,
-                format!("failed to spawn JACK monitor thread: {error}"),
-            )
-        })
+        },
+    )
 }
 
 /// Handle one JACK port-registration callback.

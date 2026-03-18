@@ -1,5 +1,4 @@
 use std::sync::{Arc, Condvar, Mutex};
-use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
@@ -17,6 +16,7 @@ use crate::platform::audio::{
     AudioStreamState, AudioStreamStatusFlags, AudioStreamTiming, backend as audio_backend,
 };
 use crate::runtime::BindingCallContext;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::constants::{
     DEVICE_CAPABILITY_BIT_EXACT_PCM, MIN_STREAM_PERIOD_FRAMES, STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT,
@@ -372,99 +372,110 @@ pub(crate) fn stream_descriptor(
 
 /// Build one synthetic stream worker thread.
 pub(crate) fn build_synthetic_stream_worker(stream: Arc<AudioStreamHostState>) -> JoinHandle<()> {
-    thread::spawn(move || {
-        let period_frames_u32 = stream.period_frames.max(MIN_STREAM_PERIOD_FRAMES);
-        let period_frames = period_frames_u32 as usize;
-        let period_duration = resolved_worker_poll_period(period_frames_u32, stream.sample_rate);
+    let worker_result = start_with_policy(
+        "destack-audio-synthetic-stream",
+        "destack.audio.stream.open",
+        ExecutionPolicy::instance(ExecutionMode::Polling),
+        move || {
+            let period_frames_u32 = stream.period_frames.max(MIN_STREAM_PERIOD_FRAMES);
+            let period_frames = period_frames_u32 as usize;
+            let period_duration =
+                resolved_worker_poll_period(period_frames_u32, stream.sample_rate);
 
-        loop {
-            let mut state = stream
-                .sync
-                .state
-                .lock()
-                .unwrap_or_else(|error| error.into_inner());
-            let mut xrun_event = None;
+            loop {
+                let mut state = stream
+                    .sync
+                    .state
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner());
+                let mut xrun_event = None;
 
-            if state.shutdown {
-                break;
-            }
+                if state.shutdown {
+                    break;
+                }
 
-            if state.running {
-                let previous_xrun_count = state.xrun_count;
-                let scalar_period = period_frames.saturating_mul(stream.channels as usize);
-                state.status_flags = AudioStreamStatusFlags(0);
+                if state.running {
+                    let previous_xrun_count = state.xrun_count;
+                    let scalar_period = period_frames.saturating_mul(stream.channels as usize);
+                    state.status_flags = AudioStreamStatusFlags(0);
 
-                if !state.paused
-                    && (stream.direction == AudioDeviceDirection::Playback
-                        || stream.direction == AudioDeviceDirection::Duplex)
-                {
-                    for _ in 0..scalar_period {
-                        if state.playback_samples.pop_front().is_none() {
+                    if !state.paused
+                        && (stream.direction == AudioDeviceDirection::Playback
+                            || stream.direction == AudioDeviceDirection::Duplex)
+                    {
+                        for _ in 0..scalar_period {
+                            if state.playback_samples.pop_front().is_none() {
+                                state.xrun_count = state.xrun_count.saturating_add(1);
+                                state.output_underflow_count =
+                                    state.output_underflow_count.saturating_add(1);
+                                state.status_flags = AudioStreamStatusFlags(
+                                    state.status_flags.0 | STREAM_STATUS_OUTPUT_UNDERFLOW.0,
+                                );
+                            }
+                        }
+                    }
+
+                    if !state.paused
+                        && (stream.direction == AudioDeviceDirection::Capture
+                            || stream.direction == AudioDeviceDirection::Duplex
+                            || stream.direction == AudioDeviceDirection::Loopback)
+                    {
+                        for _ in 0..scalar_period {
+                            state.capture_samples.push_back(0.0);
+                        }
+                        let max_capture = stream.capture_capacity_samples();
+                        if state.capture_samples.len() > max_capture {
+                            let extra = state.capture_samples.len() - max_capture;
+                            for _ in 0..extra {
+                                let _ = state.capture_samples.pop_front();
+                            }
                             state.xrun_count = state.xrun_count.saturating_add(1);
-                            state.output_underflow_count =
-                                state.output_underflow_count.saturating_add(1);
+                            state.input_overflow_count =
+                                state.input_overflow_count.saturating_add(1);
                             state.status_flags = AudioStreamStatusFlags(
-                                state.status_flags.0 | STREAM_STATUS_OUTPUT_UNDERFLOW.0,
+                                state.status_flags.0 | STREAM_STATUS_INPUT_OVERFLOW.0,
                             );
                         }
                     }
+
+                    let callback_mono_ns = host_monotonic_nanos();
+                    record_stream_callback_timing(
+                        &mut state,
+                        stream.sample_rate,
+                        period_frames as u32,
+                        callback_mono_ns,
+                        Some(callback_mono_ns),
+                        Some(callback_mono_ns),
+                    );
+
+                    let xrun_count_delta = state.xrun_count.saturating_sub(previous_xrun_count);
+                    if xrun_count_delta > 0 {
+                        xrun_event = Some((state.status_flags, xrun_count_delta));
+                    }
                 }
 
-                if !state.paused
-                    && (stream.direction == AudioDeviceDirection::Capture
-                        || stream.direction == AudioDeviceDirection::Duplex
-                        || stream.direction == AudioDeviceDirection::Loopback)
+                drop(state);
+                stream.sync.wake.notify_all();
+
+                if let Some((status_flags, xrun_count_delta)) = xrun_event
+                    && let Some(stream_handle) = stream.stream_handle()
                 {
-                    for _ in 0..scalar_period {
-                        state.capture_samples.push_back(0.0);
-                    }
-                    let max_capture = stream.capture_capacity_samples();
-                    if state.capture_samples.len() > max_capture {
-                        let extra = state.capture_samples.len() - max_capture;
-                        for _ in 0..extra {
-                            let _ = state.capture_samples.pop_front();
-                        }
-                        state.xrun_count = state.xrun_count.saturating_add(1);
-                        state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-                        state.status_flags = AudioStreamStatusFlags(
-                            state.status_flags.0 | STREAM_STATUS_INPUT_OVERFLOW.0,
-                        );
-                    }
+                    publish_stream_event_native(
+                        stream_handle,
+                        &stream,
+                        AudioEventKind::StreamXRun,
+                        status_flags,
+                        xrun_count_delta,
+                    );
                 }
 
-                let callback_mono_ns = host_monotonic_nanos();
-                record_stream_callback_timing(
-                    &mut state,
-                    stream.sample_rate,
-                    period_frames as u32,
-                    callback_mono_ns,
-                    Some(callback_mono_ns),
-                    Some(callback_mono_ns),
-                );
-
-                let xrun_count_delta = state.xrun_count.saturating_sub(previous_xrun_count);
-                if xrun_count_delta > 0 {
-                    xrun_event = Some((state.status_flags, xrun_count_delta));
-                }
+                wait_for_worker_period(&stream, period_duration);
             }
+        },
+    );
 
-            drop(state);
-            stream.sync.wake.notify_all();
-
-            if let Some((status_flags, xrun_count_delta)) = xrun_event
-                && let Some(stream_handle) = stream.stream_handle()
-            {
-                publish_stream_event_native(
-                    stream_handle,
-                    &stream,
-                    AudioEventKind::StreamXRun,
-                    status_flags,
-                    xrun_count_delta,
-                );
-            }
-
-            wait_for_worker_period(&stream, period_duration);
-        }
+    worker_result.unwrap_or_else(|error| {
+        panic!("failed to start synthetic audio stream worker: {error}");
     })
 }
 

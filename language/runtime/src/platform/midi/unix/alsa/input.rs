@@ -16,6 +16,7 @@ use crate::platform::midi::{
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::abi::{POLLIN, SND_SEQ_OPEN_DUPLEX, poll, pollfd, snd_seq_event_t};
 use super::core::{
@@ -355,10 +356,11 @@ fn spawn_input_reader(
     terminal_error: Arc<parking_lot::Mutex<Option<AlsaInputTerminalError>>>,
     stop_flag: Arc<AtomicBool>,
 ) -> RuntimeResult<std::thread::JoinHandle<()>> {
-    let builder = thread::Builder::new().name("destack-midi-alsa-input".to_string());
-
-    builder
-        .spawn(move || {
+    start_with_policy(
+        "destack-midi-alsa-input",
+        "destack.midi.input.reader",
+        ExecutionPolicy::instance(ExecutionMode::Loop),
+        move || {
             let raw_handle = raw_handle as *mut super::abi::snd_seq_t;
             let Some(raw_handle) = (!raw_handle.is_null()).then_some(raw_handle) else {
                 return;
@@ -487,12 +489,6 @@ fn spawn_input_reader(
             }
 
             queue.close();
-        })
-        .map_err(|error| {
-            core_platform::io_operation_error(
-                "destack.midi.input.reader",
-                None,
-                format!("failed to spawn ALSA input reader thread: {error}"),
-            )
-        })
+        },
+    )
 }

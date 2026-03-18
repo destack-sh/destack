@@ -12,7 +12,9 @@ use crate::platform::audio::backend::backend_not_supported;
 #[cfg(target_os = "linux")]
 use crate::platform::audio::core as audio_core;
 use crate::platform::audio::core::monitor::AudioMonitorHandle;
-
+#[cfg(target_os = "linux")]
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+#[cfg(target_os = "linux")]
 #[cfg(target_os = "linux")]
 use std::ffi::c_int;
 #[cfg(target_os = "linux")]
@@ -84,7 +86,12 @@ pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<Box<dyn Audio
         let signal = Arc::new(JackMonitorSignal::default());
         let thread_signal = Arc::clone(&signal);
         let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
-        let handle = thread::spawn(move || run_device_monitor_thread(thread_signal, ready_sender));
+        let handle = start_with_policy(
+            "destack-audio-jack-monitor",
+            "destack.audio.event.open",
+            ExecutionPolicy::global(ExecutionMode::Loop),
+            move || run_device_monitor_thread(thread_signal, ready_sender),
+        )?;
 
         let ready_result = ready_receiver.recv().map_err(|_| {
             jack_error(

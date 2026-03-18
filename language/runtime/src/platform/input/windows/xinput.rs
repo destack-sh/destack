@@ -32,7 +32,7 @@ use crate::runtime::BindingCallContext;
 use crate::runtime::process::service::executor::periodic::{
     PeriodicTaskHandle, periodic_service_executor,
 };
-use crate::runtime::process::service::global_service;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
 
 /// Prefix for stable xinput device identifiers.
 pub(super) const XINPUT_DEVICE_ID_PREFIX: &str = "xinput:";
@@ -142,11 +142,15 @@ impl WindowsXInputService {
     }
 }
 
+impl GlobalService for WindowsXInputService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Polling);
+}
+
 /// Return one process-global XInput polling service.
 pub(crate) fn windows_xinput_service(
     operation: &'static str,
 ) -> RuntimeResult<Arc<WindowsXInputService>> {
-    global_service(WindowsXInputService::new).map_err(|error| {
+    WindowsXInputService::global(WindowsXInputService::new).map_err(|error| {
         core_platform::io_operation_error(
             operation,
             None,

@@ -11,6 +11,7 @@ use crate::platform::proactor::{
 };
 use crate::platform::{PlatformError, PlatformErrorCode, ResourceId, core as core_platform};
 use crate::runtime::poller::{PlatformHandle, PlatformInterest, PollerEventMask};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 /// Sentinel token emitted by wake notifications.
 const WAKE_TOKEN: u64 = u64::MAX;
@@ -62,20 +63,23 @@ impl UnixProactor {
 
         // start the worker loop
         let worker_completion_sender = completion_sender.clone();
-        let worker_handle = thread::Builder::new()
-            .name("destack-unix-proactor".to_string())
-            .spawn(move || worker_main(command_receiver, worker_completion_sender))
-            .map_err(|error| {
-                RuntimeError::from(PlatformError::process_with(
-                    Some(PlatformErrorCode::ProcessSpawnFailed),
-                    None,
-                    None,
-                    None,
-                    None,
-                    format!("failed to start unix proactor worker: {error}"),
-                ))
-                .boxed()
-            })?;
+        let worker_handle = start_with_policy(
+            "destack-unix-proactor",
+            "proactor.unix.open",
+            ExecutionPolicy::instance(ExecutionMode::Thread),
+            move || worker_main(command_receiver, worker_completion_sender),
+        )
+        .map_err(|error| {
+            RuntimeError::from(PlatformError::process_with(
+                Some(PlatformErrorCode::ProcessSpawnFailed),
+                None,
+                None,
+                None,
+                None,
+                error.to_string(),
+            ))
+            .boxed()
+        })?;
 
         Ok(Self {
             command_sender,
@@ -203,13 +207,21 @@ fn worker_main(
 
                 // execute the operation concurrently and emit one completion
                 let completion_sender = completion_sender.clone();
+                let completion_sender_for_spawn = completion_sender.clone();
                 let queued_request = QueuedRequest(request);
-                let _ = thread::Builder::new()
-                    .name("destack-unix-proactor-op".to_string())
-                    .spawn(move || {
+                let spawn_result = start_with_policy(
+                    "destack-unix-proactor-op",
+                    "proactor.unix.submit",
+                    ExecutionPolicy::task(ExecutionMode::Blocking),
+                    move || {
                         let completion = execute_request(queued_request.0);
-                        let _ = completion_sender.send(completion);
-                    });
+                        let _ = completion_sender_for_spawn.send(completion);
+                    },
+                );
+                if spawn_result.is_err() {
+                    let completion = thread_spawn_failed_completion(request);
+                    let _ = completion_sender.send(completion);
+                }
             }
             // mark a token as canceled
             WorkerCommand::Cancel(token) => {
@@ -727,6 +739,19 @@ fn canceled_completion(
         result: -1,
         error_code: Some(PlatformErrorCode::IoInterrupted),
         error_errno: Some(libc::ECANCELED),
+        data: ProactorCompletionData::None,
+    }
+}
+
+/// Build a completion for one runtime helper-thread spawn failure.
+fn thread_spawn_failed_completion(request: ProactorRequest) -> ProactorCompletion {
+    ProactorCompletion {
+        resource_id: request.resource_id,
+        token: request.token,
+        op: request.op.kind(),
+        result: -1,
+        error_code: Some(PlatformErrorCode::ProcessSpawnFailed),
+        error_errno: None,
         data: ProactorCompletionData::None,
     }
 }

@@ -17,6 +17,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::audio::{AudioStreamStateKind, core as audio_core};
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use crate::platform::audio as audio_types;
 use windows_sys::Win32::Foundation::{
@@ -33,110 +34,116 @@ pub(super) fn spawn_worker(
     binding: Arc<audio_core::AudioStreamHostState>,
     runtime: Arc<WasapiStreamRuntime>,
 ) -> thread::JoinHandle<()> {
-    thread::spawn(move || {
-        // initialize one COM apartment for this worker thread
-        if initialize_com().is_err() {
-            return;
-        }
-
-        loop {
-            // stop when runtime stream state has been closed
-            let state = binding
-                .sync
-                .state
-                .lock()
-                .unwrap_or_else(|error| error.into_inner());
-            let shutdown = state.shutdown;
-            let should_run = state.running && !state.paused;
-            drop(state);
-
-            if shutdown {
-                break;
+    start_with_policy(
+        "destack-audio-wasapi-transfer",
+        "destack.audio.stream.open",
+        ExecutionPolicy::instance(ExecutionMode::Loop),
+        move || {
+            // initialize one COM apartment for this worker thread
+            if initialize_com().is_err() {
+                return;
             }
 
-            // process one host transfer cycle while the stream runs
-            if should_run {
-                if let Err(error) = wait_for_stream_signal(&binding, &runtime) {
-                    let backend_message = error.to_string();
-                    let mut state = binding
-                        .sync
-                        .state
-                        .lock()
-                        .unwrap_or_else(|error| error.into_inner());
-                    state.running = false;
-                    state.paused = false;
-                    state.state_kind = AudioStreamStateKind::DeviceLost;
-                    state.last_backend_message = Some(backend_message);
-                    drop(state);
+            loop {
+                // stop when runtime stream state has been closed
+                let state = binding
+                    .sync
+                    .state
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner());
+                let shutdown = state.shutdown;
+                let should_run = state.running && !state.paused;
+                drop(state);
 
-                    binding.sync.wake.notify_all();
-                    continue;
+                if shutdown {
+                    break;
                 }
 
-                let transfer_error = match runtime.direction {
-                    audio_types::AudioDeviceDirection::Playback => runtime
-                        .render_client
-                        .as_ref()
-                        .map(|render_client| {
-                            process_playback_transfer(&binding, &runtime, render_client)
-                        })
-                        .transpose(),
-                    audio_types::AudioDeviceDirection::Capture
-                    | audio_types::AudioDeviceDirection::Loopback => runtime
-                        .capture_client
-                        .as_ref()
-                        .map(|capture_client| {
-                            process_capture_transfer(&binding, &runtime, capture_client)
-                        })
-                        .transpose(),
-                    audio_types::AudioDeviceDirection::Duplex => {
-                        let playback_result = runtime
+                // process one host transfer cycle while the stream runs
+                if should_run {
+                    if let Err(error) = wait_for_stream_signal(&binding, &runtime) {
+                        let backend_message = error.to_string();
+                        let mut state = binding
+                            .sync
+                            .state
+                            .lock()
+                            .unwrap_or_else(|error| error.into_inner());
+                        state.running = false;
+                        state.paused = false;
+                        state.state_kind = AudioStreamStateKind::DeviceLost;
+                        state.last_backend_message = Some(backend_message);
+                        drop(state);
+
+                        binding.sync.wake.notify_all();
+                        continue;
+                    }
+
+                    let transfer_error = match runtime.direction {
+                        audio_types::AudioDeviceDirection::Playback => runtime
                             .render_client
                             .as_ref()
                             .map(|render_client| {
                                 process_playback_transfer(&binding, &runtime, render_client)
                             })
-                            .transpose();
-                        let capture_result = runtime
+                            .transpose(),
+                        audio_types::AudioDeviceDirection::Capture
+                        | audio_types::AudioDeviceDirection::Loopback => runtime
                             .capture_client
                             .as_ref()
                             .map(|capture_client| {
                                 process_capture_transfer(&binding, &runtime, capture_client)
                             })
-                            .transpose();
+                            .transpose(),
+                        audio_types::AudioDeviceDirection::Duplex => {
+                            let playback_result = runtime
+                                .render_client
+                                .as_ref()
+                                .map(|render_client| {
+                                    process_playback_transfer(&binding, &runtime, render_client)
+                                })
+                                .transpose();
+                            let capture_result = runtime
+                                .capture_client
+                                .as_ref()
+                                .map(|capture_client| {
+                                    process_capture_transfer(&binding, &runtime, capture_client)
+                                })
+                                .transpose();
 
-                        if let Err(error) = playback_result {
-                            Err(error)
-                        } else if let Err(error) = capture_result {
-                            Err(error)
-                        } else {
-                            Ok(None)
+                            if let Err(error) = playback_result {
+                                Err(error)
+                            } else if let Err(error) = capture_result {
+                                Err(error)
+                            } else {
+                                Ok(None)
+                            }
                         }
+                    };
+
+                    if let Err(error) = transfer_error {
+                        let backend_message = error.to_string();
+                        let mut state = binding
+                            .sync
+                            .state
+                            .lock()
+                            .unwrap_or_else(|error| error.into_inner());
+                        state.running = false;
+                        state.paused = false;
+                        state.state_kind = AudioStreamStateKind::DeviceLost;
+                        state.last_backend_message = Some(backend_message);
                     }
-                };
-
-                if let Err(error) = transfer_error {
-                    let backend_message = error.to_string();
-                    let mut state = binding
-                        .sync
-                        .state
-                        .lock()
-                        .unwrap_or_else(|error| error.into_inner());
-                    state.running = false;
-                    state.paused = false;
-                    state.state_kind = AudioStreamStateKind::DeviceLost;
-                    state.last_backend_message = Some(backend_message);
                 }
-            }
-            // idle pacing: avoid hot spinning while paused or stopped
-            else {
-                audio_core::wait_for_worker_period(&binding, runtime.poll_period);
-            }
+                // idle pacing: avoid hot spinning while paused or stopped
+                else {
+                    audio_core::wait_for_worker_period(&binding, runtime.poll_period);
+                }
 
-            // wake waiters after each worker cycle
-            binding.sync.wake.notify_all();
-        }
-    })
+                // wake waiters after each worker cycle
+                binding.sync.wake.notify_all();
+            }
+        },
+    )
+    .unwrap_or_else(|error| panic!("failed to spawn required attached runtime: {error}"))
 }
 
 /// Wait for one WASAPI event callback signal or poll timeout.

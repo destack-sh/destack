@@ -1,29 +1,24 @@
 use std::sync::Arc;
 
 use crate::runtime::BindingCallContext;
-use crate::runtime::process::service::affinity::{ServiceAffinity, ServiceHostLoop};
-use crate::runtime::process::service::executor::host::HostLoopExecutor;
-use crate::runtime::process::service::global_service;
+use crate::runtime::process::service::executor::host::HostExecutor;
+use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, GlobalService};
 
 use super::runtime::Win32RuntimeState;
 
 /// Process-global Win32 display service.
 pub(crate) struct Win32DisplayService {
     /// Host-loop executor for this service.
-    executor: HostLoopExecutor,
+    executor: HostExecutor,
 }
 
 impl Win32DisplayService {
-    /// The host-affinity domain for the Win32 display service.
-    pub(crate) const AFFINITY: ServiceAffinity =
-        ServiceAffinity::HostLoop(ServiceHostLoop::WindowsMessageLoop);
-
     /// Create one process-global Win32 display service.
     fn new() -> Self {
         Self {
-            executor: HostLoopExecutor::new(
+            executor: HostExecutor::new(
                 "platform.display.win32",
-                ServiceHostLoop::WindowsMessageLoop,
+                ExecutionAffinity::WindowsMessageLoop,
             ),
         }
     }
@@ -46,13 +41,13 @@ impl Win32DisplayService {
     }
 }
 
+impl GlobalService for Win32DisplayService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Host)
+        .with_affinity(ExecutionAffinity::WindowsMessageLoop);
+}
+
 /// Return one shared Win32 display service.
 pub(crate) fn win32_display_service() -> Arc<Win32DisplayService> {
-    debug_assert!(matches!(
-        Win32DisplayService::AFFINITY,
-        ServiceAffinity::HostLoop(ServiceHostLoop::WindowsMessageLoop)
-    ));
-
-    global_service(|| Ok(Win32DisplayService::new()))
+    Win32DisplayService::global(|| Ok(Win32DisplayService::new()))
         .expect("Win32 display service initialization should succeed")
 }

@@ -38,11 +38,15 @@ use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, resource};
 use crate::runtime::BindingCallContext;
 #[cfg(unix)]
+use crate::runtime::process::service::GlobalService;
+#[cfg(unix)]
 use crate::runtime::process::service::executor::periodic::{
     PeriodicTaskHandle, periodic_service_executor,
 };
+#[cfg(target_os = "linux")]
+use crate::runtime::process::start_with_policy;
 #[cfg(unix)]
-use crate::runtime::process::service::global_service;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy};
 #[cfg(unix)]
 use crate::runtime::{AgentId, ProcessSubscriberRegistry};
 
@@ -287,11 +291,21 @@ impl UnixInputMonitorService {
     }
 }
 
+#[cfg(target_os = "linux")]
+impl GlobalService for UnixInputMonitorService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
+}
+
+#[cfg(not(target_os = "linux"))]
+impl GlobalService for UnixInputMonitorService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Polling);
+}
+
 /// Return one shared unix input monitor service.
 pub(crate) fn unix_input_monitor_service(
     operation: &'static str,
 ) -> RuntimeResult<Arc<UnixInputMonitorService>> {
-    global_service(|| Ok(UnixInputMonitorService::new())).map_err(|error| {
+    UnixInputMonitorService::global(|| Ok(UnixInputMonitorService::new())).map_err(|error| {
         RuntimeError::from(PlatformError::io_with(
             None,
             None,
@@ -834,46 +848,54 @@ fn spawn_unix_monitor_worker(
     let stop = Arc::new(AtomicBool::new(false));
     let stop_signal = Arc::clone(&stop);
     let service = Arc::clone(service);
-    let handle = thread::spawn(move || {
-        let mut known_linux_paths = HashMap::new();
+    let handle = start_with_policy(
+        "destack-input-unix-monitor",
+        "destack.input.event.monitorOpen",
+        ExecutionPolicy::global(ExecutionMode::Loop),
+        move || {
+            let mut known_linux_paths = HashMap::new();
 
-        // seed the disconnect map from the current device snapshot
-        if let Ok(devices) = list_monitor_devices_snapshot() {
-            for device in devices {
-                known_linux_paths.insert(device.device_path, device.device_id);
-            }
-        }
-
-        loop {
-            // stop when the shared service tears the worker down
-            if stop_signal.load(Ordering::Acquire) {
-                break;
+            // seed the disconnect map from the current device snapshot
+            if let Ok(devices) = list_monitor_devices_snapshot() {
+                for device in devices {
+                    known_linux_paths.insert(device.device_path, device.device_id);
+                }
             }
 
-            // wait for one monitor event and then publish all queued deltas
-            let ready = match wait_for_monitor_watch_event(descriptor, INPUT_MONITOR_NATIVE_WAIT) {
-                Ok(ready) => ready,
-                Err(_) => break,
-            };
-            if !ready {
-                continue;
+            loop {
+                // stop when the shared service tears the worker down
+                if stop_signal.load(Ordering::Acquire) {
+                    break;
+                }
+
+                // wait for one monitor event and then publish all queued deltas
+                let ready =
+                    match wait_for_monitor_watch_event(descriptor, INPUT_MONITOR_NATIVE_WAIT) {
+                        Ok(ready) => ready,
+                        Err(_) => break,
+                    };
+                if !ready {
+                    continue;
+                }
+
+                let drain =
+                    drain_linux_monitor_watch(descriptor, &mut known_linux_paths, |event| {
+                        publish_unix_monitor_event(&service, event);
+                    });
+                if drain.is_err() {
+                    break;
+                }
             }
 
-            let drain = drain_linux_monitor_watch(descriptor, &mut known_linux_paths, |event| {
-                publish_unix_monitor_event(&service, event);
-            });
-            if drain.is_err() {
-                break;
+            unsafe {
+                libc::close(descriptor);
             }
-        }
 
-        unsafe {
-            libc::close(descriptor);
-        }
-
-        service.worker_running.store(false, Ordering::Release);
-        service.wake_runtimes();
-    });
+            service.worker_running.store(false, Ordering::Release);
+            service.wake_runtimes();
+        },
+    )
+    .map_err(|error| error.to_string())?;
 
     Ok(Some(UnixInputMonitorWorker::Native {
         stop,

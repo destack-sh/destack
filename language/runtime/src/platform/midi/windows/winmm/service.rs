@@ -4,8 +4,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::process::service;
-use crate::runtime::process::service::affinity::ServiceAffinity;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
 use windows_sys::Win32::Media::Audio::{midiInGetNumDevs, midiOutGetNumDevs};
 
 use super::core::{
@@ -20,9 +19,6 @@ pub(crate) struct WinMmService {
 }
 
 impl WinMmService {
-    /// The host-affinity domain for the WinMM backend service.
-    pub(crate) const AFFINITY: ServiceAffinity = ServiceAffinity::CallerThread;
-
     /// Refresh one cached WinMM topology snapshot.
     pub(super) fn refresh_topology(&self, operation: &'static str) -> RuntimeResult<()> {
         let topology = query_topology_snapshot(operation)?;
@@ -33,13 +29,13 @@ impl WinMmService {
     }
 }
 
+impl GlobalService for WinMmService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+}
+
 /// Return the shared WinMM runtime service.
 pub(crate) fn winmm_service(operation: &'static str) -> RuntimeResult<Arc<WinMmService>> {
-    service::global_service(|| {
-        // affinity contract
-        let service_affinity = WinMmService::AFFINITY;
-        debug_assert!(matches!(service_affinity, ServiceAffinity::CallerThread));
-
+    WinMmService::global(|| {
         let topology = Arc::new(Mutex::new(query_topology_snapshot(operation)?));
 
         Ok(WinMmService { topology })

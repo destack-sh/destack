@@ -8,8 +8,7 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform, BackendSupport};
 use crate::platform::midi::{MidiEventSource, MidiPortDirection};
-use crate::runtime::process::service::affinity::ServiceAffinity;
-use crate::runtime::process::service::{self};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService, start_with_policy};
 
 use super::abi::{
     POLLIN, SND_SEQ_CLIENT_SYSTEM, SND_SEQ_OPEN_INPUT, SND_SEQ_PORT_CAP_NO_EXPORT,
@@ -60,17 +59,13 @@ impl Drop for AlsaService {
     }
 }
 
-impl AlsaService {
-    /// The host-affinity domain for the ALSA sequencer backend service.
-    pub(crate) const AFFINITY: ServiceAffinity = ServiceAffinity::CallerThread;
+impl GlobalService for AlsaService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 
 /// Return the shared ALSA sequencer client service.
 pub(crate) fn alsa_service(operation: &'static str) -> RuntimeResult<Arc<AlsaService>> {
-    service::global_service(|| {
-        let service_affinity = AlsaService::AFFINITY;
-        debug_assert!(matches!(service_affinity, ServiceAffinity::CallerThread));
-
+    AlsaService::global(|| {
         let Some(library) = alsa_library() else {
             return Err(core_platform::backend_support_error(
                 operation,
@@ -190,18 +185,14 @@ fn spawn_announce_thread(
         ));
     }
 
-    let builder = thread::Builder::new().name("destack-midi-alsa-announce".to_string());
-    let announce_thread = builder
-        .spawn(move || {
+    let announce_thread = start_with_policy(
+        "destack-midi-alsa-announce",
+        "destack.midi.alsa.announce.spawn",
+        ExecutionPolicy::global(ExecutionMode::Loop),
+        move || {
             run_announce_thread(handle, port_id, topology, native_event_registry, stop_flag);
-        })
-        .map_err(|error| {
-            core_platform::io_operation_error(
-                "destack.midi.alsa.announce.spawn",
-                None,
-                format!("failed to spawn ALSA announce thread: {error}"),
-            )
-        })?;
+        },
+    )?;
 
     Ok(announce_thread)
 }

@@ -6,10 +6,8 @@ use objc2_core_graphics::{
 };
 
 use crate::platform::display::unix::appkit::event as appkit_event;
-use crate::runtime::process::service::affinity::{ServiceAffinity, ServiceHostLoop};
-use crate::runtime::process::service::executor::host::HostLoopExecutor;
-use crate::runtime::process::service::global_service;
-use crate::runtime::process::service::registry::global_service_if_initialized;
+use crate::runtime::process::service::executor::host::HostExecutor;
+use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, GlobalService};
 use crate::runtime::{AgentId, BindingCallContext, ProcessSubscriberRegistry};
 
 use super::core::warn_callback_error;
@@ -18,7 +16,7 @@ use super::runtime::AppKitRuntimeState;
 /// Process-global AppKit display service.
 pub(crate) struct AppKitDisplayService {
     /// Host-loop executor for this service.
-    executor: HostLoopExecutor,
+    executor: HostExecutor,
     /// Mutable service state.
     state: Arc<AppKitDisplayServiceState>,
 }
@@ -32,14 +30,10 @@ struct AppKitDisplayServiceState {
 }
 
 impl AppKitDisplayService {
-    /// The host-affinity domain for the AppKit display service.
-    pub(crate) const AFFINITY: ServiceAffinity =
-        ServiceAffinity::HostLoop(ServiceHostLoop::MainThread);
-
     /// Create one process-global AppKit display service.
     fn new() -> Self {
         Self {
-            executor: HostLoopExecutor::new("platform.display.appkit", ServiceHostLoop::MainThread),
+            executor: HostExecutor::new("platform.display.appkit", ExecutionAffinity::MainThread),
             state: Arc::new(AppKitDisplayServiceState {
                 monitor_callback_runtimes: Mutex::new(ProcessSubscriberRegistry::default()),
                 monitor_callback_registration: OnceLock::new(),
@@ -96,14 +90,14 @@ impl AppKitDisplayService {
     }
 }
 
+impl GlobalService for AppKitDisplayService {
+    const POLICY: ExecutionPolicy =
+        ExecutionPolicy::global(ExecutionMode::Host).with_affinity(ExecutionAffinity::MainThread);
+}
+
 /// Return one shared AppKit display service.
 pub(crate) fn appkit_display_service() -> Arc<AppKitDisplayService> {
-    debug_assert!(matches!(
-        AppKitDisplayService::AFFINITY,
-        ServiceAffinity::HostLoop(ServiceHostLoop::MainThread)
-    ));
-
-    global_service(|| Ok(AppKitDisplayService::new()))
+    AppKitDisplayService::global(|| Ok(AppKitDisplayService::new()))
         .expect("AppKit display service initialization should succeed")
 }
 
@@ -111,7 +105,7 @@ pub(crate) fn appkit_display_service() -> Arc<AppKitDisplayService> {
 ///
 /// This is for late CoreGraphics callbacks that may race service teardown.
 fn active_appkit_display_service() -> Option<Arc<AppKitDisplayService>> {
-    global_service_if_initialized::<AppKitDisplayService>()
+    AppKitDisplayService::active()
 }
 
 /// Register the process-global CoreGraphics callback once.

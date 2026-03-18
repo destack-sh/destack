@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 #[cfg(target_os = "macos")]
 use crate::platform::audio::core::codec::frame_bytes;
 #[cfg(target_os = "macos")]
-use crate::runtime::process::service::global_service;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
 
 #[cfg(target_os = "macos")]
 use super::abi::{
@@ -60,10 +60,15 @@ impl CoreAudioLoopbackProbeService {
     }
 }
 
+#[cfg(target_os = "macos")]
+impl GlobalService for CoreAudioLoopbackProbeService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+}
+
 /// Return the shared CoreAudio loopback probe service.
 #[cfg(target_os = "macos")]
 fn coreaudio_loopback_probe_service() -> Arc<CoreAudioLoopbackProbeService> {
-    global_service(|| Ok(CoreAudioLoopbackProbeService::new()))
+    CoreAudioLoopbackProbeService::global(|| Ok(CoreAudioLoopbackProbeService::new()))
         .expect("CoreAudio loopback probe service initialization should not fail")
 }
 

@@ -49,7 +49,7 @@ unsafe impl Send for IoUringProactor {}
 struct InflightRequest {
     /// Associated resource id.
     resource_id: ResourceId,
-    /// Operation kind for this request.
+    /// Task kind for this request.
     op: ProactorOpKind,
     /// Additional inflight data.
     data: InflightData,

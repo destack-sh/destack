@@ -1,26 +1,22 @@
 use std::sync::Arc;
 
 use crate::runtime::BindingCallContext;
-use crate::runtime::process::service::affinity::ServiceAffinity;
-use crate::runtime::process::service::executor::caller::CallerThreadExecutor;
-use crate::runtime::process::service::global_service;
+use crate::runtime::process::service::executor::inline::InlineExecutor;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
 
 use super::runtime::X11RuntimeState;
 
 /// Process-global x11 display service.
 pub(crate) struct X11DisplayService {
     /// Caller-thread executor for this service.
-    executor: CallerThreadExecutor,
+    executor: InlineExecutor,
 }
 
 impl X11DisplayService {
-    /// The host-affinity domain for the x11 display service.
-    pub(crate) const AFFINITY: ServiceAffinity = ServiceAffinity::CallerThread;
-
     /// Create one process-global x11 display service.
     fn new() -> Self {
         Self {
-            executor: CallerThreadExecutor::new("platform.display.x11"),
+            executor: InlineExecutor::new("platform.display.x11"),
         }
     }
 
@@ -42,13 +38,12 @@ impl X11DisplayService {
     }
 }
 
+impl GlobalService for X11DisplayService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+}
+
 /// Return one shared x11 display service.
 pub(crate) fn x11_display_service() -> Arc<X11DisplayService> {
-    debug_assert!(matches!(
-        X11DisplayService::AFFINITY,
-        ServiceAffinity::CallerThread
-    ));
-
-    global_service(|| Ok(X11DisplayService::new()))
+    X11DisplayService::global(|| Ok(X11DisplayService::new()))
         .expect("x11 display service initialization should succeed")
 }

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core::codec::clamp_audio_scalar;
 use crate::platform::audio::{AudioStreamStateKind, AudioStreamStatusFlags, core as audio_core};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::abi::{AlsaPcm, AlsaSignedFrames, AlsaUnsignedFrames};
 use super::core::{AlsaLibrary, AlsaStreamRuntime};
@@ -15,51 +16,57 @@ pub(super) fn spawn_worker(
     binding: Arc<audio_core::AudioStreamHostState>,
     runtime: Arc<AlsaStreamRuntime>,
 ) -> std::thread::JoinHandle<()> {
-    std::thread::spawn(move || {
-        let Some(library) = alsa_library() else {
-            return;
-        };
+    start_with_policy(
+        "destack-audio-alsa-transfer",
+        "destack.audio.stream.open",
+        ExecutionPolicy::instance(ExecutionMode::Loop),
+        move || {
+            let Some(library) = alsa_library() else {
+                return;
+            };
 
-        loop {
-            let state = binding
-                .sync
-                .state
-                .lock()
-                .unwrap_or_else(|error| error.into_inner());
-            let shutdown = state.shutdown;
-            let should_run = state.running && !state.paused;
-            drop(state);
-
-            if shutdown {
-                break;
-            }
-
-            if !should_run {
-                audio_core::wait_for_worker_period(&binding, runtime.poll_period);
-                continue;
-            }
-
-            let transfer_result = process_transfer_cycle(&library, &binding, &runtime);
-            if let Err(error) = transfer_result {
-                let backend_message = error.to_string();
-                let mut state = binding
+            loop {
+                let state = binding
                     .sync
                     .state
                     .lock()
                     .unwrap_or_else(|error| error.into_inner());
-                state.running = false;
-                state.paused = false;
-                state.state_kind = AudioStreamStateKind::DeviceLost;
-                state.last_backend_message = Some(backend_message);
+                let shutdown = state.shutdown;
+                let should_run = state.running && !state.paused;
                 drop(state);
+
+                if shutdown {
+                    break;
+                }
+
+                if !should_run {
+                    audio_core::wait_for_worker_period(&binding, runtime.poll_period);
+                    continue;
+                }
+
+                let transfer_result = process_transfer_cycle(&library, &binding, &runtime);
+                if let Err(error) = transfer_result {
+                    let backend_message = error.to_string();
+                    let mut state = binding
+                        .sync
+                        .state
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner());
+                    state.running = false;
+                    state.paused = false;
+                    state.state_kind = AudioStreamStateKind::DeviceLost;
+                    state.last_backend_message = Some(backend_message);
+                    drop(state);
+                    binding.sync.wake.notify_all();
+
+                    continue;
+                }
+
                 binding.sync.wake.notify_all();
-
-                continue;
             }
-
-            binding.sync.wake.notify_all();
-        }
-    })
+        },
+    )
+    .unwrap_or_else(|error| panic!("failed to spawn required attached runtime: {error}"))
 }
 
 /// Process one ALSA transfer cycle.

@@ -3,7 +3,7 @@ use super::super::diagnostic::PlatformErrorCode;
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::poller::{PlatformHandle, PlatformInterest, PollerEventMask};
 
-/// Operation kind for asynchronous I/O.
+/// Task kind for asynchronous I/O.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum ProactorOpKind {
@@ -117,7 +117,7 @@ pub struct ProactorRequest {
     pub resource_id: ResourceId,
     /// Opaque request token.
     pub token: u64,
-    /// Operation payload.
+    /// Task payload.
     pub op: ProactorOp,
 }
 
@@ -375,7 +375,7 @@ pub struct ProactorCompletion {
     pub resource_id: ResourceId,
     /// Opaque request token.
     pub token: u64,
-    /// Operation kind.
+    /// Task kind.
     pub op: ProactorOpKind,
     /// Result code or byte count.
     pub result: i32,
