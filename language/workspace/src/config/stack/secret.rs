@@ -15,8 +15,8 @@ pub struct StackSecretOptions {
     pub annotations: IndexMap<String, String>,
     /// Provider-specific lowering overrides.
     pub provider: Option<Value>,
-    /// Extra secret metadata.
-    pub config: Option<Value>,
+    /// Extra secret arguments.
+    pub with: Option<Value>,
 }
 
 impl StackSecretOptions {
@@ -28,8 +28,8 @@ impl StackSecretOptions {
         if self.provider.is_none() {
             self.provider = parent.provider.clone();
         }
-        if self.config.is_none() {
-            self.config = parent.config.clone();
+        if self.with.is_none() {
+            self.with = parent.with.clone();
         }
 
         merge_metadata(&mut self.labels, &parent.labels);
@@ -44,7 +44,7 @@ impl From<&StackSecretJson> for StackSecretOptions {
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
             provider: json.provider.clone(),
-            config: json.config.clone(),
+            with: json.with.clone(),
         }
     }
 }
@@ -65,6 +65,6 @@ pub struct StackSecretJson {
     pub annotations: Option<IndexMap<String, String>>,
     /// Provider-specific lowering overrides.
     pub provider: Option<Value>,
-    /// Extra secret metadata.
-    pub config: Option<Value>,
+    /// Extra secret arguments.
+    pub with: Option<Value>,
 }

@@ -23,8 +23,8 @@ pub struct StackVolumeOptions {
     pub annotations: IndexMap<String, String>,
     /// Provider-specific lowering overrides.
     pub provider: Option<Value>,
-    /// Extra volume metadata.
-    pub config: Option<Value>,
+    /// Extra volume arguments.
+    pub with: Option<Value>,
 }
 
 impl StackVolumeOptions {
@@ -45,8 +45,8 @@ impl StackVolumeOptions {
         if self.provider.is_none() {
             self.provider = parent.provider.clone();
         }
-        if self.config.is_none() {
-            self.config = parent.config.clone();
+        if self.with.is_none() {
+            self.with = parent.with.clone();
         }
         self.backup.extend_from(&parent.backup);
 
@@ -66,7 +66,7 @@ impl From<&StackVolumeJson> for StackVolumeOptions {
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
             provider: json.provider.clone(),
-            config: json.config.clone(),
+            with: json.with.clone(),
         }
     }
 }
@@ -132,8 +132,8 @@ pub struct StackVolumeJson {
     pub annotations: Option<IndexMap<String, String>>,
     /// Provider-specific lowering overrides.
     pub provider: Option<Value>,
-    /// Extra volume metadata.
-    pub config: Option<Value>,
+    /// Extra volume arguments.
+    pub with: Option<Value>,
 }
 
 /// Volume backup policy JSON.

@@ -42,8 +42,8 @@ pub struct AccountOptions {
     pub role_arn: Option<String>,
     /// Provider account or project id.
     pub account_id: Option<String>,
-    /// Extra provider-specific account metadata.
-    pub config: Option<Value>,
+    /// Extra provider-specific account arguments.
+    pub with: Option<Value>,
 }
 
 impl AccountOptions {
@@ -67,8 +67,8 @@ impl AccountOptions {
         if self.account_id.is_none() {
             self.account_id = parent.account_id.clone();
         }
-        if self.config.is_none() {
-            self.config = parent.config.clone();
+        if self.with.is_none() {
+            self.with = parent.with.clone();
         }
     }
 }
@@ -82,7 +82,7 @@ impl From<&AccountJson> for AccountOptions {
             profile: json.profile.clone(),
             role_arn: json.role_arn.clone(),
             account_id: json.account_id.clone(),
-            config: json.config.clone(),
+            with: json.with.clone(),
         }
     }
 }
@@ -122,8 +122,8 @@ pub struct AccountJson {
     pub role_arn: Option<String>,
     /// Provider account or project id.
     pub account_id: Option<String>,
-    /// Extra provider-specific account metadata.
-    pub config: Option<Value>,
+    /// Extra provider-specific account arguments.
+    pub with: Option<Value>,
 }
 
 /// Convert account declarations into normalized options.

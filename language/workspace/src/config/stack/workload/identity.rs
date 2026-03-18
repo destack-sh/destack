@@ -10,8 +10,8 @@ pub struct StackIdentityOptions {
     pub audiences: Vec<String>,
     /// Provider-specific lowering overrides.
     pub provider: Option<Value>,
-    /// Extra identity metadata.
-    pub config: Option<Value>,
+    /// Extra identity arguments.
+    pub with: Option<Value>,
 }
 
 impl StackIdentityOptions {
@@ -26,8 +26,8 @@ impl StackIdentityOptions {
         if self.provider.is_none() {
             self.provider = parent.provider.clone();
         }
-        if self.config.is_none() {
-            self.config = parent.config.clone();
+        if self.with.is_none() {
+            self.with = parent.with.clone();
         }
     }
 }
@@ -38,7 +38,7 @@ impl From<&StackIdentityJson> for StackIdentityOptions {
             name: json.name.clone(),
             audiences: json.audiences.clone().unwrap_or_default(),
             provider: json.provider.clone(),
-            config: json.config.clone(),
+            with: json.with.clone(),
         }
     }
 }
@@ -54,6 +54,6 @@ pub struct StackIdentityJson {
     pub audiences: Option<Vec<String>>,
     /// Provider-specific lowering overrides.
     pub provider: Option<Value>,
-    /// Extra identity metadata.
-    pub config: Option<Value>,
+    /// Extra identity arguments.
+    pub with: Option<Value>,
 }
