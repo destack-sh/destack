@@ -225,10 +225,9 @@ impl CompilerContext {
             CompilerMode::Check => {
                 let profile = self.program.default_profile_id_for_module(module);
                 self.compiler
-                    .enqueue(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-                        module,
-                        profile,
-                    }));
+                    .enqueue(BuildKey::artifact(ArtifactKey::dir_analyzed(
+                        module, profile,
+                    )));
 
                 // TODO #Cleanup: revisit this (?)
                 let diagnostic_target = self.program.ensure_target_for_module(module);
@@ -236,11 +235,11 @@ impl CompilerContext {
                     .program
                     .profile_id_for_target_or_default(module, &diagnostic_target);
                 self.compiler
-                    .enqueue(BuildKey::Artifact(ArtifactKey::MirOptimized {
+                    .enqueue(BuildKey::artifact(ArtifactKey::mir_optimized(
                         module,
-                        profile: diagnostic_profile,
-                        target: diagnostic_target,
-                    }));
+                        diagnostic_profile,
+                        diagnostic_target,
+                    )));
             }
             CompilerMode::Lower { target } => {
                 let module_ref = self.program.modules.get(module);
@@ -250,18 +249,16 @@ impl CompilerContext {
                     .program
                     .profile_id_for_target_or_default(module, &target_id);
                 self.compiler
-                    .enqueue(BuildKey::Artifact(ArtifactKey::MirBase {
-                        module,
-                        profile,
-                        target: target_id,
-                    }));
+                    .enqueue(BuildKey::artifact(ArtifactKey::mir_base(
+                        module, profile, target_id,
+                    )));
             }
             CompilerMode::Build { target } => {
                 let module_ref = self.program.modules.get(module);
                 let package_id = module_ref.package_id;
                 let target_id = TargetId::new(package_id, target);
                 self.compiler
-                    .enqueue(BuildKey::Output(OutputKey::module(module, target_id)));
+                    .enqueue(BuildKey::output(OutputKey::module(module, target_id)));
             }
         }
     }
