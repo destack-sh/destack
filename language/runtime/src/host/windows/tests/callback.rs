@@ -1,24 +1,17 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::host::core::registry::next_host_runtime_id;
 use crate::host::core::{HostQueue, HostRuntimeRegistry};
 use crate::host::windows::ingress::callback::host_lifecycle_state_for_windows_application;
 use crate::host::windows::{
-    WindowsApplicationLifecycle, windows_notify_intent_open_url, windows_notify_permission_result,
+    WindowsApplicationLifecycle, windows_notify_intent_open_url, windows_notify_location_sample,
+    windows_notify_permission_result,
 };
 use crate::host::{
-    HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState, HostPermissionEvent,
-    Platform,
+    HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState, HostLocationEvent,
+    HostPermissionEvent, Platform,
 };
-use crate::runtime::world::RuntimeId;
-
-/// Shared runtime-id allocator for host callback tests.
-static TEST_RUNTIME_ID_NEXT: AtomicU64 = AtomicU64::new(u64::MAX - 4096);
-
-/// Allocate one unique runtime id for this test process.
-fn next_test_runtime_id() -> RuntimeId {
-    RuntimeId(TEST_RUNTIME_ID_NEXT.fetch_add(1, Ordering::Relaxed))
-}
+use crate::platform::os::abi_generated::LocationSampleValue;
 
 #[test]
 fn test_map_windows_lifecycle_to_initializing() {
@@ -58,7 +51,7 @@ fn test_map_windows_lifecycle_to_destroyed() {
 
 #[test]
 fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
-    let runtime_id = next_test_runtime_id();
+    let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration = HostRuntimeRegistry::register_queue(
         Platform::Windows,
@@ -66,7 +59,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
         Arc::downgrade(&queue),
         None,
     );
-    let runtime_id = registration.runtime_id();
+    let runtime_id = registration.host_runtime_id();
 
     windows_notify_permission_result(runtime_id.0, "camera", true).unwrap();
 
@@ -82,7 +75,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
 
 #[test]
 fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
-    let runtime_id = next_test_runtime_id();
+    let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration = HostRuntimeRegistry::register_queue(
         Platform::Windows,
@@ -90,7 +83,7 @@ fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
         Arc::downgrade(&queue),
         None,
     );
-    let runtime_id = registration.runtime_id();
+    let runtime_id = registration.host_runtime_id();
 
     windows_notify_intent_open_url(
         runtime_id.0,
@@ -108,5 +101,39 @@ fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
                 url: "https://example.com".to_string(),
             },
         })],
+    );
+}
+
+#[test]
+fn test_notify_location_sample_enqueues_location_event_for_runtime_bridge() {
+    let runtime_id = next_host_runtime_id();
+    let queue = Arc::new(HostQueue::new(runtime_id));
+    let registration = HostRuntimeRegistry::register_queue(
+        Platform::Windows,
+        runtime_id,
+        Arc::downgrade(&queue),
+        None,
+    );
+    let runtime_id = registration.host_runtime_id();
+    let sample = LocationSampleValue {
+        latitude_degrees: 1.0,
+        longitude_degrees: 2.0,
+        altitude_meters: 3.0,
+        horizontal_accuracy_meters: 4.0,
+        vertical_accuracy_meters: 5.0,
+        speed_meters_per_second: 6.0,
+        heading_degrees: 7.0,
+        timestamp_unix_ns: 8,
+    };
+
+    windows_notify_location_sample(runtime_id.0, "watch-1", sample).unwrap();
+
+    let events = queue.poll_events(Some(0)).unwrap();
+    assert_eq!(
+        events.as_slice(),
+        [HostEvent::Location(Box::new(HostLocationEvent {
+            watch_id: "watch-1".to_string(),
+            sample,
+        }))],
     );
 }

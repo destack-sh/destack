@@ -1,24 +1,17 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::host::core::registry::next_host_runtime_id;
 use crate::host::core::{HostQueue, HostRuntimeRegistry};
 use crate::host::macos::ingress::callback::host_lifecycle_state_for_application_lifecycle;
 use crate::host::macos::{
-    MacosApplicationLifecycle, macos_notify_intent_open_url, macos_notify_permission_result,
+    MacosApplicationLifecycle, macos_notify_intent_open_url, macos_notify_location_sample,
+    macos_notify_permission_result,
 };
 use crate::host::{
-    HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState, HostPermissionEvent,
-    Platform,
+    HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState, HostLocationEvent,
+    HostPermissionEvent, Platform,
 };
-use crate::runtime::world::RuntimeId;
-
-/// Shared runtime-id allocator for host callback tests.
-static TEST_RUNTIME_ID_NEXT: AtomicU64 = AtomicU64::new(u64::MAX - 8192);
-
-/// Allocate one unique runtime id for this test process.
-fn next_test_runtime_id() -> RuntimeId {
-    RuntimeId(TEST_RUNTIME_ID_NEXT.fetch_add(1, Ordering::Relaxed))
-}
+use crate::platform::os::abi_generated::LocationSampleValue;
 
 #[test]
 fn test_map_application_lifecycle_to_initializing() {
@@ -51,7 +44,7 @@ fn test_map_application_lifecycle_to_destroyed() {
 
 #[test]
 fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() {
-    let runtime_id = next_test_runtime_id();
+    let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration = HostRuntimeRegistry::register_queue(
         Platform::MacOS,
@@ -59,7 +52,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
         Arc::downgrade(&queue),
         None,
     );
-    let runtime_id = registration.runtime_id();
+    let runtime_id = registration.host_runtime_id();
 
     macos_notify_permission_result(runtime_id.0, "camera", true).unwrap();
 
@@ -75,7 +68,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
 
 #[test]
 fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
-    let runtime_id = next_test_runtime_id();
+    let runtime_id = next_host_runtime_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration = HostRuntimeRegistry::register_queue(
         Platform::MacOS,
@@ -83,7 +76,7 @@ fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
         Arc::downgrade(&queue),
         None,
     );
-    let runtime_id = registration.runtime_id();
+    let runtime_id = registration.host_runtime_id();
 
     macos_notify_intent_open_url(
         runtime_id.0,
@@ -102,4 +95,43 @@ fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
             },
         })],
     );
+}
+
+#[test]
+fn test_notify_location_sample_enqueues_location_event_for_runtime_bridge() {
+    let runtime_id = next_host_runtime_id();
+    let queue = Arc::new(HostQueue::new(runtime_id));
+    let registration = HostRuntimeRegistry::register_queue(
+        Platform::MacOS,
+        runtime_id,
+        Arc::downgrade(&queue),
+        None,
+    );
+    let runtime_id = registration.host_runtime_id();
+    let sample = test_location_sample();
+
+    macos_notify_location_sample(runtime_id.0, "watch-1", sample).unwrap();
+
+    let events = queue.poll_events(Some(0)).unwrap();
+    assert_eq!(
+        events.as_slice(),
+        [HostEvent::Location(Box::new(HostLocationEvent {
+            watch_id: "watch-1".to_string(),
+            sample,
+        }))],
+    );
+}
+
+/// Build one representative location sample payload.
+fn test_location_sample() -> LocationSampleValue {
+    LocationSampleValue {
+        latitude_degrees: 47.3769,
+        longitude_degrees: 8.5417,
+        altitude_meters: 408.0,
+        horizontal_accuracy_meters: 12.0,
+        vertical_accuracy_meters: 18.0,
+        speed_meters_per_second: 2.5,
+        heading_degrees: 180.0,
+        timestamp_unix_ns: 123_000_000_000,
+    }
 }

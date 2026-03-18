@@ -51,7 +51,7 @@ pub(crate) fn process_ingress_loop() {
 
         // service one queued platform host-loop callback
         if message.message == WINDOWS_HOST_LOOP_SERVICE_MESSAGE_ID {
-            let _ = process_windows_loop_callbacks();
+            process_windows_loop_callbacks();
             continue;
         }
 

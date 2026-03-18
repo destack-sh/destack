@@ -5,11 +5,12 @@ use crate::host::windows::{
     windows_notify_intent_custom_action, windows_notify_intent_open_file,
     windows_notify_intent_open_url, windows_notify_intent_share_files,
     windows_notify_intent_share_text, windows_notify_interruption_changed,
-    windows_notify_memory_pressure_changed, windows_notify_permission_result,
-    windows_notify_power_mode_changed, windows_notify_thermal_state_changed, windows_notify_wake,
-    windows_notify_wall_clock_changed,
+    windows_notify_location_sample, windows_notify_memory_pressure_changed,
+    windows_notify_permission_result, windows_notify_power_mode_changed,
+    windows_notify_thermal_state_changed, windows_notify_wake, windows_notify_wall_clock_changed,
 };
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
+use crate::platform::os::abi_generated::LocationSampleValue;
 use crate::runtime::{NativeStringRef, NativeStringSlice};
 
 pub(crate) const WINDOWS_LIFECYCLE_CREATED: u32 = 0;
@@ -48,6 +49,18 @@ pub unsafe extern "C" fn destack_host_windows_notify_permission_result(
     let result = decode_permission_name(permission).and_then(|permission| {
         windows_notify_permission_result(runtime_id, permission.as_str(), granted)
     });
+
+    runtime_status(result)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_windows_notify_location_sample(
+    runtime_id: u64,
+    watch_id: NativeStringRef,
+    sample: LocationSampleValue,
+) -> RuntimeStatus {
+    let result = decode_string(watch_id, "watch_id")
+        .and_then(|watch_id| windows_notify_location_sample(runtime_id, &watch_id, sample));
 
     runtime_status(result)
 }

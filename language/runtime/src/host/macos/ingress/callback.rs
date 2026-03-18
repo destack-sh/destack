@@ -1,14 +1,14 @@
 use destack_workspace::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostIngressHandle, HostRuntimeRegistry};
+use crate::host::core::{HostIngressHandle, HostRuntimeId, HostRuntimeRegistry};
 use crate::host::{
     HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent,
-    HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent,
-    HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent, HostMemoryPressureLevel,
+    HostPermissionEvent, HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState,
+    HostWallClockEvent,
 };
-use crate::runtime::world::RuntimeId;
-
+use crate::platform::os::abi_generated::LocationSampleValue;
 /// macOS application lifecycle transitions from native callbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MacosApplicationLifecycle {
@@ -24,7 +24,7 @@ pub enum MacosApplicationLifecycle {
 
 /// Return the active macOS host queue for this process.
 fn macos_host_bridge(runtime_id: u64) -> RuntimeResult<HostIngressHandle> {
-    HostRuntimeRegistry::ingress_handle_for_runtime(RuntimeId(runtime_id), Platform::MacOS)
+    HostRuntimeRegistry::ingress_handle_for_runtime(HostRuntimeId(runtime_id), Platform::MacOS)
 }
 
 /// Submit one macOS application lifecycle callback.
@@ -50,6 +50,21 @@ pub fn macos_notify_permission_result(
         permission: permission.to_string(),
         granted,
     }));
+
+    Ok(())
+}
+
+/// Submit one macOS location sample callback.
+pub fn macos_notify_location_sample(
+    runtime_id: u64,
+    watch_id: &str,
+    sample: LocationSampleValue,
+) -> RuntimeResult<()> {
+    let bridge = macos_host_bridge(runtime_id)?;
+    bridge.publish_event(HostEvent::Location(Box::new(HostLocationEvent {
+        watch_id: watch_id.to_string(),
+        sample,
+    })));
 
     Ok(())
 }

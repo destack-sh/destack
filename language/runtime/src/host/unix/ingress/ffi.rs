@@ -1,8 +1,9 @@
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
 use crate::host::core::error::invalid_argument_value;
-use crate::host::unix::UnixApplicationLifecycle;
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 use crate::runtime::NativeStringRef;
+
+use super::callback::UnixApplicationLifecycle;
 
 /// Unix lifecycle code for app-created initialization.
 pub(crate) const UNIX_LIFECYCLE_CREATED: u32 = 0;
