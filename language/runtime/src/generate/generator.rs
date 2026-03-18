@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::{BuildKey, Compiler, CompilerOptions, Task, TaskOutcome};
+use destack_compiler::{BuildKey, Compiler, CompilerOptions, TaskOutcome};
 use destack_source::DiagnosticSeverity;
 use destack_workspace::{
     ArtifactKey, EnvSnapshot, OutputFormat, Platform, ProfileFlags, ProfileId, ProfileKey, Program,
@@ -135,29 +135,26 @@ impl RuntimeGenerator {
         platform_modules: &[destack_source::ModuleId],
     ) {
         // resolve builtin symbols for the target profile
-        let builtins_outcome = self.compiler.run_task(Task::new(BuildKey::Artifact(
-            ArtifactKey::LanguageEnvironment {
-                profile: profile_id,
-            },
-        )));
+        let builtins_outcome =
+            self.compiler
+                .run_task(BuildKey::artifact(ArtifactKey::language_environment(
+                    profile_id,
+                )));
         self.assert_task_complete(builtins_outcome, "ResolveBuiltins");
 
         // resolve builtin libraries for the target profile
-        let resolve_outcome =
-            self.compiler
-                .run_task(Task::new(BuildKey::Artifact(ArtifactKey::LibEnvironment {
-                    profile: profile_id,
-                })));
+        let resolve_outcome = self
+            .compiler
+            .run_task(BuildKey::artifact(ArtifactKey::lib_environment(profile_id)));
         self.assert_task_complete(resolve_outcome, "ResolveLibs");
 
         // build the full platform surface sequentially
         for module_id in platform_modules {
-            let outcome =
-                self.compiler
-                    .run_task(Task::new(BuildKey::Artifact(ArtifactKey::DirPatched {
-                        module: *module_id,
-                        profile: profile_id,
-                    })));
+            let outcome = self
+                .compiler
+                .run_task(BuildKey::artifact(ArtifactKey::dir_patched(
+                    *module_id, profile_id,
+                )));
             let task_name = format!("BuildDirPatched({module_id:?})");
             self.assert_task_complete(outcome, &task_name);
         }
@@ -290,8 +287,8 @@ impl RuntimeGenerator {
     fn assert_task_complete(&self, outcome: TaskOutcome, task_name: &str) {
         match outcome {
             TaskOutcome::Complete => {}
-            TaskOutcome::Skipped { reason } => {
-                panic!("binding generation task {task_name} was skipped: {reason:?}");
+            TaskOutcome::Skipped => {
+                panic!("binding generation task {task_name} was skipped");
             }
             TaskOutcome::Error { error } => {
                 panic!(
