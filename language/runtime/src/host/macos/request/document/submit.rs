@@ -1,17 +1,15 @@
 use objc2_app_kit::{NSModalResponseOK, NSOpenPanel};
 use objc2_foundation::{NSArray, NSString};
-use std::os::unix::ffi::OsStrExt;
-use std::time::UNIX_EPOCH;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::execution::with_process_main_context_marker_if_needed;
-use crate::host::common::{
-    HOST_DOCUMENT_PICK_OPERATION, normalized_document_extensions, percent_encode_bytes,
-    validate_document_pick_options,
+use crate::host::app::document::pick::{
+    HOST_DOCUMENT_PICK_OPERATION, document_descriptor_value_from_path,
+    normalized_document_extensions, validate_document_pick_options,
 };
+use crate::host::apple::execution::with_process_main_context_marker_if_needed;
+use crate::host::core::HostRequestContext;
 use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::fs::abi_generated::{OsPathBytesValue, OsPathValue, PathBytesValue};
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
 
 /// Build one Cocoa array for allowed extension filters.
@@ -30,57 +28,6 @@ fn allowed_file_types(extensions: &[String]) -> Option<objc2::rc::Retained<NSArr
         .collect::<Vec<_>>();
 
     Some(NSArray::from_slice(&references))
-}
-
-/// Build one document descriptor from one local path.
-fn document_descriptor_value_from_path(
-    path: &std::path::Path,
-) -> RuntimeResult<DocumentDescriptorValue> {
-    let metadata = std::fs::metadata(path).map_err(|error| {
-        io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
-            Some(PlatformErrorCode::IoNotFound),
-            format!("document path metadata failed: {error}"),
-        )
-    })?;
-    let is_directory = metadata.is_dir();
-    let modified_unix_nanos = metadata
-        .modified()
-        .ok()
-        .and_then(|value| value.duration_since(UNIX_EPOCH).ok())
-        .map(|value| value.as_nanos().min(u64::MAX as u128) as u64)
-        .unwrap_or(0);
-
-    Ok(DocumentDescriptorValue {
-        uri: file_uri_from_path(path),
-        local_path: Some(os_path_value_from_path(path)),
-        name: path
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| path.display().to_string()),
-        size_bytes: (!is_directory).then_some(metadata.len()),
-        mime_type: None,
-        is_directory,
-        modified_unix_ns: Some(modified_unix_nanos),
-    })
-}
-
-/// Encode one local host path into one `file://` URI.
-fn file_uri_from_path(path: &std::path::Path) -> String {
-    let bytes = path.as_os_str().as_bytes();
-    let payload = percent_encode_bytes(bytes);
-
-    format!("file://{payload}")
-}
-
-/// Encode one local host path into one runtime path value.
-fn os_path_value_from_path(path: &std::path::Path) -> OsPathValue {
-    let bytes = path.as_os_str().as_bytes().to_vec();
-
-    OsPathValue::OsPathBytes(OsPathBytesValue {
-        kind: "bytes".to_string(),
-        bytes: PathBytesValue(bytes),
-    })
 }
 
 /// Open one macOS document picker on the process main thread.
@@ -133,6 +80,7 @@ fn pick_documents_on_main(
 
 /// Pick documents from the macOS host request lane.
 pub(crate) fn pick_documents(
+    _context: &HostRequestContext,
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     pick_documents_on_main(options)

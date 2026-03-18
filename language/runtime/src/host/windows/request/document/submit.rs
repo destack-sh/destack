@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::time::UNIX_EPOCH;
 use windows::Win32::Foundation::{HWND, RPC_E_CHANGED_MODE};
 use windows::Win32::System::Com::{
     CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
@@ -13,71 +12,18 @@ use windows::Win32::UI::Shell::{
 use windows::core::{Error as WindowsError, HRESULT, PCWSTR};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::common::{
-    HOST_DOCUMENT_PICK_OPERATION, normalized_document_extensions, percent_encode_bytes,
-    validate_document_pick_options,
+use crate::host::app::document::pick::{
+    HOST_DOCUMENT_PICK_OPERATION, document_descriptor_value_from_path,
+    normalized_document_extensions, validate_document_pick_options,
 };
+use crate::host::core::HostRequestContext;
 use crate::platform::PlatformError;
 use crate::platform::core::{io_operation_error, not_supported, wide_from_str};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::fs::abi_generated::{OsPathUtf16Value, OsPathValue, PathUtf16Value};
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
 
 /// Windows common-dialog cancellation status code.
 const WINDOWS_DIALOG_CANCELLED: HRESULT = HRESULT(0x800704C7u32 as i32);
-
-/// Normalize one local path into one document descriptor payload.
-fn document_descriptor_value_from_path(
-    path: &std::path::Path,
-) -> RuntimeResult<DocumentDescriptorValue> {
-    let metadata = std::fs::metadata(path).map_err(|error| {
-        io_operation_error(
-            HOST_DOCUMENT_PICK_OPERATION,
-            Some(PlatformErrorCode::IoNotFound),
-            format!("document path metadata failed: {error}"),
-        )
-    })?;
-    let is_directory = metadata.is_dir();
-    let modified_unix_nanos = metadata
-        .modified()
-        .ok()
-        .and_then(|value| value.duration_since(UNIX_EPOCH).ok())
-        .map(|value| value.as_nanos().min(u64::MAX as u128) as u64)
-        .unwrap_or(0);
-
-    Ok(DocumentDescriptorValue {
-        uri: file_uri_from_path(path),
-        local_path: Some(os_path_value_from_path(path)),
-        name: path
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| path.display().to_string()),
-        size_bytes: (!is_directory).then_some(metadata.len()),
-        mime_type: None,
-        is_directory,
-        modified_unix_ns: Some(modified_unix_nanos),
-    })
-}
-
-/// Encode one local host path into one `file://` URI.
-fn file_uri_from_path(path: &std::path::Path) -> String {
-    let path = path.to_string_lossy().replace('\\', "/");
-    let payload = percent_encode_bytes(path.as_bytes());
-
-    format!("file:///{payload}")
-}
-
-/// Encode one local host path into one runtime path value.
-fn os_path_value_from_path(path: &std::path::Path) -> OsPathValue {
-    use std::os::windows::ffi::OsStrExt;
-
-    let utf16 = path.as_os_str().encode_wide().collect::<Vec<_>>();
-
-    OsPathValue::OsPathUtf16(OsPathUtf16Value {
-        kind: "utf16".to_string(),
-        utf16: PathUtf16Value(utf16),
-    })
-}
 
 /// Normalized picker options for the Windows backend.
 #[derive(Debug)]
@@ -294,6 +240,7 @@ fn pick_documents_on_windows(
 
 /// Pick documents from the Windows host request lane.
 pub(crate) fn pick_documents(
+    _context: &HostRequestContext,
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     pick_documents_on_windows(options)
