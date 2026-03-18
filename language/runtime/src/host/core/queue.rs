@@ -7,25 +7,14 @@ use tracing::error;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::event::{HostEvent, HostEventKind};
-use crate::host::core::registry::{HostEventObserver, HostRuntimeId, HostRuntimeRegistry};
+use crate::host::core::registry::{HostEventObserver, HostRuntimeId, RuntimeIngressObserver};
 use crate::runtime::poller::PollerWakeHandle;
-
-/// Host event identity key used for queue coalescing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum HostEventCoalescingKey {
-    /// Coalescing key for one global host event kind.
-    Global(HostEventKind),
-}
 
 /// Shared host event queue for adapter event delivery.
 #[derive(Debug, Clone)]
 pub(crate) struct HostQueue {
-    /// Runtime id that owns this queue.
-    host_runtime_id: HostRuntimeId,
     /// Shared queue state and synchronization primitives.
     state: Arc<HostQueueState>,
-    /// Shared out-of-band wake handle for blocked pollers.
-    wake_handle: Arc<HostQueueWakeHandle>,
 }
 
 /// Shared host event queue state.
@@ -33,6 +22,10 @@ pub(crate) struct HostQueue {
 struct HostQueueState {
     /// Event payload queue and wake sequence metadata.
     queue: Mutex<HostQueuePayload>,
+    /// Runtime-owned ingress observers for this queue.
+    runtime_ingress_observers: Mutex<Vec<Arc<dyn RuntimeIngressObserver>>>,
+    /// Host semantic event observers for this queue.
+    host_event_observers: Mutex<Vec<Arc<dyn HostEventObserver>>>,
     /// Condition variable for blocking poll operations.
     wake: Condvar,
 }
@@ -50,25 +43,11 @@ struct HostQueuePayload {
     dropped_events_since_read: u64,
 }
 
-/// Shared wake handle for one host event queue.
-#[derive(Debug)]
-struct HostQueueWakeHandle {
-    /// Shared queue state used for wake notifications.
-    state: Arc<HostQueueState>,
-}
-
 impl HostQueue {
     /// Create one empty host event queue.
-    pub(crate) fn new(host_runtime_id: HostRuntimeId) -> Self {
-        let state = Arc::new(HostQueueState::default());
-        let wake_handle = Arc::new(HostQueueWakeHandle {
-            state: Arc::clone(&state),
-        });
-
+    pub(crate) fn new(_host_runtime_id: HostRuntimeId) -> Self {
         Self {
-            host_runtime_id,
-            state,
-            wake_handle,
+            state: Arc::new(HostQueueState::default()),
         }
     }
 
@@ -107,16 +86,14 @@ impl HostQueue {
         drop(payload);
 
         // host event observers receive the original event stream independently
-        if let Err(error) =
-            HostRuntimeRegistry::dispatch_host_event(self.host_runtime_id, &event_observer_event)
-        {
+        if let Err(error) = self.dispatch_host_event(&event_observer_event) {
             error!(?error, "host event observer dispatch failed");
         }
     }
 
     /// Return one shared wake handle for this queue.
     pub(crate) fn poll_wake_handle(&self) -> Arc<dyn PollerWakeHandle> {
-        self.wake_handle.clone()
+        Arc::new(self.clone())
     }
 
     /// Poll queued host events with one optional timeout in nanoseconds.
@@ -157,13 +134,43 @@ impl HostQueue {
         let payload = self.state.queue.lock();
 
         // register while the queue lock is held so future enqueues cannot race the snapshot
-        HostRuntimeRegistry::register_host_event_observer(self.host_runtime_id, observer);
+        register_observer(&self.state.host_event_observers, observer);
 
         payload.events.iter().cloned().collect()
     }
+
+    /// Register one runtime ingress observer for this queue.
+    pub(crate) fn register_runtime_ingress_observer(
+        &self,
+        observer: &Arc<dyn RuntimeIngressObserver>,
+    ) {
+        register_observer(&self.state.runtime_ingress_observers, observer);
+    }
+
+    /// Dispatch one host event to queue-owned observers.
+    pub(crate) fn dispatch_host_event(&self, event: &HostEvent) -> RuntimeResult<()> {
+        let observers = self.state.host_event_observers.lock().clone();
+
+        for observer in observers {
+            observer.observe_host_event(event)?;
+        }
+
+        Ok(())
+    }
+
+    /// Service queue-owned runtime ingress observers.
+    pub(crate) fn process_runtime_ingress(&self) -> RuntimeResult<()> {
+        let observers = self.state.runtime_ingress_observers.lock().clone();
+
+        for observer in observers {
+            observer.process_runtime_ingress()?;
+        }
+
+        Ok(())
+    }
 }
 
-impl PollerWakeHandle for HostQueueWakeHandle {
+impl PollerWakeHandle for HostQueue {
     fn wake(&self) -> RuntimeResult<()> {
         let mut payload = self.state.queue.lock();
         payload.wake_sequence = payload.wake_sequence.wrapping_add(1);
@@ -279,12 +286,25 @@ fn is_coalescing_event(event: &HostEvent) -> bool {
 }
 
 /// Return one coalescing identity key for this event when applicable.
-fn coalescing_key(event: &HostEvent) -> Option<HostEventCoalescingKey> {
+fn coalescing_key(event: &HostEvent) -> Option<HostEventKind> {
     if !is_coalescing_event(event) {
         return None;
     }
 
-    Some(HostEventCoalescingKey::Global(event.kind()))
+    Some(event.kind())
+}
+
+/// Register one queue-owned observer when it is not already present.
+fn register_observer<T: ?Sized + 'static>(observers: &Mutex<Vec<Arc<T>>>, observer: &Arc<T>) {
+    let observer_pointer = Arc::as_ptr(observer) as *const ();
+    let mut observers = observers.lock();
+    let is_registered = observers
+        .iter()
+        .any(|existing| Arc::as_ptr(existing) as *const () == observer_pointer);
+
+    if !is_registered {
+        observers.push(Arc::clone(observer));
+    }
 }
 
 #[cfg(test)]
@@ -296,9 +316,7 @@ mod tests {
 
     use crate::diagnostic::RuntimeResult;
     use crate::host::core::queue::HostQueue;
-    use crate::host::core::registry::{
-        HostEventObserver, HostRuntimeRegistry, next_host_runtime_id,
-    };
+    use crate::host::core::registry::{HostEventObserver, next_host_runtime_id};
     use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState, HostPermissionEvent};
 
     fn lifecycle_event(state: HostLifecycleState) -> HostEvent {
@@ -426,8 +444,6 @@ mod tests {
 
         queue.enqueue(lifecycle_event(HostLifecycleState::Running));
         assert_eq!(callback_count.load(Ordering::Relaxed), 1);
-
-        HostRuntimeRegistry::unregister_runtime(queue.host_runtime_id);
     }
 
     #[test]
