@@ -32,11 +32,11 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Services**](service/README.md): First-party services for most things most software needs.
 - [**Destack Apps**](app/README.md): First-party applications and programmer tools.
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
-- [**Destack Bridge**](bridge/README.md): Two-way bridges for the Destack universe.
+- [**Destack Bridge**](bridge/README.md): Two-way bridges for integrating the Destack universe.
 - [**Destack Platform**](platform/README.md): First-party site, apps, and services (hosting the above).
 
-The structure of Destack is more "do-it-yourself software" than it is "ready-to-wear software".
-We do provide common apps built on top of our [incrementally granular building blocks](https://caseymuratori.com/blog_0016), but the entire Destack is optimized for programmers building their _own_ software processes in one correct, optimal, integrated system.
+The architecture of Destack is designed to enable "do-it-yourself software" more than "ready-to-wear software".
+We do provide some common apps built on top of our [incrementally granular building blocks](https://caseymuratori.com/blog_0016), but the entire Destack is optimized for programmers building their _own_ software processes in one integrated system.
 Aspiritionally, Destack is intended as a meta framework for developing and maintaining custom software stacks for correct, optimal, integrated software production.
 
 ---
@@ -49,9 +49,9 @@ We've just grown accustomed to software being clunky, broken, and slow.
 
 Software "engineering" bears little resemblence to real engineering: 
 we routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it is not well integrated with other software.
-The inscrutability, inefficiency, and instability of software is a whole process problem, and it must be solved by reimagining software production end-to-end across all the incidentally fragmented processes.
+The inscrutability, inefficiency, and instability of software spans the entire lifecycle, and it must therefore be solved by reimagining software production end-to-end across all incidentally disparate processes.
 
-Software is very useful, we have a lot of it, and there is about to be much, much more, with exciting new possibilities to integrate symbolic and probabilistic computation.
+Software is very useful, we have a lot of it, and there is about to be much, much more, with exciting new possibilities to integrate probabilistic into symbolic computation.
 The more we can express in software, the higher order the tasks we can program -
 there is great promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a universal software engine is the best way to support that.
 
@@ -62,7 +62,7 @@ there is great promise in turning more things _into_ correct, optimal, integrate
 Destack has been in development [for years](https://github.com/destack-sh/destack/graphs/commit-activity) and went through a _lot_ of iteration, and Destack intentionally follows good standards like TypeScript, TSX, Node and Web-shaped APIs.
 However, it is still rather early, it is definitely quite radical, and there are sound arguments against the Destack-shaped "universal software engine" way:
 
-1. **Maybe the existing stack is already good enough**: The existing "stack", its layers and components exist for a good reason and have withstood significant evolutionary pressure; therefore, trying to combine or even rearrange them in a substantially different way may very well turn out net negative.
+1. **Maybe the existing stack is already good enough**: The existing "stack", its layers, and its components exist for a good reason and have withstood significant evolutionary pressure; therefore, trying to combine or even rearrange them in a substantially different way may very well turn out net negative.
 
 2. **Maybe Destack is hard to adopt properly**: Destack is compatible with JS/TS, yes, and runs modern TS/Node/Web*, yes, but many of the most interesting features only work with "modern" TS, and especially when integrating with Destacks-specific features, which require a larger shift of development processes.
 
