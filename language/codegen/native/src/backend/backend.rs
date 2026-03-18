@@ -4,10 +4,12 @@ use std::sync::Arc;
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::settings::{self, Configurable};
 use destack_codegen_lib::CodegenBackend;
+use destack_core::StringPool;
+use destack_mir as mir;
 use destack_source::{FileType, ModuleId};
 use destack_workspace::{
-    ModuleMir, Output, OutputContent, OutputFormat, OutputId, OutputScope, OutputVersion, Program,
-    Target, TargetId,
+    Output, OutputContent, OutputFormat, OutputId, OutputScope, OutputVersion, Program, Target,
+    TargetId,
 };
 use target_lexicon::Triple;
 
@@ -152,22 +154,24 @@ impl CodegenCraneliftBackend {
     /// For native targets, returns an object file.
     pub(crate) fn compile_module(
         &self,
-        module: &ModuleMir,
+        tree: &mir::NodeTree,
+        strings: &StringPool,
         name: &str,
     ) -> Result<ModuleLowerOutput, CodegenCraneliftError> {
-        let mut lowerer = ModuleLowerer::new(self.isa.clone(), &module.strings, name);
-        lowerer.lower_module(&module.tree)?;
+        let mut lowerer = ModuleLowerer::new(self.isa.clone(), strings, name);
+        lowerer.lower_module(tree)?;
         lowerer.finish()
     }
 
     /// Compile a MIR module and return Cranelift IR text format.
     pub fn compile_to_clif(
         &self,
-        module: &ModuleMir,
+        tree: &mir::NodeTree,
+        strings: &StringPool,
         name: &str,
     ) -> CodegenCraneliftResult<String> {
-        let mut lowerer = ModuleLowerer::new(self.isa.clone(), &module.strings, name);
-        lowerer.lower_module(&module.tree)?;
+        let mut lowerer = ModuleLowerer::new(self.isa.clone(), strings, name);
+        lowerer.lower_module(tree)?;
         lowerer.as_clif_string()
     }
 }
@@ -214,16 +218,13 @@ pub fn generate_module(
     let name = module.uri.last_segment().unwrap_or("module");
     let profile_id = program.default_profile_id_for_module(module_id);
     let target_id = TargetId::new(module.package_id, target.name.clone());
-    let mir = program
-        .artifacts
-        .mir_optimized(module_id, profile_id, &target_id)
-        .or_else(|| {
-            program
-                .artifacts
-                .mir_base(module_id, profile_id, &target_id)
-        })
-        .expect("codegen requires committed MIR artifact");
-    let compile_output = backend.compile_module(&mir, name)?;
+    let compile_output = if let Some(mir) = program.artifacts.mir_optimized(module_id, profile_id, &target_id) {
+        backend.compile_module(&mir.tree, &mir.strings, name)?
+    } else if let Some(mir) = program.artifacts.mir_base(module_id, profile_id, &target_id) {
+        backend.compile_module(&mir.tree, &mir.strings, name)?
+    } else {
+        panic!("codegen requires committed MIR artifact");
+    };
 
     // determine file type and create output
     let (file_type, content) = match target.output {
