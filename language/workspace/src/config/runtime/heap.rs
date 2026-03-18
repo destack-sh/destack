@@ -109,6 +109,43 @@ pub struct HeapOptionsJson {
 }
 
 impl HeapOptionsJson {
+    /// Inherit unset heap settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.growth_percent.is_none() {
+            self.growth_percent = parent.growth_percent;
+        }
+        if self.soft_limit_bytes.is_none() {
+            self.soft_limit_bytes = parent.soft_limit_bytes;
+        }
+        if self.initial_bytes.is_none() {
+            self.initial_bytes = parent.initial_bytes;
+        }
+        if self.size_classes.is_none() {
+            self.size_classes = parent.size_classes.clone();
+        }
+        if self.managed_run_bytes.is_none() {
+            self.managed_run_bytes = parent.managed_run_bytes;
+        }
+        if self.raw_run_bytes.is_none() {
+            self.raw_run_bytes = parent.raw_run_bytes;
+        }
+        if self.chunk_bytes.is_none() {
+            self.chunk_bytes = parent.chunk_bytes;
+        }
+        if self.max_bytes.is_none() {
+            self.max_bytes = parent.max_bytes;
+        }
+        if self.max_managed_bytes.is_none() {
+            self.max_managed_bytes = parent.max_managed_bytes;
+        }
+        if self.max_raw_bytes.is_none() {
+            self.max_raw_bytes = parent.max_raw_bytes;
+        }
+        if self.max_shared_bytes.is_none() {
+            self.max_shared_bytes = parent.max_shared_bytes;
+        }
+    }
+
     /// Apply heap overrides to a base set of options.
     pub fn apply_to(&self, options: &mut HeapOptions) {
         // apply pacing overrides

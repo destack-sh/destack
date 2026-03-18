@@ -613,6 +613,120 @@ impl RuntimeAgentOptionsJson {
 }
 
 impl RuntimeOptionsJson {
+    /// Inherit unset runtime settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.name.is_none() {
+            self.name = parent.name.clone();
+        }
+        if self.labels.is_none() {
+            self.labels = parent.labels.clone();
+        }
+        if self.primary_agent.is_none() {
+            self.primary_agent = parent.primary_agent.clone();
+        }
+        if self.execution.is_none() {
+            self.execution = parent.execution;
+        }
+        if self.world.is_none() {
+            self.world = parent.world;
+        }
+        if self.access.is_none() {
+            self.access = parent.access;
+        }
+        if self.rules.is_none() {
+            self.rules = parent.rules.clone();
+        }
+        if self.replay.is_none() {
+            self.replay = parent.replay.clone();
+        }
+        if self.time.is_none() {
+            self.time = parent.time.clone();
+        }
+        if self.random.is_none() {
+            self.random = parent.random.clone();
+        }
+        if let Some(scheduler) = &mut self.scheduler {
+            if let Some(parent_scheduler) = &parent.scheduler {
+                scheduler.extend_from(parent_scheduler);
+            }
+        } else {
+            self.scheduler = parent.scheduler.clone();
+        }
+        if let Some(heap) = &mut self.heap {
+            if let Some(parent_heap) = &parent.heap {
+                heap.extend_from(parent_heap);
+            }
+        } else {
+            self.heap = parent.heap.clone();
+        }
+        if self.diagnostic.is_none() {
+            self.diagnostic = parent.diagnostic.clone();
+        }
+        if self.fs.is_none() {
+            self.fs = parent.fs.clone();
+        }
+        if self.net.is_none() {
+            self.net = parent.net.clone();
+        }
+        if self.process.is_none() {
+            self.process = parent.process.clone();
+        }
+        if self.audio.is_none() {
+            self.audio = parent.audio.clone();
+        }
+        if self.input.is_none() {
+            self.input = parent.input.clone();
+        }
+        if self.gpu.is_none() {
+            self.gpu = parent.gpu.clone();
+        }
+        if self.tls.is_none() {
+            self.tls = parent.tls.clone();
+        }
+        if self.security.is_none() {
+            self.security = parent.security.clone();
+        }
+        if self.os.is_none() {
+            self.os = parent.os.clone();
+        }
+        if self.device.is_none() {
+            self.device = parent.device.clone();
+        }
+        if self.crypto.is_none() {
+            self.crypto = parent.crypto.clone();
+        }
+        if self.debug.is_none() {
+            self.debug = parent.debug.clone();
+        }
+        if self.display.is_none() {
+            self.display = parent.display.clone();
+        }
+        if self.error.is_none() {
+            self.error = parent.error.clone();
+        }
+        if self.ffi.is_none() {
+            self.ffi = parent.ffi.clone();
+        }
+        if self.io.is_none() {
+            self.io = parent.io.clone();
+        }
+        if self.ipc.is_none() {
+            self.ipc = parent.ipc.clone();
+        }
+        if self.resource.is_none() {
+            self.resource = parent.resource.clone();
+        }
+        if self.thread.is_none() {
+            self.thread = parent.thread.clone();
+        }
+        if self.tty.is_none() {
+            self.tty = parent.tty.clone();
+        }
+        if self.platform.is_none() {
+            self.platform = parent.platform.clone();
+        }
+    }
+
     /// Apply runtime option overrides to a base set of options.
     pub fn apply_to(&self, options: &mut RuntimeOptions) {
         // apply runtime identity overrides

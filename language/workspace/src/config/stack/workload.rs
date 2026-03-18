@@ -1,17 +1,22 @@
 mod binding;
 mod capacity;
 mod health;
+mod identity;
 mod run;
+mod timeout;
 
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
+use super::super::runtime::RuntimeOptionsJson;
 use super::common::merge_metadata;
 pub use binding::*;
 pub use capacity::*;
 pub use health::*;
+pub use identity::*;
 pub use run::*;
+pub use timeout::*;
 
 /// Destack workload configuration options.
 #[derive(Debug, Clone, Default)]
@@ -36,8 +41,14 @@ pub struct StackWorkloadOptions {
     pub health: StackHealthOptions,
     /// Placement constraints and preferences.
     pub placement: StackPlacementOptions,
+    /// Workload identity bindings.
+    pub identity: StackIdentityOptions,
     /// Compute envelope and scaling behavior.
     pub capacity: StackCapacityOptions,
+    /// Generic workload and runtime time budgets.
+    pub timeouts: StackTimeoutOptions,
+    /// Destack runtime overrides for this workload.
+    pub runtime: Option<RuntimeOptionsJson>,
     /// Rollout policy.
     pub rollout: StackRolloutOptions,
     /// Restart policy.
@@ -86,10 +97,31 @@ impl StackWorkloadOptions {
         merge_metadata(&mut self.annotations, &parent.annotations);
         self.health.extend_from(&parent.health);
         self.placement.extend_from(&parent.placement);
+        self.identity.extend_from(&parent.identity);
         self.capacity.extend_from(&parent.capacity);
+        self.timeouts.extend_from(&parent.timeouts);
+        if self.runtime.is_none() {
+            self.runtime = parent.runtime.clone();
+        }
         self.rollout.extend_from(&parent.rollout);
         self.restart.extend_from(&parent.restart);
         self.availability.extend_from(&parent.availability);
+    }
+
+    /// Return one effective runtime override set for this workload.
+    pub fn effective_runtime_overrides(&self) -> Option<RuntimeOptionsJson> {
+        let inferred = self.capacity.inferred_runtime_overrides();
+        let explicit = self.runtime.clone();
+
+        match (explicit, inferred) {
+            (Some(mut explicit), Some(inferred)) => {
+                explicit.extend_from(&inferred);
+                Some(explicit)
+            }
+            (Some(explicit), None) => Some(explicit),
+            (None, Some(inferred)) => Some(inferred),
+            (None, None) => None,
+        }
     }
 }
 
@@ -132,7 +164,10 @@ impl From<&StackWorkloadJson> for StackWorkloadOptions {
             provider: json.provider.clone(),
             health: StackHealthOptions::from(&json.health),
             placement: StackPlacementOptions::from(&json.placement),
+            identity: StackIdentityOptions::from(&json.identity),
             capacity: StackCapacityOptions::from(&json.capacity),
+            timeouts: StackTimeoutOptions::from(&json.timeouts),
+            runtime: json.runtime.clone(),
             rollout: StackRolloutOptions::from(&json.rollout),
             restart: StackRestartOptions::from(&json.restart),
             availability: StackAvailabilityOptions::from(&json.availability),
@@ -171,9 +206,17 @@ pub struct StackWorkloadJson {
     /// Placement constraints and preferences.
     #[serde(default)]
     pub placement: StackPlacementJson,
+    /// Workload identity bindings.
+    #[serde(default)]
+    pub identity: StackIdentityJson,
     /// Compute envelope and scaling behavior.
     #[serde(default)]
     pub capacity: StackCapacityJson,
+    /// Generic workload and runtime time budgets.
+    #[serde(default)]
+    pub timeouts: StackTimeoutJson,
+    /// Destack runtime overrides for this workload.
+    pub runtime: Option<RuntimeOptionsJson>,
     /// Rollout policy.
     #[serde(default)]
     pub rollout: StackRolloutJson,
