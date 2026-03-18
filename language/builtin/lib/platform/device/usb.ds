@@ -308,8 +308,8 @@ declare namespace device {
     /// Descriptor identity is bus or topology based so callers can correlate list and hotplug results without opening devices.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses libusb topology enumeration on macOS and Linux-class Unix and SetupAPI plus WinUSB class device enumeration on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb topology enumeration on macOS, Linux-class Unix, and Windows, and the Android USB host bridge on Android.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -323,7 +323,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -337,8 +337,8 @@ declare namespace device {
     /// The stream reports topology changes independently from any later opened device session.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses libusb hotplug callbacks on macOS and Linux-class Unix and device interface notifications on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb hotplug callbacks or snapshot polling on macOS, Linux-class Unix, and Windows, and the Android USB host bridge on Android.
     ///
     /// # Errors
     /// Returns ioWouldBlock, notSupported.
@@ -352,7 +352,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -366,8 +366,8 @@ declare namespace device {
     /// Closing a watch does not affect any separately opened USB device handle.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses libusb hotplug callback teardown on macOS and Linux-class Unix and device notification teardown on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb hotplug watch teardown on macOS, Linux-class Unix, and Windows, and Android host watch teardown on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -381,7 +381,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -395,8 +395,8 @@ declare namespace device {
     /// The returned event carries a full descriptor snapshot so attach consumers do not need a follow-up enumeration race.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses watch queues fed by libusb hotplug callbacks on macOS and Linux-class Unix and device notifications on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses watch queues fed by libusb hotplug callbacks or snapshot polling on macOS, Linux-class Unix, and Windows, and host watch streams on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -410,7 +410,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -427,8 +427,8 @@ declare namespace device {
     /// This operation only consumes already published attach or detach events.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses watch queues fed by libusb hotplug callbacks on macOS and Linux-class Unix and device notifications on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses watch queues fed by libusb hotplug callbacks or snapshot polling on macOS, Linux-class Unix, and Windows, and host watch streams on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -442,7 +442,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "never",
@@ -456,8 +456,8 @@ declare namespace device {
     /// Opening creates a device session whose lifetime and claimed interfaces are independent from further topology events.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses libusb device sessions on macOS and Linux-class Unix and WinUSB device-interface handles on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb device sessions on macOS, Linux-class Unix, and Windows, and Android host open plus libusb session wrapping on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -471,7 +471,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -485,8 +485,8 @@ declare namespace device {
     /// Closing a device also releases any claimed interfaces and pending transfer ownership for that session.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses device-handle teardown on macOS and Linux-class Unix and WinUSB session teardown on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb device-session teardown on macOS, Linux-class Unix, and Windows, and wrapped libusb session teardown on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -500,7 +500,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -514,8 +514,8 @@ declare namespace device {
     /// Claimed interfaces become the authority boundary for subsequent endpoint transfers and alternate-setting changes.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses libusb interface claims on macOS and Linux-class Unix and WinUSB or kernel interface-claim mechanisms on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb interface claims on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -529,7 +529,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -546,8 +546,8 @@ declare namespace device {
     /// Releasing an interface ends the session's authority over its endpoints without closing the device itself.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses libusb interface release calls on macOS and Linux-class Unix and WinUSB or kernel interface-release mechanisms on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses libusb interface release calls on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -561,7 +561,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -578,8 +578,8 @@ declare namespace device {
     /// Alternate-setting changes are session local and immediately redefine the active endpoint layout for that interface.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses SET_INTERFACE style interface reconfiguration through libusb on macOS and Linux-class Unix and WinUSB class requests on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses SET_INTERFACE style interface reconfiguration through libusb on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -593,7 +593,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -611,8 +611,8 @@ declare namespace device {
     /// This snapshot describes the device itself and is independent from any currently claimed interface state.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses cached standard device-descriptor reads with host topology metadata on macOS, Linux-class Unix, and Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses cached standard device-descriptor reads with host topology metadata on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -626,7 +626,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -640,8 +640,8 @@ declare namespace device {
     /// Callers can use the returned identifiers to select deterministic manufacturer, product, and serial text reads.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses standard GET_DESCRIPTOR string-language queries on the default control pipe.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses standard GET_DESCRIPTOR string-language queries on the default control pipe through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -655,7 +655,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -669,8 +669,8 @@ declare namespace device {
     /// Missing strings remain absent rather than being synthesized from transport-specific fallback metadata.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses standard string-descriptor control transfers on the default control pipe.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses standard string-descriptor control transfers on the default control pipe through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -684,7 +684,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -701,8 +701,8 @@ declare namespace device {
     /// Raw BOS payload bytes are preserved so callers can interpret platform and vendor capabilities without data loss.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses standard BOS descriptor reads on the default control pipe.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses standard BOS descriptor reads on the default control pipe through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -716,7 +716,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -730,8 +730,8 @@ declare namespace device {
     /// The returned tree is a descriptor snapshot and does not imply that any configuration or interface is currently active.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses standard configuration-descriptor reads and host descriptor parsing on macOS, Linux-class Unix, and Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses standard configuration-descriptor reads and host descriptor parsing through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -745,7 +745,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.enumerate"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -759,8 +759,8 @@ declare namespace device {
     /// This reports live device state rather than the first configuration in descriptor order.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses live configuration queries through the device control path on macOS, Linux-class Unix, and Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses live configuration queries through the device control path on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -774,7 +774,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -788,8 +788,8 @@ declare namespace device {
     /// Configuration changes are device state transitions and may invalidate previously claimed interfaces.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses SET_CONFIGURATION control requests through libusb on macOS and Linux-class Unix and WinUSB class device control on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses SET_CONFIGURATION control requests through libusb on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -803,7 +803,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -820,8 +820,8 @@ declare namespace device {
     /// The setup packet is passed through without higher-level interpretation so callers can issue standard, class, or vendor requests explicitly.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses synchronous or deadline-bounded default-control transfers on macOS, Linux-class Unix, and Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses synchronous or deadline-bounded default-control transfers through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -835,7 +835,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -853,8 +853,8 @@ declare namespace device {
     /// The setup packet is passed through without higher-level interpretation so callers can issue standard, class, or vendor requests explicitly.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses synchronous or deadline-bounded default-control transfers on macOS, Linux-class Unix, and Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses synchronous or deadline-bounded default-control transfers through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -868,7 +868,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -887,8 +887,8 @@ declare namespace device {
     /// Completion may be partial, which preserves host transfer semantics for high volume streaming protocols.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses bulk IN transfer submissions on claimed interfaces through libusb on macOS and Linux-class Unix and WinUSB on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses bulk IN transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -902,7 +902,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -921,8 +921,8 @@ declare namespace device {
     /// Completion may be partial, which preserves host transfer semantics for explicit higher-level retry policy.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses bulk OUT transfer submissions on claimed interfaces through libusb on macOS and Linux-class Unix and WinUSB on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses bulk OUT transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -936,7 +936,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -955,8 +955,8 @@ declare namespace device {
     /// Poll interval semantics remain device defined, so this call does not synthesize any additional pacing policy.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses interrupt IN transfer submissions on claimed interfaces through libusb on macOS and Linux-class Unix and WinUSB on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses interrupt IN transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -970,7 +970,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -989,8 +989,8 @@ declare namespace device {
     /// Completion may be partial, which preserves host transfer semantics for explicit higher-level retry policy.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses interrupt OUT transfer submissions on claimed interfaces through libusb on macOS and Linux-class Unix and WinUSB on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses interrupt OUT transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1004,7 +1004,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -1023,8 +1023,8 @@ declare namespace device {
     /// Packet boundaries are preserved explicitly so callers can reason about drop, underrun, and partial completion at the host cadence.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses scheduled isochronous transfer submissions with per-packet completion reporting on macOS, Linux-class Unix, and Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses scheduled isochronous transfer submissions with per-packet completion reporting through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
@@ -1038,7 +1038,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -1057,8 +1057,8 @@ declare namespace device {
     /// Packet boundaries are preserved explicitly so callers can reason about bandwidth pressure and partial completion at the host cadence.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses scheduled isochronous transfer submissions with per-packet completion reporting on macOS, Linux-class Unix, and Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses scheduled isochronous transfer submissions with per-packet completion reporting through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1072,7 +1072,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.transfer"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -1092,8 +1092,8 @@ declare namespace device {
     /// Cancellation is scoped to outstanding transfer state and does not clear stalls or reset the device.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses transfer cancellation on the session's async request queue on macOS, Linux-class Unix, and Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses transfer cancellation on the session's async request queue through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -1107,7 +1107,7 @@ declare namespace device {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["device.usb.transfer"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -1124,8 +1124,8 @@ declare namespace device {
     /// Cancellation is scoped to outstanding transfer state and does not release interfaces or close the device session.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses transfer cancellation on the device session's async request queues on macOS, Linux-class Unix, and Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses transfer cancellation on the device session's async request queues through libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -1139,7 +1139,7 @@ declare namespace device {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["device.usb.transfer"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -1153,8 +1153,8 @@ declare namespace device {
     /// This is the explicit pipe recovery operation and does not imply transfer cancellation or interface release.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses CLEAR_FEATURE endpoint-halt requests through the active device session on macOS, Linux-class Unix, and Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses CLEAR_FEATURE endpoint-halt requests through the active device session via libusb, including the wrapped Android session after host open handoff.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1168,7 +1168,7 @@ declare namespace device {
         effect: "external",
         replay: "recordable",
         capabilities: ["device.usb.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
@@ -1185,8 +1185,8 @@ declare namespace device {
     /// Reset is a disruptive device state transition whose effects on active configuration and interfaces are intentionally left explicit.
     ///
     /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses device reset requests through libusb on macOS and Linux-class Unix and device-level reset control on Windows.
+    /// macOS, Linux-class Unix, Windows, and Android.
+    /// Uses device reset requests through libusb on macOS, Linux-class Unix, and Windows, and the wrapped Android session after host open handoff on Android.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1200,7 +1200,7 @@ declare namespace device {
         effect: "external",
         replay: "nonrecordable",
         capabilities: ["device.usb.control"],
-        platforms: ["windows", "unix"],
+        platforms: ["android", "windows", "unix"],
         simulation: "stub",
         scope: "host",
         blocking: "sometimes",
