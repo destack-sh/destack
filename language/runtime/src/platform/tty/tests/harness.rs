@@ -83,17 +83,13 @@ impl<'call> TtyHarnessContext<'call> {
 
     /// Build one native tty mode wrapper.
     pub(crate) fn tty_mode_value(&mut self, mode: TtyMode) -> HarnessValue<TtyMode, TtyModeVm> {
-        match self.vm_context_mut() {
-            Some(_) => self.harness_value_vm(mode),
-            None => self.harness_value(mode),
-        }
+        self.harness_value_from(mode)
+            .expect("tty mode should encode")
     }
 
     /// Build one native tty size wrapper.
     pub(crate) fn tty_size_value(&mut self, size: TtySize) -> HarnessValue<TtySize, TtySizeVm> {
-        match self.vm_context_mut() {
-            Some(_) => self.harness_value_vm(size),
-            None => self.harness_value(size),
-        }
+        self.harness_value_from(size)
+            .expect("tty size should encode")
     }
 }

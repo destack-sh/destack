@@ -253,11 +253,9 @@ pub(crate) fn harness_port_list_options_for_backend_with_policy(
         flags,
     };
 
-    if context.vm_context.is_some() {
-        context.harness_value_vm(options)
-    } else {
-        context.harness_value(options)
-    }
+    context
+        .harness_value_from(options)
+        .expect("midi port-list options should encode")
 }
 
 /// Build default MIDI input-open options for the current engine mode.
@@ -313,11 +311,9 @@ pub(crate) fn harness_input_open_options_for_backend_transport_with_policy(
         queue_capacity: 0,
     };
 
-    if context.vm_context.is_some() {
-        context.harness_value_vm(options)
-    } else {
-        context.harness_value(options)
-    }
+    context
+        .harness_value_from(options)
+        .expect("midi input-open options should encode")
 }
 
 /// Build default MIDI output-open options for the current engine mode.
@@ -372,11 +368,9 @@ pub(crate) fn harness_output_open_options_for_backend_transport_with_policy(
         protocol,
     };
 
-    if context.vm_context.is_some() {
-        context.harness_value_vm(options)
-    } else {
-        context.harness_value(options)
-    }
+    context
+        .harness_value_from(options)
+        .expect("midi output-open options should encode")
 }
 
 /// Build one outbound MIDI record batch for native and VM binding calls.
@@ -606,11 +600,9 @@ pub(crate) fn harness_event_open_options_for_backend_with_policy(
         poll_interval_ns: 0,
     };
 
-    if context.vm_context.is_some() {
-        context.harness_value_vm(options)
-    } else {
-        context.harness_value(options)
-    }
+    context
+        .harness_value_from(options)
+        .expect("midi event-subscription options should encode")
 }
 
 /// Decode one backend descriptor list into full plain Rust rows.

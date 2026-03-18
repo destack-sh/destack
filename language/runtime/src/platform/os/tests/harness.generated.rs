@@ -17,11 +17,12 @@ use crate::platform::os::{
     CalendarDescriptorVm, CalendarEvent, CalendarEventDraft, CalendarEventDraftVm,
     CalendarEventQuery, CalendarEventQueryVm, CalendarEventVm, CalendarParticipantStatus,
     CalendarRecurrenceFrequency, CalendarRecurrenceRule, CalendarRecurrenceRuleVm,
-    CalendarRelativeReminder, CalendarRelativeReminderVm, CalendarReminder, CalendarReminderVm,
-    ClipboardBinaryFormat, Contact, ContactAddress, ContactAddressVm, ContactDraft, ContactDraftVm,
-    ContactEmail, ContactEmailVm, ContactName, ContactNameVm, ContactOrganization,
-    ContactOrganizationVm, ContactPage, ContactPageVm, ContactPhone, ContactPhoneVm, ContactQuery,
-    ContactQueryVm, ContactVm, CredentialAccessibility, CredentialAuthenticationMechanism,
+    CalendarRecurrenceWeekday, CalendarRecurrenceWeekdayVm, CalendarRelativeReminder,
+    CalendarRelativeReminderVm, CalendarReminder, CalendarReminderVm, ClipboardBinaryFormat,
+    Contact, ContactAddress, ContactAddressVm, ContactDraft, ContactDraftVm, ContactEmail,
+    ContactEmailVm, ContactName, ContactNameVm, ContactOrganization, ContactOrganizationVm,
+    ContactPage, ContactPageVm, ContactPhone, ContactPhoneVm, ContactQuery, ContactQueryVm,
+    ContactVm, CredentialAccessibility, CredentialAuthenticationMechanism,
     CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm,
     CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
     CredentialAuthenticationResult, CredentialAuthenticationResultVm, CredentialQuery,
@@ -63,8 +64,8 @@ use crate::platform::os::{
     PowerState, SystemSnapshot, SystemSnapshotVm, native as os_native, vm as os_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
+    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
+    PlatformError as HarnessPlatformError, VmAbiCodec, VmArray, VmSlice, fs, resource,
 };
 use destack_vm as vm;
 
@@ -84,6 +85,51 @@ impl<'call> OsHarnessContext<'call> {
     /// Return one standardized value payload for VM and native variants.
     pub(crate) fn harness_value_vm<Native, Vm>(&self, vm: Vm) -> HarnessValue<Native, Vm> {
         HarnessValue::Vm(vm)
+    }
+
+    /// Encode one materialized value into one native or VM harness payload.
+    pub(crate) fn harness_value_from<Native, Vm>(
+        &mut self,
+        value: Native::Value,
+    ) -> RuntimeResult<HarnessValue<Native, Vm>>
+    where
+        Native: NativeAbiCodec,
+        Vm: VmAbiCodec<Value = Native::Value>,
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let value = Vm::from_value(context, value)?;
+                Ok(HarnessValue::Vm(value))
+            }
+            None => {
+                let value = Native::from_value(self.call_context, value);
+                Ok(HarnessValue::Native(value))
+            }
+        }
+    }
+
+    /// Decode one native or VM harness payload into one materialized value.
+    pub(crate) fn harness_value_into<Native, Vm>(
+        &mut self,
+        value: HarnessValue<Native, Vm>,
+    ) -> RuntimeResult<Native::Value>
+    where
+        Native: NativeAbiCodec,
+        Vm: VmAbiCodec<Value = Native::Value>,
+    {
+        match value {
+            HarnessValue::Native(value) => unsafe { Native::into_value(value) },
+            HarnessValue::Vm(value) => {
+                let context = self.generated_vm_context_mut().ok_or_else(|| {
+                    RuntimeError::from(HarnessPlatformError::invalid_argument_value(
+                        "context",
+                        "expected vm context",
+                    ))
+                    .boxed()
+                })?;
+                value.into_value(context)
+            }
+        }
     }
 
     /// Report completion for one scheduled background-task execution.
@@ -3820,6 +3866,15 @@ pub(crate) enum HarnessValue<Native, Vm> {
     Native(Native),
     /// VM value variant.
     Vm(Vm),
+}
+
+impl<Native: Clone, Vm: Clone> Clone for HarnessValue<Native, Vm> {
+    fn clone(&self) -> Self {
+        match self {
+            HarnessValue::Native(value) => HarnessValue::Native(value.clone()),
+            HarnessValue::Vm(value) => HarnessValue::Vm(value.clone()),
+        }
+    }
 }
 
 impl<Native, Vm> HarnessValue<Native, Vm> {

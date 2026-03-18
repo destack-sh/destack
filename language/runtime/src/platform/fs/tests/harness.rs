@@ -940,15 +940,6 @@ impl<'call> FsHarnessContext<'call> {
 
 impl<Native: Copy, Vm: Copy> Copy for HarnessValue<Native, Vm> {}
 
-impl<Native: Clone, Vm: Clone> Clone for HarnessValue<Native, Vm> {
-    fn clone(&self) -> Self {
-        match self {
-            HarnessValue::Native(value) => HarnessValue::Native(value.clone()),
-            HarnessValue::Vm(value) => HarnessValue::Vm(value.clone()),
-        }
-    }
-}
-
 impl<T: std::fmt::Debug> std::fmt::Debug for HarnessValue<T, T> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
