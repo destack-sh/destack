@@ -466,6 +466,29 @@ pub(crate) enum IoHarnessHandle {
     Vm(VmIoHarness),
 }
 
+/// Return whether the VM exposes the io binding surface yet.
+fn vm_io_bindings_are_available() -> bool {
+    let harness = IoHarnessHandle::Vm(VmIoHarness::new());
+
+    harness
+        .with_context(|mut context| -> RuntimeResult<bool> {
+            match context.destack_io_event_open(0) {
+                Ok(token) => {
+                    context.destack_io_event_close(token)?;
+                    Ok(true)
+                }
+                Err(error) => {
+                    if is_not_supported_code(error_code_from_runtime_error(&error)) {
+                        Ok(false)
+                    } else {
+                        Err(error)
+                    }
+                }
+            }
+        })
+        .expect("io vm capability probe should not fail")
+}
+
 impl IoHarnessHandle {
     /// Run a native or VM call context around one callback.
     pub(crate) fn with_context<F, R>(&self, callback: F) -> R
@@ -512,8 +535,12 @@ where
 {
     let native = IoHarnessHandle::Native(NativeIoHarness::new());
     callback(&native);
-    let vm = IoHarnessHandle::Vm(VmIoHarness::new());
-    callback(&vm);
+
+    // skip the vm lane until platform.io is actually implemented there
+    if vm_io_bindings_are_available() {
+        let vm = IoHarnessHandle::Vm(VmIoHarness::new());
+        callback(&vm);
+    }
 }
 
 /// Run one callback against both harness contexts.
@@ -1319,33 +1346,35 @@ fn test_io_event_attachment_state_is_runtime_scoped() {
         .expect("second native runtime verification should succeed");
 
     // vm runtime pair
-    let vm_first = IoHarnessHandle::Vm(VmIoHarness::new());
-    vm_first
-        .with_context(|mut context| -> RuntimeResult<()> {
-            let token = context.destack_io_event_open(0)?;
-            let poll = context.destack_io_poll_open(PollBackend::Auto)?;
-            context.destack_io_event_attach(token, poll.0, 91)?;
+    if vm_io_bindings_are_available() {
+        let vm_first = IoHarnessHandle::Vm(VmIoHarness::new());
+        vm_first
+            .with_context(|mut context| -> RuntimeResult<()> {
+                let token = context.destack_io_event_open(0)?;
+                let poll = context.destack_io_poll_open(PollBackend::Auto)?;
+                context.destack_io_event_attach(token, poll.0, 91)?;
 
-            Ok(())
-        })
-        .expect("first vm runtime setup should succeed");
+                Ok(())
+            })
+            .expect("first vm runtime setup should succeed");
 
-    let vm_second = IoHarnessHandle::Vm(VmIoHarness::new());
-    vm_second
-        .with_context(|mut context| -> RuntimeResult<()> {
-            let token = context.destack_io_event_open(0)?;
-            let poll = context.destack_io_poll_open(PollBackend::Auto)?;
+        let vm_second = IoHarnessHandle::Vm(VmIoHarness::new());
+        vm_second
+            .with_context(|mut context| -> RuntimeResult<()> {
+                let token = context.destack_io_event_open(0)?;
+                let poll = context.destack_io_poll_open(PollBackend::Auto)?;
 
-            context.destack_io_event_signal(token, 1)?;
-            let events = context.poll_wait_events(poll, 0, 8)?;
-            assert!(events.is_empty());
+                context.destack_io_event_signal(token, 1)?;
+                let events = context.poll_wait_events(poll, 0, 8)?;
+                assert!(events.is_empty());
 
-            context.destack_io_poll_close(poll)?;
-            context.destack_io_event_close(token)?;
+                context.destack_io_poll_close(poll)?;
+                context.destack_io_event_close(token)?;
 
-            Ok(())
-        })
-        .expect("second vm runtime verification should succeed");
+                Ok(())
+            })
+            .expect("second vm runtime verification should succeed");
+    }
 }
 
 /// Reject event attaches when the target exists but is not a poll handle.

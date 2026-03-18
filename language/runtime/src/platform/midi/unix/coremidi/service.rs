@@ -6,9 +6,8 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
-use crate::runtime::process::service::affinity::ServiceAffinity;
-use crate::runtime::process::service::executor::caller::CallerThreadExecutor;
-use crate::runtime::process::service::{self};
+use crate::runtime::process::service::executor::inline::InlineExecutor;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
 
 use super::abi::{
     MIDIClientCreateWithBlock, MIDIClientDispose, MIDIClientRef, MIDIGetNumberOfDestinations,
@@ -23,7 +22,7 @@ type CoreMidiEndpointOverrideTable = BTreeMap<i32, CoreMidiEndpointOverride>;
 /// One global CoreMIDI client service.
 pub(crate) struct CoreMidiService {
     /// Direct executor for this service.
-    executor: CallerThreadExecutor,
+    executor: InlineExecutor,
     /// Shared CoreMIDI client used for ports and endpoints.
     operation_client: MIDIClientRef,
     /// Shared CoreMIDI client used for topology notifications.
@@ -82,9 +81,6 @@ impl Drop for CoreMidiService {
 }
 
 impl CoreMidiService {
-    /// The host-affinity domain for the CoreMIDI backend service.
-    pub(crate) const AFFINITY: ServiceAffinity = ServiceAffinity::CallerThread;
-
     /// Return one runtime-owned virtual endpoint transport override.
     pub(super) fn endpoint_override(&self, unique_id: i32) -> Option<CoreMidiEndpointOverride> {
         let _ = &self.executor;
@@ -118,6 +114,10 @@ impl CoreMidiService {
 
         self.operation_client
     }
+}
+
+impl GlobalService for CoreMidiService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 
 /// Check whether the CoreMIDI API surface is reachable on this host.
@@ -161,10 +161,7 @@ fn create_core_midi_client(
 
 /// Return the shared CoreMIDI client service.
 pub(crate) fn core_midi_service(operation: &'static str) -> RuntimeResult<Arc<CoreMidiService>> {
-    service::global_service(|| {
-        let service_affinity = CoreMidiService::AFFINITY;
-        debug_assert!(matches!(service_affinity, ServiceAffinity::CallerThread));
-
+    CoreMidiService::global(|| {
         let native_event_registry = Arc::new(Mutex::new(CoreMidiNativeEventRegistry {
             next_registration_id: 1,
             sessions: BTreeMap::new(),
@@ -178,7 +175,7 @@ pub(crate) fn core_midi_service(operation: &'static str) -> RuntimeResult<Arc<Co
         let operation_client = create_core_midi_client("Destack MIDI", operation, None)?;
 
         Ok(CoreMidiService {
-            executor: CallerThreadExecutor::new("platform.midi.coremidi"),
+            executor: InlineExecutor::new("platform.midi.coremidi"),
             operation_client,
             notify_client,
             native_event_registry,

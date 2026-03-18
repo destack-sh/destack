@@ -20,9 +20,9 @@ use crate::platform::midi::{
     MidiDataFormat, MidiEventSource, MidiPortDirection, MidiProtocol, MidiRecordFraming,
 };
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::affinity::{ServiceAffinity, ServiceThreadBootstrap};
-use crate::runtime::process::service::executor::dedicated::DedicatedThreadExecutor;
-use crate::runtime::process::service::{self};
+use crate::runtime::process::service::GlobalService;
+use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
+use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 use super::core::{
     WinRtEndpointInfo, WinRtEventDeliveryKind, WinRtEventSession, WinRtTopologyState,
@@ -34,7 +34,7 @@ use super::event::{queue_backend_disconnected_events, refresh_native_event_sessi
 /// One process-global WinRT runtime service.
 pub(crate) struct WinRtService {
     /// Dedicated WinRT service-thread executor.
-    executor: DedicatedThreadExecutor<WinRtServiceState>,
+    executor: ServiceThreadExecutor<WinRtServiceState>,
     /// Shared topology cache.
     pub(super) topology: Arc<Mutex<WinRtTopologyState>>,
     /// Registered native event subscriptions.
@@ -135,10 +135,6 @@ impl Drop for WinRtWatcherRegistration {
 }
 
 impl WinRtService {
-    /// The host-affinity domain for the WinRT backend service.
-    pub(crate) const AFFINITY: ServiceAffinity =
-        ServiceAffinity::DedicatedThread(ServiceThreadBootstrap::WindowsMta);
-
     /// Open one input host session on the dedicated service thread.
     pub(super) fn open_input_session(
         &self,
@@ -267,6 +263,11 @@ impl WinRtService {
             Ok(records.len() as u32)
         })
     }
+}
+
+impl GlobalService for WinRtService {
+    const POLICY: ExecutionPolicy =
+        ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
 }
 
 /// Map one WinRT error into one runtime error.
@@ -546,7 +547,7 @@ fn build_winrt_service_state(
 
 /// Return the shared WinRT service.
 pub(crate) fn winrt_service(operation: &'static str) -> RuntimeResult<Arc<WinRtService>> {
-    service::global_service(|| {
+    WinRtService::global(|| {
         let topology = Arc::new(Mutex::new(WinRtTopologyState::default()));
         let native_event_registry = Arc::new(Mutex::new(WinRtNativeEventRegistry {
             next_registration_id: 1,
@@ -554,17 +555,9 @@ pub(crate) fn winrt_service(operation: &'static str) -> RuntimeResult<Arc<WinRtS
         }));
         let build_topology = topology.clone();
         let build_registry = native_event_registry.clone();
-        let ServiceAffinity::DedicatedThread(thread_bootstrap) = WinRtService::AFFINITY else {
-            return Err(core_platform::io_operation_error(
-                operation,
-                None,
-                "winrt midi service requires one dedicated thread affinity domain",
-            ));
-        };
-        let executor =
-            DedicatedThreadExecutor::spawn("destack-midi-winrt", thread_bootstrap, move || {
-                build_winrt_service_state(build_topology, build_registry, operation)
-            })?;
+        let executor = WinRtService::thread("destack-midi-winrt", move || {
+            build_winrt_service_state(build_topology, build_registry, operation)
+        })?;
 
         Ok(WinRtService {
             executor,

@@ -8,13 +8,14 @@ use super::abi::{
 use super::constants::{HRESULT_OK, IID_IMM_NOTIFICATION_CLIENT};
 use super::core::{ComApartment, ComPointer};
 use super::host::{create_device_enumerator, failed, hresult_error, initialize_com};
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
 use crate::platform::audio::core::monitor::AudioMonitorHandle;
-use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::process::service::affinity::{ServiceAffinity, ServiceThreadBootstrap};
-use crate::runtime::process::service::executor::dedicated::DedicatedThreadExecutor;
+use crate::platform::core as core_platform;
+use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
+use crate::runtime::process::{
+    ExecutionAffinity, ExecutionMode, ExecutionPolicy, spawn_service_thread,
+};
 
 use crate::platform::audio as audio_types;
 use windows_sys::Win32::Media::Audio::{EDataFlow, ERole, IMMDeviceEnumerator};
@@ -50,43 +51,18 @@ impl Drop for WasapiMonitorState {
 /// One native WASAPI monitor handle backed by a dedicated service thread.
 struct WasapiDeviceMonitor {
     /// Dedicated executor that owns the monitor apartment and callback registration.
-    _executor: DedicatedThreadExecutor<WasapiMonitorState>,
-}
-
-impl WasapiDeviceMonitor {
-    /// Required service affinity for the WASAPI monitor.
-    const AFFINITY: ServiceAffinity =
-        ServiceAffinity::DedicatedThread(ServiceThreadBootstrap::WindowsMta);
+    _executor: ServiceThreadExecutor<WasapiMonitorState>,
 }
 
 impl AudioMonitorHandle for WasapiDeviceMonitor {
     fn stop(self: Box<Self>) {}
 }
 
-/// Return one startup error payload for WASAPI native monitor initialization.
-fn startup_error(message: impl Into<String>) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoInvalidData),
-        None,
-        None,
-        Some("destack.audio.event.open".to_string()),
-        None,
-        message.into(),
-    ))
-    .boxed()
-}
-
 /// Start one WASAPI native device-event monitor.
 pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<Box<dyn AudioMonitorHandle>> {
-    let ServiceAffinity::DedicatedThread(thread_bootstrap) = WasapiDeviceMonitor::AFFINITY else {
-        return Err(startup_error(
-            "WASAPI native event monitor requires dedicated thread affinity",
-        ));
-    };
-
-    let executor = DedicatedThreadExecutor::spawn(
+    let executor = spawn_service_thread(
         "destack-audio-wasapi-monitor",
-        thread_bootstrap,
+        ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta),
         build_monitor_state,
     )?;
 

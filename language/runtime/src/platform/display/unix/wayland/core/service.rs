@@ -1,26 +1,22 @@
 use std::sync::Arc;
 
 use crate::runtime::BindingCallContext;
-use crate::runtime::process::service::affinity::ServiceAffinity;
-use crate::runtime::process::service::executor::caller::CallerThreadExecutor;
-use crate::runtime::process::service::global_service;
+use crate::runtime::process::service::executor::inline::InlineExecutor;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
 
 use super::runtime::WaylandRuntimeState;
 
 /// Process-global wayland display service.
 pub(crate) struct WaylandDisplayService {
     /// Caller-thread executor for this service.
-    executor: CallerThreadExecutor,
+    executor: InlineExecutor,
 }
 
 impl WaylandDisplayService {
-    /// The host-affinity domain for the wayland display service.
-    pub(crate) const AFFINITY: ServiceAffinity = ServiceAffinity::CallerThread;
-
     /// Create one process-global wayland display service.
     fn new() -> Self {
         Self {
-            executor: CallerThreadExecutor::new("platform.display.wayland"),
+            executor: InlineExecutor::new("platform.display.wayland"),
         }
     }
 
@@ -42,13 +38,12 @@ impl WaylandDisplayService {
     }
 }
 
+impl GlobalService for WaylandDisplayService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+}
+
 /// Return one shared wayland display service.
 pub(crate) fn wayland_display_service() -> Arc<WaylandDisplayService> {
-    debug_assert!(matches!(
-        WaylandDisplayService::AFFINITY,
-        ServiceAffinity::CallerThread
-    ));
-
-    global_service(|| Ok(WaylandDisplayService::new()))
+    WaylandDisplayService::global(|| Ok(WaylandDisplayService::new()))
         .expect("wayland display service initialization should succeed")
 }

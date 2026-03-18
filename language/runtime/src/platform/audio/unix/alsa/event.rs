@@ -14,7 +14,9 @@ use crate::platform::audio::core::monitor::AudioMonitorHandle;
 use crate::platform::core as core_platform;
 #[cfg(target_os = "linux")]
 use crate::platform::diagnostic::PlatformErrorCode;
-
+#[cfg(target_os = "linux")]
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+#[cfg(target_os = "linux")]
 #[cfg(target_os = "linux")]
 use std::ffi::CString;
 #[cfg(target_os = "linux")]
@@ -65,7 +67,12 @@ pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<Box<dyn Audio
         let stop = Arc::new(AtomicBool::new(false));
         let stop_signal = Arc::clone(&stop);
         let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
-        let handle = thread::spawn(move || run_monitor_thread(stop_signal, ready_sender));
+        let handle = start_with_policy(
+            "destack-audio-alsa-monitor",
+            "destack.audio.event.open",
+            ExecutionPolicy::global(ExecutionMode::Loop),
+            move || run_monitor_thread(stop_signal, ready_sender),
+        )?;
 
         let ready_result = ready_receiver.recv().map_err(|_| {
             startup_error("ALSA native event monitor exited before startup completed")

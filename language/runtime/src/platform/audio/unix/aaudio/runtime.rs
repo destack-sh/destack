@@ -6,6 +6,7 @@ use std::time::Duration;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
 use crate::platform::audio::core::codec::clamp_audio_scalar;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::abi::{AAudioStream, AAudioStreamBuilder};
 use super::constants::{
@@ -497,166 +498,177 @@ fn spawn_worker(
     binding: Arc<audio_core::AudioStreamHostState>,
     runtime: Arc<AaudioStreamRuntime>,
 ) -> std::thread::JoinHandle<()> {
-    std::thread::spawn(move || {
-        loop {
-            let mut state = binding
-                .sync
-                .state
-                .lock()
-                .unwrap_or_else(|error| error.into_inner());
-
-            // stop the worker once stream shutdown is requested
-            if state.shutdown {
-                break;
-            }
-
-            // sleep while the stream is not actively running
-            if !state.running || state.paused {
-                drop(state);
-                audio_core::wait_for_worker_period(&binding, runtime.poll_period);
-                continue;
-            }
-
-            state.status_flags = audio_types::AudioStreamStatusFlags(0);
-            let scalar_period = runtime
-                .period_frames
-                .saturating_mul(runtime.channels as u32) as usize;
-            let mut capture_bytes =
-                vec![0u8; scalar_period.saturating_mul(audio_core::sample_bytes(runtime.format))];
-
-            // prepare one playback packet for this worker cycle
-            let playback_bytes = if runtime.playback.is_some() {
-                let mut playback_packet = Vec::with_capacity(scalar_period);
-                let mut underflow = false;
-                for _ in 0..scalar_period {
-                    if let Some(sample) = state.playback_samples.pop_front() {
-                        playback_packet.push(sample);
-                    } else {
-                        playback_packet.push(0.0);
-                        underflow = true;
-                    }
-                }
-
-                if state.muted {
-                    playback_packet.fill(0.0);
-                } else if (state.volume - 1.0).abs() > f64::EPSILON {
-                    let gain = state.volume as f32;
-                    for sample in &mut playback_packet {
-                        *sample = clamp_audio_scalar(*sample * gain);
-                    }
-                }
-
-                if underflow {
-                    state.xrun_count = state.xrun_count.saturating_add(1);
-                    state.output_underflow_count = state.output_underflow_count.saturating_add(1);
-                    state.status_flags = audio_types::AudioStreamStatusFlags(
-                        state.status_flags.0 | audio_core::STREAM_STATUS_OUTPUT_UNDERFLOW.0,
-                    );
-                }
-
-                audio_core::encode_audio_bytes(&playback_packet, runtime.format)
-            } else {
-                Vec::new()
-            };
-
-            // publish one stream timing sample for this worker cycle
-            let callback_mono_ns = audio_core::host_monotonic_nanos();
-            audio_core::record_stream_callback_timing(
-                &mut state,
-                runtime.sample_rate,
-                runtime.period_frames,
-                callback_mono_ns,
-                None,
-                None,
-            );
-            drop(state);
-
-            // write one playback packet to the AAudio output lane
-            if let Some(playback) = runtime.playback.as_ref() {
-                let playback = playback.lock().unwrap_or_else(|error| error.into_inner());
-                let requested_frames = (playback_bytes.len() / runtime.frame_bytes) as c_int;
-                let status = unsafe {
-                    (runtime.library.api.stream_write)(
-                        playback.raw,
-                        playback_bytes.as_ptr().cast::<c_void>(),
-                        requested_frames,
-                        io_timeout_nanoseconds(runtime.poll_period),
-                    )
-                };
-                if status < 0 {
-                    mark_backend_disconnected(
-                        &binding,
-                        format!("AAudio playback write failed with status code {status}"),
-                    );
-                    break;
-                }
-            }
-
-            // read one capture packet from the AAudio input lane
-            if let Some(capture) = runtime.capture.as_ref() {
-                let capture = capture.lock().unwrap_or_else(|error| error.into_inner());
-                let requested_frames = (capture_bytes.len() / runtime.frame_bytes) as c_int;
-                let status = unsafe {
-                    (runtime.library.api.stream_read)(
-                        capture.raw,
-                        capture_bytes.as_mut_ptr().cast::<c_void>(),
-                        requested_frames,
-                        io_timeout_nanoseconds(runtime.poll_period),
-                    )
-                };
-                if status < 0 {
-                    mark_backend_disconnected(
-                        &binding,
-                        format!("AAudio capture read failed with status code {status}"),
-                    );
-                    break;
-                }
-
-                let read_bytes = (status.max(0) as usize).saturating_mul(runtime.frame_bytes);
-                let capture_packet = match audio_core::decode_audio_bytes(
-                    &capture_bytes[..read_bytes.min(capture_bytes.len())],
-                    runtime.format,
-                ) {
-                    Ok(packet) => packet,
-                    Err(error) => {
-                        mark_backend_disconnected(
-                            &binding,
-                            format!("AAudio capture decode failed: {error}"),
-                        );
-                        break;
-                    }
-                };
-
+    start_with_policy(
+        "destack-audio-aaudio-transfer",
+        "destack.audio.stream.open",
+        ExecutionPolicy::instance(ExecutionMode::Loop),
+        move || {
+            loop {
                 let mut state = binding
                     .sync
                     .state
                     .lock()
                     .unwrap_or_else(|error| error.into_inner());
 
-                // append one capture packet to the shared capture queue
-                for sample in capture_packet {
-                    state.capture_samples.push_back(sample);
+                // stop the worker once stream shutdown is requested
+                if state.shutdown {
+                    break;
                 }
 
-                // enforce one bounded capture queue and report overflow
-                let capture_capacity = binding.capture_capacity_samples();
-                if state.capture_samples.len() > capture_capacity {
-                    let overflow = state.capture_samples.len() - capture_capacity;
-                    for _ in 0..overflow {
-                        let _ = state.capture_samples.pop_front();
+                // sleep while the stream is not actively running
+                if !state.running || state.paused {
+                    drop(state);
+                    audio_core::wait_for_worker_period(&binding, runtime.poll_period);
+                    continue;
+                }
+
+                state.status_flags = audio_types::AudioStreamStatusFlags(0);
+                let scalar_period = runtime
+                    .period_frames
+                    .saturating_mul(runtime.channels as u32)
+                    as usize;
+                let mut capture_bytes =
+                    vec![
+                        0u8;
+                        scalar_period.saturating_mul(audio_core::sample_bytes(runtime.format))
+                    ];
+
+                // prepare one playback packet for this worker cycle
+                let playback_bytes = if runtime.playback.is_some() {
+                    let mut playback_packet = Vec::with_capacity(scalar_period);
+                    let mut underflow = false;
+                    for _ in 0..scalar_period {
+                        if let Some(sample) = state.playback_samples.pop_front() {
+                            playback_packet.push(sample);
+                        } else {
+                            playback_packet.push(0.0);
+                            underflow = true;
+                        }
                     }
 
-                    state.xrun_count = state.xrun_count.saturating_add(1);
-                    state.input_overflow_count = state.input_overflow_count.saturating_add(1);
-                    state.status_flags = audio_types::AudioStreamStatusFlags(
-                        state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
-                    );
-                }
-            }
+                    if state.muted {
+                        playback_packet.fill(0.0);
+                    } else if (state.volume - 1.0).abs() > f64::EPSILON {
+                        let gain = state.volume as f32;
+                        for sample in &mut playback_packet {
+                            *sample = clamp_audio_scalar(*sample * gain);
+                        }
+                    }
 
-            binding.sync.wake.notify_all();
-        }
-    })
+                    if underflow {
+                        state.xrun_count = state.xrun_count.saturating_add(1);
+                        state.output_underflow_count =
+                            state.output_underflow_count.saturating_add(1);
+                        state.status_flags = audio_types::AudioStreamStatusFlags(
+                            state.status_flags.0 | audio_core::STREAM_STATUS_OUTPUT_UNDERFLOW.0,
+                        );
+                    }
+
+                    audio_core::encode_audio_bytes(&playback_packet, runtime.format)
+                } else {
+                    Vec::new()
+                };
+
+                // publish one stream timing sample for this worker cycle
+                let callback_mono_ns = audio_core::host_monotonic_nanos();
+                audio_core::record_stream_callback_timing(
+                    &mut state,
+                    runtime.sample_rate,
+                    runtime.period_frames,
+                    callback_mono_ns,
+                    None,
+                    None,
+                );
+                drop(state);
+
+                // write one playback packet to the AAudio output lane
+                if let Some(playback) = runtime.playback.as_ref() {
+                    let playback = playback.lock().unwrap_or_else(|error| error.into_inner());
+                    let requested_frames = (playback_bytes.len() / runtime.frame_bytes) as c_int;
+                    let status = unsafe {
+                        (runtime.library.api.stream_write)(
+                            playback.raw,
+                            playback_bytes.as_ptr().cast::<c_void>(),
+                            requested_frames,
+                            io_timeout_nanoseconds(runtime.poll_period),
+                        )
+                    };
+                    if status < 0 {
+                        mark_backend_disconnected(
+                            &binding,
+                            format!("AAudio playback write failed with status code {status}"),
+                        );
+                        break;
+                    }
+                }
+
+                // read one capture packet from the AAudio input lane
+                if let Some(capture) = runtime.capture.as_ref() {
+                    let capture = capture.lock().unwrap_or_else(|error| error.into_inner());
+                    let requested_frames = (capture_bytes.len() / runtime.frame_bytes) as c_int;
+                    let status = unsafe {
+                        (runtime.library.api.stream_read)(
+                            capture.raw,
+                            capture_bytes.as_mut_ptr().cast::<c_void>(),
+                            requested_frames,
+                            io_timeout_nanoseconds(runtime.poll_period),
+                        )
+                    };
+                    if status < 0 {
+                        mark_backend_disconnected(
+                            &binding,
+                            format!("AAudio capture read failed with status code {status}"),
+                        );
+                        break;
+                    }
+
+                    let read_bytes = (status.max(0) as usize).saturating_mul(runtime.frame_bytes);
+                    let capture_packet = match audio_core::decode_audio_bytes(
+                        &capture_bytes[..read_bytes.min(capture_bytes.len())],
+                        runtime.format,
+                    ) {
+                        Ok(packet) => packet,
+                        Err(error) => {
+                            mark_backend_disconnected(
+                                &binding,
+                                format!("AAudio capture decode failed: {error}"),
+                            );
+                            break;
+                        }
+                    };
+
+                    let mut state = binding
+                        .sync
+                        .state
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner());
+
+                    // append one capture packet to the shared capture queue
+                    for sample in capture_packet {
+                        state.capture_samples.push_back(sample);
+                    }
+
+                    // enforce one bounded capture queue and report overflow
+                    let capture_capacity = binding.capture_capacity_samples();
+                    if state.capture_samples.len() > capture_capacity {
+                        let overflow = state.capture_samples.len() - capture_capacity;
+                        for _ in 0..overflow {
+                            let _ = state.capture_samples.pop_front();
+                        }
+
+                        state.xrun_count = state.xrun_count.saturating_add(1);
+                        state.input_overflow_count = state.input_overflow_count.saturating_add(1);
+                        state.status_flags = audio_types::AudioStreamStatusFlags(
+                            state.status_flags.0 | audio_core::STREAM_STATUS_INPUT_OVERFLOW.0,
+                        );
+                    }
+                }
+
+                binding.sync.wake.notify_all();
+            }
+        },
+    )
+    .unwrap_or_else(|error| panic!("failed to spawn required attached runtime: {error}"))
 }
 
 /// Mark one stream as backend-disconnected and wake blocked callers.

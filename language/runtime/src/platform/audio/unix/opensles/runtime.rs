@@ -6,6 +6,7 @@ use std::time::Duration;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
 use crate::platform::audio::core::codec::clamp_audio_scalar;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::abi::{
     SL_IID_ANDROIDSIMPLEBUFFERQUEUE, SL_IID_PLAY, SL_IID_RECORD, SLAndroidSimpleBufferQueueItf,
@@ -710,135 +711,142 @@ fn spawn_worker(
     binding: Arc<audio_core::AudioStreamHostState>,
     runtime: Arc<OpenslesStreamRuntime>,
 ) -> std::thread::JoinHandle<()> {
-    std::thread::spawn(move || {
-        loop {
-            let mut state = binding
-                .sync
-                .state
-                .lock()
-                .unwrap_or_else(|error| error.into_inner());
+    start_with_policy(
+        "destack-audio-opensles-transfer",
+        "destack.audio.stream.open",
+        ExecutionPolicy::instance(ExecutionMode::Loop),
+        move || {
+            loop {
+                let mut state = binding
+                    .sync
+                    .state
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner());
 
-            // stop the worker once stream shutdown is requested
-            if state.shutdown {
-                break;
-            }
+                // stop the worker once stream shutdown is requested
+                if state.shutdown {
+                    break;
+                }
 
-            // sleep while the stream is not actively running
-            if !state.running || state.paused {
+                // sleep while the stream is not actively running
+                if !state.running || state.paused {
+                    drop(state);
+                    audio_core::wait_for_worker_period(&binding, runtime.poll_period);
+                    continue;
+                }
+
+                state.status_flags = audio_types::AudioStreamStatusFlags(0);
+                let callback_mono_ns = audio_core::host_monotonic_nanos();
+                audio_core::record_stream_callback_timing(
+                    &mut state,
+                    runtime.sample_rate,
+                    runtime.period_frames,
+                    callback_mono_ns,
+                    None,
+                    None,
+                );
                 drop(state);
-                audio_core::wait_for_worker_period(&binding, runtime.poll_period);
-                continue;
-            }
 
-            state.status_flags = audio_types::AudioStreamStatusFlags(0);
-            let callback_mono_ns = audio_core::host_monotonic_nanos();
-            audio_core::record_stream_callback_timing(
-                &mut state,
-                runtime.sample_rate,
-                runtime.period_frames,
-                callback_mono_ns,
-                None,
-                None,
-            );
-            drop(state);
+                let mut disconnected_message = None::<String>;
 
-            let mut disconnected_message = None::<String>;
-
-            // refill completed playback queue packets
-            if let Some(playback) = runtime.playback.as_ref() {
-                let completed_indices = match completed_queue_indices(
-                    &playback.queue,
-                    playback.queue_interface,
-                    PLAYBACK_QUEUE_OPERATION,
-                ) {
-                    Ok(indices) => indices,
-                    Err(error) => {
-                        disconnected_message = Some(error.to_string());
-                        Vec::new()
-                    }
-                };
-
-                for index in completed_indices {
-                    let packet = build_playback_packet(&binding, &runtime);
-
-                    if let Err(error) = enqueue_packet(
+                // refill completed playback queue packets
+                if let Some(playback) = runtime.playback.as_ref() {
+                    let completed_indices = match completed_queue_indices(
                         &playback.queue,
                         playback.queue_interface,
-                        index,
-                        &packet,
                         PLAYBACK_QUEUE_OPERATION,
                     ) {
-                        disconnected_message = Some(error.to_string());
-                        break;
-                    }
-                }
-            }
-
-            // read completed capture queue packets
-            if disconnected_message.is_none()
-                && let Some(capture) = runtime.capture.as_ref()
-            {
-                let completed_indices = match completed_queue_indices(
-                    &capture.queue,
-                    capture.queue_interface,
-                    CAPTURE_QUEUE_OPERATION,
-                ) {
-                    Ok(indices) => indices,
-                    Err(error) => {
-                        disconnected_message = Some(error.to_string());
-                        Vec::new()
-                    }
-                };
-
-                for index in completed_indices {
-                    let packet = {
-                        let queue = capture
-                            .queue
-                            .lock()
-                            .unwrap_or_else(|error| error.into_inner());
-                        match queue.packets.get(index) {
-                            Some(packet) => packet.clone(),
-                            None => {
-                                disconnected_message = Some(format!(
-                                    "OpenSL ES capture queue packet slot index {index} is out of bounds"
-                                ));
-                                break;
-                            }
+                        Ok(indices) => indices,
+                        Err(error) => {
+                            disconnected_message = Some(error.to_string());
+                            Vec::new()
                         }
                     };
 
-                    let decoded = match audio_core::decode_audio_bytes(&packet, runtime.format) {
-                        Ok(decoded) => decoded,
-                        Err(error) => {
-                            disconnected_message =
-                                Some(format!("OpenSL ES capture decode failed: {error}"));
+                    for index in completed_indices {
+                        let packet = build_playback_packet(&binding, &runtime);
+
+                        if let Err(error) = enqueue_packet(
+                            &playback.queue,
+                            playback.queue_interface,
+                            index,
+                            &packet,
+                            PLAYBACK_QUEUE_OPERATION,
+                        ) {
+                            disconnected_message = Some(error.to_string());
                             break;
                         }
-                    };
-
-                    push_capture_packet(&binding, decoded);
-
-                    if let Err(error) = enqueue_zero_packet(
-                        &capture.queue,
-                        capture.queue_interface,
-                        index,
-                        CAPTURE_QUEUE_OPERATION,
-                    ) {
-                        disconnected_message = Some(error.to_string());
-                        break;
                     }
                 }
-            }
 
-            if let Some(message) = disconnected_message {
-                mark_backend_disconnected(&binding, message);
-                break;
-            }
+                // read completed capture queue packets
+                if disconnected_message.is_none()
+                    && let Some(capture) = runtime.capture.as_ref()
+                {
+                    let completed_indices = match completed_queue_indices(
+                        &capture.queue,
+                        capture.queue_interface,
+                        CAPTURE_QUEUE_OPERATION,
+                    ) {
+                        Ok(indices) => indices,
+                        Err(error) => {
+                            disconnected_message = Some(error.to_string());
+                            Vec::new()
+                        }
+                    };
 
-            binding.sync.wake.notify_all();
-            audio_core::wait_for_worker_period(&binding, runtime.poll_period);
-        }
-    })
+                    for index in completed_indices {
+                        let packet = {
+                            let queue = capture
+                                .queue
+                                .lock()
+                                .unwrap_or_else(|error| error.into_inner());
+                            match queue.packets.get(index) {
+                                Some(packet) => packet.clone(),
+                                None => {
+                                    disconnected_message = Some(format!(
+                                        "OpenSL ES capture queue packet slot index {index} is out of bounds"
+                                    ));
+                                    break;
+                                }
+                            }
+                        };
+
+                        let decoded = match audio_core::decode_audio_bytes(&packet, runtime.format)
+                        {
+                            Ok(decoded) => decoded,
+                            Err(error) => {
+                                disconnected_message =
+                                    Some(format!("OpenSL ES capture decode failed: {error}"));
+                                break;
+                            }
+                        };
+
+                        push_capture_packet(&binding, decoded);
+
+                        if let Err(error) = enqueue_zero_packet(
+                            &capture.queue,
+                            capture.queue_interface,
+                            index,
+                            CAPTURE_QUEUE_OPERATION,
+                        ) {
+                            disconnected_message = Some(error.to_string());
+                            break;
+                        }
+                    }
+                }
+
+                if let Some(message) = disconnected_message {
+                    mark_backend_disconnected(&binding, message);
+                    break;
+                }
+
+                binding.sync.wake.notify_all();
+                audio_core::wait_for_worker_period(&binding, runtime.poll_period);
+            }
+        },
+    )
+    .unwrap_or_else(|error| panic!("failed to spawn required attached runtime: {error}"))
 }
 
 /// Build one playback packet from one stream state queue.

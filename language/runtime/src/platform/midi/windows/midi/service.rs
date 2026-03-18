@@ -17,9 +17,9 @@ use crate::platform::midi::{
     MidiDataFormat, MidiEventSource, MidiPortDirection, MidiProtocol, MidiRecordFraming,
 };
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::affinity::{ServiceAffinity, ServiceThreadBootstrap};
-use crate::runtime::process::service::executor::dedicated::DedicatedThreadExecutor;
-use crate::runtime::process::service::{self};
+use crate::runtime::process::service::GlobalService;
+use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
+use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 use super::abi::{
     connection_add_message_received, watcher_add_added, watcher_add_enumeration_completed,
@@ -41,7 +41,7 @@ use super::sdk::{
 /// One process-global Windows MIDI runtime service.
 pub(crate) struct WindowsMidiService {
     /// Dedicated Windows MIDI service-thread executor.
-    executor: DedicatedThreadExecutor<WindowsMidiServiceState>,
+    executor: ServiceThreadExecutor<WindowsMidiServiceState>,
     /// Shared topology cache.
     pub(super) topology: Arc<Mutex<WindowsMidiTopologyState>>,
     /// Registered native event subscriptions.
@@ -140,10 +140,6 @@ impl Drop for WindowsMidiWatcherRegistration {
 }
 
 impl WindowsMidiService {
-    /// The host-affinity domain for the Windows MIDI backend service.
-    pub(crate) const AFFINITY: ServiceAffinity =
-        ServiceAffinity::DedicatedThread(ServiceThreadBootstrap::WindowsMta);
-
     /// Open one input host session on the dedicated service thread.
     pub(super) fn open_input_session(
         &self,
@@ -310,6 +306,11 @@ impl WindowsMidiService {
             Ok(records.len() as u32)
         })
     }
+}
+
+impl GlobalService for WindowsMidiService {
+    const POLICY: ExecutionPolicy =
+        ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
 }
 
 /// Return one shared connection-settings object.
@@ -647,7 +648,7 @@ fn build_windows_midi_service_state(
 pub(crate) fn windows_midi_service(
     operation: &'static str,
 ) -> RuntimeResult<Arc<WindowsMidiService>> {
-    service::global_service(|| {
+    WindowsMidiService::global(|| {
         let topology = Arc::new(Mutex::new(WindowsMidiTopologyState::default()));
         let native_event_registry = Arc::new(Mutex::new(WindowsMidiNativeEventRegistry {
             next_registration_id: 1,
@@ -655,19 +656,9 @@ pub(crate) fn windows_midi_service(
         }));
         let build_topology = topology.clone();
         let build_registry = native_event_registry.clone();
-        let ServiceAffinity::DedicatedThread(thread_bootstrap) = WindowsMidiService::AFFINITY
-        else {
-            return Err(core_platform::io_operation_error(
-                operation,
-                None,
-                "windows midi service requires one dedicated thread affinity domain",
-            ));
-        };
-        let executor = DedicatedThreadExecutor::spawn(
-            "destack-midi-windows-midi",
-            thread_bootstrap,
-            move || build_windows_midi_service_state(build_topology, build_registry, operation),
-        )?;
+        let executor = WindowsMidiService::thread("destack-midi-windows-midi", move || {
+            build_windows_midi_service_state(build_topology, build_registry, operation)
+        })?;
 
         Ok(WindowsMidiService {
             executor,

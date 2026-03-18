@@ -62,7 +62,8 @@ use crate::platform::input::{
     InputTouchContactPhase, InputTouchContactState, InputTouchState,
 };
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::process::service::global_service;
+use crate::runtime::process::service::GlobalService;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 use crate::runtime::{AgentId, BindingCallContext, ProcessSubscriberRegistry};
 
 /// Prefix for monitor event device identifiers derived from raw device handles.
@@ -525,6 +526,10 @@ pub(crate) struct WindowsRawInputService {
     worker_running: AtomicBool,
 }
 
+impl GlobalService for WindowsRawInputService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
+}
+
 /// Raw-input worker-thread control payload.
 #[derive(Debug)]
 struct RawInputWorker {
@@ -682,7 +687,7 @@ pub(super) fn windows_raw_input_runtime_state(
 pub(crate) fn windows_raw_input_service(
     operation: &'static str,
 ) -> RuntimeResult<Arc<WindowsRawInputService>> {
-    global_service(|| Ok(WindowsRawInputService::new())).map_err(|error| {
+    WindowsRawInputService::global(|| Ok(WindowsRawInputService::new())).map_err(|error| {
         core_platform::io_operation_error(
             operation,
             None,
@@ -2264,12 +2269,15 @@ fn spawn_raw_input_worker(
     // spawn the message-thread worker and wait for readiness
     let (ready_tx, ready_rx) = mpsc::channel::<Result<u32, String>>();
     let thread_service = Arc::clone(service);
-    let handle = thread::Builder::new()
-        .name("destack-input-raw".to_string())
-        .spawn(move || {
+    let handle = start_with_policy(
+        "destack-input-raw",
+        "destack.input.device.open",
+        ExecutionPolicy::global(ExecutionMode::Loop),
+        move || {
             raw_input_thread_main(thread_service, ready_tx);
-        })
-        .map_err(|error| format!("failed to spawn raw input thread: {error}"))?;
+        },
+    )
+    .map_err(|error| error.to_string())?;
 
     // require worker readiness before serving any binding calls
     let ready = ready_rx

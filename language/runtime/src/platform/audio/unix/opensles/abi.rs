@@ -80,7 +80,7 @@ pub(super) struct SLObjectItf_ {
     pub RegisterCallback:
         Option<unsafe extern "C" fn(SLObjectItf, *mut c_void, *mut c_void) -> SLresult>,
     /// Abort-async method.
-    pub AbortAsyncOperation: Option<unsafe extern "C" fn(SLObjectItf)>,
+    pub AbortAsyncTask: Option<unsafe extern "C" fn(SLObjectItf)>,
     /// Destroy method.
     pub Destroy: Option<unsafe extern "C" fn(SLObjectItf)>,
 }

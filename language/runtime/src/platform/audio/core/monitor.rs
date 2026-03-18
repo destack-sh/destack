@@ -8,9 +8,7 @@ use crate::platform::audio::{
 use crate::runtime::process::service::executor::periodic::{
     PeriodicTaskHandle, periodic_service_executor,
 };
-use crate::runtime::process::service::global_service;
-#[cfg(any(target_os = "linux", target_os = "macos", windows))]
-use crate::runtime::process::service::registry::global_service_if_initialized;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
 use crate::runtime::{AgentId, ProcessSubscriberRegistry};
 
 use super::constants::host_monotonic_nanos;
@@ -352,9 +350,13 @@ impl AudioMonitorService {
     }
 }
 
+impl GlobalService for AudioMonitorService {
+    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+}
+
 /// Return one shared process-global audio monitor service.
 pub(crate) fn audio_monitor_service() -> Arc<AudioMonitorService> {
-    global_service(|| Ok(AudioMonitorService::new()))
+    AudioMonitorService::global(|| Ok(AudioMonitorService::new()))
         .expect("audio monitor service initialization should not fail")
 }
 
@@ -364,7 +366,7 @@ pub(crate) fn audio_monitor_service() -> Arc<AudioMonitorService> {
 /// has not been initialized yet or has already been torn down.
 #[cfg(any(target_os = "linux", target_os = "macos", windows))]
 pub(crate) fn active_audio_monitor_service() -> Option<Arc<AudioMonitorService>> {
-    global_service_if_initialized()
+    AudioMonitorService::active()
 }
 
 /// Return the effective monitor demand for one runtime and backend.

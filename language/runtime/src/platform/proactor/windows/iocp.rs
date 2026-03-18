@@ -36,6 +36,7 @@ use crate::platform::proactor::{
 };
 use crate::platform::{PlatformError, PlatformErrorCode, ResourceId, core as core_platform};
 use crate::runtime::poller::{PlatformHandle, PlatformInterest, PollerEventMask};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 /// Completion key reserved for wake notifications.
 const WAKE_COMPLETION_KEY: usize = usize::MAX;
@@ -73,7 +74,7 @@ struct PendingPoll {
 
 /// One in-flight overlapped operation tracked for cancellation.
 #[derive(Debug, Clone, Copy)]
-struct InflightOperation {
+struct InflightTask {
     /// Handle associated with the overlapped request.
     handle: HANDLE,
     /// Overlapped state pointer owned by the operation box.
@@ -82,7 +83,7 @@ struct InflightOperation {
 
 /// Native overlapped operation state.
 #[repr(C)]
-struct IocpOperation {
+struct IocpTask {
     /// Overlapped header passed to Win32 APIs.
     overlapped: OVERLAPPED,
     /// Request metadata used to build completion payloads.
@@ -111,7 +112,7 @@ struct IocpOperation {
     connect_address: Vec<u8>,
 }
 
-impl IocpOperation {
+impl IocpTask {
     /// Create a new overlapped operation state.
     fn new(request: ProactorRequest) -> Self {
         // safety: zeroed OVERLAPPED is valid initialization
@@ -151,7 +152,7 @@ pub struct IocpProactor {
     /// Poll registrations checked from the frontend loop.
     pending_polls: Vec<PendingPoll>,
     /// Native overlapped operations keyed by request token.
-    inflight_operations: HashMap<u64, InflightOperation>,
+    inflight_operations: HashMap<u64, InflightTask>,
     /// Wait slice used while pending poll registrations are active.
     pending_poll_slice_ns: u64,
 }
@@ -196,9 +197,11 @@ impl IocpProactor {
         let pending_timeouts = Arc::clone(&self.pending_timeouts);
         let canceled_tokens = Arc::clone(&self.canceled_tokens);
         let port = self.port;
-        thread::Builder::new()
-            .name("destack-windows-timeout".to_string())
-            .spawn(move || {
+        start_with_policy(
+            "destack-windows-timeout",
+            "proactor.windows.submitTimeout",
+            ExecutionPolicy::task(ExecutionMode::Blocking),
+            move || {
                 thread::sleep(Duration::from_nanos(timeout_nanos));
 
                 // clear pending timeout state
@@ -223,18 +226,19 @@ impl IocpProactor {
                 };
 
                 let _ = post_completion(port, completion);
-            })
-            .map_err(|error| {
-                RuntimeError::from(PlatformError::process_with(
-                    Some(PlatformErrorCode::ProcessSpawnFailed),
-                    None,
-                    None,
-                    None,
-                    None,
-                    format!("failed to spawn timeout helper: {error}"),
-                ))
-                .boxed()
-            })?;
+            },
+        )
+        .map_err(|error| {
+            RuntimeError::from(PlatformError::process_with(
+                Some(PlatformErrorCode::ProcessSpawnFailed),
+                None,
+                None,
+                None,
+                None,
+                error.to_string(),
+            ))
+            .boxed()
+        })?;
 
         Ok(())
     }
@@ -244,9 +248,11 @@ impl IocpProactor {
         // spawn one helper that executes and posts completion
         let canceled_tokens = Arc::clone(&self.canceled_tokens);
         let port = self.port;
-        thread::Builder::new()
-            .name("destack-windows-proactor-op".to_string())
-            .spawn(move || {
+        start_with_policy(
+            "destack-windows-proactor-op",
+            "proactor.windows.submit",
+            ExecutionPolicy::task(ExecutionMode::Blocking),
+            move || {
                 // skip execution when already canceled
                 if canceled_tokens.lock().remove(&request.token) {
                     let completion =
@@ -266,18 +272,19 @@ impl IocpProactor {
                 };
 
                 let _ = post_completion(port, completion);
-            })
-            .map_err(|error| {
-                RuntimeError::from(PlatformError::process_with(
-                    Some(PlatformErrorCode::ProcessSpawnFailed),
-                    None,
-                    None,
-                    None,
-                    None,
-                    format!("failed to spawn operation helper: {error}"),
-                ))
-                .boxed()
-            })?;
+            },
+        )
+        .map_err(|error| {
+            RuntimeError::from(PlatformError::process_with(
+                Some(PlatformErrorCode::ProcessSpawnFailed),
+                None,
+                None,
+                None,
+                None,
+                error.to_string(),
+            ))
+            .boxed()
+        })?;
 
         Ok(())
     }
@@ -455,7 +462,7 @@ impl IocpProactor {
         self.associate_handle(handle)?;
 
         // allocate operation state
-        let mut operation = Box::new(IocpOperation::new(request));
+        let mut operation = Box::new(IocpTask::new(request));
         operation.recv_flags = recv_flags;
         operation.buffers = socket_buffers;
         let token = operation.request.token;
@@ -610,7 +617,7 @@ impl IocpProactor {
         self.associate_handle(handle)?;
 
         // allocate operation state
-        let mut operation = Box::new(IocpOperation::new(request));
+        let mut operation = Box::new(IocpTask::new(request));
         operation.overlapped.Anonymous.Anonymous.Offset = (offset & 0xFFFF_FFFF) as u32;
         operation.overlapped.Anonymous.Anonymous.OffsetHigh = (offset >> 32) as u32;
         let token = operation.request.token;
@@ -690,7 +697,7 @@ impl IocpProactor {
         self.associate_handle(PlatformHandle(accepted_socket as u64))?;
 
         // allocate operation state
-        let mut operation = Box::new(IocpOperation::new(request));
+        let mut operation = Box::new(IocpTask::new(request));
         operation.accept_socket = Some(accepted_socket);
         operation.accept_listen_socket = Some(listen_socket);
         operation.accept_output = vec![0u8; ACCEPT_EX_ADDRESS_BYTES * 2];
@@ -780,7 +787,7 @@ impl IocpProactor {
         })?;
 
         // allocate operation state and copy the target address
-        let mut operation = Box::new(IocpOperation::new(request));
+        let mut operation = Box::new(IocpTask::new(request));
         if address.len != 0 {
             let source = unsafe { std::slice::from_raw_parts(address.data, address.len as usize) };
             operation.connect_address.extend_from_slice(source);
@@ -917,7 +924,7 @@ impl IocpProactor {
     ) {
         self.inflight_operations.insert(
             token,
-            InflightOperation {
+            InflightTask {
                 handle,
                 overlapped: overlapped as usize,
             },
@@ -925,7 +932,7 @@ impl IocpProactor {
     }
 
     /// Remove one in-flight native overlapped operation by token.
-    fn remove_inflight_operation(&mut self, token: u64) -> Option<InflightOperation> {
+    fn remove_inflight_operation(&mut self, token: u64) -> Option<InflightTask> {
         self.inflight_operations.remove(&token)
     }
 
@@ -968,7 +975,7 @@ impl IocpProactor {
         // decode native overlapped operation completions
         if completion_key == OPERATION_COMPLETION_KEY && !overlapped.is_null() {
             // reclaim operation state and convert completion result
-            let operation = unsafe { *Box::from_raw(overlapped as *mut IocpOperation) };
+            let operation = unsafe { *Box::from_raw(overlapped as *mut IocpTask) };
             self.remove_inflight_operation(operation.request.token);
 
             // surface cancellations consistently for native overlapped operations
@@ -2104,7 +2111,7 @@ fn execute_close(request: ProactorRequest, handle: PlatformHandle) -> ProactorCo
 
 /// Build one completion from native overlapped operation state.
 fn completion_from_operation(
-    mut operation: IocpOperation,
+    mut operation: IocpTask,
     is_success: bool,
     transferred: u32,
 ) -> ProactorCompletion {
@@ -2256,7 +2263,7 @@ fn completion_from_operation(
 
 /// Copy the remote peer address from one acceptex output buffer.
 fn decode_acceptex_remote_address(
-    operation: &IocpOperation,
+    operation: &IocpTask,
     address_buffer: *mut u8,
     address_len_out: *mut u32,
 ) -> Result<u32, i32> {
@@ -2457,7 +2464,7 @@ fn load_connect_ex(
 }
 
 /// Release resources held by one canceled operation.
-fn cleanup_canceled_operation(operation: &IocpOperation) {
+fn cleanup_canceled_operation(operation: &IocpTask) {
     // close accepted sockets created for canceled accepts
     if let Some(socket) = operation.accept_socket {
         unsafe {
