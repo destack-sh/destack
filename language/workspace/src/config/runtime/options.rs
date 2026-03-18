@@ -1,10 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
 use crate::config::target::{
     TargetAppBackgroundMode, TargetAppDeclaration, TargetAppForegroundMode,
-    TargetAppNotificationCategoryDeclaration, TargetAppPermission,
+    TargetAppIdentityDeclaration, TargetAppNotificationCategoryDeclaration, TargetAppPermission,
 };
 
 use super::super::policy::{ExecutionMode, ExecutionModeJson};
@@ -39,6 +40,8 @@ pub struct RuntimeAgentOptions {
 /// Runtime-facing app declaration used by Host availability checks.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeAppDeclaration {
+    /// Runtime-facing app identity.
+    pub identity: RuntimeAppIdentityDeclaration,
     /// Declared app permissions.
     pub permissions: BTreeSet<RuntimeAppPermission>,
     /// Runtime-facing intent declaration.
@@ -55,6 +58,17 @@ pub struct RuntimeAppDeclaration {
     pub credentials: RuntimeAppCredentialDeclaration,
     /// Runtime-facing location declaration.
     pub location: RuntimeAppLocationDeclaration,
+}
+
+/// Runtime-facing app identity used by Host integrations.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeAppIdentityDeclaration {
+    /// Stable application identifier, ideally reverse-DNS style.
+    pub identifier: Option<String>,
+    /// Human-facing app display name.
+    pub display_name: Option<String>,
+    /// Optional host-facing icon path for desktop shell integration.
+    pub icon_path: Option<PathBuf>,
 }
 
 /// Runtime-facing intent declaration used by Host request checks.
@@ -250,6 +264,16 @@ impl From<&TargetAppNotificationCategoryDeclaration> for RuntimeAppNotificationC
     }
 }
 
+impl From<&TargetAppIdentityDeclaration> for RuntimeAppIdentityDeclaration {
+    fn from(identity: &TargetAppIdentityDeclaration) -> Self {
+        Self {
+            identifier: identity.identifier.clone(),
+            display_name: identity.display_name.clone(),
+            icon_path: identity.icon_path.clone(),
+        }
+    }
+}
+
 impl From<&TargetAppDeclaration> for RuntimeAppDeclaration {
     fn from(declaration: &TargetAppDeclaration) -> Self {
         // permissions
@@ -262,6 +286,7 @@ impl From<&TargetAppDeclaration> for RuntimeAppDeclaration {
 
         // runtime app declaration
         Self {
+            identity: (&declaration.identity).into(),
             permissions,
             intents: RuntimeAppIntentDeclaration {
                 query_schemes: declaration.intents.query_schemes.iter().cloned().collect(),

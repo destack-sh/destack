@@ -54,6 +54,11 @@ We still read `tsconfig.json` and `package.json` where needed for compatibility,
             "output": "native",
             "platform": "ios",
             "app": {
+                "identity": {
+                    "identifier": "com.example.destackdemo",
+                    "displayName": "Destack Demo",
+                    "iconPath": "assets/icon.png"
+                },
                 "permissions": {
                     "camera": { "usage": "Scan receipts" },
                     "microphone": { "usage": "Record voice notes" },
@@ -97,6 +102,11 @@ We still read `tsconfig.json` and `package.json` where needed for compatibility,
             "output": "native",
             "platform": "macos",
             "app": {
+                "identity": {
+                    "identifier": "com.example.destackdemo",
+                    "displayName": "Destack Demo",
+                    "iconPath": "assets/icon.png"
+                },
                 "intents": {
                     "querySchemes": ["https", "mailto"],
                     "verifiedDomains": ["app.example.com"],
@@ -136,6 +146,11 @@ We still read `tsconfig.json` and `package.json` where needed for compatibility,
             "output": "native",
             "platform": "android",
             "app": {
+                "identity": {
+                    "identifier": "com.example.destackdemo",
+                    "displayName": "Destack Demo",
+                    "iconPath": "assets/icon.png"
+                },
                 "permissions": {
                     "camera": { "usage": "Capture one receipt image" },
                     "notifications": { "usage": "Send delivery alerts" }
