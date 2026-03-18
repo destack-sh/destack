@@ -662,21 +662,77 @@ impl Compiler {
                 }
 
                 dir::Expression::Type { value } => {
-                    // read the committed dir artifact for the active profile
-                    let dir = self
-                        .best_unbind_dir(module.id, context.profile)
-                        .unwrap_or_else(|| panic!("missing committed dir artifact for module {:?}", module.id));
-
-                    let ast_expression_id = self.unbind_type_expression(
-                        module,
-                        *value,
-                        tree,
-                        symbols,
-                        &dir.types,
-                        ast_tree,
-                        ast_strings,
-                        context,
-                    );
+                    // read the most advanced published type table for the active profile
+                    let ast_expression_id =
+                        if let Some(dir) = self.program.artifacts.dir_patched(module.id, context.profile) {
+                            self.unbind_type_expression(
+                                module,
+                                *value,
+                                tree,
+                                symbols,
+                                &dir.types,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            )
+                        } else if let Some(dir) =
+                            self.program.artifacts.dir_elaborated(module.id, context.profile)
+                        {
+                            self.unbind_type_expression(
+                                module,
+                                *value,
+                                tree,
+                                symbols,
+                                &dir.types,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            )
+                        } else if let Some(dir) =
+                            self.program.artifacts.dir_analyzed(module.id, context.profile)
+                        {
+                            self.unbind_type_expression(
+                                module,
+                                *value,
+                                tree,
+                                symbols,
+                                &dir.types,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            )
+                        } else if let Some(dir) =
+                            self.program.artifacts.dir_interface(module.id, context.profile)
+                        {
+                            self.unbind_type_expression(
+                                module,
+                                *value,
+                                tree,
+                                symbols,
+                                &dir.types,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            )
+                        } else if let Some(dir) =
+                            self.program.artifacts.dir_declared(module.id, context.profile)
+                        {
+                            self.unbind_type_expression(
+                                module,
+                                *value,
+                                tree,
+                                symbols,
+                                &dir.types,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            )
+                        } else {
+                            panic!(
+                                "missing committed dir artifact for module {:?}",
+                                module.id
+                            );
+                        };
 
                     // record the node mapping
                     context.map(expression_id.into_any(), ast_expression_id.into_any());

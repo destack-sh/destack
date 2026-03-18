@@ -1,11 +1,10 @@
 use destack_dir::SymbolDecorators;
-use destack_source::{File, FileType, ModuleId, TargetId, Uri};
-use destack_workspace::{CompilerOptions, DiagnosticPolicy, Module, Program, TsCompilerOptions};
-
-use std::sync::Arc;
+use destack_source::{ModuleId, TargetId};
+use destack_workspace::{
+    CompilerOptions, DiagnosticPolicy, Module, Program, TsCompilerOptions,
+};
 
 use crate::{AnalyzeError, Compiler};
-use destack_workspace::Destack;
 
 /// "TS++" semantic options used during analysis.
 #[derive(Debug, Clone, Copy)]
@@ -517,26 +516,8 @@ impl Compiler {
             return None;
         }
 
-        // parse destack.json content
-        let content = self.program.fs.read_to_string(&destack_config_path).ok()?;
-        let name = destack_config_path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
-        let uri = Uri::from_path(&destack_config_path);
-        let file_id = self.program.files.next_id();
-        let file = File::from_text_as_jsonc(
-            file_id,
-            name,
-            uri,
-            Some(destack_config_path),
-            FileType::Json,
-            content,
-        )
-        .ok()?;
-        let file = Arc::new(file);
-        let config = Destack::parse(&file).ok()?;
+        // load destack.json through the tracked workspace file path
+        let config = self.session.load_destack_for_path(&destack_config_path)?;
 
         // cache the config on the package for future lookups
         let package = self.program.packages.get(module.package_id);

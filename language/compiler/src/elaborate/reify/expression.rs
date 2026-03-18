@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_dir as dir;
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{Module, ProfileId};
 use dir::{Expression, IfCondition, IfKind, LocalNodeId, MatchKind, TypeBinaryOperator};
 
 use crate::elaborate::common::{ElaborateContext, ElaborateState};
@@ -18,7 +18,9 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        dir: &mut ModuleDir,
+        tree: &mut dir::NodeTree,
+        symbols: &mut dir::SymbolTable,
+        types: &mut dir::TypeTable,
     ) -> ElaborateResult<()> {
         // skip non-code modules
         if !self.is_code_module(module.id) {
@@ -26,7 +28,6 @@ impl Compiler {
         }
 
         let ctx = ElaborateContext::new(module.id, module, profile);
-        let (tree, symbols, types) = dir.tree_symbols_types_mut();
         let mut state = ElaborateState::new(ctx, tree, symbols, types);
 
         // collect member expressions used as call or new callees

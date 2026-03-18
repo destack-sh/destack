@@ -6,7 +6,8 @@ use destack_core::StringPool;
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
 use destack_workspace::{
-    CheckFailurePolicy, Module, ModuleDir, ProfileId, Target, TargetId, WellKnownIntrinsics,
+    CheckFailurePolicy, DirAnalyzed, DirDeclared, Module, ProfileId, Target, TargetId,
+    WellKnownIntrinsics,
 };
 use indexmap::IndexSet;
 use {destack_dir as dir, destack_mir as mir};
@@ -242,7 +243,7 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn artifact_dir_data_if_present(
         &self,
         module_id: ModuleId,
-    ) -> Option<Arc<ModuleDir>> {
+    ) -> Option<Arc<DirDeclared>> {
         self.compiler
             .program
             .artifacts
@@ -253,13 +254,10 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn require_analyzed_dir_data(
         &self,
         module_id: ModuleId,
-    ) -> LowerResult<Arc<ModuleDir>> {
-        let snapshot =
-            self.compiler
-                .require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
-                    module_id,
-                    self.profile,
-                ));
+    ) -> LowerResult<Arc<DirAnalyzed>> {
+        let snapshot = self
+            .compiler
+            .require_artifact_dir_analyzed(module_id, self.profile);
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
             Err(BuildRequirementError::NotReady { requirement }) => {

@@ -124,19 +124,21 @@ impl Compiler {
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
         let target_id = TargetId::new(module.package_id, target_name);
-        let mir = self
+        let dir_node_id = if let Some(mir) = self
             .program
             .artifacts
             .mir_optimized(module_id, profile, &target_id)
-            .or_else(|| {
-                self.program
-                    .artifacts
-                    .mir_base(module_id, profile, &target_id)
-            })
-            .expect("code generation requires MIR artifact");
-        let mir_tree = &mir.tree;
-
-        let dir_node_id = mir_tree.get_source(mir_node.id)?;
+        {
+            mir.tree.get_source(mir_node.id)?
+        } else if let Some(mir) = self
+            .program
+            .artifacts
+            .mir_base(module_id, profile, &target_id)
+        {
+            mir.tree.get_source(mir_node.id)?
+        } else {
+            panic!("code generation requires MIR artifact");
+        };
         let dir = self.program.artifacts.dir_patched(module_id, profile)?;
         let dir_node_type = dir.tree.get_node_type(dir_node_id);
 

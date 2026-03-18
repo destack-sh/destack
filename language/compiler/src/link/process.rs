@@ -21,7 +21,7 @@ impl Compiler {
         package: PackageId,
         target: &TargetId,
     ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::Output(OutputKey::package(
+        self.require_build_key(BuildKey::output(OutputKey::package(
             package,
             target.clone(),
         )))

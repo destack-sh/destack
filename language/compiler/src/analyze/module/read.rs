@@ -1,16 +1,20 @@
+use destack_dir::{NodeTree, SymbolTable, TypeTable};
 use std::sync::Arc;
 
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactKey, ModuleDir, ProfileId};
+use destack_workspace::{
+    ArtifactKey, DirAnalyzed, DirBase, DirDeclared, DirElaborated, DirInterface, DirPatched,
+    DirPrepared, DirResolved, Module, ProfileId,
+};
 
 use crate::{
-    BuildKey, BuildRequirement, BuildRequirementError, BuildRequirementSet, Compiler,
-    DiagnosticAnchor,
+    BuildDependency, BuildKey, BuildRequirement, BuildRequirementError, BuildRequirementSet,
+    Compiler, DiagnosticAnchor,
 };
 
 impl Compiler {
     /// Read one committed base DIR artifact when available.
-    pub(crate) fn artifact_dir_base(&self, module_id: ModuleId) -> Option<Arc<ModuleDir>> {
+    pub(crate) fn artifact_dir_base(&self, module_id: ModuleId) -> Option<Arc<DirBase>> {
         self.program.artifacts.dir_base(module_id)
     }
 
@@ -23,48 +27,207 @@ impl Compiler {
             | ArtifactKey::DirAnalyzed { module, .. } => DiagnosticAnchor::from(*module),
             _ => DiagnosticAnchor::Global,
         };
-        let dependency = self.build_dependency_for_key(&BuildKey::Artifact(key.clone()));
-        let requirement = BuildRequirement::new(anchor, BuildKey::Artifact(key), dependency);
+        let build_key = BuildKey::artifact(key.clone());
+        let dependency = self.build_dependency_for_key(&build_key);
+        let requirement = match dependency {
+            BuildDependency::Artifact(dependency) => {
+                BuildRequirement::artifact(anchor, key, dependency)
+            }
+            BuildDependency::Output(_) => unreachable!(),
+        };
 
         BuildRequirementSet::one(requirement)
     }
 
-    /// Read one committed DIR artifact for one exact key.
-    pub(crate) fn require_artifact_dir(
+    /// Provide one committed remote DIR view for one exact artifact family.
+    pub(crate) fn with_remote_dir_for_artifact<R>(
         &self,
-        key: ArtifactKey,
-    ) -> Result<Arc<ModuleDir>, BuildRequirementError> {
-        let Some(module_id) = key.module_id() else {
-            return Err(BuildRequirementError::Failed {
-                requirement: self.missing_artifact_requirement(key),
-            });
-        };
+        module_id: ModuleId,
+        profile: ProfileId,
+        artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
+        handle: impl FnOnce(&Module, &NodeTree, &SymbolTable, &TypeTable) -> R,
+    ) -> Result<R, BuildRequirementError> {
+        let remote_module = self.program.modules.get(module_id);
+        let remote_module = remote_module.as_ref();
+        let key = artifact_key(module_id, profile);
 
-        let Some(profile) = key.profile_id() else {
-            return Err(BuildRequirementError::Failed {
-                requirement: self.missing_artifact_requirement(key),
-            });
-        };
-
-        match &key {
-            ArtifactKey::DirResolved { .. } => self.require_dir_resolved(module_id, profile)?,
-            ArtifactKey::DirDeclared { .. } => self.require_dir_declared(module_id, profile)?,
-            ArtifactKey::DirInterface { .. } => self.require_dir_interface(module_id, profile)?,
-            ArtifactKey::DirAnalyzed { .. } => self.require_dir_analyzed(module_id, profile)?,
-            ArtifactKey::DirElaborated { .. } => self.require_dir_elaborated(module_id, profile)?,
-            ArtifactKey::DirPatched { .. } => self.require_dir_patched(module_id, profile)?,
-            ArtifactKey::DirPrepared { .. } => self.require_dir_prepared(module_id, profile)?,
-            ArtifactKey::DirBase { .. } => {}
-            _ => {
-                return Err(BuildRequirementError::Failed {
-                    requirement: self.missing_artifact_requirement(key),
-                });
+        match key {
+            ArtifactKey::DirBase { module } => {
+                let snapshot = self.require_artifact_dir_base(module)?;
+                Ok(handle(
+                    &remote_module,
+                    &snapshot.tree,
+                    &snapshot.symbols,
+                    &snapshot.types,
+                ))
             }
-        }
-
-        let Some(dir) = self.program.artifacts.dir(&key) else {
-            return Err(BuildRequirementError::Failed {
+            ArtifactKey::DirPrepared { module, profile } => {
+                let snapshot = self.require_artifact_dir_prepared(module, profile)?;
+                Ok(handle(
+                    &remote_module,
+                    &snapshot.tree,
+                    &snapshot.symbols,
+                    &snapshot.types,
+                ))
+            }
+            ArtifactKey::DirResolved { module, profile } => {
+                let snapshot = self.require_artifact_dir_resolved(module, profile)?;
+                Ok(handle(
+                    &remote_module,
+                    &snapshot.tree,
+                    &snapshot.symbols,
+                    &snapshot.types,
+                ))
+            }
+            ArtifactKey::DirDeclared { module, profile } => {
+                let snapshot = self.require_artifact_dir_declared(module, profile)?;
+                Ok(handle(
+                    &remote_module,
+                    &snapshot.tree,
+                    &snapshot.symbols,
+                    &snapshot.types,
+                ))
+            }
+            ArtifactKey::DirInterface { module, profile } => {
+                let snapshot = self.require_artifact_dir_interface(module, profile)?;
+                Ok(handle(
+                    &remote_module,
+                    &snapshot.tree,
+                    &snapshot.symbols,
+                    &snapshot.types,
+                ))
+            }
+            ArtifactKey::DirAnalyzed { module, profile } => {
+                let snapshot = self.require_artifact_dir_analyzed(module, profile)?;
+                Ok(handle(
+                    &remote_module,
+                    &snapshot.tree,
+                    &snapshot.symbols,
+                    &snapshot.types,
+                ))
+            }
+            ArtifactKey::DirElaborated { module, profile } => {
+                let snapshot = self.require_artifact_dir_elaborated(module, profile)?;
+                Ok(handle(
+                    &remote_module,
+                    &snapshot.tree,
+                    &snapshot.symbols,
+                    &snapshot.types,
+                ))
+            }
+            ArtifactKey::DirPatched { module, profile } => {
+                let snapshot = self.require_artifact_dir_patched(module, profile)?;
+                Ok(handle(
+                    &remote_module,
+                    &snapshot.tree,
+                    &snapshot.symbols,
+                    &snapshot.types,
+                ))
+            }
+            _ => Err(BuildRequirementError::Failed {
                 requirement: self.missing_artifact_requirement(key),
+            }),
+        }
+    }
+
+    /// Read one committed prepared DIR artifact.
+    pub(crate) fn require_artifact_dir_prepared(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirPrepared>, BuildRequirementError> {
+        self.require_dir_prepared(module_id, profile)?;
+
+        let Some(dir) = self.program.artifacts.dir_prepared(module_id, profile) else {
+            return Err(BuildRequirementError::Failed {
+                requirement: self
+                    .missing_artifact_requirement(ArtifactKey::dir_prepared(module_id, profile)),
+            });
+        };
+
+        Ok(dir)
+    }
+
+    /// Read one committed base DIR artifact.
+    pub(crate) fn require_artifact_dir_base(
+        &self,
+        module_id: ModuleId,
+    ) -> Result<Arc<DirBase>, BuildRequirementError> {
+        let Some(dir) = self.artifact_dir_base(module_id) else {
+            return Err(BuildRequirementError::Failed {
+                requirement: self.missing_artifact_requirement(ArtifactKey::dir_base(module_id)),
+            });
+        };
+
+        Ok(dir)
+    }
+
+    /// Read one committed resolved DIR artifact.
+    pub(crate) fn require_artifact_dir_resolved(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirResolved>, BuildRequirementError> {
+        self.require_dir_resolved(module_id, profile)?;
+
+        let Some(dir) = self.program.artifacts.dir_resolved(module_id, profile) else {
+            return Err(BuildRequirementError::Failed {
+                requirement: self
+                    .missing_artifact_requirement(ArtifactKey::dir_resolved(module_id, profile)),
+            });
+        };
+
+        Ok(dir)
+    }
+
+    /// Read one committed declared DIR artifact.
+    pub(crate) fn require_artifact_dir_declared(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirDeclared>, BuildRequirementError> {
+        self.require_dir_declared(module_id, profile)?;
+
+        let Some(dir) = self.program.artifacts.dir_declared(module_id, profile) else {
+            return Err(BuildRequirementError::Failed {
+                requirement: self
+                    .missing_artifact_requirement(ArtifactKey::dir_declared(module_id, profile)),
+            });
+        };
+
+        Ok(dir)
+    }
+
+    /// Read one committed interface DIR artifact.
+    pub(crate) fn require_artifact_dir_interface(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirInterface>, BuildRequirementError> {
+        self.require_dir_interface(module_id, profile)?;
+
+        let Some(dir) = self.program.artifacts.dir_interface(module_id, profile) else {
+            return Err(BuildRequirementError::Failed {
+                requirement: self
+                    .missing_artifact_requirement(ArtifactKey::dir_interface(module_id, profile)),
+            });
+        };
+
+        Ok(dir)
+    }
+
+    /// Read one committed analyzed DIR artifact.
+    pub(crate) fn require_artifact_dir_analyzed(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirAnalyzed>, BuildRequirementError> {
+        self.require_dir_analyzed(module_id, profile)?;
+
+        let Some(dir) = self.program.artifacts.dir_analyzed(module_id, profile) else {
+            return Err(BuildRequirementError::Failed {
+                requirement: self
+                    .missing_artifact_requirement(ArtifactKey::dir_analyzed(module_id, profile)),
             });
         };
 
@@ -76,30 +239,31 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-    ) -> Result<Arc<ModuleDir>, BuildRequirementError> {
+    ) -> Result<Arc<DirElaborated>, BuildRequirementError> {
         self.require_dir_elaborated(module_id, profile)?;
 
         let Some(dir) = self.program.artifacts.dir_elaborated(module_id, profile) else {
             return Err(BuildRequirementError::Failed {
-                requirement: self.missing_artifact_requirement(ArtifactKey::DirElaborated {
-                    module: module_id,
-                    profile,
-                }),
+                requirement: self
+                    .missing_artifact_requirement(ArtifactKey::dir_elaborated(module_id, profile)),
             });
         };
 
         Ok(dir)
     }
 
-    /// Read one committed base DIR artifact.
-    pub(crate) fn require_artifact_dir_base(
+    /// Read one committed patched DIR artifact.
+    pub(crate) fn require_artifact_dir_patched(
         &self,
         module_id: ModuleId,
-    ) -> Result<Arc<ModuleDir>, BuildRequirementError> {
-        let Some(dir) = self.artifact_dir_base(module_id) else {
+        profile: ProfileId,
+    ) -> Result<Arc<DirPatched>, BuildRequirementError> {
+        self.require_dir_patched(module_id, profile)?;
+
+        let Some(dir) = self.program.artifacts.dir_patched(module_id, profile) else {
             return Err(BuildRequirementError::Failed {
                 requirement: self
-                    .missing_artifact_requirement(ArtifactKey::DirBase { module: module_id }),
+                    .missing_artifact_requirement(ArtifactKey::dir_patched(module_id, profile)),
             });
         };
 
@@ -119,7 +283,6 @@ impl Compiler {
             return Ok(());
         }
 
-        let key = artifact_key(target_module_id, profile);
-        self.require_artifact_dir(key).map(|_| ())
+        self.with_remote_dir_for_artifact(target_module_id, profile, artifact_key, |_, _, _, _| ())
     }
 }

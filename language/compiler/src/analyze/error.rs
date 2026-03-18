@@ -1,6 +1,6 @@
 use crate::{
     BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
-    ResolveError, TaskError, TaskSkipReason,
+    ResolveError, TaskError,
 };
 use destack_compiler_macros::DefineError;
 use destack_core::StringId;
@@ -27,7 +27,7 @@ pub enum AnalyzeError {
 
     /// Task was skipped due to stale versions.
     #[error(code = "EA002", message = "task skipped")]
-    Skipped { reason: TaskSkipReason },
+    Skipped,
 
     // -------------------------------------------------------------------------
     // 1xx: Type errors
@@ -926,7 +926,7 @@ impl From<ResolveError> for AnalyzeError {
             ResolveError::UnsatisfiedRequirement { requirement } => {
                 Self::UnsatisfiedRequirement { requirement }
             }
-            ResolveError::Skipped { reason } => Self::Skipped { reason },
+            ResolveError::Skipped => Self::Skipped,
             error => Self::FailedResolve {
                 message: error.to_string(),
                 error: Box::new(error),

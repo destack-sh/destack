@@ -1547,7 +1547,7 @@ impl CallSite {
 mod tests {
     use destack_mir::parse::ParseOptions;
     use destack_source::{FileId, ModuleId, ModuleVersion, PackageId};
-    use destack_workspace::{ModuleMir, TargetId};
+    use destack_workspace::{MirBase, TargetId};
 
     use crate::optimize::common::tests::TestProgram;
     use crate::optimize::{
@@ -1567,7 +1567,7 @@ mod tests {
         let pool = destack_core::StringPool::new();
         pool.copy_from_immutable(&strings);
 
-        let mut module_mir = ModuleMir::new(module_id, ModuleVersion::INITIAL, target_id.clone());
+        let mut module_mir = MirBase::new(module_id, ModuleVersion::INITIAL, target_id.clone());
         module_mir.tree = tree;
         module_mir.strings = pool;
 

@@ -1,6 +1,6 @@
 use crate::{
     BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, LowerError,
-    TaskError, TaskSkipReason,
+    TaskError,
 };
 use destack_compiler_macros::DefineError;
 use destack_dir::AnchoredGlobalNodeId;
@@ -24,7 +24,7 @@ pub enum ExecuteError {
 
     /// Task was skipped due to stale versions.
     #[error(code = "EX002", message = "task skipped")]
-    Skipped { reason: TaskSkipReason },
+    Skipped,
 
     // -------------------------------------------------------------------------
     // 1xx: Comptime execution errors

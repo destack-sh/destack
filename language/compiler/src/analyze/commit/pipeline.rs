@@ -1,21 +1,20 @@
 use crate::analyze::common::CommitContext;
 use crate::{AnalyzeResult, Compiler};
-use destack_dir::InferTable;
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_dir::{InferTable, NodeTree, SymbolTable, TypeTable};
+use destack_workspace::{Module, ProfileId};
 
 impl Compiler {
     /// Commit solved infer table outputs for one module after solve convergence.
     pub(super) fn commit_solved_infer_table(
         &self,
-        dir: &mut ModuleDir,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
         infer: &mut InferTable,
         module: &Module,
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
         // commit solved infer state in one deterministic pass
-        let (tree, symbols, types) = dir.tree_symbols_types_mut();
-        let tree = &*tree;
-        let symbols = &*symbols;
         let options = self.analyze_context_options_for_module(module.id);
         let mut ctx = CommitContext::new(module, profile, &options, tree, symbols, types);
 

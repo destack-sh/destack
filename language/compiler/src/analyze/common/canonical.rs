@@ -395,12 +395,15 @@ impl Compiler {
             return self.merged_type_symbol_in_table(view.module.id, view.symbols, symbol);
         }
 
-        let key = artifact_key(symbol.module_id, view.profile);
-        let Ok(owner_dir) = self.require_artifact_dir(key) else {
-            return symbol;
-        };
-
-        self.merged_type_symbol_in_table(symbol.module_id, &owner_dir.symbols, symbol)
+        self.with_module_symbols_or_local_for_artifact(
+            view.module,
+            view.profile,
+            symbol.module_id,
+            view.symbols,
+            artifact_key,
+            |_, symbols| self.merged_type_symbol_in_table(symbol.module_id, symbols, symbol),
+        )
+        .unwrap_or(symbol)
     }
 
     /// Normalize well-known type references into structural types when possible.

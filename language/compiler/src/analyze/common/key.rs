@@ -143,10 +143,7 @@ impl Compiler {
             }
 
             let dir = self
-                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                    symbol.module_id,
-                    profile,
-                ))
+                .require_artifact_dir_declared(symbol.module_id, profile)
                 .ok()?;
             dir.symbols.get_symbol(symbol.local_id).key
         };
@@ -306,10 +303,7 @@ impl Compiler {
                 )
                 .ok()?;
                 let snapshot = self
-                    .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                        symbol.module_id,
-                        profile,
-                    ))
+                    .require_artifact_dir_declared(symbol.module_id, profile)
                     .ok()?;
                 is_unique_symbol(&snapshot.symbols, &snapshot.types, &snapshot.tree)
             };

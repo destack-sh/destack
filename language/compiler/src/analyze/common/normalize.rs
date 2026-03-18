@@ -351,6 +351,7 @@ impl Compiler {
         let ty = ctx.types.get_type(type_id).clone();
 
         // normalize based on structural shape
+        let mut should_cache = relation_mode.is_cacheable();
         let normalized_id = match ty {
             Type::Union { elements } => self.normalize_union_type(
                 &mut ctx.reborrow(),
@@ -841,6 +842,9 @@ impl Compiler {
                         visited,
                     )
                 } else {
+                    // keep unresolved import normalization out of the cache:
+                    // the symbolic import may become concrete once remote artifacts arrive
+                    should_cache = false;
                     type_id
                 }
             }
@@ -1086,7 +1090,7 @@ impl Compiler {
         visited.pop();
         let dependencies = ctx.types.pop_normalization_dependency_scope();
         // cache the normalized result for reuse
-        if relation_mode.is_cacheable() {
+        if should_cache {
             let dependency_versions = ctx.types.collect_dependency_versions(dependencies);
             ctx.types.set_normalized_type(
                 mode,
@@ -1401,9 +1405,7 @@ impl Compiler {
                         self.error(error);
                     }
                 } else {
-                    let dir = self.require_artifact_dir(
-                        destack_workspace::ArtifactKey::dir_declared(symbol.module_id, ctx.profile),
-                    );
+                    let dir = self.require_artifact_dir_declared(symbol.module_id, ctx.profile);
                     match dir {
                         Ok(dir) => {
                             let module = self.program.modules.get(symbol.module_id);
@@ -1562,10 +1564,7 @@ impl Compiler {
                 &mut materialize_cache,
             )
         } else {
-            let dir = self.require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                symbol.module_id,
-                ctx.profile,
-            ));
+            let dir = self.require_artifact_dir_declared(symbol.module_id, ctx.profile);
             let Ok(dir) = dir else {
                 return instance_type_id;
             };

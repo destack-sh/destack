@@ -1,7 +1,7 @@
 use crate::{AnalyzeError, AnalyzeResult, BuildDependency, BuildKey, Compiler};
+use destack_dir::CaptureTable;
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
-use std::sync::Arc;
+use destack_workspace::{ArtifactKey, DirAnalyzed, DirDeclared, ProfileId};
 
 impl Compiler {
     /// Build declared DIR for one module.
@@ -16,17 +16,27 @@ impl Compiler {
         )?;
 
         // transient declared builder
-        let mut dir = self
+        let resolved = self
             .require_artifact_dir_resolved(module, profile)
             .map_err(AnalyzeError::from)?;
-        {
-            let dir = Arc::make_mut(&mut dir);
-            self.analyze_module_declare(dir, module, profile, module_version, profile_version)?;
-        }
+        let mut symbols = resolved.symbols.as_ref().clone();
+        let mut types = resolved.types.as_ref().clone();
+        let mut captures = CaptureTable::new();
+        self.analyze_module_declare(
+            resolved.as_ref(),
+            &mut symbols,
+            &mut types,
+            &mut captures,
+            module,
+            profile,
+            module_version,
+            profile_version,
+        )?;
 
-        self.program
-            .artifacts
-            .set_dir_declared(module, profile, dir);
+        self.program.artifacts.publish(
+            ArtifactKey::DirDeclared { module, profile },
+            DirDeclared::from_resolved_with(resolved.as_ref(), symbols, types, captures),
+        );
 
         Ok(())
     }
@@ -46,16 +56,20 @@ impl Compiler {
             self.analyze_module_interface(module, profile, module_version, profile_version)?;
 
         for (module_id, profile_id, dir) in entries {
-            let artifact_key = destack_workspace::ArtifactKey::DirInterface {
+            let artifact_key = ArtifactKey::DirInterface {
                 module: module_id,
                 profile: profile_id,
             };
-            let build_key = BuildKey::Artifact(artifact_key.clone());
+            let build_key = BuildKey::artifact(artifact_key.clone());
             let dependency = self.build_dependency_for_key(&build_key);
 
-            self.program
-                .artifacts
-                .set_dir_interface(module_id, profile_id, dir);
+            self.program.artifacts.publish(
+                ArtifactKey::DirInterface {
+                    module: module_id,
+                    profile: profile_id,
+                },
+                dir,
+            );
             if let BuildDependency::Artifact(dependency) = dependency {
                 self.program
                     .artifacts
@@ -78,33 +92,89 @@ impl Compiler {
         )?;
 
         // transient analyzed builder
-        let mut dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_interface(
-                module, profile,
-            ))
+        let interface = self
+            .require_artifact_dir_interface(module, profile)
             .map_err(AnalyzeError::from)?;
-        {
-            let dir = Arc::make_mut(&mut dir);
-            let mut infer_table =
-                self.analyze_module_infer(dir, module, profile, module_version, profile_version)?;
-            self.analyze_module_solve(
-                dir,
-                infer_table.as_mut(),
-                module,
-                profile,
-                module_version,
-                profile_version,
-            )?;
-            self.analyze_module_commit(
-                dir,
-                infer_table.as_mut(),
-                module,
-                profile,
-                module_version,
-                profile_version,
-            )?;
-            self.analyze_module_capture(dir, module, profile, module_version, profile_version)?;
-            self.analyze_module_validate(dir, module, profile, module_version, profile_version)?;
+        let declared = self
+            .require_artifact_dir_declared(module, profile)
+            .map_err(AnalyzeError::from)?;
+        let tree = interface.tree.clone();
+        let symbols = interface.symbols.clone();
+        let roots = interface.roots.clone();
+        let anchor_node = interface.anchor_node;
+        let default_symbol = declared.default_symbol;
+        let mut types = interface.types.as_ref().clone();
+        let mut captures = declared.captures.as_ref().clone();
+        let mut infer_table = self.analyze_module_infer(
+            tree.as_ref(),
+            symbols.as_ref(),
+            roots.as_ref(),
+            &mut types,
+            default_symbol,
+            anchor_node,
+            module,
+            profile,
+            module_version,
+            profile_version,
+        )?;
+        self.analyze_module_solve(
+            tree.as_ref(),
+            symbols.as_ref(),
+            &mut types,
+            infer_table.as_mut(),
+            module,
+            profile,
+            module_version,
+            profile_version,
+        )?;
+        self.analyze_module_commit(
+            tree.as_ref(),
+            symbols.as_ref(),
+            &mut types,
+            infer_table.as_mut(),
+            module,
+            profile,
+            module_version,
+            profile_version,
+        )?;
+        self.analyze_module_capture(
+            tree.as_ref(),
+            symbols.as_ref(),
+            &mut captures,
+            module,
+            profile,
+            module_version,
+            profile_version,
+        )?;
+        self.analyze_module_validate(
+            tree.as_ref(),
+            symbols.as_ref(),
+            &mut types,
+            anchor_node,
+            module,
+            profile,
+            module_version,
+            profile_version,
+        )?;
+
+        // publish the analyzed artifact from interface inputs plus local semantic tables
+        let payload = DirAnalyzed::from_interface_and_declared_with(
+            interface.as_ref(),
+            declared.as_ref(),
+            types,
+            captures,
+        );
+
+        let cache_handle = self.cache_handle_for_module(
+            module,
+            Some(profile),
+            None,
+            destack_source::CacheKind::DirAnalyzed,
+        );
+        if let Some(cache) = cache_handle.as_ref() {
+            if let Err(error) = cache.write_dir_analyzed(payload.clone()) {
+                tracing::debug!(?module, ?profile, ?error, "analyze.module.cache.write");
+            }
         }
 
         if self.is_code_module(module) {
@@ -113,7 +183,7 @@ impl Compiler {
 
         self.program
             .artifacts
-            .set_dir_analyzed(module, profile, dir);
+            .publish(ArtifactKey::DirAnalyzed { module, profile }, payload);
 
         Ok(())
     }

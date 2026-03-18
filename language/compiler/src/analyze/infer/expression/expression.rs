@@ -79,7 +79,8 @@ impl Compiler {
         expression: &Expression,
     ) {
         // cache strict mode once per expression
-        let is_strict = ctx.module.source_type().is_module() || ctx.options.always_strict;
+        let is_strict = self.program.modules.source_type(ctx.module.id).is_module()
+            || ctx.options.always_strict;
 
         match expression {
             Expression::Assign { left, .. } | Expression::AssignBinary { left, .. } => {
@@ -1301,8 +1302,8 @@ impl Compiler {
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // enforce strict mode delete restrictions on bindings
-        let enforce_strict_mode =
-            ctx.module.source_type().is_module() || state.options.always_strict;
+        let enforce_strict_mode = self.program.modules.source_type(ctx.module.id).is_module()
+            || state.options.always_strict;
         if enforce_strict_mode && matches!(ctx.module.source, ModuleSource::User) {
             let target_id = self.unwrap_parenthesized_expression(value, ctx.tree);
 
@@ -1424,7 +1425,7 @@ impl Compiler {
                     if state.options.no_implicit_this
                         && !matches!(ctx.module.source, ModuleSource::Builtin(_))
                     {
-                        let is_script = ctx.module.source_type().is_script();
+                        let is_script = self.program.modules.source_type(ctx.module.id).is_script();
                         let in_function = state.in_function.is_some();
                         if is_script || in_function {
                             self.error(AnalyzeError::ImplicitThis {
@@ -1436,7 +1437,7 @@ impl Compiler {
                     }
 
                     // default to undefined in modules, unknown in scripts
-                    if ctx.module.source_type().is_module() {
+                    if self.program.modules.source_type(ctx.module.id).is_module() {
                         let ty = Type::TypeLiteral {
                             value: TypeLiteral::Undefined,
                         };
@@ -4297,9 +4298,7 @@ impl Compiler {
         export_name: StringId,
     ) -> bool {
         let Some(exports) = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_interface(
-                module_id, profile,
-            ))
+            .require_artifact_dir_interface(module_id, profile)
             .ok()
             .map(|snapshot| snapshot.exported_symbols.clone())
         else {

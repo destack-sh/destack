@@ -8,17 +8,23 @@ use crate::{
 };
 use destack_dir::{
     Declaration, Declarator, Expression, FlowGraphBuilder, InferTable, IntType, LocalNodeId,
-    NodeTree, PrimitiveType, Type, TypeLiteral,
+    LocalNodeIdAny, LocalSymbolId, NodeTree, PrimitiveType, SymbolTable, Type, TypeLiteral,
+    TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{Module, ModuleDir, ModuleSource, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::HashSet;
 
 impl Compiler {
     /// Phase 3: Infer expression types.
     pub(crate) fn analyze_module_infer(
         &self,
-        dir: &mut ModuleDir,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        roots: &[LocalNodeId<Expression>],
+        types: &mut TypeTable,
+        default_symbol: LocalSymbolId,
+        anchor_node: LocalNodeIdAny,
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
@@ -34,7 +40,7 @@ impl Compiler {
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_INFER);
         // analyze data modules specially
         if !self.is_code_module(module_id) {
-            self.analyze_data_module_infer(dir, module_id)?;
+            self.analyze_data_module_infer(types, default_symbol, anchor_node, module_id)?;
             return Ok(None);
         }
 
@@ -45,16 +51,6 @@ impl Compiler {
 
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
-        let ModuleDir {
-            tree,
-            symbols,
-            roots,
-            types,
-            ..
-        } = dir;
-        let tree = tree.as_ref();
-        let symbols = symbols.as_ref();
-        let roots = roots.as_ref();
 
         if module.language_type.is_declaration() {
             let module_checks = self.module_check_options_for_module(module.id);
@@ -66,7 +62,6 @@ impl Compiler {
             }
 
             let options = self.analyze_context_options_for_module(module.id);
-            let types = Arc::make_mut(types);
             let mut ctx = TypeContext::new(&module, profile, &options, tree, symbols, types);
 
             // infer enum backing types when declaration validation is enabled
@@ -101,7 +96,7 @@ impl Compiler {
         // resolve builtins before resolving type-import operator dependencies
         self.require_language_environment(profile)
             .map_err(AnalyzeError::from)?;
-        self.require_type_import_interface_dependencies(&module, profile, tree)?;
+        self.require_type_import_dependencies_for_infer(&module, profile, tree)?;
 
         // establish infer dependency preconditions
         self.require_dir_interface(module_id, profile)?;
@@ -114,7 +109,6 @@ impl Compiler {
         // initialize infer session state
         let mut session = InferSession::new(profile, options);
         let (infer_table, context) = session.parts_mut();
-        let types = Arc::make_mut(types);
         let mut ctx = InferContext::new(
             &module,
             profile,
@@ -271,13 +265,13 @@ impl Compiler {
     /// it with the module's default export symbol.
     fn analyze_data_module_infer(
         &self,
-        dir: &mut ModuleDir,
+        types: &mut TypeTable,
+        default_symbol: LocalSymbolId,
+        source_id: LocalNodeIdAny,
         module_id: ModuleId,
     ) -> AnalyzeResult<()> {
         let module_ref = self.program.modules.get(module_id);
         let module = module_ref.as_ref();
-        let default_symbol = dir.default_symbol;
-        let source_id = dir.anchor_node;
         if module.loader.is_data() {
             let ast = match self.program.artifacts.ast(module_id) {
                 Some(ast) => ast,
@@ -287,7 +281,6 @@ impl Compiler {
                 Some(value) => value,
                 None => return Ok(()),
             };
-            let types = dir.types_mut();
 
             let inferred_type = json_value_to_type(value, source_id, types, &self.program.strings);
 
@@ -296,7 +289,6 @@ impl Compiler {
         }
         // otherwise text modules are always string
         else if module.loader.is_text() {
-            let types = dir.types_mut();
             let string_type = types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Primitive(PrimitiveType::String),
@@ -307,7 +299,6 @@ impl Compiler {
         }
         // otherwise binary modules are uint8[]
         else if module.loader.is_binary() {
-            let types = dir.types_mut();
             let element = types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)),

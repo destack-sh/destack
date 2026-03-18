@@ -46,7 +46,7 @@ impl Compiler {
             .require_artifact_dir_resolved(module.id, profile)
             .map_err(AnalyzeError::from)?;
         let node = node.into_global(module.id);
-        let target = match self.resolve_import_from_artifact(
+        let target = match self.resolve_import_from_resolved_artifact(
             module,
             dir.as_ref(),
             profile,

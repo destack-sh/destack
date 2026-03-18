@@ -1,14 +1,15 @@
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
-use destack_dir::InferTable;
+use destack_dir::{InferTable, NodeTree, SymbolTable, TypeTable};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleDir, ProfileId};
-
+use destack_workspace::ProfileId;
 impl Compiler {
     /// Phase 5: Commit solved infer table outputs and discharge obligations.
     pub(crate) fn analyze_module_commit(
         &self,
-        dir: &mut ModuleDir,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
         infer: Option<&mut InferTable>,
         module_id: ModuleId,
         profile: ProfileId,
@@ -45,6 +46,6 @@ impl Compiler {
             return Ok(());
         };
 
-        self.commit_solved_infer_table(dir, infer, &module, profile)
+        self.commit_solved_infer_table(tree, symbols, types, infer, &module, profile)
     }
 }

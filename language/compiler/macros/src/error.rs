@@ -314,37 +314,32 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
     let Some(skipped_variant) = skipped_variant else {
         return Err(Error::new(
             Span::call_site(),
-            "missing `Skipped { reason: TaskSkipReason }` variant",
+            "missing `Skipped` variant",
         ));
     };
-    if skipped_variant.fields.len() != 1 {
+    if !skipped_variant.fields.is_empty() {
         return Err(Error::new(
             skipped_variant.name.span(),
-            "`Skipped` must have a single `reason` field",
+            "`Skipped` must be a unit variant",
         ));
     }
-    if skipped_variant.fields[0].0 != "reason" {
-        return Err(Error::new(
-            skipped_variant.name.span(),
-            "`Skipped` must use `reason` as the field name",
-        ));
-    }
-    let reason_type = skipped_variant.fields[0].1.clone();
-    let reason_type_str = quote!(#reason_type).to_string();
-    if !reason_type_str.ends_with("TaskSkipReason") {
-        return Err(Error::new(
-            skipped_variant.name.span(),
-            "`Skipped` must use TaskSkipReason as the field type",
-        ));
-    }
+
+    let variant_pattern = |variant: &ErrorVariant| {
+        let name = &variant.name;
+        if variant.fields.is_empty() {
+            quote! { Self::#name }
+        } else {
+            quote! { Self::#name { .. } }
+        }
+    };
 
     // generate code match arms
     let code_arms: Vec<TokenStream2> = variants
         .iter()
         .map(|v| {
-            let name = &v.name;
             let code_str = v.code.value();
-            quote! { Self::#name { .. } => #code_str }
+            let pattern = variant_pattern(v);
+            quote! { #pattern => #code_str }
         })
         .collect();
 
@@ -352,10 +347,10 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
     let sub_code_arms: Vec<TokenStream2> = variants
         .iter()
         .map(|v| {
-            let name = &v.name;
             let code_str = v.code.value();
             let sub_code: u16 = code_str[2..].parse().unwrap_or(0);
-            quote! { Self::#name { .. } => #sub_code }
+            let pattern = variant_pattern(v);
+            quote! { #pattern => #sub_code }
         })
         .collect();
 
@@ -441,7 +436,8 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
             } else if v.fields.iter().any(|(n, _)| n == "module") {
                 quote! { Self::#name { module, .. } => DiagnosticAnchor::Module(*module) }
             } else {
-                quote! { Self::#name { .. } => DiagnosticAnchor::Global }
+                let pattern = variant_pattern(v);
+                quote! { #pattern => DiagnosticAnchor::Global }
             }
         })
         .collect();
@@ -464,13 +460,15 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
                 let format_expr = generate_format_expr(msg, &v.fields, v.code.span())
                     .unwrap_or_else(|e| e.to_compile_error());
                 if used_fields.is_empty() {
-                    quote! { Self::#name { .. } => #format_expr }
+                    let pattern = variant_pattern(v);
+                    quote! { #pattern => #format_expr }
                 } else {
                     quote! { Self::#name { #(#used_fields,)* .. } => #format_expr }
                 }
             } else {
                 let default_msg = v.name.to_string();
-                quote! { Self::#name { .. } => #default_msg.to_string() }
+                let pattern = variant_pattern(v);
+                quote! { #pattern => #default_msg.to_string() }
             }
         })
         .collect();
@@ -478,9 +476,9 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
     let directive_arms: Vec<TokenStream2> = variants
         .iter()
         .map(|v| {
-            let name = &v.name;
             let is_directive = v.directive;
-            quote! { Self::#name { .. } => #is_directive }
+            let pattern = variant_pattern(v);
+            quote! { #pattern => #is_directive }
         })
         .collect();
 
@@ -657,17 +655,14 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         }
 
         impl crate::TaskSkip for #enum_name {
-            fn skip_reason(&self) -> Option<crate::TaskSkipReason> {
-                match self {
-                    Self::Skipped { reason } => Some(*reason),
-                    _ => None,
-                }
+            fn is_skipped(&self) -> bool {
+                matches!(self, Self::Skipped)
             }
         }
 
         impl crate::TaskSkipError for #enum_name {
-            fn skipped(reason: crate::TaskSkipReason) -> Self {
-                Self::Skipped { reason }
+            fn skipped() -> Self {
+                Self::Skipped
             }
         }
 

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_core::{StringId, StringPool};
 use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, IfCondition, LocalNodeId};
 use destack_source::ModuleId;
-use destack_workspace::{ModuleDir, ProfileId, Program, WellKnownIntrinsics};
+use destack_workspace::{DirAnalyzed, DirDeclared, ProfileId, Program, WellKnownIntrinsics};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
@@ -194,7 +194,7 @@ impl<'a> FunctionLowerer<'a> {
     pub(crate) fn artifact_dir_data_if_present(
         &self,
         module_id: ModuleId,
-    ) -> Option<Arc<ModuleDir>> {
+    ) -> Option<Arc<DirDeclared>> {
         self.env
             .compiler
             .program
@@ -206,14 +206,11 @@ impl<'a> FunctionLowerer<'a> {
     pub(crate) fn require_analyzed_dir_data(
         &self,
         module_id: ModuleId,
-    ) -> LowerResult<Arc<ModuleDir>> {
-        let snapshot =
-            self.env
-                .compiler
-                .require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
-                    module_id,
-                    self.env.profile,
-                ));
+    ) -> LowerResult<Arc<DirAnalyzed>> {
+        let snapshot = self
+            .env
+            .compiler
+            .require_artifact_dir_analyzed(module_id, self.env.profile);
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),

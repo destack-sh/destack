@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use crate::{
     BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
-    TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
 use destack_source::{FileType, PackageId, Uri};
@@ -25,7 +24,7 @@ pub enum EmitError {
 
     /// Task was skipped due to stale versions.
     #[error(code = "EW002", message = "task skipped")]
-    Skipped { reason: TaskSkipReason },
+    Skipped,
 
     // -------------------------------------------------------------------------
     // 1xx: Target issues

@@ -5,7 +5,6 @@ use destack_workspace::{Program, TargetId};
 
 use crate::{
     BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
-    TaskSkipReason,
 };
 
 /// Errors during the optimize phase.
@@ -25,7 +24,7 @@ pub enum OptimizeError {
 
     /// Task was skipped due to stale versions.
     #[error(code = "EO002", message = "task skipped")]
-    Skipped { reason: TaskSkipReason },
+    Skipped,
 
     // -------------------------------------------------------------------------
     // 1xx: Target / setup

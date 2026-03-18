@@ -28,7 +28,6 @@ pub(crate) use common::{
 };
 pub use error::*;
 pub use infer::*;
-pub(crate) use interface::*;
 pub use options::*;
 pub(crate) use r#static::{StaticArgumentResolver, StaticSubstitutionEnvironment};
 pub use warning::*;

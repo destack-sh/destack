@@ -5,9 +5,7 @@ use destack_dir::{
     SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{
-    ModuleDir, ModuleGraph, ModuleGraphKey, ModuleGraphVersion, ModuleSource, ProfileId,
-};
+use destack_workspace::{ArtifactKey, DirInterface, ModuleGraph, ModuleSource, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::VecDeque;
@@ -77,8 +75,7 @@ impl Compiler {
         profile: ProfileId,
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
-        graph_version: ModuleGraphVersion,
-    ) -> AnalyzeResult<Vec<(ModuleId, ProfileId, Arc<ModuleDir>)>> {
+    ) -> AnalyzeResult<Vec<(ModuleId, ProfileId, Arc<DirInterface>)>> {
         // skip stale tasks
         self.ensure_module_profile_matches::<AnalyzeError>(
             module_id,
@@ -86,18 +83,15 @@ impl Compiler {
             profile,
             profile_version,
         )?;
-        self.ensure_module_graph_version_matches::<AnalyzeError>(profile, graph_version)?;
 
         // resolve the strict component ownership from the graph snapshot
-        let graph_key = ModuleGraphKey::new(profile);
-        let graph =
-            self.program
-                .index
-                .module_graphs
-                .get(&graph_key)
-                .ok_or(AnalyzeError::Internal {
-                    message: format!("missing interface graph snapshot for profile {profile:?}"),
-                })?;
+        let graph = self
+            .program
+            .artifacts
+            .module_graph(profile)
+            .ok_or(AnalyzeError::Internal {
+                message: format!("missing interface graph snapshot for profile {profile:?}"),
+            })?;
         let index = self.interface_component_graph_index(profile, &graph);
         let component_modules = index
             .component_modules_for_module(module_id)
@@ -166,33 +160,34 @@ impl Compiler {
         anchor_module_id: ModuleId,
         profile: ProfileId,
         component_modules: &[ModuleId],
-        component_dirs: &mut FxHashMap<ModuleId, Arc<ModuleDir>>,
+        component_dirs: &mut FxHashMap<ModuleId, Arc<DirInterface>>,
     ) -> AnalyzeResult<FxHashSet<ModuleId>> {
         let component_set: FxHashSet<_> = component_modules.iter().copied().collect();
-        let graph_key = ModuleGraphKey::new(profile);
-        let graph =
-            self.program
-                .index
-                .module_graphs
-                .get(&graph_key)
-                .ok_or(AnalyzeError::Internal {
-                    message: format!(
-                        "missing interface graph snapshot during component convergence: anchor={anchor_module_id:?}, profile={profile:?}"
-                    ),
-                })?;
+        let graph = self
+            .program
+            .artifacts
+            .module_graph(profile)
+            .ok_or(AnalyzeError::Internal {
+                message: format!(
+                    "missing interface graph snapshot during component convergence: anchor={anchor_module_id:?}, profile={profile:?}"
+                ),
+            })?;
         let dependents_by_module = self.interface_component_dependents(&graph, &component_set);
         let export_slot_count = component_modules
             .iter()
             .copied()
             .map(|module_id| {
+                let resolved = self
+                    .require_artifact_dir_resolved(module_id, profile)
+                    .map_err(AnalyzeError::from)?;
                 let dir = self
-                    .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                        module_id, profile,
-                    ))
+                    .require_artifact_dir_declared(module_id, profile)
                     .map_err(AnalyzeError::from)?;
 
+                let interface_dir =
+                    DirInterface::from_resolved_and_declared(resolved.as_ref(), dir.as_ref());
                 Ok::<usize, AnalyzeError>(
-                    self.interface_module_value_snapshot(module_id, profile, dir.as_ref())
+                    self.interface_module_value_snapshot(module_id, profile, &interface_dir)
                         .len(),
                 )
             })
@@ -203,14 +198,23 @@ impl Compiler {
         let mut pending = VecDeque::new();
         let mut pending_set = FxHashSet::default();
         for module_id in component_modules.iter().copied() {
-            let dir = self
-                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                    module_id, profile,
-                ))
+            let resolved = self
+                .require_artifact_dir_resolved(module_id, profile)
                 .map_err(AnalyzeError::from)?;
-            self.program
-                .artifacts
-                .set_dir_interface(module_id, profile, dir.clone());
+            let declared = self
+                .require_artifact_dir_declared(module_id, profile)
+                .map_err(AnalyzeError::from)?;
+            let dir = Arc::new(DirInterface::from_resolved_and_declared(
+                resolved.as_ref(),
+                declared.as_ref(),
+            ));
+            self.program.artifacts.publish(
+                ArtifactKey::DirInterface {
+                    module: module_id,
+                    profile,
+                },
+                dir.clone(),
+            );
             component_dirs.insert(module_id, dir);
             pending.push_back(module_id);
             pending_set.insert(module_id);
@@ -243,9 +247,13 @@ impl Compiler {
             )?;
             let next_snapshot =
                 self.interface_module_value_snapshot(component_module_id, profile, dir.as_ref());
-            self.program
-                .artifacts
-                .set_dir_interface(component_module_id, profile, dir.clone());
+            self.program.artifacts.publish(
+                ArtifactKey::DirInterface {
+                    module: component_module_id,
+                    profile,
+                },
+                dir.clone(),
+            );
             component_dirs.insert(component_module_id, dir);
 
             let changed = snapshots_by_module
@@ -306,7 +314,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &DirInterface,
     ) -> Vec<InterfaceValueSnapshot> {
         let mut snapshot = Vec::new();
         let module = self.program.modules.get(module_id);
@@ -384,7 +392,7 @@ impl Compiler {
         profile: ProfileId,
         component_modules: &[ModuleId],
         component_set: &FxHashSet<ModuleId>,
-        component_dirs: &mut FxHashMap<ModuleId, Arc<ModuleDir>>,
+        component_dirs: &mut FxHashMap<ModuleId, Arc<DirInterface>>,
     ) -> AnalyzeResult<()> {
         let cycle_candidates = self.collect_interface_cycle_candidates(
             profile,
@@ -420,7 +428,7 @@ impl Compiler {
                 });
             };
             let dir = Arc::make_mut(dir);
-            let types = dir.types_mut();
+            let types = Arc::make_mut(&mut dir.types);
 
             for candidate in cycle_candidates {
                 let error_node = candidate
@@ -447,7 +455,7 @@ impl Compiler {
         profile: ProfileId,
         component_modules: &[ModuleId],
         component_set: &FxHashSet<ModuleId>,
-        component_dirs: &FxHashMap<ModuleId, Arc<ModuleDir>>,
+        component_dirs: &FxHashMap<ModuleId, Arc<DirInterface>>,
     ) -> AnalyzeResult<Vec<InterfaceCycleCandidate>> {
         let mut cycle_candidates = Vec::new();
         let mut seen_exports = FxHashSet::default();
@@ -712,7 +720,7 @@ impl Compiler {
         &self,
         profile: ProfileId,
         component_modules: &[ModuleId],
-        component_dirs: &FxHashMap<ModuleId, Arc<ModuleDir>>,
+        component_dirs: &FxHashMap<ModuleId, Arc<DirInterface>>,
     ) -> AnalyzeResult<()> {
         let mut warned_symbols = FxHashSet::default();
 

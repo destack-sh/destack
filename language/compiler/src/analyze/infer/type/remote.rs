@@ -1,7 +1,6 @@
 use super::*;
 use crate::analyze::common::{InferContext, ModuleSymbolView, SymbolTypeView, TypeView};
 use destack_dir::{AnchoredGlobalNodeId, DependencyItem, NodeType, Symbol, SymbolSpace};
-
 /// Select the cross-module read domain used for remote value type resolution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RemoteValueTypeReadDomain {
@@ -144,25 +143,28 @@ impl Compiler {
                 )
                 .map_err(AnalyzeError::from)?;
 
-                let remote_module = self.program.modules.get(candidate_symbol.module_id);
-                let remote_module = remote_module.as_ref();
-                let key = read_boundary(candidate_symbol.module_id, ctx.profile);
-                let remote_snapshot = self.require_artifact_dir(key).map_err(AnalyzeError::from)?;
-
-                self.query_remote_symbol_value_type_from_artifact(
+                self.with_remote_dir_for_artifact(
+                    candidate_symbol.module_id,
                     ctx.profile,
-                    node_id,
-                    error_node,
-                    candidate_symbol,
-                    read_domain,
-                    RemoteModuleSnapshot {
-                        remote_module: &remote_module,
-                        remote_tree: &remote_snapshot.tree,
-                        remote_symbols: &remote_snapshot.symbols,
-                        remote_types: &remote_snapshot.types,
+                    read_boundary,
+                    |remote_module, remote_tree, remote_symbols, remote_types| {
+                        self.query_remote_symbol_value_type_from_artifact(
+                            ctx.profile,
+                            node_id,
+                            error_node,
+                            candidate_symbol,
+                            read_domain,
+                            RemoteModuleSnapshot {
+                                remote_module,
+                                remote_tree,
+                                remote_symbols,
+                                remote_types,
+                            },
+                            ctx.types,
+                        )
                     },
-                    ctx.types,
-                )?
+                )
+                .map_err(AnalyzeError::from)??
             };
             if let Some(imported_type_id) = lookup.imported_type_id {
                 return Ok(imported_type_id);
@@ -494,10 +496,7 @@ impl Compiler {
         view: ModuleSymbolView<'_>,
         target_symbol: GlobalSymbolId,
     ) -> bool {
-        let Ok(dir) = self.require_artifact_dir(destack_workspace::ArtifactKey::dir_interface(
-            view.module.id,
-            view.profile,
-        )) else {
+        let Ok(dir) = self.require_artifact_dir_interface(view.module.id, view.profile) else {
             return false;
         };
         let exported_symbols = &dir.exported_symbols;

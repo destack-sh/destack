@@ -1,6 +1,5 @@
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
-use std::sync::Arc;
+use destack_workspace::{ArtifactKey, DirElaborated, ProfileId};
 
 use crate::timing::tags;
 use crate::{
@@ -36,7 +35,7 @@ impl Compiler {
             ResolveError::UnsatisfiedRequirement { requirement } => {
                 ElaborateError::UnsatisfiedRequirement { requirement }
             }
-            ResolveError::Skipped { reason } => ElaborateError::Skipped { reason },
+            ResolveError::Skipped => ElaborateError::Skipped,
             _ => ElaborateError::UnsupportedConstruct { node },
         }
     }
@@ -52,7 +51,7 @@ impl Compiler {
             AnalyzeError::UnsatisfiedRequirement { requirement } => {
                 ElaborateError::UnsatisfiedRequirement { requirement }
             }
-            AnalyzeError::Skipped { reason } => ElaborateError::Skipped { reason },
+            AnalyzeError::Skipped => ElaborateError::Skipped,
             _ => ElaborateError::UnsupportedConstruct { node },
         }
     }
@@ -71,22 +70,20 @@ impl Compiler {
             profile,
             profile_version,
         )?;
-        let mut dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
-                module, profile,
-            ))
+        let analyzed = self
+            .require_artifact_dir_analyzed(module, profile)
             .map_err(|error| self.elaborate_error_from_requirement(error))?;
-        {
-            let module = self.program.modules.get(module);
-            let module = module.as_ref();
-            let dir = Arc::make_mut(&mut dir);
+        let module_ref = self.program.modules.get(module);
+        let module_ref = module_ref.as_ref();
+        let mut tree = analyzed.tree.as_ref().clone();
+        let mut symbols = analyzed.symbols.as_ref().clone();
+        let mut types = analyzed.types.as_ref().clone();
 
-            let _timing = self.timing_scope(tags::ELABORATE_MODULE_TRANSFORM);
-            self.elaborate_module_transform(&module, profile, dir)?;
+        let _timing = self.timing_scope(tags::ELABORATE_MODULE_TRANSFORM);
+        self.elaborate_module_transform(&module_ref, profile, &mut tree, &mut symbols, &mut types)?;
 
-            let _timing = self.timing_scope(tags::ELABORATE_MODULE_REIFY);
-            self.elaborate_module_reify(&module, profile, dir)?;
-        }
+        let _timing = self.timing_scope(tags::ELABORATE_MODULE_REIFY);
+        self.elaborate_module_reify(&module_ref, profile, &mut tree, &mut symbols, &mut types)?;
 
         let is_code_module = self.is_code_module(module);
 
@@ -94,9 +91,12 @@ impl Compiler {
             self.stats.record_elaborate();
         }
 
+        // publish the elaborated artifact with transformed runtime tables
+        let payload = DirElaborated::from_analyzed_with(analyzed.as_ref(), tree, symbols, types);
+
         self.program
             .artifacts
-            .set_dir_elaborated(module, profile, dir);
+            .publish(ArtifactKey::DirElaborated { module, profile }, payload);
 
         Ok(())
     }
@@ -107,8 +107,8 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
-        self.require_build_key(BuildKey::Artifact(
-            destack_workspace::ArtifactKey::DirElaborated { module, profile },
-        ))
+        self.require_build_key(BuildKey::artifact(ArtifactKey::dir_elaborated(
+            module, profile,
+        )))
     }
 }

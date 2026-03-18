@@ -34,7 +34,8 @@ impl Compiler {
         expression: &Expression,
     ) {
         // cache strict mode once per expression validation
-        let is_strict = ctx.module.source_type().is_module() || options.always_strict;
+        let is_strict =
+            self.program.modules.source_type(ctx.module.id).is_module() || options.always_strict;
 
         match expression {
             Expression::Labelled { label, .. } => {

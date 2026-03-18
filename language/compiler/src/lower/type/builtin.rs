@@ -4,7 +4,7 @@ use destack_dir::{
 };
 use destack_mir as mir;
 use destack_source::ModuleId;
-use destack_workspace::{ModuleDir, ProfileId};
+use destack_workspace::{DirAnalyzed, DirDeclared, ProfileId};
 use std::sync::Arc;
 
 use crate::{BuildRequirementError, Compiler, LowerError, LowerResult};
@@ -41,13 +41,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
     }
 
     /// Read one committed analyzed DIR snapshot for a module.
-    fn require_analyzed_dir_data(&self, module_id: ModuleId) -> LowerResult<Arc<ModuleDir>> {
-        let snapshot =
-            self.compiler
-                .require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
-                    module_id,
-                    self.profile,
-                ));
+    fn require_analyzed_dir_data(&self, module_id: ModuleId) -> LowerResult<Arc<DirAnalyzed>> {
+        let snapshot = self
+            .compiler
+            .require_artifact_dir_analyzed(module_id, self.profile);
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
@@ -61,7 +58,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
     }
 
     /// Read one committed declared DIR snapshot for a module when available.
-    fn artifact_dir_data_if_present(&self, module_id: ModuleId) -> Option<Arc<ModuleDir>> {
+    fn artifact_dir_data_if_present(&self, module_id: ModuleId) -> Option<Arc<DirDeclared>> {
         self.compiler
             .program
             .artifacts

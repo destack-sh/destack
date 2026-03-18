@@ -878,23 +878,126 @@ impl Compiler {
 
             let argument_module = self.program.modules.get(node.module_id);
             let argument_module = argument_module.as_ref();
-            let dir = self.best_unbind_dir(node.module_id, context.profile);
-            let dir = dir.unwrap_or_else(|| {
-                panic!(
-                    "missing dir artifact for static argument module {:?}",
-                    node.module_id
-                )
-            });
-            let argument_tree = &dir.tree;
-            let argument_symbols = &dir.symbols;
-            return self.unbind_argument(
-                &argument_module,
-                argument_id,
-                argument_tree,
-                argument_symbols,
-                ast_tree,
-                ast_strings,
-                context,
+            if let Some(dir) = self
+                .program
+                .artifacts
+                .dir_patched(node.module_id, context.profile)
+            {
+                return self.unbind_argument(
+                    &argument_module,
+                    argument_id,
+                    &dir.tree,
+                    &dir.symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+            }
+            if let Some(dir) = self
+                .program
+                .artifacts
+                .dir_elaborated(node.module_id, context.profile)
+            {
+                return self.unbind_argument(
+                    &argument_module,
+                    argument_id,
+                    &dir.tree,
+                    &dir.symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+            }
+            if let Some(dir) = self
+                .program
+                .artifacts
+                .dir_analyzed(node.module_id, context.profile)
+            {
+                return self.unbind_argument(
+                    &argument_module,
+                    argument_id,
+                    &dir.tree,
+                    &dir.symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+            }
+            if let Some(dir) = self
+                .program
+                .artifacts
+                .dir_interface(node.module_id, context.profile)
+            {
+                return self.unbind_argument(
+                    &argument_module,
+                    argument_id,
+                    &dir.tree,
+                    &dir.symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+            }
+            if let Some(dir) = self
+                .program
+                .artifacts
+                .dir_declared(node.module_id, context.profile)
+            {
+                return self.unbind_argument(
+                    &argument_module,
+                    argument_id,
+                    &dir.tree,
+                    &dir.symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+            }
+            if let Some(dir) = self
+                .program
+                .artifacts
+                .dir_resolved(node.module_id, context.profile)
+            {
+                return self.unbind_argument(
+                    &argument_module,
+                    argument_id,
+                    &dir.tree,
+                    &dir.symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+            }
+            if let Some(dir) = self
+                .program
+                .artifacts
+                .dir_prepared(node.module_id, context.profile)
+            {
+                return self.unbind_argument(
+                    &argument_module,
+                    argument_id,
+                    &dir.tree,
+                    &dir.symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+            }
+            if let Some(dir) = self.program.artifacts.dir_base(node.module_id) {
+                return self.unbind_argument(
+                    &argument_module,
+                    argument_id,
+                    &dir.tree,
+                    &dir.symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+            }
+
+            panic!(
+                "missing dir artifact for static argument module {:?}",
+                node.module_id
             );
         }
 

@@ -3,24 +3,32 @@ use std::collections::HashSet;
 use destack_builtin::BuiltinLibKind;
 use destack_dir::{DependencyKind, DependencySource, Expression, ScalarLiteral};
 use destack_source::ModuleId;
-use destack_workspace::{ModuleGraphKey, ModuleSource, ProfileId};
+use destack_workspace::{ModuleSource, ProfileId};
 
-use crate::{AnalyzeError, AnalyzeResult, Compiler, ResolveError};
+use crate::{AnalyzeError, AnalyzeResult, BuildKey, BuildRequirementSet, Compiler, ResolveError};
 
 impl Compiler {
-    /// Require interface analysis for the type-import dependency closure used during infer.
-    pub(super) fn require_type_import_interface_dependencies(
+    /// Require declared and interface analysis for type-import dependencies used during infer.
+    pub(super) fn require_type_import_dependencies_for_infer(
         &self,
         module: &destack_workspace::Module,
         profile: ProfileId,
         tree: &destack_dir::NodeTree,
     ) -> AnalyzeResult<()> {
-        // collect and require interface dependencies in deterministic module order
+        // collect the direct and projected type-import owner modules
         let required_modules =
-            self.collect_type_import_interface_dependencies(module, profile, tree)?;
+            self.collect_type_import_dependencies_for_infer(module, profile, tree)?;
         let module_ids = self.sorted_unique_module_ids(required_modules);
         let mut first_error = None;
+
+        // require declared and interface state for each type-import dependency
         for module_id in module_ids {
+            if let Err(error) = self.require_dir_declared(module_id, profile)
+                && first_error.is_none()
+            {
+                first_error = Some(error);
+            }
+
             if let Err(error) = self.require_dir_interface(module_id, profile)
                 && first_error.is_none()
             {
@@ -35,8 +43,8 @@ impl Compiler {
         Ok(())
     }
 
-    /// Collect interface dependency modules for type-import expressions used during infer.
-    fn collect_type_import_interface_dependencies(
+    /// Collect dependency modules for type-import expressions used during infer.
+    fn collect_type_import_dependencies_for_infer(
         &self,
         module: &destack_workspace::Module,
         profile: ProfileId,
@@ -47,7 +55,7 @@ impl Compiler {
             .map_err(AnalyzeError::from)?;
         let mut required = HashSet::new();
 
-        // collect direct and projection-owner interface dependencies
+        // collect direct target modules and qualified projection owners
         for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
             let Expression::TypeImport {
                 target, qualifier, ..
@@ -62,9 +70,9 @@ impl Compiler {
                 continue;
             };
 
-            // collect direct target-module interface dependency
+            // resolve the direct type-import target
             let source_node_id = expression_id.into_global_any(module.id);
-            let target_module = match self.resolve_import_from_artifact(
+            let target_module = match self.resolve_import_from_resolved_artifact(
                 module,
                 dir.as_ref(),
                 profile,
@@ -74,11 +82,29 @@ impl Compiler {
                 DependencyKind::Type,
             ) {
                 Ok(target_module) => target_module,
+
+                // recover direct module requirements from deferred import resolution
                 Err(error) => match error {
                     ResolveError::Yield { requirement } => {
+                        if self.collect_required_modules_from_requirement(
+                            &mut required,
+                            module.id,
+                            &requirement,
+                        ) {
+                            continue;
+                        }
+
                         return Err(AnalyzeError::Yield { requirement });
                     }
                     ResolveError::UnsatisfiedRequirement { requirement } => {
+                        if self.collect_required_modules_from_requirement(
+                            &mut required,
+                            module.id,
+                            &requirement,
+                        ) {
+                            continue;
+                        }
+
                         return Err(AnalyzeError::UnsatisfiedRequirement { requirement });
                     }
                     error => {
@@ -87,20 +113,25 @@ impl Compiler {
                     }
                 },
             };
+
+            // record the direct target module when it differs from the origin
             if let Some(target_module_id) = target_module.module_id()
                 && target_module_id != module.id
             {
                 required.insert(target_module_id);
             }
 
-            // collect transitive owner dependency for qualified projections
-            let resolved_symbol = self.resolve_import_type_symbol(
+            // query the resolved owner for qualified projections
+            //
+            // direct target modules are the hard precondition here
+            // owner refinement can wait until those modules are ready
+            let resolved_symbol = self.query_import_type_symbol(
                 module,
                 profile,
                 expression_id.into_any(),
                 *target_string,
                 qualifier.as_ref(),
-            )?;
+            );
             let Some(resolved_symbol) = resolved_symbol else {
                 continue;
             };
@@ -112,6 +143,34 @@ impl Compiler {
         Ok(required)
     }
 
+    /// Collect direct module ids from one deferred requirement set.
+    fn collect_required_modules_from_requirement(
+        &self,
+        required: &mut HashSet<ModuleId>,
+        origin_module_id: ModuleId,
+        requirement: &BuildRequirementSet,
+    ) -> bool {
+        let mut did_collect = false;
+
+        // collect module ids from exact artifact requirements
+        requirement.for_each(|requirement| {
+            let BuildKey::Artifact(key) = &requirement.key else {
+                return;
+            };
+            let Some(module_id) = key.module_id() else {
+                return;
+            };
+            if module_id == origin_module_id {
+                return;
+            }
+
+            did_collect = true;
+            required.insert(module_id);
+        });
+
+        did_collect
+    }
+
     /// Ensure declare analysis is complete for infer dependency modules.
     pub(crate) fn require_declare_dependencies_for_infer(
         &self,
@@ -119,12 +178,10 @@ impl Compiler {
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
         // require the module graph snapshot before infer dependency preconditions
-        let key = ModuleGraphKey::new(profile);
         let graph = self
             .program
-            .index
-            .module_graphs
-            .get(&key)
+            .artifacts
+            .module_graph(profile)
             .ok_or(AnalyzeError::Internal {
                 message: format!("missing module graph snapshot for infer declare deps: profile={profile:?}, module={module_id:?}"),
             })?;
@@ -171,12 +228,10 @@ impl Compiler {
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
         // require the module graph snapshot before infer dependency preconditions
-        let key = ModuleGraphKey::new(profile);
         let graph = self
             .program
-            .index
-            .module_graphs
-            .get(&key)
+            .artifacts
+            .module_graph(profile)
             .ok_or(AnalyzeError::Internal {
                 message: format!("missing module graph snapshot for infer interface deps: profile={profile:?}, module={module_id:?}"),
             })?;

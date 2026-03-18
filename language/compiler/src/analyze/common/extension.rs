@@ -57,10 +57,7 @@ impl Compiler {
 
         // include local extensions from directly imported modules
         let declared_dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_resolved(
-                ctx.module.id,
-                ctx.profile,
-            ))
+            .require_artifact_dir_resolved(ctx.module.id, ctx.profile)
             .map_err(AnalyzeError::from)?;
         let mut imported_module_ids = HashSet::new();
         for resolution in declared_dir.imported_modules.values() {
@@ -73,10 +70,7 @@ impl Compiler {
         }
         for imported_module_id in imported_module_ids {
             let imported_dir = self
-                .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                    imported_module_id,
-                    ctx.profile,
-                ))
+                .require_artifact_dir_declared(imported_module_id, ctx.profile)
                 .map_err(AnalyzeError::from)?;
             if let Some(extension_ids) = imported_dir
                 .types
@@ -230,10 +224,7 @@ impl Compiler {
         extension_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<Extension>> {
         let dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                extension_symbol.module_id,
-                profile,
-            ))
+            .require_artifact_dir_declared(extension_symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
         let extension_id = dir.types.get_extension_id_for_symbol(extension_symbol);
 
@@ -290,10 +281,7 @@ impl Compiler {
         }
 
         let owner_dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                extension_symbol.module_id,
-                ctx.profile,
-            ))
+            .require_artifact_dir_declared(extension_symbol.module_id, ctx.profile)
             .map_err(AnalyzeError::from)?;
         Ok(Some(owner_dir.types.get_lineage(lineage_id).clone()))
     }

@@ -23,16 +23,13 @@ impl Compiler {
         }
 
         // remote reads require one exact committed artifact
-        let remote_module = self.program.modules.get(module_id);
-        let remote_module = remote_module.as_ref();
-        let key = artifact_key(module_id, profile);
-        let snapshot = self.require_artifact_dir(key)?;
-
-        Ok(handle(TreeSymbolView::new(
-            &remote_module,
+        self.with_remote_dir_for_artifact(
+            module_id,
             profile,
-            &snapshot.tree,
-            &snapshot.symbols,
-        )))
+            artifact_key,
+            |remote_module, tree, symbols, _| {
+                handle(TreeSymbolView::new(remote_module, profile, tree, symbols))
+            },
+        )
     }
 }

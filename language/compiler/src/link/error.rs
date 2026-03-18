@@ -1,6 +1,5 @@
 use crate::{
     BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
-    TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
 use destack_source::PackageId;
@@ -23,7 +22,7 @@ pub enum LinkError {
 
     /// Task was skipped due to stale versions.
     #[error(code = "EK002", message = "task skipped")]
-    Skipped { reason: TaskSkipReason },
+    Skipped,
 
     // -------------------------------------------------------------------------
     // 1xx: Target issues

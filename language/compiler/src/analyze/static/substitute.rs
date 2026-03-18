@@ -179,52 +179,51 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
 
         // resolve static arguments in the reference owner module
         let source_id = types.get_type_source(id);
-        let resolved_arguments =
-            if symbol.module_id == self.argument_module.id {
-                let options = self
-                    .compiler
-                    .analyze_context_options_for_module(self.argument_module.id);
-                let mut ctx = TypeContext::new(
-                    self.argument_module,
-                    self.profile,
-                    &options,
-                    self.argument_tree,
-                    self.argument_symbols,
-                    types,
-                );
-                self.compiler.materialize_static_arguments_for_reference(
-                    &mut ctx.reborrow(),
-                    symbol,
-                    source_id,
-                    static_arguments,
-                )
-            } else {
-                let reference_module = self.compiler.program.modules.get(symbol.module_id);
-                let reference_module = reference_module.as_ref();
-                let reference_snapshot = self.compiler.require_artifact_dir(
-                    destack_workspace::ArtifactKey::dir_resolved(symbol.module_id, self.profile),
-                );
-                let Ok(reference_snapshot) = reference_snapshot else {
-                    return rewrite_type(self, types, id, ty);
-                };
-                let reference_options = self
-                    .compiler
-                    .analyze_context_options_for_module(reference_module.id);
-                let mut ctx = TypeContext::new(
-                    &reference_module,
-                    self.profile,
-                    &reference_options,
-                    &reference_snapshot.tree,
-                    &reference_snapshot.symbols,
-                    types,
-                );
-                self.compiler.materialize_static_arguments_for_reference(
-                    &mut ctx.reborrow(),
-                    symbol,
-                    source_id,
-                    static_arguments,
-                )
+        let resolved_arguments = if symbol.module_id == self.argument_module.id {
+            let options = self
+                .compiler
+                .analyze_context_options_for_module(self.argument_module.id);
+            let mut ctx = TypeContext::new(
+                self.argument_module,
+                self.profile,
+                &options,
+                self.argument_tree,
+                self.argument_symbols,
+                types,
+            );
+            self.compiler.materialize_static_arguments_for_reference(
+                &mut ctx.reborrow(),
+                symbol,
+                source_id,
+                static_arguments,
+            )
+        } else {
+            let reference_module = self.compiler.program.modules.get(symbol.module_id);
+            let reference_module = reference_module.as_ref();
+            let reference_snapshot = self
+                .compiler
+                .require_artifact_dir_resolved(symbol.module_id, self.profile);
+            let Ok(reference_snapshot) = reference_snapshot else {
+                return rewrite_type(self, types, id, ty);
             };
+            let reference_options = self
+                .compiler
+                .analyze_context_options_for_module(reference_module.id);
+            let mut ctx = TypeContext::new(
+                &reference_module,
+                self.profile,
+                &reference_options,
+                &reference_snapshot.tree,
+                &reference_snapshot.symbols,
+                types,
+            );
+            self.compiler.materialize_static_arguments_for_reference(
+                &mut ctx.reborrow(),
+                symbol,
+                source_id,
+                static_arguments,
+            )
+        };
 
         // rewrite nested static arguments
         let (mapped_arguments, nested_changed) =

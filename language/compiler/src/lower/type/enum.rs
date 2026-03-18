@@ -25,10 +25,7 @@ pub(crate) fn enum_field_value_for_symbol(
     node: AnchoredGlobalNodeId,
 ) -> LowerResult<Option<EnumFieldValueDescriptor>> {
     // load the analyzed dir artifact for this symbol
-    let snapshot = compiler.require_artifact_dir(destack_workspace::ArtifactKey::dir_analyzed(
-        member_symbol.module_id,
-        profile,
-    ));
+    let snapshot = compiler.require_artifact_dir_analyzed(member_symbol.module_id, profile);
     let snapshot = match snapshot {
         Ok(snapshot) => snapshot,
         Err(BuildRequirementError::NotReady { requirement }) => {

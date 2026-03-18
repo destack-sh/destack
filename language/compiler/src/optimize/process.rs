@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use destack_source::{ModuleId, ModuleVersion, PackageId, ProfileVersion};
 use destack_workspace::{
-    ArtifactKey, DebugMode, Module, ModuleMir, OptimizeLevel as WorkspaceOptimizeLevel,
+    ArtifactKey, DebugMode, MirOptimized, Module, OptimizeLevel as WorkspaceOptimizeLevel,
     OutputFormat, ProfileId, Target, TargetArch, TargetId,
 };
 use target_lexicon::Triple;
@@ -46,7 +46,7 @@ impl Compiler {
         )?;
         self.program
             .artifacts
-            .set_mir_optimized(module, profile, target, payload);
+            .publish(ArtifactKey::mir_optimized(module, profile, target), payload);
 
         Ok(())
     }
@@ -68,11 +68,11 @@ impl Compiler {
             return Ok(());
         }
 
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::MirOptimized {
+        self.require_build_key(BuildKey::artifact(ArtifactKey::mir_optimized(
             module,
             profile,
-            target: target.clone(),
-        }))
+            target.clone(),
+        )))
     }
 
     /// Optimize a module's MIR.
@@ -83,7 +83,7 @@ impl Compiler {
         module_version: ModuleVersion,
         profile_version: ProfileVersion,
         target: &TargetId,
-    ) -> OptimizeResult<ModuleMir> {
+    ) -> OptimizeResult<MirOptimized> {
         // skip stale tasks
         self.ensure_module_profile_matches::<OptimizeError>(
             module,
@@ -158,7 +158,7 @@ impl Compiler {
         let after = count_mir_size(&tree);
 
         // freeze optimized MIR
-        let payload = ModuleMir {
+        let payload = MirOptimized {
             id: module,
             version: module_version,
             target: target.clone(),

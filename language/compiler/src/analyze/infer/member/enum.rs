@@ -181,10 +181,7 @@ impl Compiler {
         let module = self.program.modules.get(enum_symbol.module_id);
         let module = module.as_ref();
         let dir = self
-            .require_artifact_dir(destack_workspace::ArtifactKey::dir_declared(
-                enum_symbol.module_id,
-                ctx.profile,
-            ))
+            .require_artifact_dir_declared(enum_symbol.module_id, ctx.profile)
             .map_err(AnalyzeError::from)?;
 
         Ok(self.enum_field_symbol_for_member_key_in_tree(

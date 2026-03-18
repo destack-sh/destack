@@ -105,6 +105,6 @@ impl Compiler {
         target: &TargetId,
     ) -> Result<(), BuildRequirementError> {
         let _ = profile;
-        self.require_build_key(BuildKey::Output(OutputKey::module(module, target.clone())))
+        self.require_build_key(BuildKey::output(OutputKey::module(module, target.clone())))
     }
 }

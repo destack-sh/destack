@@ -1,6 +1,3 @@
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Arc;
-
 use crate::analyze::common::TypeContext;
 use crate::timing::tags;
 use crate::{
@@ -9,11 +6,12 @@ use crate::{
 };
 use destack_builtin::BuiltinLibKind;
 use destack_dir::{
-    Declaration, DeclarationAbstraction, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member,
-    NodeType, SymbolType, Type,
+    CaptureTable, Declaration, DeclarationAbstraction, GlobalSymbolId, LocalSymbolId, LocalTypeId,
+    Member, NodeType, SymbolTable, SymbolType, Type, TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ArtifactKey, Module, ModuleDir, ModuleSource, ProfileId};
+use destack_workspace::{ArtifactKey, DirResolved, Module, ModuleSource, ProfileId};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 impl Compiler {
     /// Ensure declared DIR exists for a module.
@@ -36,24 +34,25 @@ impl Compiler {
 
         // avoid self dependency while declaring one module
         if self.current_build_key()
-            == Some(BuildKey::Artifact(ArtifactKey::DirDeclared {
-                module,
-                profile,
-            }))
+            == Some(BuildKey::artifact(ArtifactKey::dir_declared(
+                module, profile,
+            )))
         {
             return Ok(());
         }
 
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::DirDeclared {
-            module,
-            profile,
-        }))
+        self.require_build_key(BuildKey::artifact(ArtifactKey::dir_declared(
+            module, profile,
+        )))
     }
 
     /// Phase 1: Evaluate declarations.
     pub(crate) fn analyze_module_declare(
         &self,
-        dir: &mut ModuleDir,
+        resolved: &DirResolved,
+        symbols: &mut SymbolTable,
+        types: &mut TypeTable,
+        captures: &mut CaptureTable,
         module_id: ModuleId,
         profile: ProfileId,
         module_version: ModuleVersion,
@@ -88,26 +87,13 @@ impl Compiler {
         // ensure ambient libs are declared before user modules
         self.ensure_ambient_libs_declared(&module, profile)?;
 
-        // borrow the declaration inputs and phase-local type table
-        let ModuleDir {
-            tree,
-            symbols,
-            roots,
-            types,
-            ..
-        } = dir;
-        let types = Arc::make_mut(types);
+        // declaration inputs
+        let tree = resolved.tree.as_ref();
+        let roots = resolved.roots.as_ref();
         let mut collector = BuildRequirementCollector::new();
         let module_checks = self.module_check_options_for_module(module.id);
         let options = self.analyze_context_options_for_module(module.id);
-        let mut ctx = TypeContext::new(
-            &module,
-            profile,
-            &options,
-            tree.as_ref(),
-            symbols.as_ref(),
-            types,
-        );
+        let mut ctx = TypeContext::new(&module, profile, &options, tree, symbols, types);
 
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECLARATIONS);
@@ -196,16 +182,9 @@ impl Compiler {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECORATORS);
 
             // attach well known decorator metadata to symbols
-            let ModuleDir {
-                symbols: symbol_table,
-                captures: capture_table,
-                ..
-            } = dir;
-            let symbols = Arc::make_mut(symbol_table);
-            let captures = Arc::make_mut(capture_table);
             self.collect(
                 &mut collector,
-                self.register_symbol_decorators(&module, profile, tree.as_ref(), symbols, captures),
+                self.register_symbol_decorators(&module, profile, tree, symbols, captures),
             );
         }
 
