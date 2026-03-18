@@ -3,10 +3,10 @@ use destack_core::StringPool;
 use destack_source::{FileId, ModuleId, ModuleVersion, Span};
 use serde::{Deserialize, Serialize};
 
-/// AST-level module data.
-/// NOTE #Performance: revisit actually required ModuleAst state (tokens add ~10-20% memory overhead)
+/// AST payload for one parsed module.
+/// NOTE #Performance: revisit actually required AST state (tokens add ~10-20% memory overhead)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ModuleAst {
+pub struct Ast {
     /// The id of the Module.
     pub id: ModuleId,
     /// The version of the Module.
@@ -30,8 +30,8 @@ pub struct ModuleAst {
     pub data_value: Option<serde_json::Value>,
 }
 
-impl ModuleAst {
-    /// Create a new empty ModuleAst.
+impl Ast {
+    /// Create a new empty AST payload.
     pub fn new(id: ModuleId, version: ModuleVersion) -> Self {
         // build empty module ast
         Self {
@@ -48,7 +48,7 @@ impl ModuleAst {
         }
     }
 
-    /// Create a ModuleAst from a tree.
+    /// Create an AST payload from a tree.
     pub fn from_tree(
         id: ModuleId,
         version: ModuleVersion,

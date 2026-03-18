@@ -9,15 +9,43 @@ use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
 use destack_source::{
-    CACHE_FORMAT_VERSION, CACHE_MAGIC, FileContent, FileId, FileMetadata, FileSystem, FileVersion,
-    ModuleId, ModuleVersion, strip_json,
+    CACHE_FORMAT_VERSION, CACHE_MAGIC, FileContent, FileId, FileMetadata, FileRegistry, FileSystem,
+    FileVersion, ModuleId, ModuleVersion, strip_json,
 };
 
 use crate::{
-    CacheScope, CacheStoreError, CacheValidate, Destack, ModuleGraph, ModuleGraphKey,
-    ModuleGraphVersion, ProfileId, Program, Workspace, hash_bytes, hash_json_value,
-    resolve_cache_dir, resolve_cache_root_for_scope,
+    CacheScope, CacheStoreError, CacheValidate, Destack, Program, Workspace, hash_bytes,
+    hash_json_value, resolve_cache_dir, resolve_cache_root_for_scope,
 };
+
+/// Compute a hash for the file contents at a path.
+pub(crate) fn file_content_hash_for_path(
+    fs: &dyn FileSystem,
+    files: &FileRegistry,
+    path: &Path,
+) -> Option<u64> {
+    // reuse loaded file contents when available
+    if let Some(file) = files.get_by_path(path) {
+        match &file.content {
+            FileContent::Text { content } => {
+                return Some(hash_bytes(content.as_bytes()));
+            }
+            FileContent::Json { content, .. } => {
+                return Some(hash_bytes(content.as_bytes()));
+            }
+            FileContent::Binary { content } => {
+                return Some(hash_bytes(content));
+            }
+            FileContent::Missing => return None,
+            FileContent::Unloaded => {}
+        }
+    }
+
+    // fall back to reading from the file system
+    let bytes = fs.read(path).ok()?;
+    Some(hash_bytes(&bytes))
+}
+
 /// Header for workspace index snapshots.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceIndexHeader {
@@ -190,10 +218,6 @@ pub struct WorkspaceIndexSnapshot {
     pub files: IndexMap<PathBuf, WorkspaceFileEntry>,
     /// Module entries keyed by module id.
     pub modules: IndexMap<ModuleId, WorkspaceModuleEntry>,
-    /// Module graphs keyed by profile.
-    pub module_graphs: IndexMap<ModuleGraphKey, ModuleGraph>,
-    /// Module graph versions keyed by profile.
-    pub module_graph_versions: IndexMap<ProfileId, ModuleGraphVersion>,
 }
 
 impl WorkspaceIndexSnapshot {
@@ -212,7 +236,10 @@ impl WorkspaceIndexSnapshot {
             let module = module.as_ref();
             modules.insert(
                 module.id,
-                WorkspaceModuleEntry::new(module.version(), module.source_version()),
+                WorkspaceModuleEntry::new(
+                    program.modules.version(module.id),
+                    program.modules.source_version(module.id),
+                ),
             );
 
             // skip modules without file paths
@@ -243,38 +270,10 @@ impl WorkspaceIndexSnapshot {
             files.insert(path.clone(), entry);
         }
 
-        // snapshot module graphs
-        let mut module_graphs = IndexMap::new();
-        let mut graph_entries: Vec<_> = program
-            .index
-            .module_graphs
-            .iter()
-            .map(|entry| (*entry.key(), entry.value().clone()))
-            .collect();
-        graph_entries.sort_by_key(|(key, _)| *key);
-        for (key, graph) in graph_entries {
-            module_graphs.insert(key, graph);
-        }
-
-        // snapshot module graph versions
-        let mut module_graph_versions = IndexMap::new();
-        let mut graph_version_entries: Vec<_> = program
-            .index
-            .module_graph_versions
-            .iter()
-            .map(|entry| (*entry.key(), *entry.value()))
-            .collect();
-        graph_version_entries.sort_by_key(|(key, _)| *key);
-        for (key, version) in graph_version_entries {
-            module_graph_versions.insert(key, version);
-        }
-
         Ok(Self {
             header,
             files,
             modules,
-            module_graphs,
-            module_graph_versions,
         })
     }
 }
@@ -641,7 +640,7 @@ mod tests {
 
     use crate::{
         CacheValidate, DiskCacheStore, FormatterOptions, LinterOptions, ModuleRegistry,
-        PackageRegistry, Program, TsConfigRegistry, Workspace, WorkspaceConfigError,
+        PackageRegistry, Program, Session, TsConfigRegistry, Workspace, WorkspaceConfigError,
         WorkspaceIndexStore, payload_hash_from_bytes,
     };
 
@@ -688,8 +687,6 @@ mod tests {
             header: header.clone(),
             files,
             modules,
-            module_graphs: IndexMap::new(),
-            module_graph_versions: IndexMap::new(),
         };
 
         // write and read the snapshot
@@ -727,8 +724,6 @@ mod tests {
             header: header.clone(),
             files: IndexMap::new(),
             modules: IndexMap::new(),
-            module_graphs: IndexMap::new(),
-            module_graph_versions: IndexMap::new(),
         };
         index_store.save(&snapshot).unwrap();
 
@@ -956,8 +951,6 @@ mod tests {
             header,
             files,
             modules: IndexMap::new(),
-            module_graphs: IndexMap::new(),
-            module_graph_versions: IndexMap::new(),
         };
 
         // write and reload
@@ -972,23 +965,14 @@ mod tests {
             .unwrap_or_else(|| panic!("expected snapshot"));
 
         // seed a program with the loaded snapshot
-        let program = Program::new(
-            FormatterOptions::default(),
-            LinterOptions::default(),
-            root.root().to_path_buf(),
-            Arc::new(PhysicalFileSystem),
-            Arc::new(FileRegistry::new()),
-            Arc::new(ModuleRegistry::new()),
-            Arc::new(PackageRegistry::new()),
-            Arc::new(TsConfigRegistry::new()),
-            Arc::new(StringPool::new()),
-            None,
-        );
-        program.apply_workspace_index(loaded);
+        let session = Session::new(root.root().to_path_buf())
+            .with_fs(Arc::new(PhysicalFileSystem))
+            .with_cache_store(Arc::new(DiskCacheStore::new()));
+        session.apply_workspace_index_snapshot(&loaded);
 
         // ensure version stays the same when hash matches
         assert_eq!(
-            program.workspace_file_version_for_path(&file_path),
+            session.workspace_file_version_for_path(&file_path),
             FileVersion::new(1)
         );
 
@@ -998,7 +982,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("failed to reset mtime: {error}"));
 
         assert_eq!(
-            program.workspace_file_version_for_path(&file_path),
+            session.workspace_file_version_for_path(&file_path),
             FileVersion::new(2)
         );
     }

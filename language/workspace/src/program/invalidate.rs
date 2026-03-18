@@ -4,7 +4,7 @@ use destack_source::{
     File, FileContent, FileId, FileType, FileVersion, ModuleId, PackageId, ProfileId,
 };
 
-use crate::{PackageManifest, Program, TsConfigId};
+use crate::{ArtifactKey, PackageManifest, Program, TsConfigId};
 
 /// Content update payload for an invalidated file.
 #[derive(Debug, Clone)]
@@ -323,22 +323,11 @@ impl Program {
         let module_profiles = self.collect_module_profiles(module_id);
 
         // update module versions and clear cached data
-        {
-            let module = self.modules.get(module_id);
-            let mut state = module.state.write();
+        self.modules.bump_version(module_id);
+        self.modules.set_source_version(module_id, file_version);
 
-            // bump module and source versions
-            let next_version = state.version.next();
-            state.version = next_version;
-            state.source_version = file_version;
-        }
-
-        self.artifacts.remove_ast(module_id);
-
-        // drop shared indexes that lack staleness checks
-        self.index.global_symbol_tables.clear();
-        self.index.module_binding_registry.clear();
-        self.index.module_binding_tables.clear();
+        self.artifacts
+            .invalidate(&ArtifactKey::Ast { module: module_id });
 
         module_profiles
     }
@@ -359,9 +348,17 @@ impl Program {
         // drop module graphs for affected profiles
         for profile_id in &profile_ids {
             self.drop_module_graph(*profile_id);
-            self.artifacts.remove_language_environment(*profile_id);
-            self.artifacts.remove_intrinsic_environment(*profile_id);
-            self.artifacts.remove_lib_environment(*profile_id);
+            self.artifacts
+                .invalidate(&ArtifactKey::LanguageEnvironment {
+                    profile: *profile_id,
+                });
+            self.artifacts
+                .invalidate(&ArtifactKey::IntrinsicEnvironment {
+                    profile: *profile_id,
+                });
+            self.artifacts.invalidate(&ArtifactKey::LibEnvironment {
+                profile: *profile_id,
+            });
         }
 
         // collect modules that share the profile ids
@@ -375,11 +372,6 @@ impl Program {
             self.clear_module_profiles(module_id, &profile_ids);
         }
 
-        // drop shared indexes that lack staleness checks
-        self.index.global_symbol_tables.clear();
-        self.index.module_binding_registry.clear();
-        self.index.module_binding_tables.clear();
-
         profile_ids
     }
 
@@ -390,8 +382,50 @@ impl Program {
             return;
         }
 
-        // clear matching profile data
-        self.artifacts.remove_module_profiles(module_id, profiles);
+        // clear matching dir and mir artifacts
+        for profile_id in profiles {
+            self.artifacts.invalidate(&ArtifactKey::DirPrepared {
+                module: module_id,
+                profile: *profile_id,
+            });
+            self.artifacts.invalidate(&ArtifactKey::DirResolved {
+                module: module_id,
+                profile: *profile_id,
+            });
+            self.artifacts.invalidate(&ArtifactKey::DirDeclared {
+                module: module_id,
+                profile: *profile_id,
+            });
+            self.artifacts.invalidate(&ArtifactKey::DirInterface {
+                module: module_id,
+                profile: *profile_id,
+            });
+            self.artifacts.invalidate(&ArtifactKey::DirAnalyzed {
+                module: module_id,
+                profile: *profile_id,
+            });
+            self.artifacts.invalidate(&ArtifactKey::DirElaborated {
+                module: module_id,
+                profile: *profile_id,
+            });
+            self.artifacts.invalidate(&ArtifactKey::DirPatched {
+                module: module_id,
+                profile: *profile_id,
+            });
+
+            for target in self.artifacts.target_ids_for_mir(module_id, *profile_id) {
+                self.artifacts.invalidate(&ArtifactKey::MirBase {
+                    module: module_id,
+                    profile: *profile_id,
+                    target: target.clone(),
+                });
+                self.artifacts.invalidate(&ArtifactKey::MirOptimized {
+                    module: module_id,
+                    profile: *profile_id,
+                    target,
+                });
+            }
+        }
     }
 
     /// Collect profile ids referenced by a module.
@@ -477,8 +511,9 @@ impl Program {
         let mut modules = Vec::new();
         for module in self.modules.iter() {
             let module = module.as_ref();
-            if module
-                .tsconfig_id()
+            if self
+                .modules
+                .tsconfig_id(module.id)
                 .is_some_and(|id| tsconfig_ids.contains(&id))
             {
                 modules.push(module.id);
@@ -560,14 +595,15 @@ mod tests {
 
     use destack_source::{
         File, FileContent, FileRegistry, FileType, LanguageType, MemoryFileSystem, ModuleId,
-        PackageId, PackageVersion, Uri,
+        ModuleVersion, PackageId, PackageVersion, Uri,
     };
 
     use crate::{
-        Destack, EnvSnapshot, ImportDir, Loader, Module, ModuleAst, ModuleDetection, ModuleDir,
-        ModuleFormat, ModuleSource, ModuleTarget, OutputFormat, Package, PackageKind,
-        PackageManifest, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime,
-        SourceType, TsConfig,
+        ArtifactKey, Ast, Destack, DirAnalyzed, DirBase, DirDeclared, DirInterface, DirPrepared,
+        DirResolved, EnvSnapshot, ExportedSymbolTable, ImportedModuleTable, Loader, Module,
+        ModuleBindingExportTable, ModuleDetection, ModuleFormat, ModuleSource, ModuleTarget,
+        OutputFormat, Package, PackageKind, PackageManifest, Platform, ProfileFlags, ProfileId,
+        ProfileKey, Program, Runtime, SourceType, TsConfig,
     };
 
     use super::{FileUpdate, InvalidationError};
@@ -831,18 +867,21 @@ mod tests {
         let module = Module::blank(
             module_id,
             module_file_id,
-            module_file.version,
             module_uri,
             Some(module_path),
             package_id,
-            None,
-            SourceType::Script,
-            ModuleFormat::CommonJs,
             LanguageType::TypeScript,
             Loader::TypeScript,
             ModuleSource::User,
         );
-        program.modules.insert(module);
+        program.modules.insert(
+            module,
+            ModuleVersion::INITIAL,
+            module_file.version,
+            None,
+            SourceType::Script,
+            ModuleFormat::CommonJs,
+        );
 
         // update package manifest module type to module and invalidate
         let result = program
@@ -863,8 +902,8 @@ mod tests {
         );
         let module = program.modules.get(module_id);
         let module = module.as_ref();
-        assert!(module.source_type().is_module());
-        assert_eq!(module.module_format(), ModuleFormat::Esm);
+        assert!(program.modules.source_type(module.id).is_module());
+        assert_eq!(program.modules.module_format(module.id), ModuleFormat::Esm);
     }
 
     /// Refresh module semantics when tsconfig mapping is invalidated.
@@ -930,18 +969,21 @@ mod tests {
         let module = Module::blank(
             module_id,
             module_file_id,
-            module_file.version,
             module_uri,
             Some(module_path),
             package_id,
-            Some(tsconfig_id),
-            SourceType::Script,
-            ModuleFormat::Esm,
             LanguageType::TypeScript,
             Loader::TypeScript,
             ModuleSource::User,
         );
-        program.modules.insert(module);
+        program.modules.insert(
+            module,
+            ModuleVersion::INITIAL,
+            module_file.version,
+            Some(tsconfig_id),
+            SourceType::Script,
+            ModuleFormat::Esm,
+        );
 
         // invalidate the tsconfig file and assert semantics are refreshed
         let result = program
@@ -951,8 +993,8 @@ mod tests {
 
         let module = program.modules.get(module_id);
         let module = module.as_ref();
-        assert!(module.source_type().is_module());
-        assert!(module.module_format().is_commonjs());
+        assert!(program.modules.source_type(module.id).is_module());
+        assert!(program.modules.module_format(module.id).is_commonjs());
 
         // assert compiler options are still intact for this test setup
         let tsconfig = program.tsconfigs.get(tsconfig_id);
@@ -995,18 +1037,21 @@ mod tests {
         let module = Module::blank(
             module_id,
             file_id,
-            file_version,
             uri,
             Some(path),
             package_id,
-            None,
-            SourceType::Script,
-            ModuleFormat::CommonJs,
             LanguageType::TypeScript,
             Loader::from_file_type(FileType::TypeScript),
             ModuleSource::User,
         );
-        program.modules.insert(module);
+        program.modules.insert(
+            module,
+            ModuleVersion::INITIAL,
+            file_version,
+            None,
+            SourceType::Script,
+            ModuleFormat::CommonJs,
+        );
 
         module_id
     }
@@ -1017,23 +1062,61 @@ mod tests {
         let module = program.modules.get(module_id);
         let module = module.as_ref();
         let file_id = module.file_id;
-        let module_version = module.version();
-        drop(module);
+        let module_version = program.modules.version(module.id);
 
         // anchor expression
         let anchor_id = if let Some(ast) = program.artifacts.ast(module_id) {
             ast.anchor_expression
                 .expect("missing anchor expression on AST")
         } else {
-            let mut ast = ModuleAst::new(module_id, module_version);
+            let mut ast = Ast::new(module_id, module_version);
             let anchor_id = ast.ensure_anchor_expression(file_id);
-            program.artifacts.set_ast(module_id, ast);
+            program
+                .artifacts
+                .publish(ArtifactKey::Ast { module: module_id }, ast);
             anchor_id
         };
-        let base_dir = ImportDir::new_base(module_id, module_version, anchor_id.id).into_dir();
-        let dir = ModuleDir::from_base(&base_dir, profile_id);
-        program
-            .artifacts
-            .set_dir_analyzed(module_id, profile_id, dir);
+        let base_dir = DirBase::new_base(module_id, module_version, anchor_id.id);
+        let prepared_dir = DirPrepared::from_base_with(
+            &base_dir,
+            profile_id,
+            base_dir.tree.as_ref().clone(),
+            base_dir.symbols.as_ref().clone(),
+            base_dir.roots.as_ref().clone(),
+            None,
+            ModuleBindingExportTable::new(),
+            ImportedModuleTable::new(),
+            ExportedSymbolTable::new(),
+        );
+        let resolved_dir = DirResolved::from_prepared_with(
+            &prepared_dir,
+            prepared_dir.tree.as_ref().clone(),
+            prepared_dir.symbols.as_ref().clone(),
+            prepared_dir.export_assignment,
+            Vec::new(),
+            prepared_dir.module_binding_exports.as_ref().clone(),
+            prepared_dir.imported_modules.as_ref().clone(),
+            prepared_dir.exported_symbols.as_ref().clone(),
+        );
+        let declared_dir = DirDeclared::from_resolved_with(
+            &resolved_dir,
+            resolved_dir.symbols.as_ref().clone(),
+            resolved_dir.types.as_ref().clone(),
+            destack_dir::CaptureTable::new(),
+        );
+        let interface_dir = DirInterface::from_resolved_and_declared(&resolved_dir, &declared_dir);
+        let dir = DirAnalyzed::from_interface_and_declared_with(
+            &interface_dir,
+            &declared_dir,
+            interface_dir.types.as_ref().clone(),
+            declared_dir.captures.as_ref().clone(),
+        );
+        program.artifacts.publish(
+            ArtifactKey::DirAnalyzed {
+                module: module_id,
+                profile: profile_id,
+            },
+            dir,
+        );
     }
 }
