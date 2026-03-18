@@ -8,6 +8,7 @@ use crate::host::linux::linux_notify_location_sample;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
+    CalendarDescriptorValue, CalendarEventDraftValue, CalendarEventQueryValue, CalendarEventValue,
     ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue, LocationSampleValue,
     LocationWatchOptionsValue,
 };
@@ -43,6 +44,24 @@ pub(crate) struct LinuxContactHooks {
     pub(crate) delete: Option<fn(String) -> RuntimeResult<()>>,
 }
 
+/// Shared Linux calendar hook set used by tests.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct LinuxCalendarHooks {
+    /// Hook for `calendarList`.
+    pub(crate) list: Option<fn() -> RuntimeResult<Vec<CalendarDescriptorValue>>>,
+    /// Hook for `calendarEventList`.
+    pub(crate) event_list:
+        Option<fn(CalendarEventQueryValue) -> RuntimeResult<Vec<CalendarEventValue>>>,
+    /// Hook for `calendarEventRead`.
+    pub(crate) event_read: Option<fn(String) -> RuntimeResult<CalendarEventValue>>,
+    /// Hook for `calendarEventCreate`.
+    pub(crate) event_create: Option<fn(CalendarEventDraftValue) -> RuntimeResult<String>>,
+    /// Hook for `calendarEventUpdate`.
+    pub(crate) event_update: Option<fn(String, CalendarEventDraftValue) -> RuntimeResult<()>>,
+    /// Hook for `calendarEventDelete`.
+    pub(crate) event_delete: Option<fn(String) -> RuntimeResult<()>>,
+}
+
 /// Return the shared Linux location hook slot for tests.
 fn linux_location_hook_slot() -> &'static Mutex<LinuxLocationHooks> {
     static HOOK: OnceLock<Mutex<LinuxLocationHooks>> = OnceLock::new();
@@ -57,6 +76,13 @@ fn linux_contact_hook_slot() -> &'static Mutex<LinuxContactHooks> {
     HOOK.get_or_init(|| Mutex::new(LinuxContactHooks::default()))
 }
 
+/// Return the shared Linux calendar hook slot for tests.
+fn linux_calendar_hook_slot() -> &'static Mutex<LinuxCalendarHooks> {
+    static HOOK: OnceLock<Mutex<LinuxCalendarHooks>> = OnceLock::new();
+
+    HOOK.get_or_init(|| Mutex::new(LinuxCalendarHooks::default()))
+}
+
 /// Install one Linux location hook set for tests.
 pub(crate) fn set_linux_location_test_hooks(hooks: LinuxLocationHooks) {
     let mut slot = linux_location_hook_slot()
@@ -69,6 +95,15 @@ pub(crate) fn set_linux_location_test_hooks(hooks: LinuxLocationHooks) {
 /// Install one Linux contact hook set for tests.
 pub(crate) fn set_linux_contact_test_hooks(hooks: LinuxContactHooks) {
     let mut slot = linux_contact_hook_slot()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+
+    *slot = hooks;
+}
+
+/// Install one Linux calendar hook set for tests.
+pub(crate) fn set_linux_calendar_test_hooks(hooks: LinuxCalendarHooks) {
+    let mut slot = linux_calendar_hook_slot()
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
@@ -91,6 +126,83 @@ fn contact_hooks() -> LinuxContactHooks {
         .unwrap_or_else(|error| error.into_inner());
 
     *slot
+}
+
+/// Return the active Linux calendar hooks for tests.
+fn calendar_hooks() -> LinuxCalendarHooks {
+    let slot = linux_calendar_hook_slot()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+
+    *slot
+}
+
+/// Submit one Linux calendar request from the host request lane in tests.
+pub(crate) fn submit_calendar_request(
+    _context: &HostRequestContext,
+    request: &HostRequest,
+) -> RuntimeResult<Option<HostRequestOutcome>> {
+    let hooks = calendar_hooks();
+
+    match request {
+        HostRequest::OsCalendarList => {
+            let Some(hook) = hooks.list else {
+                return Err(missing_calendar_test_hook("calendar list"));
+            };
+            let calendars = hook()?;
+
+            Ok(Some(HostRequestOutcome::immediate(
+                HostRequestResult::CalendarList(calendars),
+            )))
+        }
+        HostRequest::OsCalendarEventList { query } => {
+            let Some(hook) = hooks.event_list else {
+                return Err(missing_calendar_test_hook("calendar event list"));
+            };
+            let events = hook(*query)?;
+
+            Ok(Some(HostRequestOutcome::immediate(
+                HostRequestResult::CalendarEventList(events),
+            )))
+        }
+        HostRequest::OsCalendarEventRead { id } => {
+            let Some(hook) = hooks.event_read else {
+                return Err(missing_calendar_test_hook("calendar event read"));
+            };
+            let event = hook(id.clone())?;
+
+            Ok(Some(HostRequestOutcome::immediate(
+                HostRequestResult::CalendarEvent(event),
+            )))
+        }
+        HostRequest::OsCalendarEventCreate { event } => {
+            let Some(hook) = hooks.event_create else {
+                return Err(missing_calendar_test_hook("calendar event create"));
+            };
+            let id = hook(event.clone())?;
+
+            Ok(Some(HostRequestOutcome::immediate(
+                HostRequestResult::String(id),
+            )))
+        }
+        HostRequest::OsCalendarEventUpdate { id, event } => {
+            let Some(hook) = hooks.event_update else {
+                return Err(missing_calendar_test_hook("calendar event update"));
+            };
+            hook(id.clone(), event.clone())?;
+
+            Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
+        }
+        HostRequest::OsCalendarEventDelete { id } => {
+            let Some(hook) = hooks.event_delete else {
+                return Err(missing_calendar_test_hook("calendar event delete"));
+            };
+            hook(id.clone())?;
+
+            Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
+        }
+        _ => Ok(None),
+    }
 }
 
 /// Submit one Linux contact request from the host request lane in tests.
@@ -244,6 +356,15 @@ fn missing_contact_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError>
     RuntimeError::from(PlatformError::generic(
         Some(PlatformErrorCode::Generic),
         format!("Linux contact tests must install one {kind} hook before calling the host lane"),
+    ))
+    .boxed()
+}
+
+/// Build one missing-hook error for Linux calendar tests.
+fn missing_calendar_test_hook(kind: &str) -> Box<crate::diagnostic::RuntimeError> {
+    RuntimeError::from(PlatformError::generic(
+        Some(PlatformErrorCode::Generic),
+        format!("Linux calendar tests must install one {kind} hook before calling the host lane"),
     ))
     .boxed()
 }
