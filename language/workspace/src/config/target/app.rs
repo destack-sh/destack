@@ -1,4 +1,5 @@
 use std::hash::{Hash, Hasher};
+use std::path::PathBuf;
 
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -6,6 +7,8 @@ use serde::Deserialize;
 /// Target-scoped app declaration for app packaging and runtime capability planning.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TargetAppDeclaration {
+    /// Stable app identity for packaging and host-facing integration.
+    pub identity: TargetAppIdentityDeclaration,
     /// Permission declarations keyed by permission selector.
     pub permissions: IndexMap<TargetAppPermission, TargetAppPermissionDeclaration>,
     /// Intent declaration for app activation and routing.
@@ -26,6 +29,9 @@ pub struct TargetAppDeclaration {
 
 impl Hash for TargetAppDeclaration {
     fn hash<H: Hasher>(&self, state: &mut H) {
+        // identity
+        self.identity.hash(state);
+
         // permissions
         self.permissions.len().hash(state);
         for (permission, declaration) in &self.permissions {
@@ -47,6 +53,11 @@ impl Hash for TargetAppDeclaration {
 impl From<&TargetAppDeclarationJson> for TargetAppDeclaration {
     fn from(json: &TargetAppDeclarationJson) -> Self {
         Self {
+            identity: json
+                .identity
+                .as_ref()
+                .map(TargetAppIdentityDeclaration::from)
+                .unwrap_or_default(),
             permissions: json
                 .permissions
                 .as_ref()
@@ -101,6 +112,8 @@ impl From<&TargetAppDeclarationJson> for TargetAppDeclaration {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct TargetAppDeclarationJson {
+    /// Stable app identity for packaging and host-facing integration.
+    pub identity: Option<TargetAppIdentityDeclarationJson>,
     /// Permission declarations keyed by permission selector.
     pub permissions: Option<IndexMap<TargetAppPermission, TargetAppPermissionDeclarationJson>>,
     /// Intent declaration for app activation and routing.
@@ -117,6 +130,40 @@ pub struct TargetAppDeclarationJson {
     pub credentials: Option<TargetAppCredentialDeclarationJson>,
     /// Location declaration beyond permission usage strings.
     pub location: Option<TargetAppLocationDeclarationJson>,
+}
+
+/// Stable app identity declaration for one target.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct TargetAppIdentityDeclaration {
+    /// Stable application identifier, ideally reverse-DNS style.
+    pub identifier: Option<String>,
+    /// Human-facing app display name.
+    pub display_name: Option<String>,
+    /// Optional host-facing icon path for desktop shell integration.
+    pub icon_path: Option<PathBuf>,
+}
+
+impl From<&TargetAppIdentityDeclarationJson> for TargetAppIdentityDeclaration {
+    fn from(json: &TargetAppIdentityDeclarationJson) -> Self {
+        Self {
+            identifier: json.identifier.clone(),
+            display_name: json.display_name.clone(),
+            icon_path: json.icon_path.clone(),
+        }
+    }
+}
+
+/// Stable app identity declaration JSON for one target.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct TargetAppIdentityDeclarationJson {
+    /// Stable application identifier, ideally reverse-DNS style.
+    pub identifier: Option<String>,
+    /// Human-facing app display name.
+    pub display_name: Option<String>,
+    /// Optional host-facing icon path for desktop shell integration.
+    pub icon_path: Option<PathBuf>,
 }
 
 /// App permission selector for target declarations.
