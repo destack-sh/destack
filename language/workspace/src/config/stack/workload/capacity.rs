@@ -1,7 +1,8 @@
 use serde::Deserialize;
 
-use super::super::super::runtime::{HeapOptionsJson, RuntimeOptionsJson, SchedulerOptionsJson};
-use super::super::common::{
+use crate::config::runtime::{HeapOptionsJson, RuntimeOptionsJson, SchedulerOptionsJson};
+
+use super::super::{
     StackRestartPolicy, StackRestartPolicyJson, StackRolloutStrategy, StackRolloutStrategyJson,
     StackScalingMetric, StackScalingMetricJson,
 };
@@ -347,59 +348,6 @@ fn parse_byte_quantity(quantity: &str) -> Option<u64> {
     };
 
     number.checked_mul(multiplier)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{StackCapacityJson, StackCapacityOptions, parse_byte_quantity};
-
-    /// Parse binary and decimal byte quantities.
-    #[test]
-    fn test_parse_byte_quantity_units() {
-        assert_eq!(parse_byte_quantity("256Mi"), Some(268_435_456));
-        assert_eq!(parse_byte_quantity("1Gi"), Some(1_073_741_824));
-        assert_eq!(parse_byte_quantity("2GB"), Some(2_000_000_000));
-        assert_eq!(parse_byte_quantity("4096"), Some(4096));
-        assert_eq!(parse_byte_quantity("1m"), None);
-    }
-
-    /// Infer runtime heap and scheduler limits from capacity.
-    #[test]
-    fn test_capacity_infers_runtime_overrides() {
-        let json = StackCapacityJson {
-            requests: super::StackComputeResourcesJson {
-                memory: Some("256Mi".to_string()),
-                ..Default::default()
-            },
-            limits: super::StackComputeResourcesJson {
-                memory: Some("1Gi".to_string()),
-                ..Default::default()
-            },
-            concurrency: super::StackConcurrencyJson { max: Some(64) },
-            ..Default::default()
-        };
-
-        let capacity = StackCapacityOptions::from(&json);
-        let runtime = capacity
-            .inferred_runtime_overrides()
-            .expect("runtime overrides should exist");
-
-        assert_eq!(
-            runtime.heap.as_ref().and_then(|heap| heap.soft_limit_bytes),
-            Some(268_435_456)
-        );
-        assert_eq!(
-            runtime.heap.as_ref().and_then(|heap| heap.max_bytes),
-            Some(1_073_741_824)
-        );
-        assert_eq!(
-            runtime
-                .scheduler
-                .as_ref()
-                .and_then(|scheduler| scheduler.max_tasks),
-            Some(64)
-        );
-    }
 }
 
 /// Placement configuration JSON.

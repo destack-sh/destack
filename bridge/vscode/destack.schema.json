@@ -6056,7 +6056,18 @@
           ]
         },
         "provider": {
-          "description": "Provider-specific lowering overrides."
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "with": {
+          "description": "Extra stack arguments."
         },
         "targets": {
           "description": "Target references used by this stack.",
@@ -6128,6 +6139,26 @@
             "$ref": "#/$defs/StackSecretJson"
           }
         },
+        "assets": {
+          "description": "Named asset collections.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackAssetJson"
+          }
+        },
+        "publications": {
+          "description": "Named publications over assets.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackPublicationJson"
+          }
+        },
         "domains": {
           "description": "Named domains and DNS ownership.",
           "type": [
@@ -6155,6 +6186,42 @@
           "additionalProperties": {
             "$ref": "#/$defs/StackEnvironmentJson"
           }
+        }
+      }
+    },
+    "StackProviderJson": {
+      "description": "Provider attachment JSON.",
+      "anyOf": [
+        {
+          "description": "One shorthand provider identifier.",
+          "type": "string"
+        },
+        {
+          "description": "One structured provider attachment.",
+          "$ref": "#/$defs/StackProviderAttachmentJson"
+        }
+      ]
+    },
+    "StackProviderAttachmentJson": {
+      "description": "Structured provider attachment JSON.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Provider identifier.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "account": {
+          "description": "Control-plane account reference.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "with": {
+          "description": "Extra provider-specific arguments."
         }
       }
     },
@@ -6200,298 +6267,240 @@
           }
         },
         "provider": {
-          "description": "Provider-specific lowering overrides."
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
-      },
-      "oneOf": [
-        {
-          "properties": {
-            "type": {
-              "const": "destack.sh/component/client"
-            },
-            "with": {
-              "$ref": "#/$defs/StackClientComponentJson"
-            }
-          }
-        },
-        {
-          "properties": {
-            "type": {
-              "const": "destack.sh/component/service"
-            },
-            "with": {
-              "$ref": "#/$defs/StackServiceComponentJson"
-            }
-          }
-        },
-        {
-          "properties": {
-            "type": {
-              "const": "destack.sh/component/worker"
-            },
-            "with": {
-              "$ref": "#/$defs/StackWorkerComponentJson"
-            }
-          }
-        },
-        {
-          "properties": {
-            "type": {
-              "const": "destack.sh/component/job"
-            },
-            "with": {
-              "$ref": "#/$defs/StackJobComponentJson"
-            }
-          }
-        },
-        {
-          "properties": {
-            "type": {
-              "const": "destack.sh/component/site"
-            },
-            "with": {
-              "$ref": "#/$defs/StackSiteComponentJson"
-            }
-          }
-        },
-        {
-          "properties": {
-            "with": {
-              "type": [
-                "object",
-                "null"
-              ]
-            }
-          },
-          "not": {
-            "properties": {
-              "type": {
-                "enum": [
-                  "destack.sh/component/client",
-                  "destack.sh/component/service",
-                  "destack.sh/component/worker",
-                  "destack.sh/component/job",
-                  "destack.sh/component/site"
-                ]
-              }
-            },
-            "required": [
-              "type"
-            ]
-          }
-        }
-      ]
+      }
     },
-    "StackClientComponentJson": {
-      "description": "Builtin client component parameters.",
+    "StackWorkloadJson": {
+      "description": "An executable compute node.\n\nInputs: one target, bindings, mounts, env transport, and runtime policy.\nOutputs: runtime instances that may back one or more services.",
       "type": "object",
       "properties": {
         "target": {
-          "description": "Primary client target.",
+          "description": "Artifact target consumed by this workload.",
           "type": [
             "string",
             "null"
           ]
         },
-        "domain": {
-          "description": "Optional public domain for the lowered client service.",
-          "type": [
-            "string",
-            "null"
-          ]
+        "run": {
+          "description": "How this workload is run or triggered.",
+          "$ref": "#/$defs/StackRunJson"
         },
-        "match": {
-          "description": "Optional route match for the lowered ingress rule.",
+        "bindings": {
+          "description": "Typed bindings exposed to this workload.",
           "type": [
-            "string",
+            "object",
             "null"
-          ]
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackBindingJson"
+          }
         },
-        "service": {
-          "description": "Optional backing service bound into the client.",
+        "env": {
+          "description": "Environment variable transport overrides.",
           "type": [
-            "string",
+            "object",
             "null"
-          ]
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackEnvVarJson"
+          }
         },
-        "serviceEnv": {
-          "description": "Optional public environment binding name for the bound service url.",
+        "mounts": {
+          "description": "Named mounts exposed to this workload.",
           "type": [
-            "string",
+            "object",
             "null"
-          ]
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackMountJson"
+          }
         },
-        "assets": {
-          "description": "Static asset source or asset publishing configuration.",
+        "labels": {
+          "description": "Selection labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "description": "Non-identifying metadata.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "provider": {
+          "description": "Provider attachment.",
           "anyOf": [
             {
-              "$ref": "#/$defs/StackAssetsJson"
+              "$ref": "#/$defs/StackProviderJson"
             },
             {
               "type": "null"
             }
           ]
         },
-        "config": {
-          "description": "Extra component metadata."
+        "health": {
+          "description": "Workload health checks.",
+          "$ref": "#/$defs/StackHealthJson"
+        },
+        "placement": {
+          "description": "Placement constraints and preferences.",
+          "$ref": "#/$defs/StackPlacementJson"
+        },
+        "identity": {
+          "description": "Workload identity.",
+          "$ref": "#/$defs/StackIdentityJson"
+        },
+        "capacity": {
+          "description": "Compute envelope and scaling behavior.",
+          "$ref": "#/$defs/StackCapacityJson"
+        },
+        "timeouts": {
+          "description": "Generic workload and runtime time budgets.",
+          "$ref": "#/$defs/StackTimeoutJson"
+        },
+        "runtime": {
+          "description": "Destack runtime overrides for this workload.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "with": {
+          "description": "Extra workload arguments."
+        },
+        "rollout": {
+          "description": "Rollout policy.",
+          "$ref": "#/$defs/StackRolloutJson"
+        },
+        "restart": {
+          "description": "Restart policy.",
+          "$ref": "#/$defs/StackRestartJson"
+        },
+        "availability": {
+          "description": "Availability policy.",
+          "$ref": "#/$defs/StackAvailabilityJson"
         }
       }
     },
-    "StackAssetsJson": {
-      "description": "Asset publication JSON.",
-      "anyOf": [
-        {
-          "description": "Shorthand local source directory or manifest path.",
-          "type": "string"
-        },
-        {
-          "description": "Structured asset publication settings.",
-          "$ref": "#/$defs/StackAssetsObjectJson"
-        }
-      ]
-    },
-    "StackAssetsObjectJson": {
-      "description": "Structured asset publication JSON.",
+    "StackRunJson": {
+      "description": "Workload run configuration JSON.",
       "type": "object",
       "properties": {
-        "source": {
-          "description": "Local source directory or manifest path.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "service": {
-          "description": "Backing asset or CDN service reference.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "publicPath": {
-          "description": "Public path prefix where assets are exposed.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "cacheControl": {
-          "description": "Cache-Control header for published assets.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "immutable": {
-          "description": "Whether published asset paths are content-addressed and immutable.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "indexDocument": {
-          "description": "Default index document for directory requests.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "errorDocument": {
-          "description": "Default error document for not-found responses.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "config": {
-          "description": "Extra asset metadata."
-        }
-      }
-    },
-    "StackServiceComponentJson": {
-      "description": "Builtin service component parameters.",
-      "type": "object",
-      "properties": {
-        "target": {
-          "description": "Primary service target.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "type": {
-          "description": "Optional semantic service type id.",
-          "type": [
-            "string",
-            "null"
+        "kind": {
+          "description": "Run kind.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackRunKindJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "protocol": {
-          "description": "Optional service protocol.",
+          "description": "Run protocol.",
           "type": [
             "string",
             "null"
           ]
         },
         "mount": {
-          "description": "Optional workload mount or handler path.",
+          "description": "Optional mount path or handler path.",
           "type": [
             "string",
             "null"
           ]
         },
-        "domain": {
-          "description": "Optional public domain for ingress.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "match": {
-          "description": "Optional route match for the lowered ingress rule.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "targetPort": {
-          "description": "Optional target port override.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint16",
-          "minimum": 0,
-          "maximum": 65535
-        },
-        "config": {
-          "description": "Extra component metadata."
-        }
-      }
-    },
-    "StackWorkerComponentJson": {
-      "description": "Builtin worker component parameters.",
-      "type": "object",
-      "properties": {
-        "target": {
-          "description": "Primary worker target.",
-          "type": [
-            "string",
-            "null"
+        "assets": {
+          "description": "Referenced asset collections.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackAssetRefsJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "trigger": {
-          "description": "Optional trigger configuration.",
+          "description": "Trigger configuration.",
           "$ref": "#/$defs/StackTriggerJson"
         },
         "delivery": {
-          "description": "Optional delivery configuration.",
+          "description": "Delivery configuration.",
           "$ref": "#/$defs/StackDeliveryJson"
         },
-        "config": {
-          "description": "Extra component metadata."
+        "with": {
+          "description": "Extra run arguments."
         }
       }
+    },
+    "StackRunKindJson": {
+      "description": "Run kind JSON.",
+      "oneOf": [
+        {
+          "description": "Serve HTTP traffic.",
+          "type": "string",
+          "const": "http"
+        },
+        {
+          "description": "Publish static assets.",
+          "type": "string",
+          "const": "static"
+        },
+        {
+          "description": "Consume queue or stream messages.",
+          "type": "string",
+          "const": "consumer"
+        },
+        {
+          "description": "Run on a cron-like schedule.",
+          "type": "string",
+          "const": "schedule"
+        },
+        {
+          "description": "Run as a one-shot background job.",
+          "type": "string",
+          "const": "job"
+        }
+      ]
+    },
+    "StackAssetRefsJson": {
+      "description": "Asset reference JSON.",
+      "anyOf": [
+        {
+          "description": "One named asset collection reference.",
+          "type": "string"
+        },
+        {
+          "description": "Many named asset collection references.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "StackTriggerJson": {
       "description": "Trigger configuration JSON.",
@@ -6590,267 +6599,6 @@
           "minimum": 0
         }
       }
-    },
-    "StackJobComponentJson": {
-      "description": "Builtin job component parameters.",
-      "type": "object",
-      "properties": {
-        "target": {
-          "description": "Primary job target.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "trigger": {
-          "description": "Optional trigger configuration.",
-          "$ref": "#/$defs/StackTriggerJson"
-        },
-        "delivery": {
-          "description": "Optional delivery configuration.",
-          "$ref": "#/$defs/StackDeliveryJson"
-        },
-        "config": {
-          "description": "Extra component metadata."
-        }
-      }
-    },
-    "StackSiteComponentJson": {
-      "description": "Builtin site component parameters.",
-      "type": "object",
-      "properties": {
-        "target": {
-          "description": "Primary site target.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "domain": {
-          "description": "Optional public domain for the lowered site service.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "match": {
-          "description": "Optional route match for the lowered ingress rule.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "assets": {
-          "description": "Static asset source or asset publishing configuration.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/StackAssetsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "config": {
-          "description": "Extra component metadata."
-        }
-      }
-    },
-    "StackWorkloadJson": {
-      "description": "An executable compute node.\n\nInputs: one target, bindings, mounts, env transport, and runtime policy.\nOutputs: runtime instances that may back one or more services.",
-      "type": "object",
-      "properties": {
-        "target": {
-          "description": "Artifact target consumed by this workload.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "run": {
-          "description": "How this workload is run or triggered.",
-          "$ref": "#/$defs/StackRunJson"
-        },
-        "bindings": {
-          "description": "Typed bindings exposed to this workload.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackBindingJson"
-          }
-        },
-        "env": {
-          "description": "Environment variable transport overrides.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackEnvVarJson"
-          }
-        },
-        "mounts": {
-          "description": "Named mounts exposed to this workload.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/$defs/StackMountJson"
-          }
-        },
-        "labels": {
-          "description": "Selection labels.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "annotations": {
-          "description": "Non-identifying metadata.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "provider": {
-          "description": "Provider-specific lowering overrides."
-        },
-        "health": {
-          "description": "Workload health checks.",
-          "$ref": "#/$defs/StackHealthJson"
-        },
-        "placement": {
-          "description": "Placement constraints and preferences.",
-          "$ref": "#/$defs/StackPlacementJson"
-        },
-        "identity": {
-          "description": "Workload identity bindings.",
-          "$ref": "#/$defs/StackIdentityJson"
-        },
-        "capacity": {
-          "description": "Compute envelope and scaling behavior.",
-          "$ref": "#/$defs/StackCapacityJson"
-        },
-        "timeouts": {
-          "description": "Generic workload and runtime time budgets.",
-          "$ref": "#/$defs/StackTimeoutJson"
-        },
-        "runtime": {
-          "description": "Destack runtime overrides for this workload.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "rollout": {
-          "description": "Rollout policy.",
-          "$ref": "#/$defs/StackRolloutJson"
-        },
-        "restart": {
-          "description": "Restart policy.",
-          "$ref": "#/$defs/StackRestartJson"
-        },
-        "availability": {
-          "description": "Availability policy.",
-          "$ref": "#/$defs/StackAvailabilityJson"
-        }
-      }
-    },
-    "StackRunJson": {
-      "description": "Workload run configuration JSON.",
-      "type": "object",
-      "properties": {
-        "kind": {
-          "description": "Run kind.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/StackRunKindJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "protocol": {
-          "description": "Run protocol.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "mount": {
-          "description": "Optional mount path or handler path.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "assets": {
-          "description": "Static asset source or asset publishing configuration.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/StackAssetsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "trigger": {
-          "description": "Trigger configuration.",
-          "$ref": "#/$defs/StackTriggerJson"
-        },
-        "delivery": {
-          "description": "Delivery configuration.",
-          "$ref": "#/$defs/StackDeliveryJson"
-        },
-        "config": {
-          "description": "Extra run metadata."
-        }
-      }
-    },
-    "StackRunKindJson": {
-      "description": "Run kind JSON.",
-      "oneOf": [
-        {
-          "description": "Serve HTTP traffic.",
-          "type": "string",
-          "const": "http"
-        },
-        {
-          "description": "Publish static assets.",
-          "type": "string",
-          "const": "static"
-        },
-        {
-          "description": "Consume queue or stream messages.",
-          "type": "string",
-          "const": "consumer"
-        },
-        {
-          "description": "Run on a cron-like schedule.",
-          "type": "string",
-          "const": "schedule"
-        },
-        {
-          "description": "Run as a one-shot background job.",
-          "type": "string",
-          "const": "job"
-        }
-      ]
     },
     "StackBindingJson": {
       "description": "Binding configuration JSON.",
@@ -7122,10 +6870,18 @@
           }
         },
         "provider": {
-          "description": "Provider-specific lowering overrides."
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
-        "config": {
-          "description": "Extra identity metadata."
+        "with": {
+          "description": "Extra identity arguments."
         }
       }
     },
@@ -7437,7 +7193,7 @@
       }
     },
     "StackServiceJson": {
-      "description": "A stable bindable capability or endpoint.\n\nInputs: either named workloads or one external url, plus protocol, placement, and service config.\nOutputs: addressable fields such as `url` for bindings and ingress.",
+      "description": "A stable bindable capability or endpoint.\n\nInputs: either named workloads or one external endpoint, plus protocol, placement, and service config.\nOutputs: addressable fields such as `url` for bindings and ingress.",
       "type": "object",
       "properties": {
         "type": {
@@ -7468,10 +7224,18 @@
           }
         },
         "provider": {
-          "description": "Provider-specific lowering overrides."
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "workloads": {
-          "description": "Workloads behind this service.\n\nExactly one of `workloads` or `url` should be set.",
+          "description": "Workloads that provide this service.\n\nExactly one of `workloads` or `endpoint` should be set.",
           "type": [
             "array",
             "null"
@@ -7480,8 +7244,8 @@
             "type": "string"
           }
         },
-        "url": {
-          "description": "External endpoint for unmanaged services.\n\nExactly one of `workloads` or `url` should be set.",
+        "endpoint": {
+          "description": "External endpoint for unmanaged services.\n\nExactly one of `workloads` or `endpoint` should be set.",
           "type": [
             "string",
             "null"
@@ -7516,59 +7280,16 @@
         },
         "placement": {
           "description": "Placement constraints and preferences.",
-          "allOf": [
-            {
-              "$ref": "#/$defs/StackPlacementJson"
-            }
-          ]
+          "$ref": "#/$defs/StackPlacementJson"
         },
         "access": {
           "description": "Service access expectations.",
-          "allOf": [
-            {
-              "$ref": "#/$defs/StackServiceAccessJson"
-            }
-          ]
+          "$ref": "#/$defs/StackServiceAccessJson"
         },
-        "config": {
-          "description": "Extra service metadata."
+        "with": {
+          "description": "Extra service arguments."
         }
-      },
-      "oneOf": [
-        {
-          "properties": {
-            "workloads": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          },
-          "required": [
-            "workloads"
-          ],
-          "not": {
-            "required": [
-              "url"
-            ]
-          }
-        },
-        {
-          "properties": {
-            "url": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "url"
-          ],
-          "not": {
-            "required": [
-              "workloads"
-            ]
-          }
-        }
-      ]
+      }
     },
     "StackServiceAccessJson": {
       "description": "Service access JSON.",
@@ -7640,58 +7361,45 @@
     },
     "StackIssuerRefJson": {
       "description": "Issuer reference JSON.",
+      "anyOf": [
+        {
+          "description": "Internal issuer service reference.",
+          "$ref": "#/$defs/StackIssuerServiceRefJson"
+        },
+        {
+          "description": "External issuer URL reference.",
+          "$ref": "#/$defs/StackIssuerUrlRefJson"
+        }
+      ]
+    },
+    "StackIssuerServiceRefJson": {
+      "description": "Internal issuer service reference JSON.",
       "type": "object",
       "properties": {
         "service": {
           "description": "Internal issuer service name.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "url": {
-          "description": "External issuer URL.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         }
       },
-      "oneOf": [
-        {
-          "properties": {
-            "service": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "service"
-          ],
-          "not": {
-            "required": [
-              "url"
-            ]
-          }
-        },
-        {
-          "properties": {
-            "url": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "url"
-          ],
-          "not": {
-            "required": [
-              "service"
-            ]
-          }
+      "required": [
+        "service"
+      ]
+    },
+    "StackIssuerUrlRefJson": {
+      "description": "External issuer URL reference JSON.",
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "External issuer URL.",
+          "type": "string"
         }
+      },
+      "required": [
+        "url"
       ]
     },
     "StackVolumeJson": {
-      "description": "A passive mountable storage node.\n\nInputs: size, class, and provider config.\nOutputs: mount handles for workloads.",
+      "description": "A passive mountable storage node.\n\nInputs: size, class, and provider attachment.\nOutputs: mount handles for workloads.",
       "type": "object",
       "properties": {
         "size": {
@@ -7747,10 +7455,18 @@
           }
         },
         "provider": {
-          "description": "Provider-specific lowering overrides."
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
-        "config": {
-          "description": "Extra volume metadata."
+        "with": {
+          "description": "Extra volume arguments."
         }
       }
     },
@@ -7825,10 +7541,18 @@
           }
         },
         "provider": {
-          "description": "Provider-specific lowering overrides."
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
-        "config": {
-          "description": "Extra config metadata."
+        "with": {
+          "description": "Extra config arguments."
         }
       }
     },
@@ -7864,12 +7588,289 @@
           }
         },
         "provider": {
-          "description": "Provider-specific lowering overrides."
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
-        "config": {
-          "description": "Extra secret metadata."
+        "with": {
+          "description": "Extra secret arguments."
         }
       }
+    },
+    "StackAssetJson": {
+      "description": "Asset collection JSON.",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "Local source directory or built asset root.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "profile": {
+          "description": "Default build or cooking profile.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outputs": {
+          "description": "Named derived outputs.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackAssetOutputJson"
+          }
+        },
+        "with": {
+          "description": "Extra asset arguments."
+        }
+      }
+    },
+    "StackAssetOutputJson": {
+      "description": "Asset output JSON.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "description": "Derived output kind.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackAssetOutputKindJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "match": {
+          "description": "Source members included in this output.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "profile": {
+          "description": "Optional build or cooking profile override.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "with": {
+          "description": "Extra output arguments."
+        }
+      }
+    },
+    "StackAssetOutputKindJson": {
+      "description": "Asset output kind JSON.",
+      "oneOf": [
+        {
+          "description": "Plain published files.",
+          "type": "string",
+          "const": "files"
+        },
+        {
+          "description": "Grouped runtime bundle or pack.",
+          "type": "string",
+          "const": "bundle"
+        },
+        {
+          "description": "Catalog or lookup manifest.",
+          "type": "string",
+          "const": "catalog"
+        },
+        {
+          "description": "Preview or thumbnail output.",
+          "type": "string",
+          "const": "preview"
+        },
+        {
+          "description": "Streaming playback output.",
+          "type": "string",
+          "const": "stream"
+        }
+      ]
+    },
+    "StackPublicationJson": {
+      "description": "Publication JSON.",
+      "type": "object",
+      "properties": {
+        "asset": {
+          "description": "Source asset collection name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "output": {
+          "description": "Optional named output within the source asset collection.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provider": {
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin": {
+          "description": "Backing origin configuration.",
+          "$ref": "#/$defs/StackPublicationOriginJson"
+        },
+        "cache": {
+          "description": "Cache policy for the published content.",
+          "$ref": "#/$defs/StackCacheJson"
+        },
+        "labels": {
+          "description": "Selection labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "description": "Non-identifying metadata.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "with": {
+          "description": "Extra publication arguments."
+        }
+      }
+    },
+    "StackPublicationOriginJson": {
+      "description": "Publication origin JSON.",
+      "type": "object",
+      "properties": {
+        "service": {
+          "description": "Internal origin service reference.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "endpoint": {
+          "description": "External origin endpoint.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "StackCacheJson": {
+      "description": "Cache policy JSON.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "Cache visibility mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackCacheModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maxAge": {
+          "description": "Default max age.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sharedMaxAge": {
+          "description": "Shared cache max age.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "staleWhileRevalidate": {
+          "description": "Stale while revalidate lifetime.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "staleIfError": {
+          "description": "Stale if error lifetime.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "immutable": {
+          "description": "Whether cached content is immutable.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "vary": {
+          "description": "Cache variation keys.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "StackCacheModeJson": {
+      "description": "Cache mode JSON.",
+      "oneOf": [
+        {
+          "description": "Public cacheable content.",
+          "type": "string",
+          "const": "public"
+        },
+        {
+          "description": "Private cacheable content.",
+          "type": "string",
+          "const": "private"
+        },
+        {
+          "description": "Bypass cache storage.",
+          "type": "string",
+          "const": "no-store"
+        },
+        {
+          "description": "Revalidate on every use.",
+          "type": "string",
+          "const": "no-cache"
+        }
+      ]
     },
     "StackDomainJson": {
       "description": "A domain ownership and DNS policy node.\n\nInputs: domain name, ownership mode, DNS settings, and TLS settings.\nOutputs: hostname references and provider-managed DNS or TLS handles.",
@@ -7929,7 +7930,18 @@
           }
         },
         "provider": {
-          "description": "Provider-specific lowering overrides."
+          "description": "Provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "with": {
+          "description": "Extra domain arguments."
         }
       }
     },
@@ -7958,17 +7970,14 @@
       "type": "object",
       "properties": {
         "provider": {
-          "description": "DNS provider identifier.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "account": {
-          "description": "Control-plane account reference.",
-          "type": [
-            "string",
-            "null"
+          "description": "DNS provider attachment.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackProviderJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "zone": {
@@ -7988,8 +7997,8 @@
             "$ref": "#/$defs/StackDomainDnsRecordJson"
           }
         },
-        "config": {
-          "description": "Extra DNS provider metadata."
+        "with": {
+          "description": "Extra DNS provider arguments."
         }
       }
     },
@@ -8091,11 +8100,11 @@
       ]
     },
     "StackIngressJson": {
-      "description": "An external routing surface.\n\nInputs: domains, services, and routing rules.\nOutputs: externally reachable routes and edge policy.",
+      "description": "An external routing surface.\n\nInputs: domains, services, publications, and routing rules.\nOutputs: externally reachable routes and edge policy.",
       "type": "object",
       "properties": {
         "routes": {
-          "description": "Named service routes.",
+          "description": "Named service or publication routes.",
           "type": [
             "object",
             "null"
@@ -8160,6 +8169,13 @@
         },
         "service": {
           "description": "Target service name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "publication": {
+          "description": "Target publication name.",
           "type": [
             "string",
             "null"
@@ -8274,15 +8290,41 @@
             "null"
           ]
         },
+        "resolution": {
+          "description": "Service and publication resolution strategy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackRouteResolutionJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "retries": {
           "description": "Retry policy.",
           "$ref": "#/$defs/StackRouteRetryJson"
         },
         "cache": {
           "description": "Cache policy.",
-          "$ref": "#/$defs/StackRouteCacheJson"
+          "$ref": "#/$defs/StackCacheJson"
         }
       }
+    },
+    "StackRouteResolutionJson": {
+      "description": "Route resolution JSON.",
+      "oneOf": [
+        {
+          "description": "Resolve publications before service execution.",
+          "type": "string",
+          "const": "publication-first"
+        },
+        {
+          "description": "Resolve service execution before publications.",
+          "type": "string",
+          "const": "service-first"
+        }
+      ]
     },
     "StackRouteRetryJson": {
       "description": "Route retry policy JSON.",
@@ -8306,43 +8348,6 @@
         },
         "conditions": {
           "description": "Retry conditions.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "StackRouteCacheJson": {
-      "description": "Route cache policy JSON.",
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "Whether route caching is enabled.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "ttl": {
-          "description": "Default cache lifetime.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "staleWhileRevalidate": {
-          "description": "Stale while revalidate lifetime.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "vary": {
-          "description": "Cache variation keys.",
           "type": [
             "array",
             "null"
@@ -8706,6 +8711,26 @@
             "$ref": "#/$defs/StackSecretJson"
           }
         },
+        "assets": {
+          "description": "Asset overrides.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackAssetJson"
+          }
+        },
+        "publications": {
+          "description": "Publication overrides.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackPublicationJson"
+          }
+        },
         "domains": {
           "description": "Domain overrides.",
           "type": [
@@ -8776,8 +8801,8 @@
             "null"
           ]
         },
-        "config": {
-          "description": "Extra provider-specific account metadata."
+        "with": {
+          "description": "Extra provider-specific account arguments."
         }
       }
     },
