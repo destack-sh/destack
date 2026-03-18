@@ -28,5 +28,6 @@ pub use crate::command::{
     CommandMessagePayload, CommandPayload, CommandReplOptions, CommandRunMode, CommandRunOptions,
     CommandRunPayload, CommandTargetOverrides, CommandTargetsEntry, CommandTargetsOptions,
     CommandTargetsPayload, CommandTaskAction, CommandTaskEntry, CommandTaskOptions,
-    CommandTaskPayload, CommandTestOptions, CommonCommandOptions, ConfigOverride,
+    CommandTaskPayload, CommandTaskResult, CommandTestOptions, CommonCommandOptions,
+    ConfigOverride,
 };

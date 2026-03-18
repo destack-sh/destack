@@ -1,4 +1,4 @@
-use crate::command::task::{TaskArgs, TaskCommand, run};
+use crate::command::task::{TaskArgs, run};
 use crate::common::ReportArgs;
 
 use super::tests::{TestProgram, assert_success};
@@ -19,7 +19,11 @@ fn test_task_list_reads_tasks() {
     let args = TaskArgs {
         program: program.program_args(),
         report: ReportArgs::default(),
-        command: Some(TaskCommand::List),
+        name: None,
+        projects: Vec::new(),
+        groups: Vec::new(),
+        args: Vec::new(),
+        dry_run: false,
     };
 
     // run the task command
@@ -44,11 +48,88 @@ fn test_task_run_dry_run() {
     let args = TaskArgs {
         program: program.program_args(),
         report: ReportArgs::default(),
-        command: Some(TaskCommand::Run {
-            name: "build".to_string(),
-            args: Vec::new(),
-            dry_run: true,
+        name: Some("build".to_string()),
+        projects: Vec::new(),
+        groups: Vec::new(),
+        args: Vec::new(),
+        dry_run: true,
+    };
+
+    // run the task command
+    let code = run(&args);
+
+    // assert the command succeeded
+    assert_success(code);
+}
+
+/// Runs a package.json script when no Destack task is defined.
+#[test]
+fn test_task_run_dry_run_falls_back_to_package_json() {
+    // set up a package script without one destack task override
+    let program = TestProgram::new("task_run_package_json");
+    program.write_package_json(json!({
+        "scripts": {
+            "start": "echo pkg",
+        },
+    }));
+
+    // build task args with dry run
+    let args = TaskArgs {
+        program: program.program_args(),
+        report: ReportArgs::default(),
+        name: Some("start".to_string()),
+        projects: Vec::new(),
+        groups: Vec::new(),
+        args: Vec::new(),
+        dry_run: true,
+    };
+
+    // run the task command
+    let code = run(&args);
+
+    // assert the command succeeded
+    assert_success(code);
+}
+
+/// Runs one workspace task for one selected project group.
+#[test]
+fn test_task_run_dry_run_for_workspace_group() {
+    // set up a workspace with one named group
+    let program = TestProgram::new("task_workspace_group");
+    program.write_destack_config_with_base(json!({
+        "workspace": {
+            "members": ["apps/*"],
+            "groups": {
+                "product": ["apps/web"],
+            },
+        },
+    }));
+    program.write_json(
+        "apps/web/destack.json",
+        json!({
+            "tasks": {
+                "build": "echo web",
+            },
         }),
+    );
+    program.write_json(
+        "apps/api/destack.json",
+        json!({
+            "tasks": {
+                "build": "echo api",
+            },
+        }),
+    );
+
+    // build one grouped task invocation
+    let args = TaskArgs {
+        program: program.program_args(),
+        report: ReportArgs::default(),
+        name: Some("build".to_string()),
+        projects: Vec::new(),
+        groups: vec!["product".to_string()],
+        args: Vec::new(),
+        dry_run: true,
     };
 
     // run the task command

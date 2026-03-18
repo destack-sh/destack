@@ -39,5 +39,7 @@ pub use payload::*;
 pub use repl::CommandReplOptions;
 pub use run::{CommandRunMode, CommandRunOptions, CommandRunPayload};
 pub use targets::{CommandTargetsEntry, CommandTargetsOptions, CommandTargetsPayload};
-pub use task::{CommandTaskAction, CommandTaskEntry, CommandTaskOptions, CommandTaskPayload};
+pub use task::{
+    CommandTaskAction, CommandTaskEntry, CommandTaskOptions, CommandTaskPayload, CommandTaskResult,
+};
 pub use test::CommandTestOptions;

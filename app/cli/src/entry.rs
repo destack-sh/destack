@@ -52,26 +52,55 @@ pub fn run(default_command: DefaultCommand) -> i32 {
 /// Normalize argv with an optional default subcommand.
 fn normalize_args(default_command: DefaultCommand) -> Vec<OsString> {
     // collect argv as os strings
-    let mut args: Vec<OsString> = std::env::args_os().collect();
+    let args: Vec<OsString> = std::env::args_os().collect();
+    normalize_args_with(default_command, args)
+}
+
+/// Normalize one argv vector with default command handling.
+fn normalize_args_with(default_command: DefaultCommand, mut args: Vec<OsString>) -> Vec<OsString> {
+    if args.is_empty() {
+        return args;
+    }
 
     // skip injection when no default is configured
-    let Some(command) = default_command.as_str() else {
+    if let Some(command) = default_command.as_str() {
+        let has_subcommand = args
+            .get(1)
+            .and_then(|arg| arg.to_str())
+            .is_some_and(Command::is_known_subcommand);
+
+        // inject the default command when missing
+        if !has_subcommand {
+            args.insert(1, OsString::from(command));
+        }
+    }
+
+    rewrite_unknown_subcommand_to_task(args)
+}
+
+/// Rewrite one unknown bare subcommand into one task invocation.
+fn rewrite_unknown_subcommand_to_task(args: Vec<OsString>) -> Vec<OsString> {
+    let Some(command) = args.get(1).and_then(|arg| arg.to_str()) else {
         return args;
     };
 
-    // detect whether a subcommand is already provided
-    let has_subcommand = args
-        .get(1)
-        .and_then(|arg| arg.to_str())
-        .is_some_and(Command::is_known_subcommand);
-
-    // inject the default command when missing
-    if !has_subcommand {
-        args.insert(1, OsString::from(command));
+    // keep known commands, help flags, and option-first invocation unchanged
+    if command.starts_with('-') || Command::is_known_subcommand(command) {
+        return args;
     }
 
-    // return normalized argv
-    args
+    let mut rewritten = Vec::with_capacity(args.len() + 3);
+    rewritten.push(args[0].clone());
+    rewritten.push(OsString::from("task"));
+    rewritten.push(OsString::from(command));
+
+    // forward the remaining argv to the task command
+    if args.len() > 2 {
+        rewritten.push(OsString::from("--"));
+        rewritten.extend(args.into_iter().skip(2));
+    }
+
+    rewritten
 }
 
 /// Parse a color mode override from raw args.
@@ -133,4 +162,47 @@ fn help_mode_for_args(args: &[OsString]) -> HelpMode {
     }
 
     HelpMode::Compact
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+
+    use super::{DefaultCommand, normalize_args_with};
+
+    /// Rewrite one unknown top-level verb into one task command.
+    #[test]
+    fn test_normalize_args_rewrites_unknown_subcommand_to_task() {
+        let args = vec![
+            OsString::from("destack"),
+            OsString::from("up"),
+            OsString::from("--force"),
+        ];
+
+        let args = normalize_args_with(DefaultCommand::None, args);
+
+        assert_eq!(
+            args,
+            vec![
+                OsString::from("destack"),
+                OsString::from("task"),
+                OsString::from("up"),
+                OsString::from("--"),
+                OsString::from("--force"),
+            ]
+        );
+    }
+
+    /// Leave one builtin command unchanged.
+    #[test]
+    fn test_normalize_args_keeps_known_subcommand() {
+        let args = vec![OsString::from("destack"), OsString::from("build")];
+
+        let args = normalize_args_with(DefaultCommand::None, args);
+
+        assert_eq!(
+            args,
+            vec![OsString::from("destack"), OsString::from("build")]
+        );
+    }
 }
