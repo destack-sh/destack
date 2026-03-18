@@ -69,7 +69,7 @@ pub fn generate_module(
 
     // create lowerer and process
     let mut lowerer =
-        ModuleLowerer::new(&module, ast, dir_tree, &dir_roots, symbols, types, target);
+        ModuleLowerer::new(&module, &ast, dir_tree, &dir_roots, symbols, types, target);
     lowerer.lower_module()?;
 
     // finish and get outputs + warnings

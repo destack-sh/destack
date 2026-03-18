@@ -8,7 +8,7 @@ use destack_dir as dir;
 use destack_dir::{SymbolTable, TypeTable};
 use destack_source::FileType;
 use destack_workspace::{
-    Module, ModuleAst, Output, OutputContent, OutputFormat, OutputId, OutputScope, OutputVersion,
+    Module, Ast, Output, OutputContent, OutputFormat, OutputId, OutputScope, OutputVersion,
     Target, TargetId,
 };
 
@@ -33,7 +33,7 @@ pub struct ModuleLowerer<'a> {
     /// The source module.
     pub(crate) module: &'a Module,
     /// The source module AST.
-    pub(crate) ast: &'a ModuleAst,
+    pub(crate) ast: &'a Ast,
 
     /// The DIR roots.
     pub(crate) dir_roots: &'a Vec<dir::LocalNodeId<dir::Expression>>,
@@ -62,7 +62,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowerer.
     pub fn new(
         module: &'a Module,
-        ast: &'a ModuleAst,
+        ast: &'a Ast,
         dir_tree: &'a dir::NodeTree,
         dir_roots: &'a Vec<dir::LocalNodeId<dir::Expression>>,
         symbols: &'a SymbolTable,

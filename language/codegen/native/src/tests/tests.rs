@@ -3,7 +3,7 @@ use std::num::NonZeroU32;
 use destack_core::StringId;
 use destack_mir as mir;
 use destack_source::{FileId, ModuleId, ModuleVersion, PackageId};
-use destack_workspace::{ModuleMir, TargetId};
+use destack_workspace::{MirBase, TargetId};
 use mir::parse::ParseOptions;
 
 use crate::CodegenCraneliftBackend;
@@ -14,8 +14,8 @@ pub(crate) fn compile_mir_to_clif(source: &str) -> String {
         mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
             .expect("failed to parse MIR");
 
-    // create a ModuleMir and populate it
-    let mut module = ModuleMir::new(
+    // create a base MIR payload and populate it
+    let mut module = MirBase::new(
         ModuleId::EPHEMERAL,
         ModuleVersion::INITIAL,
         TargetId::new(PackageId::EPHEMERAL, "clif"),
@@ -31,7 +31,7 @@ pub(crate) fn compile_mir_to_clif(source: &str) -> String {
 
     let backend = CodegenCraneliftBackend::native().expect("failed to create backend");
     backend
-        .compile_to_clif(&module, "test")
+        .compile_to_clif(&module.tree, &module.strings, "test")
         .expect("failed to compile")
 }
 
