@@ -1,9 +1,8 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome};
+use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRuntimeId};
 use crate::host::unix::{submit_unix_request, unix_request_capabilities};
 use crate::host::{HostAdapter, Platform};
 use crate::runtime::capability::PlatformCapabilitySet;
-use crate::runtime::world::RuntimeId;
 
 /// FreeBSD host implementation.
 #[derive(Debug, Default)]
@@ -21,15 +20,15 @@ impl HostAdapter for FreeBsdHost {
         Platform::FreeBsd
     }
 
-    fn session_capabilities(&self, _runtime_id: RuntimeId) -> PlatformCapabilitySet {
+    fn session_capabilities(&self, _host_runtime_id: HostRuntimeId) -> PlatformCapabilitySet {
         unix_request_capabilities()
     }
 
     fn submit_request(
         &self,
-        _context: &HostRequestContext,
+        context: &HostRequestContext,
         request: HostRequest,
     ) -> RuntimeResult<HostRequestOutcome> {
-        submit_unix_request(request)
+        submit_unix_request(context, request)
     }
 }

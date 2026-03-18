@@ -14,8 +14,12 @@ pub(crate) use ingress::process_ingress_loop;
 #[cfg(any(test, windows))]
 pub use ingress::*;
 #[cfg(all(test, windows))]
-pub(crate) use request::set_test_pick_hook;
+pub(crate) use request::{
+    WindowsCalendarHooks, WindowsContactHooks, set_windows_calendar_test_hooks,
+    set_windows_contact_test_hooks, set_windows_document_test_pick_hook,
+};
 #[cfg(windows)]
 pub(crate) use request::{
     request_capabilities as windows_request_capabilities, submit_request as submit_windows_request,
+    unregister_location_runtime,
 };

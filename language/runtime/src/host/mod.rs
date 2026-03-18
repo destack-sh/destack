@@ -3,9 +3,12 @@
 pub(crate) mod abi;
 #[cfg(any(test, target_os = "android"))]
 pub(crate) mod android;
+pub(crate) mod app;
 #[cfg(any(target_os = "ios", target_os = "macos"))]
 pub(crate) mod apple;
-pub(crate) mod common;
+mod bootstrap;
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
+pub(crate) mod callback;
 pub(crate) mod core;
 #[cfg(target_os = "dragonfly")]
 mod dragonfly;
@@ -25,6 +28,7 @@ mod macos;
 mod netbsd;
 #[cfg(target_os = "openbsd")]
 mod openbsd;
+pub(crate) mod operation;
 #[cfg(target_os = "solaris")]
 mod solaris;
 #[cfg(any(
@@ -57,15 +61,17 @@ mod unsupported;
 #[cfg(any(test, windows))]
 mod windows;
 
+pub(crate) use core::HostAdapter;
 pub use core::{
     HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,
     HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
-    HOST_STATUS_PERMISSION_DENIED, HostEvent, HostEventKind, HostIntentEvent, HostIntentPayload,
-    HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState, HostMemoryPressureEvent,
-    HostMemoryPressureLevel, HostPermissionEvent, HostPollOutcome, HostPowerMode,
-    HostPowerModeEvent, HostSession, HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HOST_STATUS_PERMISSION_DENIED, HostBackgroundEvent, HostEvent, HostEventKind, HostIntentEvent,
+    HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
+    HostLocationEvent, HostMediaEvent, HostMediaEventKind, HostMemoryPressureEvent,
+    HostMemoryPressureLevel, HostNotificationEvent, HostPermissionEvent, HostPollOutcome,
+    HostPowerMode, HostPowerModeEvent, HostSession, HostThermalEvent, HostThermalState,
+    HostWallClockEvent,
 };
-pub(crate) use core::{HostAdapter, HostRequest};
 pub use destack_workspace::Platform;
 #[cfg(windows)]
 pub(crate) use windows::process_ingress_loop;
@@ -74,7 +80,19 @@ pub(crate) use windows::process_ingress_loop;
 pub use android::*;
 
 #[cfg(all(test, target_os = "macos"))]
-pub(crate) use macos::set_test_pick_hook as set_macos_document_test_pick_hook;
+pub(crate) use macos::MacosCalendarHooks;
+#[cfg(all(test, target_os = "macos"))]
+pub(crate) use macos::MacosContactHooks;
+#[cfg(all(test, target_os = "macos"))]
+pub(crate) use macos::MacosLocationHooks;
+#[cfg(all(test, target_os = "macos"))]
+pub(crate) use macos::set_macos_calendar_test_hooks;
+#[cfg(all(test, target_os = "macos"))]
+pub(crate) use macos::set_macos_contact_test_hooks;
+#[cfg(all(test, target_os = "macos"))]
+pub(crate) use macos::set_macos_document_test_pick_hook;
+#[cfg(all(test, target_os = "macos"))]
+pub(crate) use macos::set_macos_location_test_hooks;
 #[cfg(target_os = "macos")]
 pub use macos::*;
 
@@ -82,7 +100,15 @@ pub use macos::*;
 pub use ios::*;
 
 #[cfg(all(test, windows))]
-pub(crate) use windows::set_test_pick_hook as set_windows_document_test_pick_hook;
+pub(crate) use windows::WindowsCalendarHooks;
+#[cfg(all(test, windows))]
+pub(crate) use windows::WindowsContactHooks;
+#[cfg(all(test, windows))]
+pub(crate) use windows::set_windows_calendar_test_hooks;
+#[cfg(all(test, windows))]
+pub(crate) use windows::set_windows_contact_test_hooks;
+#[cfg(all(test, windows))]
+pub(crate) use windows::set_windows_document_test_pick_hook;
 #[cfg(any(test, windows))]
 pub use windows::*;
 

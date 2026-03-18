@@ -1,23 +1,89 @@
+mod calendar;
+mod contact;
 mod document;
 mod intent;
+mod location;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::host::app::background::submit_background_request;
+use crate::host::app::media::submit_media_request;
+use crate::host::app::notification::submit_notification_request;
+use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
 #[cfg(all(test, windows))]
-pub(crate) use crate::host::windows::request::document::set_test_pick_hook;
+pub(crate) use crate::host::windows::request::{
+    calendar::{WindowsCalendarHooks, set_windows_calendar_test_hooks},
+    contact::{WindowsContactHooks, set_windows_contact_test_hooks},
+    document::set_windows_document_test_pick_hook,
+};
 use crate::platform::core::not_supported;
+use crate::platform::os::PermissionEntry;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+
+#[cfg(windows)]
+pub(crate) use location::unregister_location_runtime;
 
 /// Return dynamic Windows request capabilities.
 pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
-    PlatformCapabilitySet::from_capabilities([
+    let mut capabilities = PlatformCapabilitySet::from_capabilities([
+        PlatformCapability::OsBackgroundControl,
+        PlatformCapability::OsBackgroundRead,
+        PlatformCapability::OsCalendarRead,
+        PlatformCapability::OsCalendarWrite,
+        PlatformCapability::OsContactRead,
+        PlatformCapability::OsContactWrite,
         PlatformCapability::OsDocumentPick,
         PlatformCapability::OsIntentWrite,
-    ])
+        PlatformCapability::OsLocationRead,
+        PlatformCapability::OsLocationWatch,
+        PlatformCapability::OsMediaRead,
+        PlatformCapability::OsMediaWrite,
+    ]);
+    capabilities.extend_capabilities([
+        PlatformCapability::OsNotificationPermission,
+        PlatformCapability::OsNotificationPost,
+    ]);
+
+    capabilities
 }
 
 /// Submit one normalized Windows host request.
-pub(crate) fn submit_request(request: HostRequest) -> RuntimeResult<HostRequestOutcome> {
+pub(crate) fn submit_request(
+    context: &HostRequestContext,
+    request: HostRequest,
+) -> RuntimeResult<HostRequestOutcome> {
+    let operation_name = request.operation_name();
+
+    // service shared desktop background requests first
+    if let Some(outcome) = submit_background_request(context, &request)? {
+        return Ok(outcome);
+    }
+
+    // then service shared desktop media requests
+    if let Some(outcome) = submit_media_request(context, &request)? {
+        return Ok(outcome);
+    }
+
+    // then service shared desktop location requests
+    if let Some(outcome) = location::submit_location_request(context, &request)? {
+        return Ok(outcome);
+    }
+
+    // then service shared desktop notification requests
+    if let Some(outcome) = submit_notification_request(context, &request)? {
+        return Ok(outcome);
+    }
+
+    // then service Windows calendar requests
+    if let Some(outcome) = calendar::submit_calendar_request(context, &request)? {
+        return Ok(outcome);
+    }
+
+    // then service Windows contact requests
+    if let Some(outcome) = contact::submit_contact_request(context, &request)? {
+        return Ok(outcome);
+    }
+
+    // otherwise handle Windows-specific request lanes
     match request {
         HostRequest::OsIntentCanOpenUrl { url } => Ok(HostRequestOutcome::immediate(
             HostRequestResult::Bool(intent::windows_can_open_url(&url)?),
@@ -33,8 +99,33 @@ pub(crate) fn submit_request(request: HostRequest) -> RuntimeResult<HostRequestO
             Ok(HostRequestOutcome::immediate(HostRequestResult::None))
         }
         HostRequest::OsDocumentPick { options } => Ok(HostRequestOutcome::immediate(
-            HostRequestResult::DocumentDescriptors(document::pick_documents(&options)?),
+            HostRequestResult::DocumentDescriptors(document::pick_documents(context, &options)?),
         )),
-        _ => Err(not_supported(request.operation_name())),
+        HostRequest::OsPermissionRequest { permission } => {
+            let Some(state) = location::request_location_permission(context, permission)? else {
+                return Err(not_supported(operation_name));
+            };
+
+            Ok(HostRequestOutcome::immediate(
+                HostRequestResult::PermissionState(state),
+            ))
+        }
+        HostRequest::OsPermissionRequestMany { permissions } => {
+            let mut entries = Vec::with_capacity(permissions.len());
+
+            // resolve one explicit permission result per requested selector
+            for permission in permissions {
+                let Some(state) = location::request_location_permission(context, permission)?
+                else {
+                    return Err(not_supported(operation_name));
+                };
+                entries.push(PermissionEntry { permission, state });
+            }
+
+            Ok(HostRequestOutcome::immediate(
+                HostRequestResult::PermissionEntries(entries),
+            ))
+        }
+        _ => Err(not_supported(operation_name)),
     }
 }
