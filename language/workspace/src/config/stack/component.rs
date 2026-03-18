@@ -2,6 +2,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
+use super::asset::StackAssetsJson;
 use super::common::merge_metadata;
 use super::workload::{StackDeliveryJson, StackTriggerJson};
 
@@ -19,6 +20,8 @@ pub const DESTACK_COMPONENT_SERVICE: &str = "destack.sh/component/service";
 pub const DESTACK_COMPONENT_WORKER: &str = "destack.sh/component/worker";
 /// Builtin job component type id.
 pub const DESTACK_COMPONENT_JOB: &str = "destack.sh/component/job";
+/// Builtin site component type id.
+pub const DESTACK_COMPONENT_SITE: &str = "destack.sh/component/site";
 
 /// Builtin component archetype.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,6 +34,8 @@ pub enum StackBuiltinComponentKind {
     Worker,
     /// Bounded one-off or scheduled job.
     Job,
+    /// Static or asset-backed site convenience.
+    Site,
 }
 
 impl StackBuiltinComponentKind {
@@ -41,6 +46,7 @@ impl StackBuiltinComponentKind {
             DESTACK_COMPONENT_SERVICE => Some(Self::Service),
             DESTACK_COMPONENT_WORKER => Some(Self::Worker),
             DESTACK_COMPONENT_JOB => Some(Self::Job),
+            DESTACK_COMPONENT_SITE => Some(Self::Site),
             _ => None,
         }
     }
@@ -57,6 +63,8 @@ pub enum StackBuiltinComponentParameters {
     Worker(StackWorkerComponentJson),
     /// Job component parameters.
     Job(StackJobComponentJson),
+    /// Site component parameters.
+    Site(StackSiteComponentJson),
 }
 
 /// Stack component options.
@@ -125,6 +133,9 @@ impl StackComponentOptions {
             StackBuiltinComponentKind::Job => {
                 StackBuiltinComponentParameters::Job(serde_json::from_value(with_json)?)
             }
+            StackBuiltinComponentKind::Site => {
+                StackBuiltinComponentParameters::Site(serde_json::from_value(with_json)?)
+            }
         };
 
         Ok(Some(builtin))
@@ -159,8 +170,8 @@ pub struct StackClientComponentJson {
     pub service: Option<String>,
     /// Optional public environment binding name for the bound service url.
     pub service_env: Option<String>,
-    /// Static asset directory or asset binding.
-    pub assets: Option<String>,
+    /// Static asset source or asset publishing configuration.
+    pub assets: Option<StackAssetsJson>,
     /// Extra component metadata.
     pub config: Option<Value>,
 }
@@ -222,6 +233,23 @@ pub struct StackJobComponentJson {
     pub config: Option<Value>,
 }
 
+/// Builtin site component parameters.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct StackSiteComponentJson {
+    /// Primary site target.
+    pub target: Option<String>,
+    /// Optional public domain for the lowered site service.
+    pub domain: Option<String>,
+    /// Optional route match for the lowered ingress rule.
+    pub r#match: Option<String>,
+    /// Static asset source or asset publishing configuration.
+    pub assets: Option<StackAssetsJson>,
+    /// Extra component metadata.
+    pub config: Option<Value>,
+}
+
 /// A typed graph expansion.
 ///
 /// Inputs: component type, optional version, and typed `with` parameters.
@@ -231,18 +259,19 @@ pub struct StackJobComponentJson {
 pub struct StackComponentJson {
     /// Open component type identifier.
     ///
-    /// Builtin archetypes currently blessed by Destack are:
+    /// Builtin component types currently blessed by Destack are:
     /// `destack.sh/component/client`,
     /// `destack.sh/component/service`,
     /// `destack.sh/component/worker`,
-    /// and `destack.sh/component/job`.
+    /// `destack.sh/component/job`,
+    /// and `destack.sh/component/site`.
     pub r#type: Option<String>,
     /// Optional component version selector.
     pub version: Option<String>,
     /// Typed component inputs.
     ///
-    /// For builtin archetypes this object should match the corresponding
-    /// client, service, worker, or job parameter shape.
+    /// For builtin component types this object should match the corresponding
+    /// client, service, worker, job, or site parameter shape.
     /// Runtime and platform remain target-scoped rather than component-scoped.
     pub with: Option<Value>,
     /// Selection labels.
@@ -268,13 +297,14 @@ impl JsonSchema for StackComponentJson {
         let service_with = generator.subschema_for::<StackServiceComponentJson>();
         let worker_with = generator.subschema_for::<StackWorkerComponentJson>();
         let job_with = generator.subschema_for::<StackJobComponentJson>();
+        let site_with = generator.subschema_for::<StackSiteComponentJson>();
 
         json_schema!({
             "description": "A typed graph expansion.\n\nInputs: component type, optional version, and typed `with` parameters.\nOutputs: named graph nodes in the lowered stack.",
             "type": "object",
             "properties": {
                 "type": {
-                    "description": "Open component type identifier.\n\nBuiltin archetypes currently blessed by Destack are:\n`destack.sh/component/client`,\n`destack.sh/component/service`,\n`destack.sh/component/worker`,\nand `destack.sh/component/job`.",
+                    "description": "Open component type identifier.\n\nBuiltin component types currently blessed by Destack are:\n`destack.sh/component/client`,\n`destack.sh/component/service`,\n`destack.sh/component/worker`,\n`destack.sh/component/job`,\nand `destack.sh/component/site`.",
                     "type": ["string", "null"]
                 },
                 "version": {
@@ -282,7 +312,7 @@ impl JsonSchema for StackComponentJson {
                     "type": ["string", "null"]
                 },
                 "with": {
-                    "description": "Typed component inputs.\n\nFor builtin archetypes this object should match the corresponding\nclient, service, worker, or job parameter shape.\nRuntime and platform remain target-scoped rather than component-scoped."
+                    "description": "Typed component inputs.\n\nFor builtin component types this object should match the corresponding\nclient, service, worker, job, or site parameter shape.\nRuntime and platform remain target-scoped rather than component-scoped."
                 },
                 "labels": {
                     "description": "Selection labels.",
@@ -336,6 +366,14 @@ impl JsonSchema for StackComponentJson {
                     }
                 },
                 {
+                    "properties": {
+                        "type": {
+                            "const": DESTACK_COMPONENT_SITE
+                        },
+                        "with": site_with
+                    }
+                },
+                {
                     "not": {
                         "properties": {
                             "type": {
@@ -343,7 +381,8 @@ impl JsonSchema for StackComponentJson {
                                     DESTACK_COMPONENT_CLIENT,
                                     DESTACK_COMPONENT_SERVICE,
                                     DESTACK_COMPONENT_WORKER,
-                                    DESTACK_COMPONENT_JOB
+                                    DESTACK_COMPONENT_JOB,
+                                    DESTACK_COMPONENT_SITE
                                 ]
                             }
                         },
@@ -366,8 +405,8 @@ mod tests {
 
     use super::{
         DESTACK_COMPONENT_CLIENT, DESTACK_COMPONENT_JOB, DESTACK_COMPONENT_SERVICE,
-        DESTACK_COMPONENT_WORKER, StackBuiltinComponentParameters, StackComponentJson,
-        StackComponentOptions,
+        DESTACK_COMPONENT_SITE, DESTACK_COMPONENT_WORKER, StackBuiltinComponentParameters,
+        StackComponentJson, StackComponentOptions,
     };
 
     /// Parse builtin client component parameters.
@@ -398,6 +437,50 @@ mod tests {
         assert_eq!(client.domain.as_deref(), Some("app.example.com"));
         assert_eq!(client.service.as_deref(), Some("api"));
         assert_eq!(client.service_env.as_deref(), Some("PUBLIC_API_ORIGIN"));
+    }
+
+    /// Parse structured client asset settings.
+    #[test]
+    fn test_component_builtin_parameters_parse_client_assets() {
+        let json: StackComponentJson = serde_json::from_value(json!({
+            "type": DESTACK_COMPONENT_CLIENT,
+            "with": {
+                "target": "web",
+                "assets": {
+                    "source": "./apps/web/public",
+                    "service": "cdn",
+                    "publicPath": "/assets",
+                    "cacheControl": "public, max-age=31536000",
+                    "immutable": true
+                }
+            }
+        }))
+        .expect("component should parse");
+
+        let component = StackComponentOptions::from(&json);
+        let builtin = component
+            .builtin_parameters()
+            .expect("builtin parse should succeed")
+            .expect("builtin params should exist");
+
+        let StackBuiltinComponentParameters::Client(client) = builtin else {
+            panic!("expected client builtin parameters");
+        };
+        let Some(assets) = client.assets else {
+            panic!("expected structured assets");
+        };
+        let super::super::asset::StackAssetsJson::Object(assets) = assets else {
+            panic!("expected structured asset object");
+        };
+
+        assert_eq!(assets.source.as_deref(), Some("./apps/web/public"));
+        assert_eq!(assets.service.as_deref(), Some("cdn"));
+        assert_eq!(assets.public_path.as_deref(), Some("/assets"));
+        assert_eq!(
+            assets.cache_control.as_deref(),
+            Some("public, max-age=31536000")
+        );
+        assert_eq!(assets.immutable, Some(true));
     }
 
     /// Parse builtin service component parameters.
@@ -500,5 +583,42 @@ mod tests {
             Some("destack.sh/trigger/schedule")
         );
         assert_eq!(job.trigger.schedule.as_deref(), Some("0 * * * *"));
+    }
+
+    /// Parse builtin site component parameters.
+    #[test]
+    fn test_component_builtin_parameters_parse_site() {
+        let json: StackComponentJson = serde_json::from_value(json!({
+            "type": DESTACK_COMPONENT_SITE,
+            "with": {
+                "target": "marketing",
+                "domain": "example.com",
+                "assets": {
+                    "source": "./apps/site/dist",
+                    "indexDocument": "index.html",
+                    "errorDocument": "404.html"
+                }
+            }
+        }))
+        .expect("component should parse");
+
+        let component = StackComponentOptions::from(&json);
+        let builtin = component
+            .builtin_parameters()
+            .expect("builtin parse should succeed")
+            .expect("builtin params should exist");
+
+        let StackBuiltinComponentParameters::Site(site) = builtin else {
+            panic!("expected site builtin parameters");
+        };
+
+        assert_eq!(site.target.as_deref(), Some("marketing"));
+        assert_eq!(site.domain.as_deref(), Some("example.com"));
+        let Some(super::super::asset::StackAssetsJson::Object(assets)) = site.assets else {
+            panic!("expected structured site assets");
+        };
+        assert_eq!(assets.source.as_deref(), Some("./apps/site/dist"));
+        assert_eq!(assets.index_document.as_deref(), Some("index.html"));
+        assert_eq!(assets.error_document.as_deref(), Some("404.html"));
     }
 }

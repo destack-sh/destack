@@ -1,6 +1,9 @@
 use indexmap::IndexMap;
 use serde::Deserialize;
 
+/// Default first-party issuer service name.
+pub const DESTACK_ISSUER_UNIVERSE_SERVICE: &str = "universe";
+
 /// Workload run kinds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StackRunKind {
@@ -126,6 +129,58 @@ impl From<StackTlsModeJson> for StackTlsMode {
     }
 }
 
+/// Access mode options.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StackAccessMode {
+    /// No authentication is required.
+    #[default]
+    Public,
+    /// Authentication is accepted when present.
+    Optional,
+    /// Authentication is required.
+    Required,
+}
+
+impl From<StackAccessModeJson> for StackAccessMode {
+    fn from(json: StackAccessModeJson) -> Self {
+        match json {
+            StackAccessModeJson::Public => Self::Public,
+            StackAccessModeJson::Optional => Self::Optional,
+            StackAccessModeJson::Required => Self::Required,
+        }
+    }
+}
+
+/// Issuer reference options.
+#[derive(Debug, Clone, Default)]
+pub struct StackIssuerRefOptions {
+    /// Internal issuer service name.
+    pub service: Option<String>,
+    /// External issuer URL.
+    pub url: Option<String>,
+}
+
+impl StackIssuerRefOptions {
+    /// Inherit unset issuer settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.service.is_none() {
+            self.service = parent.service.clone();
+        }
+        if self.url.is_none() {
+            self.url = parent.url.clone();
+        }
+    }
+}
+
+impl From<&StackIssuerRefJson> for StackIssuerRefOptions {
+    fn from(json: &StackIssuerRefJson) -> Self {
+        Self {
+            service: json.service.clone(),
+            url: json.url.clone(),
+        }
+    }
+}
+
 /// Run kind JSON.
 #[derive(Debug, Deserialize, Clone, Copy)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -199,6 +254,83 @@ pub enum StackTlsModeJson {
     Manual,
     /// Disable TLS termination.
     Disabled,
+}
+
+/// Access mode JSON.
+#[derive(Debug, Deserialize, Clone, Copy)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum StackAccessModeJson {
+    /// No authentication is required.
+    Public,
+    /// Authentication is accepted when present.
+    Optional,
+    /// Authentication is required.
+    Required,
+}
+
+/// Issuer reference JSON.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct StackIssuerRefJson {
+    /// Internal issuer service name.
+    pub service: Option<String>,
+    /// External issuer URL.
+    pub url: Option<String>,
+}
+
+#[cfg(feature = "schema")]
+impl schemars::JsonSchema for StackIssuerRefJson {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "StackIssuerRefJson".into()
+    }
+
+    fn schema_id() -> std::borrow::Cow<'static, str> {
+        concat!(module_path!(), "::StackIssuerRefJson").into()
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        let _ = generator;
+
+        schemars::json_schema!({
+            "description": "Issuer reference JSON.",
+            "type": "object",
+            "properties": {
+                "service": {
+                    "description": "Internal issuer service name.",
+                    "type": ["string", "null"]
+                },
+                "url": {
+                    "description": "External issuer URL.",
+                    "type": ["string", "null"]
+                }
+            },
+            "oneOf": [
+                {
+                    "required": ["service"],
+                    "not": {
+                        "required": ["url"]
+                    },
+                    "properties": {
+                        "service": {
+                            "type": "string"
+                        }
+                    }
+                },
+                {
+                    "required": ["url"],
+                    "not": {
+                        "required": ["service"]
+                    },
+                    "properties": {
+                        "url": {
+                            "type": "string"
+                        }
+                    }
+                }
+            ]
+        })
+    }
 }
 
 /// Merge metadata maps with child precedence.

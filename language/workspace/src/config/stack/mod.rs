@@ -1,3 +1,4 @@
+mod asset;
 mod common;
 mod component;
 mod config;
@@ -11,6 +12,7 @@ mod service;
 mod volume;
 mod workload;
 
+pub use asset::*;
 pub use common::*;
 pub use component::*;
 pub use config::*;
