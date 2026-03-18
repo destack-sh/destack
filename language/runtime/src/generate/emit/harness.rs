@@ -98,6 +98,8 @@ impl<'spec, 'output> HarnessWriter<'spec, 'output> {
             "use crate::platform::{}::tests::{context_name};\n",
             self.spec.module
         ));
+        self.output
+            .push_str("use crate::platform::{{NativeAbiCodec, VmAbiCodec}};\n");
 
         let mut local_types = self.spec.types.named_types.clone();
         local_types.extend(self.spec.types.native_named_types.iter().cloned());
@@ -172,6 +174,80 @@ impl<'spec, 'output> HarnessWriter<'spec, 'output> {
         self.output
             .push_str("    pub(crate) fn harness_value_vm<Native, Vm>(&self, vm: Vm) -> HarnessValue<Native, Vm> {\n");
         self.output.push_str("        HarnessValue::Vm(vm)\n");
+        self.output.push_str("    }\n");
+        self.output.push('\n');
+
+        // value encoder
+        self.output.push_str(
+            "    /// Encode one materialized value into one native or VM harness payload.\n",
+        );
+        self.output
+            .push_str("    pub(crate) fn harness_value_from<Native, Vm>(\n");
+        self.output.push_str("        &mut self,\n");
+        self.output.push_str("        value: Native::Value,\n");
+        self.output
+            .push_str("    ) -> RuntimeResult<HarnessValue<Native, Vm>>\n");
+        self.output.push_str("    where\n");
+        self.output.push_str("        Native: NativeAbiCodec,\n");
+        self.output
+            .push_str("        Vm: VmAbiCodec<Value = Native::Value>,\n");
+        self.output.push_str("    {\n");
+        self.output
+            .push_str("        match self.generated_vm_context_mut() {\n");
+        self.output.push_str("            Some(context) => {\n");
+        self.output
+            .push_str("                let value = Vm::from_value(context, value)?;\n");
+        self.output
+            .push_str("                Ok(HarnessValue::Vm(value))\n");
+        self.output.push_str("            }\n");
+        self.output.push_str("            None => {\n");
+        self.output.push_str(
+            "                let value = Native::from_value(self.call_context, value);\n",
+        );
+        self.output
+            .push_str("                Ok(HarnessValue::Native(value))\n");
+        self.output.push_str("            }\n");
+        self.output.push_str("        }\n");
+        self.output.push_str("    }\n");
+        self.output.push('\n');
+
+        // value decoder
+        self.output.push_str(
+            "    /// Decode one native or VM harness payload into one materialized value.\n",
+        );
+        self.output
+            .push_str("    pub(crate) fn harness_value_into<Native, Vm>(\n");
+        self.output.push_str("        &mut self,\n");
+        self.output
+            .push_str("        value: HarnessValue<Native, Vm>,\n");
+        self.output
+            .push_str("    ) -> RuntimeResult<Native::Value>\n");
+        self.output.push_str("    where\n");
+        self.output.push_str("        Native: NativeAbiCodec,\n");
+        self.output
+            .push_str("        Vm: VmAbiCodec<Value = Native::Value>,\n");
+        self.output.push_str("    {\n");
+        self.output.push_str("        match value {\n");
+        self.output.push_str(
+            "            HarnessValue::Native(value) => unsafe { Native::into_value(value) },\n",
+        );
+        self.output
+            .push_str("            HarnessValue::Vm(value) => {\n");
+        self.output.push_str(
+            "                let context = self.generated_vm_context_mut().ok_or_else(|| {\n",
+        );
+        self.output.push_str("                    RuntimeError::from(HarnessPlatformError::invalid_argument_value(\n");
+        self.output
+            .push_str("                        \"context\",\n");
+        self.output
+            .push_str("                        \"expected vm context\",\n");
+        self.output.push_str("                    ))\n");
+        self.output.push_str("                    .boxed()\n");
+        self.output.push_str("                })?;\n");
+        self.output
+            .push_str("                value.into_value(context)\n");
+        self.output.push_str("            }\n");
+        self.output.push_str("        }\n");
         self.output.push_str("    }\n");
 
         for binding in &self.spec.consts {
@@ -385,6 +461,19 @@ impl<'spec, 'output> HarnessWriter<'spec, 'output> {
         self.output.push_str("    Native(Native),\n");
         self.output.push_str("    /// VM value variant.\n");
         self.output.push_str("    Vm(Vm),\n");
+        self.output.push_str("}\n\n");
+
+        self.output
+            .push_str("impl<Native: Clone, Vm: Clone> Clone for HarnessValue<Native, Vm> {\n");
+        self.output.push_str("    fn clone(&self) -> Self {\n");
+        self.output.push_str("        match self {\n");
+        self.output.push_str(
+            "            HarnessValue::Native(value) => HarnessValue::Native(value.clone()),\n",
+        );
+        self.output
+            .push_str("            HarnessValue::Vm(value) => HarnessValue::Vm(value.clone()),\n");
+        self.output.push_str("        }\n");
+        self.output.push_str("    }\n");
         self.output.push_str("}\n\n");
 
         self.output

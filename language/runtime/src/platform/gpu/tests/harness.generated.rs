@@ -6,6 +6,7 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::gpu::tests::GpuHarnessContext;
+use crate::platform::{{NativeAbiCodec, VmAbiCodec}};
 use crate::platform::gpu::{GpuAdapterFormatCapabilities, GpuAdapterFormatCapabilitiesVm, GpuAdapterInfo, GpuAdapterInfoVm, GpuAdapterLimits, GpuAdapterLimitsVm, GpuAdapterRequest, GpuAdapterRequestVm, GpuAdapterType, GpuBackend, GpuBindGroupBufferResource, GpuBindGroupBufferResourceVm, GpuBindGroupEntry, GpuBindGroupEntryVm, GpuBindGroupLayoutBufferResource, GpuBindGroupLayoutBufferResourceVm, GpuBindGroupLayoutEntry, GpuBindGroupLayoutEntryVm, GpuBindGroupLayoutResource, GpuBindGroupLayoutResourceVm, GpuBindGroupLayoutSampledTextureResource, GpuBindGroupLayoutSampledTextureResourceVm, GpuBindGroupLayoutSamplerResource, GpuBindGroupLayoutSamplerResourceVm, GpuBindGroupLayoutStorageTextureResource, GpuBindGroupLayoutStorageTextureResourceVm, GpuBindGroupResource, GpuBindGroupResourceVm, GpuBindGroupSamplerResource, GpuBindGroupSamplerResourceVm, GpuBindGroupTextureResource, GpuBindGroupTextureResourceVm, GpuBlendComponent, GpuBlendComponentVm, GpuBlendFactor, GpuBlendOperation, GpuBlendState, GpuBlendStateVm, GpuBufferBindingType, GpuBufferCopy, GpuBufferCopyLayout, GpuBufferCopyLayoutVm, GpuBufferCopyVm, GpuBufferInfo, GpuBufferInfoVm, GpuBufferMapState, GpuBufferOptions, GpuBufferOptionsVm, GpuCapturedError, GpuCapturedErrorVm, GpuColorTargetState, GpuColorTargetStateVm, GpuColorWriteMask, GpuCommandEncoderOptions, GpuCommandEncoderOptionsVm, GpuCompareFunction, GpuCompilationInfo, GpuCompilationInfoVm, GpuCompilationMessage, GpuCompilationMessageKind, GpuCompilationMessageVm, GpuComputePassOptions, GpuComputePassOptionsVm, GpuComputePipelineOptions, GpuComputePipelineOptionsVm, GpuComputeState, GpuComputeStateVm, GpuCullMode, GpuDepthStencilState, GpuDepthStencilStateVm, GpuDeviceInfo, GpuDeviceInfoVm, GpuDeviceLossReason, GpuDeviceOptions, GpuDeviceOptionsVm, GpuDeviceStatus, GpuDeviceStatusVm, GpuErrorFilter, GpuExtent3D, GpuExtent3DVm, GpuFeatureId, GpuFenceMode, GpuFenceOptions, GpuFenceOptionsVm, GpuFragmentState, GpuFragmentStateVm, GpuFrontFace, GpuIndexFormat, GpuLoadOp, GpuMapMode, GpuMappedBufferRange, GpuMappedBufferRangeVm, GpuMultisampleState, GpuMultisampleStateVm, GpuPassTimestampWrites, GpuPassTimestampWritesVm, GpuPipelineConstant, GpuPipelineConstantVm, GpuPipelineLayoutOptions, GpuPipelineLayoutOptionsVm, GpuPipelineMetadata, GpuPipelineMetadataVm, GpuPipelineStatisticsMask, GpuPowerPreference, GpuPresentMode, GpuPresentOptions, GpuPresentOptionsVm, GpuPrimitiveState, GpuPrimitiveStateVm, GpuPrimitiveTopology, GpuQuerySetInfo, GpuQuerySetInfoVm, GpuQuerySetOptions, GpuQuerySetOptionsVm, GpuQueryType, GpuRenderBundleEncoderOptions, GpuRenderBundleEncoderOptionsVm, GpuRenderPassColorAttachment, GpuRenderPassColorAttachmentVm, GpuRenderPassDepthStencilAttachment, GpuRenderPassDepthStencilAttachmentVm, GpuRenderPassOptions, GpuRenderPassOptionsVm, GpuRenderPipelineOptions, GpuRenderPipelineOptionsVm, GpuRenderState, GpuRenderStateVm, GpuSamplerBindingType, GpuSamplerOptions, GpuSamplerOptionsVm, GpuShaderFormat, GpuShaderOptions, GpuShaderOptionsVm, GpuShaderVisibilityMask, GpuStencilFaceState, GpuStencilFaceStateVm, GpuStencilOperation, GpuStorageTextureAccess, GpuStoreOp, GpuSubmitOptions, GpuSubmitOptionsVm, GpuSurfaceAcquireStatus, GpuSurfaceAlphaMode, GpuSurfaceCapabilities, GpuSurfaceCapabilitiesVm, GpuSurfaceFrame, GpuSurfaceFrameVm, GpuSurfaceOptions, GpuSurfaceOptionsVm, GpuTextureCopy, GpuTextureCopyVm, GpuTextureDimension, GpuTextureInfo, GpuTextureInfoVm, GpuTextureOptions, GpuTextureOptionsVm, GpuTextureSampleType, GpuTextureViewDimension, GpuTextureViewOptions, GpuTextureViewOptionsVm, GpuVertexAttribute, GpuVertexAttributeVm, GpuVertexBufferLayout, GpuVertexBufferLayoutVm, GpuVertexState, GpuVertexStateVm, GpuVertexStepMode, native as gpu_native, vm as gpu_vm};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
 use destack_vm as vm;
@@ -26,6 +27,51 @@ impl<'call> GpuHarnessContext<'call> {
     /// Return one standardized value payload for VM and native variants.
     pub(crate) fn harness_value_vm<Native, Vm>(&self, vm: Vm) -> HarnessValue<Native, Vm> {
         HarnessValue::Vm(vm)
+    }
+
+    /// Encode one materialized value into one native or VM harness payload.
+    pub(crate) fn harness_value_from<Native, Vm>(
+        &mut self,
+        value: Native::Value,
+    ) -> RuntimeResult<HarnessValue<Native, Vm>>
+    where
+        Native: NativeAbiCodec,
+        Vm: VmAbiCodec<Value = Native::Value>,
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let value = Vm::from_value(context, value)?;
+                Ok(HarnessValue::Vm(value))
+            }
+            None => {
+                let value = Native::from_value(self.call_context, value);
+                Ok(HarnessValue::Native(value))
+            }
+        }
+    }
+
+    /// Decode one native or VM harness payload into one materialized value.
+    pub(crate) fn harness_value_into<Native, Vm>(
+        &mut self,
+        value: HarnessValue<Native, Vm>,
+    ) -> RuntimeResult<Native::Value>
+    where
+        Native: NativeAbiCodec,
+        Vm: VmAbiCodec<Value = Native::Value>,
+    {
+        match value {
+            HarnessValue::Native(value) => unsafe { Native::into_value(value) },
+            HarnessValue::Vm(value) => {
+                let context = self.generated_vm_context_mut().ok_or_else(|| {
+                    RuntimeError::from(HarnessPlatformError::invalid_argument_value(
+                        "context",
+                        "expected vm context",
+                    ))
+                    .boxed()
+                })?;
+                value.into_value(context)
+            }
+        }
     }
 
     /// Close one GPU adapter.
@@ -4706,6 +4752,15 @@ pub(crate) enum HarnessValue<Native, Vm> {
     Native(Native),
     /// VM value variant.
     Vm(Vm),
+}
+
+impl<Native: Clone, Vm: Clone> Clone for HarnessValue<Native, Vm> {
+    fn clone(&self) -> Self {
+        match self {
+            HarnessValue::Native(value) => HarnessValue::Native(value.clone()),
+            HarnessValue::Vm(value) => HarnessValue::Vm(value.clone()),
+        }
+    }
 }
 
 impl<Native, Vm> HarnessValue<Native, Vm> {
