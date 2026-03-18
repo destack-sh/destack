@@ -11,15 +11,17 @@ pub(crate) use adapter::HostAdapter;
 pub use adapter::HostPollOutcome;
 pub(crate) use destack_workspace::Platform;
 pub use event::{
-    HostEvent, HostEventKind, HostIntentEvent, HostIntentPayload, HostInterruptionEvent,
-    HostLifecycleEvent, HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel,
-    HostPermissionEvent, HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState,
-    HostWallClockEvent,
+    HostBackgroundEvent, HostEvent, HostEventKind, HostIntentEvent, HostIntentPayload,
+    HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState, HostLocationEvent,
+    HostMediaEvent, HostMediaEventKind, HostMemoryPressureEvent, HostMemoryPressureLevel,
+    HostNotificationEvent, HostPermissionEvent, HostPowerMode, HostPowerModeEvent,
+    HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 pub(crate) use queue::HostQueue;
-#[cfg(any(target_os = "linux", target_os = "macos", windows))]
-pub(crate) use registry::RuntimeIngressObserver;
-pub(crate) use registry::{HostEventObserver, HostIngressHandle, HostRuntimeRegistry};
+pub(crate) use registry::{
+    HostEventObserver, HostIngressHandle, HostRuntimeId, HostRuntimeRegistry,
+    RuntimeIngressObserver,
+};
 pub(crate) use request::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
 pub use runtime::HostSession;
 pub use status::{

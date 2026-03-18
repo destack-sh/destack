@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::platform::os::abi_generated::{
+    BackgroundEventValue, LocationSampleValue, MediaAssetSummaryValue, NotificationEventValue,
+};
+
 /// Host lifecycle state.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -59,6 +63,14 @@ pub enum HostEventKind {
     Lifecycle,
     /// Intent activation or share ingress events.
     Intent,
+    /// Background task readiness or expiration events.
+    Background,
+    /// Notification delivery or interaction events.
+    Notification,
+    /// Location watch sample events.
+    Location,
+    /// Media watch add or update or remove events.
+    Media,
     /// Permission result events.
     Permission,
     /// Interruption events.
@@ -80,6 +92,14 @@ pub enum HostEvent {
     Lifecycle(HostLifecycleEvent),
     /// Host intent activation or share ingress event.
     Intent(HostIntentEvent),
+    /// Host background task readiness or expiration event.
+    Background(Box<HostBackgroundEvent>),
+    /// Host notification delivery or interaction event.
+    Notification(Box<HostNotificationEvent>),
+    /// Host location watch sample event.
+    Location(Box<HostLocationEvent>),
+    /// Host media watch asset event.
+    Media(Box<HostMediaEvent>),
     /// Host permission flow result event.
     Permission(HostPermissionEvent),
     /// Host interruption event.
@@ -100,6 +120,10 @@ impl HostEvent {
         match self {
             HostEvent::Lifecycle(_) => HostEventKind::Lifecycle,
             HostEvent::Intent(_) => HostEventKind::Intent,
+            HostEvent::Background(_) => HostEventKind::Background,
+            HostEvent::Notification(_) => HostEventKind::Notification,
+            HostEvent::Location(_) => HostEventKind::Location,
+            HostEvent::Media(_) => HostEventKind::Media,
             HostEvent::Permission(_) => HostEventKind::Permission,
             HostEvent::Interruption(_) => HostEventKind::Interruption,
             HostEvent::MemoryPressure(_) => HostEventKind::MemoryPressure,
@@ -125,6 +149,59 @@ pub struct HostIntentEvent {
     /// Intent payload delivered by the host.
     pub payload: HostIntentPayload,
 }
+
+/// Host notification ingress payload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HostNotificationEvent {
+    /// Notification payload delivered by the host.
+    pub event: NotificationEventValue,
+}
+
+impl Eq for HostNotificationEvent {}
+
+/// Host background-task ingress payload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HostBackgroundEvent {
+    /// Background-task payload delivered by the host.
+    pub event: BackgroundEventValue,
+}
+
+impl Eq for HostBackgroundEvent {}
+
+/// Host location watch sample payload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HostLocationEvent {
+    /// Runtime-scoped watch identifier.
+    pub watch_id: String,
+    /// Location sample delivered by the host.
+    pub sample: LocationSampleValue,
+}
+
+impl Eq for HostLocationEvent {}
+
+/// Host media watch event kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HostMediaEventKind {
+    /// One media asset was added.
+    Added,
+    /// One media asset was updated.
+    Updated,
+    /// One media asset was removed.
+    Removed,
+}
+
+/// Host media watch event payload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HostMediaEvent {
+    /// Runtime-scoped watch identifier.
+    pub watch_id: String,
+    /// Host media watch event kind.
+    pub kind: HostMediaEventKind,
+    /// Media asset summary delivered by the host.
+    pub asset: MediaAssetSummaryValue,
+}
+
+impl Eq for HostMediaEvent {}
 
 /// Host intent ingress variants.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

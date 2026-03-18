@@ -7,9 +7,8 @@ use tracing::error;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::event::{HostEvent, HostEventKind};
-use crate::host::core::registry::{HostEventObserver, HostRuntimeRegistry};
+use crate::host::core::registry::{HostEventObserver, HostRuntimeId, HostRuntimeRegistry};
 use crate::runtime::poller::PollerWakeHandle;
-use crate::runtime::world::RuntimeId;
 
 /// Host event identity key used for queue coalescing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -22,7 +21,7 @@ enum HostEventCoalescingKey {
 #[derive(Debug, Clone)]
 pub(crate) struct HostQueue {
     /// Runtime id that owns this queue.
-    runtime_id: RuntimeId,
+    host_runtime_id: HostRuntimeId,
     /// Shared queue state and synchronization primitives.
     state: Arc<HostQueueState>,
     /// Shared out-of-band wake handle for blocked pollers.
@@ -60,14 +59,14 @@ struct HostQueueWakeHandle {
 
 impl HostQueue {
     /// Create one empty host event queue.
-    pub(crate) fn new(runtime_id: RuntimeId) -> Self {
+    pub(crate) fn new(host_runtime_id: HostRuntimeId) -> Self {
         let state = Arc::new(HostQueueState::default());
         let wake_handle = Arc::new(HostQueueWakeHandle {
             state: Arc::clone(&state),
         });
 
         Self {
-            runtime_id,
+            host_runtime_id,
             state,
             wake_handle,
         }
@@ -109,7 +108,7 @@ impl HostQueue {
 
         // host event observers receive the original event stream independently
         if let Err(error) =
-            HostRuntimeRegistry::dispatch_host_event(self.runtime_id, &event_observer_event)
+            HostRuntimeRegistry::dispatch_host_event(self.host_runtime_id, &event_observer_event)
         {
             error!(?error, "host event observer dispatch failed");
         }
@@ -158,7 +157,7 @@ impl HostQueue {
         let payload = self.state.queue.lock();
 
         // register while the queue lock is held so future enqueues cannot race the snapshot
-        HostRuntimeRegistry::register_host_event_observer(self.runtime_id, observer);
+        HostRuntimeRegistry::register_host_event_observer(self.host_runtime_id, observer);
 
         payload.events.iter().cloned().collect()
     }
@@ -231,7 +230,7 @@ fn enforce_capacity_before_enqueue(payload: &mut HostQueuePayload, event: &HostE
             return false;
         };
 
-        let _ = payload.events.remove(index);
+        payload.events.remove(index);
         payload.dropped_events_since_read = payload.dropped_events_since_read.saturating_add(1);
     }
 
@@ -258,7 +257,11 @@ fn oldest_drop_eligible_event_index(events: &VecDeque<HostEvent>) -> Option<usiz
 fn is_lossless_event(event: &HostEvent) -> bool {
     matches!(
         event.kind(),
-        HostEventKind::Intent | HostEventKind::Permission
+        HostEventKind::Intent
+            | HostEventKind::Background
+            | HostEventKind::Media
+            | HostEventKind::Notification
+            | HostEventKind::Permission
     )
 }
 
@@ -293,9 +296,10 @@ mod tests {
 
     use crate::diagnostic::RuntimeResult;
     use crate::host::core::queue::HostQueue;
-    use crate::host::core::registry::{HostEventObserver, HostRuntimeRegistry};
+    use crate::host::core::registry::{
+        HostEventObserver, HostRuntimeRegistry, next_host_runtime_id,
+    };
     use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState, HostPermissionEvent};
-    use crate::runtime::world::RuntimeId;
 
     fn lifecycle_event(state: HostLifecycleState) -> HostEvent {
         HostEvent::Lifecycle(HostLifecycleEvent { state })
@@ -308,13 +312,8 @@ mod tests {
         })
     }
 
-    // shared runtime id source
-    static TEST_RUNTIME_ID: AtomicU64 = AtomicU64::new(1);
-
     fn queue() -> HostQueue {
-        let runtime_id = TEST_RUNTIME_ID.fetch_add(1, Ordering::Relaxed);
-
-        HostQueue::new(RuntimeId(runtime_id))
+        HostQueue::new(next_host_runtime_id())
     }
 
     #[derive(Debug)]
@@ -428,7 +427,7 @@ mod tests {
         queue.enqueue(lifecycle_event(HostLifecycleState::Running));
         assert_eq!(callback_count.load(Ordering::Relaxed), 1);
 
-        HostRuntimeRegistry::unregister_runtime(queue.runtime_id);
+        HostRuntimeRegistry::unregister_runtime(queue.host_runtime_id);
     }
 
     #[test]
