@@ -5,13 +5,15 @@ use crate::platform::os::abi_generated::{
     BackgroundStatusValue, BackgroundTaskDescriptorValue, BackgroundTaskOptionsValue,
     BackgroundTaskResultValue, CalendarDescriptorValue, CalendarEventDraftValue,
     CalendarEventQueryValue, CalendarEventValue, ContactDraftValue, ContactPageValue,
-    ContactQueryValue, ContactValue, DocumentDescriptorValue, DocumentPickOptionsValue,
-    LocationSampleValue, LocationWatchOptionsValue, MediaAssetDescriptorValue,
-    MediaAssetSummaryValue, MediaPageValue, MediaQueryValue, MediaWatchOptionsValue,
-    NotificationCategoryValue, NotificationRequestValue, NotificationScheduledDescriptorValue,
+    ContactQueryValue, ContactValue, DocumentAccessGrantValue, DocumentDescriptorValue,
+    DocumentPickOptionsValue, LocationSampleValue, LocationWatchOptionsValue,
+    MediaAssetDescriptorValue, MediaAssetSummaryValue, MediaPageValue, MediaQueryValue,
+    MediaWatchOptionsValue, NotificationCategoryValue, NotificationRequestValue,
+    NotificationScheduledDescriptorValue,
 };
 use crate::platform::os::{
-    MediaAssetKind, NotificationPermissionState, Permission, PermissionEntry, PermissionState,
+    DocumentAccess, MediaAssetKind, NotificationPermissionState, Permission, PermissionEntry,
+    PermissionState,
 };
 use crate::platform::{PlatformError, fs};
 use destack_workspace::{PlatformOsOptions, RuntimeAppIdentityDeclaration};
@@ -144,20 +146,39 @@ pub(crate) enum HostRequest {
     OsIntentShareText {
         /// Text payload to share.
         text: String,
-        /// MIME type associated with the text payload.
-        mime_type: Option<String>,
+        /// Normalized content type associated with the text payload.
+        content_type: Option<String>,
     },
     /// Share one path list through the host.
     OsIntentSharePaths {
         /// Filesystem paths to share.
         paths: Vec<fs::OsPath>,
-        /// MIME type associated with the shared files.
-        mime_type: Option<String>,
+        /// Normalized content type associated with the shared files.
+        content_type: Option<String>,
     },
     /// Open one document picker through the host.
     OsDocumentPick {
         /// Picker options for the host document chooser.
         options: DocumentPickOptionsValue,
+    },
+    /// Import selected documents into app-owned storage through the host.
+    OsDocumentImport {
+        /// Documents to import.
+        documents: Vec<DocumentDescriptorValue>,
+    },
+    /// Persist external document access through the host.
+    OsDocumentAccessPersist {
+        /// Documents to persist.
+        documents: Vec<DocumentDescriptorValue>,
+        /// Granted access mode.
+        access: DocumentAccess,
+    },
+    /// List persisted document-access grants through the host.
+    OsDocumentAccessList,
+    /// Revoke persisted document-access grants through the host.
+    OsDocumentAccessRevoke {
+        /// Stable grant identifiers.
+        ids: Vec<String>,
     },
     /// Read whether host location services are enabled.
     OsLocationServicesEnabled,
@@ -298,6 +319,8 @@ pub(crate) enum HostRequestResult {
     Contact(ContactValue),
     /// Request completed with one document descriptor list.
     DocumentDescriptors(Vec<DocumentDescriptorValue>),
+    /// Request completed with one document-access grant list.
+    DocumentAccessGrants(Vec<DocumentAccessGrantValue>),
     /// Request completed with one location sample payload.
     LocationSample(LocationSampleValue),
     /// Request completed with one media asset descriptor payload.
@@ -357,6 +380,10 @@ impl HostRequest {
             Self::OsIntentShareText { .. } => "destack.os.intent.shareText",
             Self::OsIntentSharePaths { .. } => "destack.os.intent.sharePaths",
             Self::OsDocumentPick { .. } => "destack.os.document.pick",
+            Self::OsDocumentImport { .. } => "destack.os.document.import",
+            Self::OsDocumentAccessPersist { .. } => "destack.os.document.access.persist",
+            Self::OsDocumentAccessList => "destack.os.document.access.list",
+            Self::OsDocumentAccessRevoke { .. } => "destack.os.document.access.revoke",
             Self::OsLocationServicesEnabled => "destack.os.location.servicesEnabled",
             Self::OsLocationLastKnown => "destack.os.location.lastKnown",
             Self::OsLocationWatchOpen { .. } => "destack.os.location.watchOpen",
