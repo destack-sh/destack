@@ -1,7 +1,9 @@
 use indexmap::IndexMap;
 use serde::Deserialize;
 
-use super::common::merge_metadata;
+use super::common::{
+    StackAccessMode, StackAccessModeJson, StackIssuerRefJson, StackIssuerRefOptions, merge_metadata,
+};
 
 /// Stack ingress configuration options.
 #[derive(Debug, Clone, Default)]
@@ -118,6 +120,10 @@ pub struct StackRouteOptions {
     pub service: Option<String>,
     /// Allowed HTTP methods.
     pub methods: Vec<String>,
+    /// Route access expectations.
+    pub access: StackRouteAccessOptions,
+    /// Route policy.
+    pub policy: StackRoutePolicyOptions,
     /// Selection labels.
     pub labels: IndexMap<String, String>,
     /// Non-identifying metadata.
@@ -139,6 +145,8 @@ impl StackRouteOptions {
         if self.methods.is_empty() {
             self.methods = parent.methods.clone();
         }
+        self.access.extend_from(&parent.access);
+        self.policy.extend_from(&parent.policy);
 
         merge_metadata(&mut self.labels, &parent.labels);
         merge_metadata(&mut self.annotations, &parent.annotations);
@@ -152,8 +160,172 @@ impl From<&StackRouteJson> for StackRouteOptions {
             r#match: json.r#match.clone(),
             service: json.service.clone(),
             methods: json.methods.clone().unwrap_or_default(),
+            access: StackRouteAccessOptions::from(&json.access),
+            policy: StackRoutePolicyOptions::from(&json.policy),
             labels: json.labels.clone().unwrap_or_default(),
             annotations: json.annotations.clone().unwrap_or_default(),
+        }
+    }
+}
+
+/// Route access options.
+#[derive(Debug, Clone, Default)]
+pub struct StackRouteAccessOptions {
+    /// Access mode.
+    pub mode: Option<StackAccessMode>,
+    /// Accepted issuer reference.
+    pub issuer: Option<StackIssuerRefOptions>,
+    /// Accepted audience names.
+    pub audiences: Vec<String>,
+    /// Required scopes.
+    pub scopes: Vec<String>,
+    /// Required roles.
+    pub roles: Vec<String>,
+}
+
+impl StackRouteAccessOptions {
+    /// Inherit unset route access settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.mode.is_none() {
+            self.mode = parent.mode;
+        }
+        if let Some(parent_issuer) = &parent.issuer {
+            if let Some(issuer) = self.issuer.as_mut() {
+                issuer.extend_from(parent_issuer);
+            } else {
+                self.issuer = Some(parent_issuer.clone());
+            }
+        }
+        if self.audiences.is_empty() {
+            self.audiences = parent.audiences.clone();
+        }
+        if self.scopes.is_empty() {
+            self.scopes = parent.scopes.clone();
+        }
+        if self.roles.is_empty() {
+            self.roles = parent.roles.clone();
+        }
+    }
+}
+
+impl From<&StackRouteAccessJson> for StackRouteAccessOptions {
+    fn from(json: &StackRouteAccessJson) -> Self {
+        Self {
+            mode: json.mode.map(StackAccessMode::from),
+            issuer: json.issuer.as_ref().map(StackIssuerRefOptions::from),
+            audiences: json.audiences.clone().unwrap_or_default(),
+            scopes: json.scopes.clone().unwrap_or_default(),
+            roles: json.roles.clone().unwrap_or_default(),
+        }
+    }
+}
+
+/// Route policy options.
+#[derive(Debug, Clone, Default)]
+pub struct StackRoutePolicyOptions {
+    /// Route timeout budget.
+    pub timeout: Option<String>,
+    /// Retry policy.
+    pub retries: StackRouteRetryOptions,
+    /// Cache policy.
+    pub cache: StackRouteCacheOptions,
+}
+
+impl StackRoutePolicyOptions {
+    /// Inherit unset route policy settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.timeout.is_none() {
+            self.timeout = parent.timeout.clone();
+        }
+        self.retries.extend_from(&parent.retries);
+        self.cache.extend_from(&parent.cache);
+    }
+}
+
+impl From<&StackRoutePolicyJson> for StackRoutePolicyOptions {
+    fn from(json: &StackRoutePolicyJson) -> Self {
+        Self {
+            timeout: json.timeout.clone(),
+            retries: StackRouteRetryOptions::from(&json.retries),
+            cache: StackRouteCacheOptions::from(&json.cache),
+        }
+    }
+}
+
+/// Route retry policy options.
+#[derive(Debug, Clone, Default)]
+pub struct StackRouteRetryOptions {
+    /// Maximum retry attempts.
+    pub attempts: Option<u64>,
+    /// Timeout for one retry attempt.
+    pub per_try_timeout: Option<String>,
+    /// Retry conditions.
+    pub conditions: Vec<String>,
+}
+
+impl StackRouteRetryOptions {
+    /// Inherit unset route retry settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.attempts.is_none() {
+            self.attempts = parent.attempts;
+        }
+        if self.per_try_timeout.is_none() {
+            self.per_try_timeout = parent.per_try_timeout.clone();
+        }
+        if self.conditions.is_empty() {
+            self.conditions = parent.conditions.clone();
+        }
+    }
+}
+
+impl From<&StackRouteRetryJson> for StackRouteRetryOptions {
+    fn from(json: &StackRouteRetryJson) -> Self {
+        Self {
+            attempts: json.attempts,
+            per_try_timeout: json.per_try_timeout.clone(),
+            conditions: json.conditions.clone().unwrap_or_default(),
+        }
+    }
+}
+
+/// Route cache policy options.
+#[derive(Debug, Clone, Default)]
+pub struct StackRouteCacheOptions {
+    /// Whether route caching is enabled.
+    pub enabled: Option<bool>,
+    /// Default cache lifetime.
+    pub ttl: Option<String>,
+    /// Stale while revalidate lifetime.
+    pub stale_while_revalidate: Option<String>,
+    /// Cache variation keys.
+    pub vary: Vec<String>,
+}
+
+impl StackRouteCacheOptions {
+    /// Inherit unset route cache settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.enabled.is_none() {
+            self.enabled = parent.enabled;
+        }
+        if self.ttl.is_none() {
+            self.ttl = parent.ttl.clone();
+        }
+        if self.stale_while_revalidate.is_none() {
+            self.stale_while_revalidate = parent.stale_while_revalidate.clone();
+        }
+        if self.vary.is_empty() {
+            self.vary = parent.vary.clone();
+        }
+    }
+}
+
+impl From<&StackRouteCacheJson> for StackRouteCacheOptions {
+    fn from(json: &StackRouteCacheJson) -> Self {
+        Self {
+            enabled: json.enabled,
+            ttl: json.ttl.clone(),
+            stale_while_revalidate: json.stale_while_revalidate.clone(),
+            vary: json.vary.clone().unwrap_or_default(),
         }
     }
 }
@@ -367,10 +539,76 @@ pub struct StackRouteJson {
     pub service: Option<String>,
     /// Allowed HTTP methods.
     pub methods: Option<Vec<String>>,
+    /// Route access expectations.
+    #[serde(default)]
+    pub access: StackRouteAccessJson,
+    /// Route policy.
+    #[serde(default)]
+    pub policy: StackRoutePolicyJson,
     /// Selection labels.
     pub labels: Option<IndexMap<String, String>>,
     /// Non-identifying metadata.
     pub annotations: Option<IndexMap<String, String>>,
+}
+
+/// Route access JSON.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct StackRouteAccessJson {
+    /// Access mode.
+    pub mode: Option<StackAccessModeJson>,
+    /// Accepted issuer reference.
+    pub issuer: Option<StackIssuerRefJson>,
+    /// Accepted audience names.
+    pub audiences: Option<Vec<String>>,
+    /// Required scopes.
+    pub scopes: Option<Vec<String>>,
+    /// Required roles.
+    pub roles: Option<Vec<String>>,
+}
+
+/// Route policy JSON.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct StackRoutePolicyJson {
+    /// Route timeout budget.
+    pub timeout: Option<String>,
+    /// Retry policy.
+    #[serde(default)]
+    pub retries: StackRouteRetryJson,
+    /// Cache policy.
+    #[serde(default)]
+    pub cache: StackRouteCacheJson,
+}
+
+/// Route retry policy JSON.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct StackRouteRetryJson {
+    /// Maximum retry attempts.
+    pub attempts: Option<u64>,
+    /// Timeout for one retry attempt.
+    pub per_try_timeout: Option<String>,
+    /// Retry conditions.
+    pub conditions: Option<Vec<String>>,
+}
+
+/// Route cache policy JSON.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct StackRouteCacheJson {
+    /// Whether route caching is enabled.
+    pub enabled: Option<bool>,
+    /// Default cache lifetime.
+    pub ttl: Option<String>,
+    /// Stale while revalidate lifetime.
+    pub stale_while_revalidate: Option<String>,
+    /// Cache variation keys.
+    pub vary: Option<Vec<String>>,
 }
 
 /// Redirect configuration JSON.

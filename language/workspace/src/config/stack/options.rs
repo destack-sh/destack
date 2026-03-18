@@ -374,7 +374,15 @@ mod tests {
                     "workloads": ["api"],
                     "protocol": "http",
                     "port": 443,
-                    "targetPort": 3000
+                    "targetPort": 3000,
+                    "access": {
+                        "mode": "required",
+                        "issuer": {
+                            "service": "universe"
+                        },
+                        "audiences": ["internal"],
+                        "callers": ["web", "worker"]
+                    }
                 },
                 "db": {
                     "type": "destack.sh/service/database",
@@ -388,7 +396,16 @@ mod tests {
                         "domain": "primary",
                         "match": "/api/:path*",
                         "service": "api",
-                        "methods": ["GET", "POST"]
+                        "methods": ["GET", "POST"],
+                        "access": {
+                            "mode": "required",
+                            "issuer": {
+                                "service": "universe"
+                            },
+                            "audiences": ["app"],
+                            "scopes": ["user"],
+                            "roles": ["member"]
+                        }
                     }
                 }
             },
@@ -427,6 +444,22 @@ mod tests {
                 .get("api")
                 .and_then(|route| route.service.as_deref()),
             Some("api")
+        );
+        assert_eq!(
+            options
+                .services
+                .get("api")
+                .and_then(|service| service.access.mode),
+            Some(super::super::StackAccessMode::Required)
+        );
+        assert_eq!(
+            options
+                .ingress
+                .routes
+                .get("api")
+                .and_then(|route| route.access.issuer.as_ref())
+                .and_then(|issuer| issuer.service.as_deref()),
+            Some("universe")
         );
     }
 
@@ -523,6 +556,60 @@ mod tests {
         assert_eq!(child.url.as_deref(), Some("https://api.example.com"));
     }
 
+    /// Inherit unset service access fields from one parent service.
+    #[test]
+    fn test_stack_service_extend_inherits_missing_access() {
+        let parent: StackServiceJson = serde_json::from_value(json!({
+            "workloads": ["api"],
+            "access": {
+                "mode": "required",
+                "issuer": {
+                    "service": "universe"
+                },
+                "audiences": ["internal"],
+                "callers": ["web"]
+            }
+        }))
+        .expect("parent service should parse");
+        let child: StackServiceJson = serde_json::from_value(json!({
+            "url": "https://api.example.com",
+            "access": {
+                "issuer": {
+                    "url": "https://auth.example.com"
+                },
+                "callers": ["worker"]
+            }
+        }))
+        .expect("child service should parse");
+
+        let mut child = super::super::StackServiceOptions::from(&child);
+        let parent = super::super::StackServiceOptions::from(&parent);
+        child.extend_from(&parent);
+
+        assert_eq!(
+            child.access.mode,
+            Some(super::super::StackAccessMode::Required)
+        );
+        assert_eq!(
+            child
+                .access
+                .issuer
+                .as_ref()
+                .and_then(|issuer| issuer.service.as_deref()),
+            Some("universe")
+        );
+        assert_eq!(
+            child
+                .access
+                .issuer
+                .as_ref()
+                .and_then(|issuer| issuer.url.as_deref()),
+            Some("https://auth.example.com")
+        );
+        assert_eq!(child.access.audiences, vec!["internal".to_string()]);
+        assert_eq!(child.access.callers, vec!["worker".to_string()]);
+    }
+
     /// Inherit unset environment fields from one parent environment.
     #[test]
     fn test_stack_environment_extend_inherits_missing_fields() {
@@ -583,6 +670,42 @@ mod tests {
                     },
                     "visibilityTimeoutSeconds": 300
                 }
+            },
+            "health": {
+                "readiness": {
+                    "path": "/readyz",
+                    "method": "GET",
+                    "port": 8080,
+                    "initialDelaySeconds": 5,
+                    "successThreshold": 2
+                }
+            },
+            "placement": {
+                "regions": ["iad1"],
+                "affinity": ["pool:workers"],
+                "antiAffinity": ["host"],
+                "spread": ["zone"]
+            },
+            "identity": {
+                "name": "emails",
+                "audiences": ["destack", "queue"],
+                "provider": {
+                    "aws": {
+                        "role": "emails"
+                    }
+                }
+            },
+            "timeouts": {
+                "job": "10m",
+                "operation": "30s"
+            },
+            "runtime": {
+                "scheduler": {
+                    "maxTasks": 64
+                },
+                "heap": {
+                    "maxBytes": 1048576
+                }
             }
         }))
         .expect("consumer workload should parse");
@@ -609,11 +732,131 @@ mod tests {
         assert_eq!(consumer.run.trigger.service.as_deref(), Some("emailQueue"));
         assert_eq!(consumer.run.delivery.batch.max_size, Some(100));
         assert_eq!(consumer.run.delivery.retry.max_attempts, Some(5));
+        assert_eq!(consumer.health.readiness.method.as_deref(), Some("GET"));
+        assert_eq!(consumer.health.readiness.port, Some(8080));
+        assert_eq!(consumer.health.readiness.initial_delay_seconds, Some(5));
+        assert_eq!(consumer.health.readiness.success_threshold, Some(2));
+        assert_eq!(
+            consumer.placement.affinity,
+            vec!["pool:workers".to_string()]
+        );
+        assert_eq!(consumer.placement.anti_affinity, vec!["host".to_string()]);
+        assert_eq!(consumer.placement.spread, vec!["zone".to_string()]);
+        assert_eq!(consumer.identity.name.as_deref(), Some("emails"));
+        assert_eq!(
+            consumer.identity.audiences,
+            vec!["destack".to_string(), "queue".to_string()]
+        );
+        assert_eq!(consumer.timeouts.job.as_deref(), Some("10m"));
+        assert_eq!(consumer.timeouts.operation.as_deref(), Some("30s"));
+        let runtime = consumer
+            .effective_runtime_overrides()
+            .expect("effective runtime overrides should exist");
+
+        assert_eq!(
+            runtime
+                .scheduler
+                .as_ref()
+                .and_then(|scheduler| scheduler.max_tasks),
+            Some(64)
+        );
+        assert_eq!(
+            runtime.heap.as_ref().and_then(|heap| heap.max_bytes),
+            Some(1048576)
+        );
         assert_eq!(
             schedule.run.trigger.kind.as_deref(),
             Some("destack.sh/trigger/schedule")
         );
         assert_eq!(schedule.run.trigger.schedule.as_deref(), Some("0 * * * *"));
+    }
+
+    /// Inherit unset workload timeout fields from one parent workload.
+    #[test]
+    fn test_stack_workload_extend_inherits_missing_timeouts() {
+        let parent: StackWorkloadJson = serde_json::from_value(json!({
+            "timeouts": {
+                "startup": "30s",
+                "shutdown": "15s"
+            }
+        }))
+        .expect("parent workload should parse");
+        let child: StackWorkloadJson = serde_json::from_value(json!({
+            "timeouts": {
+                "request": "60s"
+            }
+        }))
+        .expect("child workload should parse");
+
+        let mut child = StackWorkloadOptions::from(&child);
+        let parent = StackWorkloadOptions::from(&parent);
+        child.extend_from(&parent);
+
+        assert_eq!(child.timeouts.startup.as_deref(), Some("30s"));
+        assert_eq!(child.timeouts.request.as_deref(), Some("60s"));
+        assert_eq!(child.timeouts.shutdown.as_deref(), Some("15s"));
+    }
+
+    /// Inherit unset probe, placement, and identity fields from one parent workload.
+    #[test]
+    fn test_stack_workload_extend_inherits_probe_placement_and_identity() {
+        let parent: StackWorkloadJson = serde_json::from_value(json!({
+            "health": {
+                "startup": {
+                    "path": "/startup",
+                    "method": "GET",
+                    "port": 8080,
+                    "initialDelaySeconds": 10,
+                    "successThreshold": 2
+                }
+            },
+            "placement": {
+                "regions": ["iad1"],
+                "affinity": ["pool:blue"],
+                "spread": ["zone"]
+            },
+            "identity": {
+                "name": "api",
+                "audiences": ["destack"]
+            }
+        }))
+        .expect("parent workload should parse");
+        let child: StackWorkloadJson = serde_json::from_value(json!({
+            "health": {
+                "startup": {
+                    "timeoutSeconds": 5
+                }
+            },
+            "placement": {
+                "antiAffinity": ["host"]
+            },
+            "identity": {
+                "provider": {
+                    "gcp": {
+                        "serviceAccount": "api"
+                    }
+                }
+            }
+        }))
+        .expect("child workload should parse");
+
+        let mut child = StackWorkloadOptions::from(&child);
+        let parent = StackWorkloadOptions::from(&parent);
+        child.extend_from(&parent);
+
+        assert_eq!(child.health.startup.path.as_deref(), Some("/startup"));
+        assert_eq!(child.health.startup.method.as_deref(), Some("GET"));
+        assert_eq!(child.health.startup.port, Some(8080));
+        assert_eq!(child.health.startup.initial_delay_seconds, Some(10));
+        assert_eq!(child.health.startup.success_threshold, Some(2));
+        assert_eq!(child.health.startup.timeout_seconds, Some(5));
+        assert_eq!(child.placement.regions, vec!["iad1".to_string()]);
+        assert_eq!(child.placement.affinity, vec!["pool:blue".to_string()]);
+        assert_eq!(child.placement.anti_affinity, vec!["host".to_string()]);
+        assert_eq!(child.placement.spread, vec!["zone".to_string()]);
+        assert_eq!(child.identity.name.as_deref(), Some("api"));
+        assert_eq!(child.identity.audiences, vec!["destack".to_string()]);
+        assert!(child.identity.provider.is_some());
     }
 
     /// Merge named ingress rules incrementally by identity.
@@ -666,5 +909,135 @@ mod tests {
                 .and_then(|route| route.service.as_deref()),
             Some("site")
         );
+    }
+
+    /// Inherit unset route access fields from one parent route.
+    #[test]
+    fn test_stack_ingress_extend_inherits_route_access() {
+        let parent: StackJson = serde_json::from_value(json!({
+            "ingress": {
+                "routes": {
+                    "app": {
+                        "match": "/app/:path*",
+                        "service": "app",
+                        "access": {
+                            "mode": "required",
+                            "issuer": {
+                                "service": "universe"
+                            },
+                            "audiences": ["app"],
+                            "scopes": ["user"]
+                        }
+                    }
+                }
+            }
+        }))
+        .expect("parent stack should parse");
+        let child: StackJson = serde_json::from_value(json!({
+            "ingress": {
+                "routes": {
+                    "app": {
+                        "access": {
+                            "issuer": {
+                                "url": "https://auth.example.com"
+                            },
+                            "roles": ["member"]
+                        }
+                    }
+                }
+            }
+        }))
+        .expect("child stack should parse");
+
+        let parent = StackOptions::from(&parent);
+        let mut child = StackOptions::from(&child);
+        child.extend_from(&parent);
+
+        let route = child.ingress.routes.get("app").expect("route should exist");
+
+        assert_eq!(
+            route.access.mode,
+            Some(super::super::StackAccessMode::Required)
+        );
+        assert_eq!(
+            route
+                .access
+                .issuer
+                .as_ref()
+                .and_then(|issuer| issuer.service.as_deref()),
+            Some("universe")
+        );
+        assert_eq!(
+            route
+                .access
+                .issuer
+                .as_ref()
+                .and_then(|issuer| issuer.url.as_deref()),
+            Some("https://auth.example.com")
+        );
+        assert_eq!(route.access.audiences, vec!["app".to_string()]);
+        assert_eq!(route.access.scopes, vec!["user".to_string()]);
+        assert_eq!(route.access.roles, vec!["member".to_string()]);
+    }
+
+    /// Parse route policy and volume durability settings.
+    #[test]
+    fn test_stack_parse_route_policy_and_volume_durability() {
+        let json: StackJson = serde_json::from_value(json!({
+            "volumes": {
+                "uploads": {
+                    "size": "500Gi",
+                    "class": "ssd",
+                    "access": "readWriteMany",
+                    "retention": "retain",
+                    "backup": {
+                        "enabled": true,
+                        "schedule": "0 2 * * *",
+                        "retentionDays": 30
+                    }
+                }
+            },
+            "ingress": {
+                "routes": {
+                    "app": {
+                        "domain": "primary",
+                        "match": "/:path*",
+                        "service": "app",
+                        "policy": {
+                            "timeout": "30s",
+                            "retries": {
+                                "attempts": 3,
+                                "perTryTimeout": "5s",
+                                "conditions": ["5xx", "gateway-error"]
+                            },
+                            "cache": {
+                                "enabled": true,
+                                "ttl": "1h",
+                                "staleWhileRevalidate": "5m",
+                                "vary": ["accept-encoding"]
+                            }
+                        }
+                    }
+                }
+            }
+        }))
+        .expect("stack json should parse");
+
+        let options = StackOptions::from(&json);
+        let uploads = options.volumes.get("uploads").expect("volume should exist");
+        let route = options
+            .ingress
+            .routes
+            .get("app")
+            .expect("route should exist");
+
+        assert_eq!(uploads.access.as_deref(), Some("readWriteMany"));
+        assert_eq!(uploads.retention.as_deref(), Some("retain"));
+        assert_eq!(uploads.backup.enabled, Some(true));
+        assert_eq!(uploads.backup.retention_days, Some(30));
+        assert_eq!(route.policy.timeout.as_deref(), Some("30s"));
+        assert_eq!(route.policy.retries.attempts, Some(3));
+        assert_eq!(route.policy.cache.enabled, Some(true));
+        assert_eq!(route.policy.cache.ttl.as_deref(), Some("1h"));
     }
 }

@@ -2,7 +2,9 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::common::merge_metadata;
+use super::common::{
+    StackAccessMode, StackAccessModeJson, StackIssuerRefJson, StackIssuerRefOptions, merge_metadata,
+};
 use super::workload::{StackPlacementJson, StackPlacementOptions};
 
 #[cfg(feature = "schema")]
@@ -34,6 +36,8 @@ pub struct StackServiceOptions {
     pub target_port: Option<u16>,
     /// Placement constraints and preferences.
     pub placement: StackPlacementOptions,
+    /// Service access expectations.
+    pub access: StackServiceAccessOptions,
     /// Extra service metadata.
     pub config: Option<Value>,
 }
@@ -67,6 +71,7 @@ impl StackServiceOptions {
         }
 
         self.placement.extend_from(&parent.placement);
+        self.access.extend_from(&parent.access);
         merge_metadata(&mut self.labels, &parent.labels);
         merge_metadata(&mut self.annotations, &parent.annotations);
     }
@@ -85,7 +90,54 @@ impl From<&StackServiceJson> for StackServiceOptions {
             port: json.port,
             target_port: json.target_port,
             placement: StackPlacementOptions::from(&json.placement),
+            access: StackServiceAccessOptions::from(&json.access),
             config: json.config.clone(),
+        }
+    }
+}
+
+/// Service access options.
+#[derive(Debug, Clone, Default)]
+pub struct StackServiceAccessOptions {
+    /// Access mode.
+    pub mode: Option<StackAccessMode>,
+    /// Accepted issuer reference.
+    pub issuer: Option<StackIssuerRefOptions>,
+    /// Accepted audience names.
+    pub audiences: Vec<String>,
+    /// Allowed calling workload or service identities.
+    pub callers: Vec<String>,
+}
+
+impl StackServiceAccessOptions {
+    /// Inherit unset service access settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.mode.is_none() {
+            self.mode = parent.mode;
+        }
+        if let Some(parent_issuer) = &parent.issuer {
+            if let Some(issuer) = self.issuer.as_mut() {
+                issuer.extend_from(parent_issuer);
+            } else {
+                self.issuer = Some(parent_issuer.clone());
+            }
+        }
+        if self.audiences.is_empty() {
+            self.audiences = parent.audiences.clone();
+        }
+        if self.callers.is_empty() {
+            self.callers = parent.callers.clone();
+        }
+    }
+}
+
+impl From<&StackServiceAccessJson> for StackServiceAccessOptions {
+    fn from(json: &StackServiceAccessJson) -> Self {
+        Self {
+            mode: json.mode.map(StackAccessMode::from),
+            issuer: json.issuer.as_ref().map(StackIssuerRefOptions::from),
+            audiences: json.audiences.clone().unwrap_or_default(),
+            callers: json.callers.clone().unwrap_or_default(),
         }
     }
 }
@@ -122,8 +174,26 @@ pub struct StackServiceJson {
     /// Placement constraints and preferences.
     #[serde(default)]
     pub placement: StackPlacementJson,
+    /// Service access expectations.
+    #[serde(default)]
+    pub access: StackServiceAccessJson,
     /// Extra service metadata.
     pub config: Option<Value>,
+}
+
+/// Service access JSON.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct StackServiceAccessJson {
+    /// Access mode.
+    pub mode: Option<StackAccessModeJson>,
+    /// Accepted issuer reference.
+    pub issuer: Option<StackIssuerRefJson>,
+    /// Accepted audience names.
+    pub audiences: Option<Vec<String>>,
+    /// Allowed calling workload or service identities.
+    pub callers: Option<Vec<String>>,
 }
 
 #[cfg(feature = "schema")]
@@ -138,6 +208,7 @@ impl JsonSchema for StackServiceJson {
 
     fn json_schema(generator: &mut SchemaGenerator) -> Schema {
         let placement_schema = generator.subschema_for::<StackPlacementJson>();
+        let access_schema = generator.subschema_for::<StackServiceAccessJson>();
 
         json_schema!({
             "description": "A stable bindable capability or endpoint.\n\nInputs: either named workloads or one external url, plus protocol, placement, and service config.\nOutputs: addressable fields such as `url` for bindings and ingress.",
@@ -196,6 +267,10 @@ impl JsonSchema for StackServiceJson {
                 "placement": {
                     "description": "Placement constraints and preferences.",
                     "allOf": [placement_schema]
+                },
+                "access": {
+                    "description": "Service access expectations.",
+                    "allOf": [access_schema]
                 },
                 "config": {
                     "description": "Extra service metadata."

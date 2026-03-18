@@ -6163,7 +6163,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "description": "Open component type identifier.\n\nBuiltin archetypes currently blessed by Destack are:\n`destack.sh/component/client`,\n`destack.sh/component/service`,\n`destack.sh/component/worker`,\nand `destack.sh/component/job`.",
+          "description": "Open component type identifier.\n\nBuiltin component types currently blessed by Destack are:\n`destack.sh/component/client`,\n`destack.sh/component/service`,\n`destack.sh/component/worker`,\n`destack.sh/component/job`,\nand `destack.sh/component/site`.",
           "type": [
             "string",
             "null"
@@ -6177,7 +6177,7 @@
           ]
         },
         "with": {
-          "description": "Typed component inputs.\n\nFor builtin archetypes this object should match the corresponding\nclient, service, worker, or job parameter shape.\nRuntime and platform remain target-scoped rather than component-scoped."
+          "description": "Typed component inputs.\n\nFor builtin component types this object should match the corresponding\nclient, service, worker, job, or site parameter shape.\nRuntime and platform remain target-scoped rather than component-scoped."
         },
         "labels": {
           "description": "Selection labels.",
@@ -6246,6 +6246,16 @@
         },
         {
           "properties": {
+            "type": {
+              "const": "destack.sh/component/site"
+            },
+            "with": {
+              "$ref": "#/$defs/StackSiteComponentJson"
+            }
+          }
+        },
+        {
+          "properties": {
             "with": {
               "type": [
                 "object",
@@ -6260,7 +6270,8 @@
                   "destack.sh/component/client",
                   "destack.sh/component/service",
                   "destack.sh/component/worker",
-                  "destack.sh/component/job"
+                  "destack.sh/component/job",
+                  "destack.sh/component/site"
                 ]
               }
             },
@@ -6311,14 +6322,89 @@
           ]
         },
         "assets": {
-          "description": "Static asset directory or asset binding.",
+          "description": "Static asset source or asset publishing configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackAssetsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "config": {
+          "description": "Extra component metadata."
+        }
+      }
+    },
+    "StackAssetsJson": {
+      "description": "Asset publication JSON.",
+      "anyOf": [
+        {
+          "description": "Shorthand local source directory or manifest path.",
+          "type": "string"
+        },
+        {
+          "description": "Structured asset publication settings.",
+          "$ref": "#/$defs/StackAssetsObjectJson"
+        }
+      ]
+    },
+    "StackAssetsObjectJson": {
+      "description": "Structured asset publication JSON.",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "Local source directory or manifest path.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "service": {
+          "description": "Backing asset or CDN service reference.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "publicPath": {
+          "description": "Public path prefix where assets are exposed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cacheControl": {
+          "description": "Cache-Control header for published assets.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "immutable": {
+          "description": "Whether published asset paths are content-addressed and immutable.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "indexDocument": {
+          "description": "Default index document for directory requests.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "errorDocument": {
+          "description": "Default error document for not-found responses.",
           "type": [
             "string",
             "null"
           ]
         },
         "config": {
-          "description": "Extra component metadata."
+          "description": "Extra asset metadata."
         }
       }
     },
@@ -6529,6 +6615,47 @@
         }
       }
     },
+    "StackSiteComponentJson": {
+      "description": "Builtin site component parameters.",
+      "type": "object",
+      "properties": {
+        "target": {
+          "description": "Primary site target.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "domain": {
+          "description": "Optional public domain for the lowered site service.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "match": {
+          "description": "Optional route match for the lowered ingress rule.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "assets": {
+          "description": "Static asset source or asset publishing configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackAssetsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "config": {
+          "description": "Extra component metadata."
+        }
+      }
+    },
     "StackWorkloadJson": {
       "description": "An executable compute node.\n\nInputs: one target, bindings, mounts, env transport, and runtime policy.\nOutputs: runtime instances that may back one or more services.",
       "type": "object",
@@ -6605,9 +6732,28 @@
           "description": "Placement constraints and preferences.",
           "$ref": "#/$defs/StackPlacementJson"
         },
+        "identity": {
+          "description": "Workload identity bindings.",
+          "$ref": "#/$defs/StackIdentityJson"
+        },
         "capacity": {
           "description": "Compute envelope and scaling behavior.",
           "$ref": "#/$defs/StackCapacityJson"
+        },
+        "timeouts": {
+          "description": "Generic workload and runtime time budgets.",
+          "$ref": "#/$defs/StackTimeoutJson"
+        },
+        "runtime": {
+          "description": "Destack runtime overrides for this workload.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "rollout": {
           "description": "Rollout policy.",
@@ -6653,10 +6799,14 @@
           ]
         },
         "assets": {
-          "description": "Static asset resource or directory binding.",
-          "type": [
-            "string",
-            "null"
+          "description": "Static asset source or asset publishing configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackAssetsJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "trigger": {
@@ -6833,6 +6983,32 @@
             "null"
           ]
         },
+        "method": {
+          "description": "Probe HTTP method.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "port": {
+          "description": "Probe target port.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "initialDelaySeconds": {
+          "description": "Initial delay in seconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
         "intervalSeconds": {
           "description": "Probe interval in seconds.",
           "type": [
@@ -6844,6 +7020,15 @@
         },
         "timeoutSeconds": {
           "description": "Probe timeout in seconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "successThreshold": {
+          "description": "Success threshold before state change.",
           "type": [
             "integer",
             "null"
@@ -6882,6 +7067,65 @@
             "string",
             "null"
           ]
+        },
+        "affinity": {
+          "description": "Affinity selectors or placement groups.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "antiAffinity": {
+          "description": "Anti-affinity selectors or placement groups.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "spread": {
+          "description": "Spread dimensions like region, zone, or host.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "StackIdentityJson": {
+      "description": "Workload identity JSON.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Stable workload identity name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "audiences": {
+          "description": "Identity audience names.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "provider": {
+          "description": "Provider-specific lowering overrides."
+        },
+        "config": {
+          "description": "Extra identity metadata."
         }
       }
     },
@@ -7011,6 +7255,54 @@
           ],
           "format": "uint64",
           "minimum": 0
+        }
+      }
+    },
+    "StackTimeoutJson": {
+      "description": "Timeout configuration JSON.",
+      "type": "object",
+      "properties": {
+        "startup": {
+          "description": "Maximum time to become ready after start.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "health": {
+          "description": "Maximum time allowed for one health check.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "request": {
+          "description": "Maximum time allowed for one request.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "shutdown": {
+          "description": "Maximum graceful shutdown interval.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "job": {
+          "description": "Maximum runtime for one bounded job.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "operation": {
+          "description": "Maximum time for one external or host operation.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
@@ -7230,6 +7522,14 @@
             }
           ]
         },
+        "access": {
+          "description": "Service access expectations.",
+          "allOf": [
+            {
+              "$ref": "#/$defs/StackServiceAccessJson"
+            }
+          ]
+        },
         "config": {
           "description": "Extra service metadata."
         }
@@ -7270,6 +7570,126 @@
         }
       ]
     },
+    "StackServiceAccessJson": {
+      "description": "Service access JSON.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "Access mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackAccessModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "issuer": {
+          "description": "Accepted issuer reference.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackIssuerRefJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "audiences": {
+          "description": "Accepted audience names.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "callers": {
+          "description": "Allowed calling workload or service identities.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "StackAccessModeJson": {
+      "description": "Access mode JSON.",
+      "oneOf": [
+        {
+          "description": "No authentication is required.",
+          "type": "string",
+          "const": "public"
+        },
+        {
+          "description": "Authentication is accepted when present.",
+          "type": "string",
+          "const": "optional"
+        },
+        {
+          "description": "Authentication is required.",
+          "type": "string",
+          "const": "required"
+        }
+      ]
+    },
+    "StackIssuerRefJson": {
+      "description": "Issuer reference JSON.",
+      "type": "object",
+      "properties": {
+        "service": {
+          "description": "Internal issuer service name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "description": "External issuer URL.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "service": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "service"
+          ],
+          "not": {
+            "required": [
+              "url"
+            ]
+          }
+        },
+        {
+          "properties": {
+            "url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "url"
+          ],
+          "not": {
+            "required": [
+              "service"
+            ]
+          }
+        }
+      ]
+    },
     "StackVolumeJson": {
       "description": "A passive mountable storage node.\n\nInputs: size, class, and provider config.\nOutputs: mount handles for workloads.",
       "type": "object",
@@ -7287,6 +7707,24 @@
             "string",
             "null"
           ]
+        },
+        "access": {
+          "description": "Access mode for this volume.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retention": {
+          "description": "Retention policy for this volume.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "backup": {
+          "description": "Backup policy for this volume.",
+          "$ref": "#/$defs/StackVolumeBackupJson"
         },
         "labels": {
           "description": "Selection labels.",
@@ -7313,6 +7751,35 @@
         },
         "config": {
           "description": "Extra volume metadata."
+        }
+      }
+    },
+    "StackVolumeBackupJson": {
+      "description": "Volume backup policy JSON.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether backups are enabled.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "schedule": {
+          "description": "Backup schedule.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retentionDays": {
+          "description": "Backup retention in days.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
         }
       }
     },
@@ -7511,8 +7978,71 @@
             "null"
           ]
         },
+        "records": {
+          "description": "Explicit DNS records to manage.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/StackDomainDnsRecordJson"
+          }
+        },
         "config": {
           "description": "Extra DNS provider metadata."
+        }
+      }
+    },
+    "StackDomainDnsRecordJson": {
+      "description": "Domain DNS record JSON.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "DNS record type.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "Relative record name within the zone.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "description": "DNS record value.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ttl": {
+          "description": "DNS record ttl in seconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "priority": {
+          "description": "DNS routing priority.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "proxied": {
+          "description": "Whether the record is proxied through the DNS provider.",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       }
     },
@@ -7645,6 +8175,14 @@
             "type": "string"
           }
         },
+        "access": {
+          "description": "Route access expectations.",
+          "$ref": "#/$defs/StackRouteAccessJson"
+        },
+        "policy": {
+          "description": "Route policy.",
+          "$ref": "#/$defs/StackRoutePolicyJson"
+        },
         "labels": {
           "description": "Selection labels.",
           "type": [
@@ -7662,6 +8200,154 @@
             "null"
           ],
           "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "StackRouteAccessJson": {
+      "description": "Route access JSON.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "Access mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackAccessModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "issuer": {
+          "description": "Accepted issuer reference.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StackIssuerRefJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "audiences": {
+          "description": "Accepted audience names.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "scopes": {
+          "description": "Required scopes.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "roles": {
+          "description": "Required roles.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "StackRoutePolicyJson": {
+      "description": "Route policy JSON.",
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "description": "Route timeout budget.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retries": {
+          "description": "Retry policy.",
+          "$ref": "#/$defs/StackRouteRetryJson"
+        },
+        "cache": {
+          "description": "Cache policy.",
+          "$ref": "#/$defs/StackRouteCacheJson"
+        }
+      }
+    },
+    "StackRouteRetryJson": {
+      "description": "Route retry policy JSON.",
+      "type": "object",
+      "properties": {
+        "attempts": {
+          "description": "Maximum retry attempts.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "perTryTimeout": {
+          "description": "Timeout for one retry attempt.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "conditions": {
+          "description": "Retry conditions.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "StackRouteCacheJson": {
+      "description": "Route cache policy JSON.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether route caching is enabled.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "ttl": {
+          "description": "Default cache lifetime.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "staleWhileRevalidate": {
+          "description": "Stale while revalidate lifetime.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vary": {
+          "description": "Cache variation keys.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
             "type": "string"
           }
         }

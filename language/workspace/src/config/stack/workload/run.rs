@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use serde_json::Value;
 
+use super::super::asset::{StackAssetsJson, StackAssetsOptions};
 use super::super::common::{StackRunKind, StackRunKindJson};
 
 /// Builtin queue trigger kind id.
@@ -19,8 +20,8 @@ pub struct StackRunOptions {
     pub protocol: Option<String>,
     /// Optional mount path or handler path.
     pub mount: Option<String>,
-    /// Static asset resource or directory binding.
-    pub assets: Option<String>,
+    /// Static asset source or asset publishing configuration.
+    pub assets: StackAssetsOptions,
     /// Trigger configuration.
     pub trigger: StackTriggerOptions,
     /// Delivery configuration.
@@ -41,13 +42,11 @@ impl StackRunOptions {
         if self.mount.is_none() {
             self.mount = parent.mount.clone();
         }
-        if self.assets.is_none() {
-            self.assets = parent.assets.clone();
-        }
         if self.config.is_none() {
             self.config = parent.config.clone();
         }
 
+        self.assets.extend_from(&parent.assets);
         self.trigger.extend_from(&parent.trigger);
         self.delivery.extend_from(&parent.delivery);
     }
@@ -59,7 +58,11 @@ impl From<&StackRunJson> for StackRunOptions {
             kind: json.kind.map(StackRunKind::from),
             protocol: json.protocol.clone(),
             mount: json.mount.clone(),
-            assets: json.assets.clone(),
+            assets: json
+                .assets
+                .as_ref()
+                .map(StackAssetsOptions::from)
+                .unwrap_or_default(),
             trigger: StackTriggerOptions::from(&json.trigger),
             delivery: StackDeliveryOptions::from(&json.delivery),
             config: json.config.clone(),
@@ -207,8 +210,8 @@ pub struct StackRunJson {
     pub protocol: Option<String>,
     /// Optional mount path or handler path.
     pub mount: Option<String>,
-    /// Static asset resource or directory binding.
-    pub assets: Option<String>,
+    /// Static asset source or asset publishing configuration.
+    pub assets: Option<StackAssetsJson>,
     /// Trigger configuration.
     #[serde(default)]
     pub trigger: StackTriggerJson,
