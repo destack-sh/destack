@@ -3,7 +3,7 @@ use std::collections::{BinaryHeap, HashMap};
 
 use serde::{Deserialize, Serialize};
 
-use super::EventLoop;
+use super::Loop;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
@@ -322,7 +322,7 @@ impl TimerQueue {
     }
 }
 
-impl EventLoop {
+impl Loop {
     /// Normalize one timer deadline using scheduler options.
     pub(super) fn normalize_deadline(&self, deadline: Nanos) -> Nanos {
         // quantize to timer resolution first

@@ -1,13 +1,13 @@
-use super::{EventLoop, EventLoopWatch, Task, TaskStatus, Timer};
+use super::{Loop, LoopWatch, Task, TaskStatus, Timer};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, HostEventKind};
 use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::engine::EngineContinuation;
 use crate::runtime::poller::{PollerEvent, PollerToken};
 
-impl EventLoop {
+impl Loop {
     /// Register one timer watch.
-    pub fn watch_timer(&mut self, handle: ResourceId, watch: EventLoopWatch) -> RuntimeResult<()> {
+    pub fn watch_timer(&mut self, handle: ResourceId, watch: LoopWatch) -> RuntimeResult<()> {
         // only native continuations can be cloned for repeated dispatch
         self.validate_watch(&watch)?;
         self.timer_watches.insert(handle, watch);
@@ -16,12 +16,12 @@ impl EventLoop {
     }
 
     /// Remove the timer watch registered for one timer handle.
-    pub fn unwatch_timer(&mut self, handle: ResourceId) -> Option<EventLoopWatch> {
+    pub fn unwatch_timer(&mut self, handle: ResourceId) -> Option<LoopWatch> {
         self.timer_watches.remove(&handle)
     }
 
     /// Register one event watch.
-    pub fn watch_event(&mut self, token: PollerToken, watch: EventLoopWatch) -> RuntimeResult<()> {
+    pub fn watch_event(&mut self, token: PollerToken, watch: LoopWatch) -> RuntimeResult<()> {
         // only native continuations can be cloned for repeated dispatch
         self.validate_watch(&watch)?;
         self.poller_event_watches.insert(token, watch);
@@ -30,7 +30,7 @@ impl EventLoop {
     }
 
     /// Remove the event watch registered for one poller token.
-    pub fn unwatch_event(&mut self, token: PollerToken) -> Option<EventLoopWatch> {
+    pub fn unwatch_event(&mut self, token: PollerToken) -> Option<LoopWatch> {
         self.poller_event_watches.remove(&token)
     }
 
@@ -40,11 +40,7 @@ impl EventLoop {
     }
 
     /// Register one host semantic event watch.
-    pub fn watch_host_event(
-        &mut self,
-        kind: HostEventKind,
-        watch: EventLoopWatch,
-    ) -> RuntimeResult<()> {
+    pub fn watch_host_event(&mut self, kind: HostEventKind, watch: LoopWatch) -> RuntimeResult<()> {
         // only native continuations can be cloned for repeated dispatch
         self.validate_watch(&watch)?;
         self.host_event_watches.insert(kind, watch);
@@ -53,7 +49,7 @@ impl EventLoop {
     }
 
     /// Remove the host semantic event watch registered for one kind.
-    pub fn unwatch_host_event(&mut self, kind: HostEventKind) -> Option<EventLoopWatch> {
+    pub fn unwatch_host_event(&mut self, kind: HostEventKind) -> Option<LoopWatch> {
         self.host_event_watches.remove(&kind)
     }
 
@@ -69,7 +65,7 @@ impl EventLoop {
         let EngineContinuation::Native(native) = watch.runnable else {
             return None;
         };
-        let watch = EventLoopWatch {
+        let watch = LoopWatch {
             runnable: EngineContinuation::Native(native),
             resume_value: watch.resume_value,
             priority: watch.priority,
@@ -84,7 +80,7 @@ impl EventLoop {
         let EngineContinuation::Native(native) = watch.runnable else {
             return None;
         };
-        let watch = EventLoopWatch {
+        let watch = LoopWatch {
             runnable: EngineContinuation::Native(native),
             resume_value: watch.resume_value,
             priority: watch.priority,
@@ -100,7 +96,7 @@ impl EventLoop {
         let EngineContinuation::Native(native) = watch.runnable else {
             return None;
         };
-        let watch = EventLoopWatch {
+        let watch = LoopWatch {
             runnable: EngineContinuation::Native(native),
             resume_value: watch.resume_value,
             priority: watch.priority,
@@ -110,7 +106,7 @@ impl EventLoop {
     }
 
     /// Build one task from one watch payload.
-    fn task_for_watch(&mut self, watch: EventLoopWatch) -> Task {
+    fn task_for_watch(&mut self, watch: LoopWatch) -> Task {
         let task_id = self.next_task_id();
         Task {
             id: task_id,
@@ -122,7 +118,7 @@ impl EventLoop {
     }
 
     /// Validate one watch payload for repeatable dispatch.
-    fn validate_watch(&self, watch: &EventLoopWatch) -> RuntimeResult<()> {
+    fn validate_watch(&self, watch: &LoopWatch) -> RuntimeResult<()> {
         if matches!(watch.runnable, EngineContinuation::Vm(_)) {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "watch.runnable",

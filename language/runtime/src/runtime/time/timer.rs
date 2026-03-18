@@ -7,7 +7,7 @@ use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::time::{TimerClock, TimerOptions};
 use crate::platform::{PlatformError, ResourceTable, resource};
 use crate::runtime::BindingCallContext;
-use crate::runtime::scheduler::{Timer as EventLoopTimer, TimerDeadline};
+use crate::runtime::scheduler::{Timer as LoopTimer, TimerDeadline};
 use crate::runtime::time::{Clock, Nanos};
 use destack_workspace::TimeMode;
 
@@ -199,7 +199,7 @@ fn schedule_timer_state(
         return Ok(());
     }
 
-    context.event_loop().schedule_timer(EventLoopTimer {
+    context.event_loop().schedule_timer(LoopTimer {
         handle: handle.0.into(),
         deadline: TimerDeadline {
             clock: state.clock,

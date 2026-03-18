@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 
-use super::super::executor::dedicated::ServiceThreadGuard;
+use super::super::executor::thread::ServiceThreadGuard;
 
 /// Initialize one WinRT multithreaded apartment for one service thread.
 pub(crate) fn initialize_windows_winrt_mta(name: &str) -> RuntimeResult<ServiceThreadGuard> {

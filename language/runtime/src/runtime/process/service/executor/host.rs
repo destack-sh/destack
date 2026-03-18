@@ -9,8 +9,8 @@ use crate::host::apple::message::is_process_main_context;
 use crate::platform::core::{self as core_platform};
 #[cfg(windows)]
 use crate::platform::core::{self as core_platform};
+use crate::runtime::process::ExecutionAffinity;
 
-use super::super::affinity::ServiceHostLoop;
 #[cfg(target_os = "macos")]
 use super::super::unix::call_process_main_thread;
 #[cfg(windows)]
@@ -24,11 +24,11 @@ use std::sync::Arc;
 use std::sync::mpsc::sync_channel;
 
 /// One host-loop-bound executor for one host-affine platform service.
-pub(crate) struct HostLoopExecutor {
+pub(crate) struct HostExecutor {
     /// Logical service name for diagnostics.
     pub(crate) name: String,
     /// The required host loop for this service.
-    pub(crate) host_loop: ServiceHostLoop,
+    pub(crate) host_loop: ExecutionAffinity,
     /// The bound host-loop thread for this service.
     pub(crate) thread_id: OnceLock<ThreadId>,
     /// Whether the host loop has been bound yet.
@@ -41,9 +41,11 @@ pub(crate) struct HostLoopExecutor {
     pub(crate) windows_thread_id: OnceLock<u32>,
 }
 
-impl HostLoopExecutor {
+impl HostExecutor {
     /// Create one host-loop-bound executor.
-    pub(crate) fn new(name: &str, host_loop: ServiceHostLoop) -> Self {
+    pub(crate) fn new(name: &str, host_loop: ExecutionAffinity) -> Self {
+        assert_host_loop_affinity(host_loop);
+
         Self {
             name: name.to_string(),
             host_loop,
@@ -68,12 +70,22 @@ impl HostLoopExecutor {
         // dispatch through the configured host loop
         match self.host_loop {
             #[cfg(target_os = "macos")]
-            ServiceHostLoop::MainThread => call_process_main_thread(operation, self, _callback),
+            ExecutionAffinity::MainThread => call_process_main_thread(operation, self, _callback),
 
             #[cfg(windows)]
-            ServiceHostLoop::WindowsMessageLoop => {
+            ExecutionAffinity::WindowsMessageLoop => {
                 self.call_windows_message_loop(operation, _callback)
             }
+
+            #[cfg(windows)]
+            ExecutionAffinity::WindowsMta => Err(core_platform::io_operation_error(
+                operation,
+                None,
+                format!(
+                    "host-loop service {} cannot use windows MTA affinity",
+                    self.name
+                ),
+            )),
         }
     }
 
@@ -130,7 +142,7 @@ impl HostLoopExecutor {
     #[cfg(target_os = "macos")]
     fn validate_host_loop(&self, operation: &'static str) -> RuntimeResult<()> {
         match self.host_loop {
-            ServiceHostLoop::MainThread => {
+            ExecutionAffinity::MainThread => {
                 if is_process_main_context() {
                     Ok(())
                 } else {
@@ -148,8 +160,24 @@ impl HostLoopExecutor {
     }
 }
 
+/// Require one host-loop-compatible runtime affinity.
+fn assert_host_loop_affinity(host_loop: ExecutionAffinity) {
+    match host_loop {
+        #[cfg(target_os = "macos")]
+        ExecutionAffinity::MainThread => {}
+
+        #[cfg(windows)]
+        ExecutionAffinity::WindowsMessageLoop => {}
+
+        #[cfg(windows)]
+        ExecutionAffinity::WindowsMta => {
+            panic!("host-loop executor cannot use windows MTA affinity");
+        }
+    }
+}
+
 #[cfg(windows)]
-impl HostLoopExecutor {
+impl HostExecutor {
     /// Execute one callback on the bound windows message loop.
     fn call_windows_message_loop<R>(
         &self,

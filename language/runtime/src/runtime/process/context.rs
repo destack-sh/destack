@@ -12,7 +12,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::HostSession;
 use crate::platform::NativeArray;
 use crate::runtime::bindings::BindingAffinity;
-use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
+use crate::runtime::scheduler::{Loop, MicrotaskId, TaskId};
 use crate::runtime::world::World;
 use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 
@@ -26,7 +26,7 @@ thread_local! {
     /// TLS storage for native ABI references returned by bindings.
     static CURRENT_BINDING_CALL_ARENA: BindingCallArena = const { BindingCallArena::new() };
     /// TLS slot for the current event loop scope.
-    static CURRENT_EVENT_LOOP_SCOPE: Cell<EventLoopScope> = const { Cell::new(EventLoopScope::empty()) };
+    static CURRENT_EVENT_LOOP_SCOPE: Cell<LoopScope> = const { Cell::new(LoopScope::empty()) };
 }
 
 /// Stable identifier for one execution context.
@@ -65,7 +65,7 @@ pub(crate) struct CurrentAgentContext {
     /// Agent pointer for callback dispatch.
     pub agent: *const Agent,
     /// Event loop pointer for callback dispatch.
-    pub event_loop: *const EventLoop,
+    pub event_loop: *const Loop,
     /// Host pointer for callback dispatch.
     pub host: *const HostSession,
     /// World pointer for replay, time, random, and policy.
@@ -114,7 +114,7 @@ impl Drop for CurrentAgentContextGuard {
 
 /// Event loop scope for runtime execution.
 #[derive(Debug, Clone, Copy)]
-pub struct EventLoopScope {
+pub struct LoopScope {
     /// Current task identifier, if any.
     task_id: Option<TaskId>,
     /// Current microtask identifier, if any.
@@ -123,7 +123,7 @@ pub struct EventLoopScope {
     microtask_depth: usize,
 }
 
-impl EventLoopScope {
+impl LoopScope {
     /// Create an empty event loop scope.
     pub const fn empty() -> Self {
         Self {
@@ -169,12 +169,12 @@ impl EventLoopScope {
 
 /// Guard that restores the previous event loop scope.
 #[derive(Debug)]
-pub struct EventLoopScopeGuard {
+pub struct LoopScopeGuard {
     /// Previous event loop scope.
-    previous: EventLoopScope,
+    previous: LoopScope,
 }
 
-impl Drop for EventLoopScopeGuard {
+impl Drop for LoopScopeGuard {
     /// Restore the previous event loop scope.
     fn drop(&mut self) {
         CURRENT_EVENT_LOOP_SCOPE.with(|slot| slot.set(self.previous));
@@ -289,7 +289,7 @@ pub const fn binding_affinity_name(affinity: BindingAffinity) -> &'static str {
 /// Enter one current-agent execution context for VM callback dispatch.
 pub(crate) fn enter_current_agent_context(
     agent: *const Agent,
-    event_loop: *const EventLoop,
+    event_loop: *const Loop,
     host: *const HostSession,
     world: *const World,
     is_process_main: bool,
@@ -298,7 +298,7 @@ pub(crate) fn enter_current_agent_context(
     let execution_context_id = event_loop.execution_context_id();
     let next = CurrentAgentContext {
         agent,
-        event_loop: event_loop as *const EventLoop,
+        event_loop: event_loop as *const Loop,
         host,
         world,
         execution_context_id,
@@ -327,19 +327,19 @@ pub(crate) fn current_agent_context() -> Option<CurrentAgentContext> {
 
 /// Enter an event loop scope for runtime execution.
 #[inline]
-pub(crate) fn enter_event_loop_scope(scope: EventLoopScope) -> EventLoopScopeGuard {
+pub(crate) fn enter_event_loop_scope(scope: LoopScope) -> LoopScopeGuard {
     let previous = CURRENT_EVENT_LOOP_SCOPE.with(|slot| {
         let previous = slot.get();
         slot.set(scope);
         previous
     });
 
-    EventLoopScopeGuard { previous }
+    LoopScopeGuard { previous }
 }
 
 /// Return the current event loop scope.
 #[inline]
-pub(crate) fn current_event_loop_scope() -> EventLoopScope {
+pub(crate) fn current_event_loop_scope() -> LoopScope {
     CURRENT_EVENT_LOOP_SCOPE.with(|slot| slot.get())
 }
 

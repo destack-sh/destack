@@ -12,12 +12,12 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
 use crate::runtime::process::service::global_service;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::state::{ExecutorFailure, ExecutorFailureKind, ExecutorState};
 
 /// One fallback wait used when no periodic task is currently registered.
 const PERIODIC_IDLE_WAIT: Duration = Duration::from_secs(60);
-
 /// One callback invoked by the periodic executor.
 type PeriodicCallback = dyn Fn() -> RuntimeResult<()> + Send + Sync + 'static;
 
@@ -89,9 +89,11 @@ impl PeriodicExecutor {
         let panic_name = thread_name.clone();
 
         // executor thread
-        let handle = thread::Builder::new()
-            .name(thread_name.clone())
-            .spawn(move || {
+        let handle = start_with_policy(
+            thread_name.clone(),
+            "platform.service.spawn",
+            ExecutionPolicy::global(ExecutionMode::Polling),
+            move || {
                 let result = panic::catch_unwind(AssertUnwindSafe(|| {
                     Self::periodic_executor_main(
                         &thread_name,
@@ -107,14 +109,8 @@ impl PeriodicExecutor {
                         format!("periodic executor {panic_name} panicked unexpectedly"),
                     ));
                 }
-            })
-            .map_err(|error| {
-                core_platform::io_operation_error(
-                    "platform.service.spawn",
-                    None,
-                    format!("failed to spawn periodic service executor {name}: {error}"),
-                )
-            })?;
+            },
+        )?;
 
         Ok(Self {
             name: name.to_string(),
