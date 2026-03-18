@@ -67,8 +67,16 @@ impl CacheMemoryState {
 enum MemoryCacheKind {
     /// AST cache entry.
     Ast,
-    /// DIR cache entry.
-    Dir,
+    /// Base DIR cache entry.
+    DirBase,
+    /// Prepared DIR cache entry.
+    DirPrepared,
+    /// Resolved DIR cache entry.
+    DirResolved,
+    /// Analyzed DIR cache entry.
+    DirAnalyzed,
+    /// Patched DIR cache entry.
+    DirPatched,
     /// MIR cache entry.
     Mir,
 }
@@ -157,7 +165,21 @@ impl CacheRegistry {
 
             let removed = match entry.kind {
                 MemoryCacheKind::Ast => self.remove_memory_entry(&self.ast, &entry.key).is_some(),
-                MemoryCacheKind::Dir => self.remove_memory_entry(&self.dir, &entry.key).is_some(),
+                MemoryCacheKind::DirBase => self
+                    .remove_memory_entry(&self.dir_base, &entry.key)
+                    .is_some(),
+                MemoryCacheKind::DirPrepared => self
+                    .remove_memory_entry(&self.dir_prepared, &entry.key)
+                    .is_some(),
+                MemoryCacheKind::DirResolved => self
+                    .remove_memory_entry(&self.dir_resolved, &entry.key)
+                    .is_some(),
+                MemoryCacheKind::DirAnalyzed => self
+                    .remove_memory_entry(&self.dir_analyzed, &entry.key)
+                    .is_some(),
+                MemoryCacheKind::DirPatched => self
+                    .remove_memory_entry(&self.dir_patched, &entry.key)
+                    .is_some(),
                 MemoryCacheKind::Mir => self.remove_memory_entry(&self.mir, &entry.key).is_some(),
             };
 
@@ -180,9 +202,45 @@ impl CacheRegistry {
             });
         }
 
-        for entry in self.dir.iter() {
+        for entry in self.dir_base.iter() {
             entries.push(MemoryEvictionEntry {
-                kind: MemoryCacheKind::Dir,
+                kind: MemoryCacheKind::DirBase,
+                key: entry.key().clone(),
+                size_bytes: entry.value().size_bytes,
+                eviction_key: entry.value().eviction_key(policy),
+            });
+        }
+
+        for entry in self.dir_prepared.iter() {
+            entries.push(MemoryEvictionEntry {
+                kind: MemoryCacheKind::DirPrepared,
+                key: entry.key().clone(),
+                size_bytes: entry.value().size_bytes,
+                eviction_key: entry.value().eviction_key(policy),
+            });
+        }
+
+        for entry in self.dir_resolved.iter() {
+            entries.push(MemoryEvictionEntry {
+                kind: MemoryCacheKind::DirResolved,
+                key: entry.key().clone(),
+                size_bytes: entry.value().size_bytes,
+                eviction_key: entry.value().eviction_key(policy),
+            });
+        }
+
+        for entry in self.dir_analyzed.iter() {
+            entries.push(MemoryEvictionEntry {
+                kind: MemoryCacheKind::DirAnalyzed,
+                key: entry.key().clone(),
+                size_bytes: entry.value().size_bytes,
+                eviction_key: entry.value().eviction_key(policy),
+            });
+        }
+
+        for entry in self.dir_patched.iter() {
+            entries.push(MemoryEvictionEntry {
+                kind: MemoryCacheKind::DirPatched,
                 key: entry.key().clone(),
                 size_bytes: entry.value().size_bytes,
                 eviction_key: entry.value().eviction_key(policy),

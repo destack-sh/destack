@@ -12,9 +12,9 @@ use destack_source::{
     PackageId, TemporaryPhysicalFileSystem, Uri,
 };
 use destack_workspace::{
-    ArtifactKey, CacheMode, CachePolicy, CacheScope, CacheValidate, Destack, DiskCacheStore,
-    FileUpdate, MemoryCacheStore, ModuleAst, ModuleGraphKey, Session, Workspace,
-    WorkspaceIndexHeader, WorkspaceIndexStore, hash_workspace_config,
+    ArtifactKey, Ast, CacheMode, CachePolicy, CacheScope, CacheValidate, Destack, DiskCacheStore,
+    FileUpdate, MemoryCacheStore, ModuleGraphKey, Session, Workspace, WorkspaceIndexHeader,
+    WorkspaceIndexStore, hash_workspace_config,
 };
 
 impl TestProgram {
@@ -30,10 +30,9 @@ impl TestProgram {
         // enqueue analyze tasks for the requested modules
         for module_id in modules {
             let profile = self.default_profile_id(*module_id);
-            compiler.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-                module: *module_id,
-                profile,
-            }));
+            compiler.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_analyzed(
+                *module_id, profile,
+            )));
         }
 
         // run compilation and check diagnostics
@@ -49,10 +48,9 @@ impl TestProgram {
         // enqueue analyze tasks for the requested modules
         for module_id in modules {
             let profile = self.default_profile_id(*module_id);
-            compiler.enqueue_build_key(BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-                module: *module_id,
-                profile,
-            }));
+            compiler.enqueue_build_key(BuildKey::artifact(ArtifactKey::dir_analyzed(
+                *module_id, profile,
+            )));
         }
 
         // run compilation and check diagnostics
@@ -105,8 +103,8 @@ fn test_task_rebuilds_after_module_version_change() {
     // set up a program and register a module
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module("main.ts", "export const value = 1;");
-    let build_key = BuildKey::Artifact(ArtifactKey::Ast { module: module_id });
-    let artifact_key = ArtifactKey::Ast { module: module_id };
+    let build_key = BuildKey::artifact(ArtifactKey::ast(module_id));
+    let artifact_key = ArtifactKey::ast(module_id);
 
     // seed the initial artifact
     let outcome = test.compiler.run_build_key(build_key.clone());
@@ -175,10 +173,7 @@ value;
     test.compile_analyze_modules_with(&compiler, &[module_a_id, module_b_id]);
 
     let profile = test.default_profile_id(module_a_id);
-    let build_key = BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-        module: module_b_id,
-        profile,
-    });
+    let build_key = BuildKey::artifact(ArtifactKey::dir_analyzed(module_b_id, profile));
     let b_has_dir_before = test
         .program
         .artifacts
@@ -254,12 +249,10 @@ value;
     test.compile_analyze_modules(&[module_a_id, module_b_id, module_c_id]);
 
     let profile = test.default_profile_id(module_a_id);
-    let graph_key = ModuleGraphKey::new(profile);
     let graph = test
         .program
-        .index
-        .module_graphs
-        .get(&graph_key)
+        .artifacts
+        .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for {profile:?}"));
     let deps_before: HashSet<_> = graph.dependencies_for(module_a_id).into_iter().collect();
     let dependents_b_before: HashSet<_> = graph.dependents_for(module_b_id).into_iter().collect();
@@ -297,9 +290,8 @@ value;
 
     let graph = test
         .program
-        .index
-        .module_graphs
-        .get(&graph_key)
+        .artifacts
+        .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for {profile:?}"));
     let deps_after: HashSet<_> = graph.dependencies_for(module_a_id).into_iter().collect();
     let dependents_b_after: HashSet<_> = graph.dependents_for(module_b_id).into_iter().collect();
@@ -359,14 +351,8 @@ value;
     test.compile_analyze_modules_with(&compiler, &[module_b_id, module_a_id, module_c_id]);
 
     let profile = test.default_profile_id(module_a_id);
-    let a_build_key = BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-        module: module_a_id,
-        profile,
-    });
-    let c_build_key = BuildKey::Artifact(ArtifactKey::DirAnalyzed {
-        module: module_c_id,
-        profile,
-    });
+    let a_build_key = BuildKey::artifact(ArtifactKey::dir_analyzed(module_a_id, profile));
+    let c_build_key = BuildKey::artifact(ArtifactKey::dir_analyzed(module_c_id, profile));
     assert!(compiler.build_key_is_available(&a_build_key));
     assert!(compiler.build_key_is_available(&c_build_key));
 
@@ -438,10 +424,7 @@ value;
 
     // seed a patched dir artifact to validate freshness behavior
     let profile = test.default_profile_id(module_b_id);
-    let build_key = BuildKey::Artifact(ArtifactKey::DirPatched {
-        module: module_b_id,
-        profile,
-    });
+    let build_key = BuildKey::artifact(ArtifactKey::dir_patched(module_b_id, profile));
     let outcome = compiler.run_build_key(build_key.clone());
     assert!(matches!(outcome, TaskOutcome::Complete { .. }));
 
@@ -509,7 +492,7 @@ fn test_cache_roundtrip_disk() {
         dependency_hash: 0,
     };
     let module_id = ModuleId::new(PackageId::new(1), 1);
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
+    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
 
     let cache_store = DiskCacheStore::new();
     let registry = CacheRegistry::new();
@@ -557,7 +540,7 @@ fn test_cache_disk_access_markers() {
         dependency_hash: 0,
     };
     let module_id = ModuleId::new(PackageId::new(2), 3);
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
+    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
 
     let cache_store = DiskCacheStore::new();
     let registry = CacheRegistry::new();
@@ -667,15 +650,15 @@ fn test_workspace_index_roundtrip_disk() {
     let workspace = Workspace::single_package(root_path.clone()).with_config(config);
     let session = Arc::new(Session::workspace(root_path.clone(), Arc::new(workspace)));
     let program = session.add_root(root_path.clone());
-    let _compiler = Compiler::new(session, program.clone(), CompilerOptions::default());
+    let _compiler = Compiler::new(session.clone(), program.clone(), CompilerOptions::default());
 
     // check that the workspace index is loaded
     assert!(
-        program.workspace_file_entry(&module_path).is_some(),
+        session.has_workspace_index_file_entry(&module_path),
         "expected workspace index to load file entry"
     );
     assert!(
-        program.workspace_module_entry(module_id).is_some(),
+        session.has_workspace_index_module_entry(module_id),
         "expected workspace index to load module entry"
     );
 }
@@ -702,7 +685,7 @@ fn test_cache_roundtrip_memory() {
         dependency_hash: 0,
     };
     let module_id = ModuleId::new(PackageId::new(2), 2);
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
+    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
 
     let cache_store = MemoryCacheStore::new();
     let registry = CacheRegistry::new();
@@ -751,7 +734,7 @@ fn test_cache_miss_on_context_change() {
         dependency_hash: 0,
     };
     let module_id = ModuleId::new(PackageId::new(3), 3);
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
+    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
 
     let cache_store = DiskCacheStore::new();
     let registry = CacheRegistry::new();
@@ -802,7 +785,7 @@ fn test_cache_miss_on_dependency_change() {
         dependency_hash: 10,
     };
     let module_id = ModuleId::new(PackageId::new(4), 4);
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
+    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
 
     let cache_store = MemoryCacheStore::new();
     let registry = CacheRegistry::new();
@@ -855,7 +838,7 @@ fn test_cache_miss_on_file_version_bump() {
     };
     let cache_store = test.session.cache_store.as_ref();
     let registry = CacheRegistry::new();
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
+    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
     registry
         .write_ast_cache(cache_store, &options, &context_before, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write ast cache entry: {error}"));
@@ -924,7 +907,7 @@ fn test_cache_miss_on_tsconfig_change() {
     };
     let cache_store = test.session.cache_store.as_ref();
     let registry = CacheRegistry::new();
-    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL);
+    let payload = Ast::new(module_id, ModuleVersion::INITIAL);
     registry
         .write_ast_cache(cache_store, &options, &context_before, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write ast cache entry: {error}"));
@@ -933,8 +916,7 @@ fn test_cache_miss_on_tsconfig_change() {
     let tsconfig_id = test
         .program
         .modules
-        .get(module_id)
-        .tsconfig_id()
+        .tsconfig_id(module_id)
         .unwrap_or_else(|| panic!("expected tsconfig for {module_id:?}"));
     let tsconfig = test.program.tsconfigs.get(tsconfig_id);
     let tsconfig = tsconfig.read();

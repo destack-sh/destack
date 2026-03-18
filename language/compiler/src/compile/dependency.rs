@@ -8,6 +8,11 @@ impl Compiler {
     /// Return the dependency kind for a build key.
     pub(crate) fn build_dependency_for_key(&self, build_key: &BuildKey) -> BuildDependency {
         match build_key {
+            BuildKey::Artifact(ArtifactKey::ModuleGraph { profile }) => {
+                BuildDependency::Artifact(ArtifactDependency::new(
+                    self.hash_build_dependency(&(build_key, self.profile_version(*profile))),
+                ))
+            }
             BuildKey::Artifact(ArtifactKey::LanguageEnvironment { profile })
             | BuildKey::Artifact(ArtifactKey::IntrinsicEnvironment { profile })
             | BuildKey::Artifact(ArtifactKey::LibEnvironment { profile }) => {

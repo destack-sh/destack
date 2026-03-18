@@ -9,8 +9,7 @@ use dashmap::DashMap;
 use parking_lot::{Condvar, Mutex};
 
 use crate::{
-    BuildKey, BuildRequirement, BuildRequirementSet, Task, TaskHandle, TaskId, TaskOutcome,
-    TaskStatus,
+    BuildKey, BuildRequirement, BuildRequirementSet, TaskHandle, TaskId, TaskOutcome, TaskStatus,
 };
 
 #[derive(Debug, Default)]
@@ -72,15 +71,14 @@ impl TaskQueue {
 
     /// Enqueue a task, returns the TaskId.
     /// If the task already exists, returns the existing TaskId (noop).
-    pub(super) fn enqueue(&self, task: Task) -> (TaskId, bool) {
-        let build_key = task.build_key().clone();
+    pub(super) fn enqueue(&self, build_key: BuildKey) -> (TaskId, bool) {
         let mut tasks = self.tasks.lock();
         if let Some(&task_id) = tasks.ids.get(&build_key) {
             return (task_id, false);
         }
 
         let task_id = TaskId::new(tasks.handles.len() as u32);
-        let handle = TaskHandle::new(task_id, task.clone());
+        let handle = TaskHandle::new(task_id, build_key.clone());
         tasks.handles.push(handle);
         tasks.ids.insert(build_key, task_id);
         drop(tasks);

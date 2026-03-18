@@ -4,28 +4,6 @@ use crate::{
     BuildKey, BuildRequirement, BuildRequirementSet, DiagnosticAnchor, DiagnosticFormat, TaskError,
 };
 
-/// Region of the compiler.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum TaskRegion {
-    /// Front-end work.
-    Front,
-    /// Middle-end work.
-    Middle,
-    /// Back-end work.
-    Back,
-}
-
-impl TaskRegion {
-    /// Return the display name for this region.
-    pub fn name(&self) -> &str {
-        match self {
-            Self::Front => "front-end",
-            Self::Middle => "middle-end",
-            Self::Back => "back-end",
-        }
-    }
-}
-
 /// Phase label for diagnostics, tracing, and stats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -60,15 +38,6 @@ impl TaskPhase {
     /// Return the numeric code for this phase.
     pub fn code(&self) -> u8 {
         *self as u8
-    }
-
-    /// Return the region for this phase.
-    pub fn region(&self) -> TaskRegion {
-        match self {
-            Self::Import | Self::Resolve | Self::Analyze | Self::Elaborate => TaskRegion::Front,
-            Self::Execute | Self::Lower | Self::Optimize => TaskRegion::Middle,
-            Self::Generate | Self::Link => TaskRegion::Back,
-        }
     }
 
     /// Return the display name for this phase.
@@ -135,27 +104,11 @@ impl TaskPhase {
     }
 }
 
-/// One in-flight build for one build key.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct Task {
-    /// The build key this task realizes.
-    pub key: BuildKey,
-}
-
-impl Task {
-    /// Create a new task for one build key.
-    pub fn new(key: BuildKey) -> Self {
-        Self { key }
-    }
-
-    /// Return the build key realized by this task.
-    pub fn build_key(&self) -> &BuildKey {
-        &self.key
-    }
-
-    /// Return the phase label for this task.
+impl BuildKey {
+    /// Return the phase label for this build key.
     pub fn phase(&self) -> TaskPhase {
-        match &self.key {
+        match self {
+            BuildKey::Artifact(ArtifactKey::ModuleGraph { .. }) => TaskPhase::Resolve,
             BuildKey::Artifact(ArtifactKey::Ast { .. } | ArtifactKey::DirBase { .. }) => {
                 TaskPhase::Import
             }
@@ -186,9 +139,10 @@ impl Task {
         }
     }
 
-    /// Return the diagnostic anchor for this task.
+    /// Return the diagnostic anchor for this build key.
     pub fn anchor(&self) -> DiagnosticAnchor {
-        match &self.key {
+        match self {
+            BuildKey::Artifact(ArtifactKey::ModuleGraph { .. }) => DiagnosticAnchor::Global,
             BuildKey::Artifact(ArtifactKey::Ast { module })
             | BuildKey::Artifact(ArtifactKey::DirBase { module })
             | BuildKey::Artifact(ArtifactKey::DirPrepared { module, .. })
@@ -216,14 +170,10 @@ impl Task {
         }
     }
 
-    /// Return the telemetry region for this task.
-    pub fn region(&self) -> TaskRegion {
-        self.phase().region()
-    }
-
-    /// Return a stable short task name.
+    /// Return a stable short name for this build key.
     pub fn name(&self) -> &'static str {
-        match &self.key {
+        match self {
+            BuildKey::Artifact(ArtifactKey::ModuleGraph { .. }) => "module_graph",
             BuildKey::Artifact(ArtifactKey::Ast { .. }) => "ast",
             BuildKey::Artifact(ArtifactKey::DirBase { .. }) => "dir_base",
             BuildKey::Artifact(ArtifactKey::LanguageEnvironment { .. }) => "language_environment",
@@ -249,9 +199,13 @@ impl Task {
         }
     }
 
-    /// Return trace arguments for this task.
+    /// Return trace arguments for this build key.
     pub fn trace_args(&self, program: &Program) -> String {
-        match &self.key {
+        match self {
+            BuildKey::Artifact(ArtifactKey::ModuleGraph { profile }) => {
+                let profile = profile.diagnostic_fmt(program);
+                format!("profile={profile}")
+            }
             BuildKey::Artifact(ArtifactKey::Ast { module })
             | BuildKey::Artifact(ArtifactKey::DirBase { module }) => {
                 let module = module.diagnostic_fmt(program);
@@ -306,12 +260,6 @@ impl Task {
     }
 }
 
-impl From<BuildKey> for Task {
-    fn from(key: BuildKey) -> Self {
-        Self::new(key)
-    }
-}
-
 /// Id for a compiler task.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
@@ -351,7 +299,7 @@ pub enum TaskStatus {
     /// The task is waiting for more build requirements.
     Yielded { requirement: BuildRequirementSet },
     /// The task was skipped because the running attempt became obsolete.
-    Skipped { reason: TaskSkipReason },
+    Skipped,
     /// The task completed successfully.
     Complete,
     /// The task failed.
@@ -361,17 +309,14 @@ pub enum TaskStatus {
 impl TaskStatus {
     /// Return true when this status is final.
     pub fn is_final(&self) -> bool {
-        matches!(
-            self,
-            Self::Complete | Self::Skipped { .. } | Self::Failed { .. }
-        )
+        matches!(self, Self::Complete | Self::Skipped | Self::Failed { .. })
     }
 
     /// Return true when this status is an outcome.
     pub fn is_outcome(&self) -> bool {
         matches!(
             self,
-            Self::Yielded { .. } | Self::Complete | Self::Skipped { .. } | Self::Failed { .. }
+            Self::Yielded { .. } | Self::Complete | Self::Skipped | Self::Failed { .. }
         )
     }
 }
@@ -380,7 +325,7 @@ impl From<TaskOutcome> for TaskStatus {
     fn from(outcome: TaskOutcome) -> Self {
         match outcome {
             TaskOutcome::Yield { requirement } => Self::Yielded { requirement },
-            TaskOutcome::Skipped { reason } => Self::Skipped { reason },
+            TaskOutcome::Skipped => Self::Skipped,
             TaskOutcome::Error { error } => Self::Failed { error },
             TaskOutcome::Complete { .. } => Self::Complete,
         }
@@ -396,8 +341,8 @@ pub struct TaskHandle {
     pub status: TaskStatus,
     /// The previous outcome for repeat-yield detection.
     pub last_outcome: Option<TaskOutcome>,
-    /// The task itself.
-    pub task: Task,
+    /// The build key realized by this task.
+    pub build_key: BuildKey,
     /// The number of times this task has yielded.
     pub yield_count: u32,
     /// The exact requirements satisfied by the last completed build.
@@ -406,12 +351,12 @@ pub struct TaskHandle {
 
 impl TaskHandle {
     /// Create a new task handle.
-    pub fn new(id: TaskId, task: Task) -> Self {
+    pub fn new(id: TaskId, build_key: BuildKey) -> Self {
         Self {
             id,
             status: TaskStatus::Queued,
             last_outcome: None,
-            task,
+            build_key,
             yield_count: 0,
             final_requirements: Vec::new(),
         }
@@ -419,12 +364,7 @@ impl TaskHandle {
 
     /// Return the phase label for this task.
     pub fn phase(&self) -> TaskPhase {
-        self.task.phase()
-    }
-
-    /// Return the region label for this task.
-    pub fn region(&self) -> TaskRegion {
-        self.task.region()
+        self.build_key.phase()
     }
 }
 
@@ -434,7 +374,7 @@ pub enum TaskOutcome {
     /// The task yielded more requirements.
     Yield { requirement: BuildRequirementSet },
     /// The task became obsolete while running.
-    Skipped { reason: TaskSkipReason },
+    Skipped,
     /// The task failed.
     Error { error: TaskError },
     /// The task completed successfully.
@@ -450,8 +390,8 @@ where
         match result {
             Ok(()) => Self::Complete,
             Err(error) => {
-                if let Some(reason) = error.skip_reason() {
-                    return Self::Skipped { reason };
+                if error.is_skipped() {
+                    return Self::Skipped;
                 }
 
                 match error.try_into() {
@@ -472,25 +412,14 @@ impl TaskOutcome {
     }
 }
 
-/// Reason a running task became obsolete.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TaskSkipReason {
-    /// The module changed while the task was running.
-    StaleModuleVersion,
-    /// The profile changed while the task was running.
-    StaleProfileVersion,
-    /// The module graph changed while the task was running.
-    StaleModuleGraphVersion,
-}
-
-/// Return a skip reason for errors that represent obsolete work.
+/// Return whether an error represents obsolete work.
 pub trait TaskSkip {
-    /// Return the skip reason, if any.
-    fn skip_reason(&self) -> Option<TaskSkipReason>;
+    /// Return whether this error marks the current task obsolete.
+    fn is_skipped(&self) -> bool;
 }
 
 /// Build phase errors that mark work as obsolete.
 pub trait TaskSkipError: Sized {
-    /// Create one skipped error for the given reason.
-    fn skipped(reason: TaskSkipReason) -> Self;
+    /// Create one skipped error.
+    fn skipped() -> Self;
 }

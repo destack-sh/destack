@@ -1,9 +1,9 @@
 use destack_workspace::{ProfileId, Program};
 
 use crate::{
-    AnalyzeError, BuildRequirementSet, DiagnosticAnchor, ElaborateError, EmitError, ExecuteError,
-    GenerateError, ImportError, LinkError, LowerError, OptimizeError, ResolveError, Task, TaskId,
-    TaskPhase,
+    AnalyzeError, BuildKey, BuildRequirementSet, DiagnosticAnchor, ElaborateError, EmitError,
+    ExecuteError, GenerateError, ImportError, LinkError, LowerError, OptimizeError, ResolveError,
+    TaskId, TaskPhase,
 };
 /// Error during compilation.
 #[derive(Debug, Clone, PartialEq)]
@@ -45,7 +45,7 @@ pub enum InternalError {
     /// Task exceeded maximum yield count.
     ExcessiveYield {
         task_id: TaskId,
-        task: Task,
+        build_key: BuildKey,
         requirement: BuildRequirementSet,
         yield_count: u32,
     },
@@ -81,7 +81,7 @@ impl InternalError {
             }
             Self::ExcessiveYield {
                 task_id,
-                task,
+                build_key,
                 requirement,
                 yield_count,
                 ..
@@ -98,7 +98,7 @@ impl InternalError {
 
                 format!(
                     "internal error: task {task_id} ({}) yielded {yield_count} times on {requirement_description}",
-                    task.name(),
+                    build_key.name(),
                 )
             }
 

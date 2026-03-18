@@ -1,8 +1,11 @@
 use destack_source::{CacheKind, ModuleId};
 use destack_workspace::{
-    CacheError, CacheStore, ModuleAst, ModuleAstCacheEntry, ModuleDir, ModuleDirCacheEntry,
-    ModuleMir, ModuleMirCacheEntry,
+    Ast, AstCacheEntry, CacheError, CacheStore, DirAnalyzed, DirAnalyzedCacheEntry, DirBase,
+    DirBaseCacheEntry, DirCacheEntry, DirPatched, DirPatchedCacheEntry, DirPrepared,
+    DirPreparedCacheEntry, DirResolved, DirResolvedCacheEntry, MirBase, MirBaseCacheEntry,
 };
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use crate::compile::CompilerStats;
 
@@ -47,7 +50,7 @@ pub struct CacheHandle<'a> {
 
 impl CacheHandle<'_> {
     /// Read an AST cache entry if available.
-    pub fn read_ast(&self) -> Result<Option<ModuleAstCacheEntry>, CacheError> {
+    pub fn read_ast(&self) -> Result<Option<AstCacheEntry>, CacheError> {
         // skip when cache is disabled
         if !self.options.is_enabled() {
             return Ok(None);
@@ -83,27 +86,57 @@ impl CacheHandle<'_> {
     }
 
     /// Read a base DIR cache entry if available.
-    pub fn read_dir_base(&self) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
-        self.read_dir_with_kind(CacheKind::DirBase)
+    pub fn read_dir_base(&self) -> Result<Option<DirBaseCacheEntry>, CacheError> {
+        self.read_dir_entry(
+            CacheKind::DirBase,
+            |registry, cache_store, options, context, module_id| {
+                registry.read_dir_base_cache_outcome(cache_store, options, context, module_id)
+            },
+        )
+    }
+
+    /// Read a prepared DIR cache entry if available.
+    pub fn read_dir_prepared(&self) -> Result<Option<DirPreparedCacheEntry>, CacheError> {
+        self.read_dir_entry(
+            CacheKind::DirPrepared,
+            |registry, cache_store, options, context, module_id| {
+                registry.read_dir_prepared_cache_outcome(cache_store, options, context, module_id)
+            },
+        )
     }
 
     /// Read a resolved DIR cache entry if available.
-    pub fn read_dir_resolved(&self) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
-        self.read_dir_with_kind(CacheKind::DirResolved)
+    pub fn read_dir_resolved(&self) -> Result<Option<DirResolvedCacheEntry>, CacheError> {
+        self.read_dir_entry(
+            CacheKind::DirResolved,
+            |registry, cache_store, options, context, module_id| {
+                registry.read_dir_resolved_cache_outcome(cache_store, options, context, module_id)
+            },
+        )
     }
 
     /// Read an analyzed DIR cache entry if available.
-    pub fn read_dir_analyzed(&self) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
-        self.read_dir_with_kind(CacheKind::DirAnalyzed)
+    pub fn read_dir_analyzed(&self) -> Result<Option<DirAnalyzedCacheEntry>, CacheError> {
+        self.read_dir_entry(
+            CacheKind::DirAnalyzed,
+            |registry, cache_store, options, context, module_id| {
+                registry.read_dir_analyzed_cache_outcome(cache_store, options, context, module_id)
+            },
+        )
     }
 
     /// Read a patched DIR cache entry if available.
-    pub fn read_dir_patched(&self) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
-        self.read_dir_with_kind(CacheKind::DirPatched)
+    pub fn read_dir_patched(&self) -> Result<Option<DirPatchedCacheEntry>, CacheError> {
+        self.read_dir_entry(
+            CacheKind::DirPatched,
+            |registry, cache_store, options, context, module_id| {
+                registry.read_dir_patched_cache_outcome(cache_store, options, context, module_id)
+            },
+        )
     }
 
     /// Read a MIR cache entry if available.
-    pub fn read_mir(&self) -> Result<Option<ModuleMirCacheEntry>, CacheError> {
+    pub fn read_mir(&self) -> Result<Option<MirBaseCacheEntry>, CacheError> {
         // skip when cache is disabled
         if !self.options.is_enabled() {
             return Ok(None);
@@ -139,7 +172,7 @@ impl CacheHandle<'_> {
     }
 
     /// Write an AST cache entry if enabled.
-    pub fn write_ast(&self, payload: ModuleAst) -> Result<(), CacheError> {
+    pub fn write_ast(&self, payload: Ast) -> Result<(), CacheError> {
         self.registry.write_ast_cache(
             self.cache_store,
             &self.options,
@@ -150,88 +183,62 @@ impl CacheHandle<'_> {
     }
 
     /// Write a base DIR cache entry if enabled.
-    pub fn write_dir_base(&self, payload: ModuleDir) -> Result<(), CacheError> {
-        self.write_dir_with_kind(CacheKind::DirBase, payload)
+    pub fn write_dir_base(&self, payload: DirBase) -> Result<(), CacheError> {
+        self.write_dir_entry(
+            |registry, cache_store, options, context, module_id, payload| {
+                registry.write_dir_base_cache(cache_store, options, context, module_id, payload)
+            },
+            payload,
+        )
+    }
+
+    /// Write a prepared DIR cache entry if enabled.
+    pub fn write_dir_prepared(&self, payload: DirPrepared) -> Result<(), CacheError> {
+        self.write_dir_entry(
+            |registry, cache_store, options, context, module_id, payload| {
+                registry.write_dir_prepared_cache(cache_store, options, context, module_id, payload)
+            },
+            payload,
+        )
     }
 
     /// Write a resolved DIR cache entry if enabled.
-    pub fn write_dir_resolved(&self, payload: ModuleDir) -> Result<(), CacheError> {
-        self.write_dir_with_kind(CacheKind::DirResolved, payload)
+    pub fn write_dir_resolved(&self, payload: DirResolved) -> Result<(), CacheError> {
+        self.write_dir_entry(
+            |registry, cache_store, options, context, module_id, payload| {
+                registry.write_dir_resolved_cache(cache_store, options, context, module_id, payload)
+            },
+            payload,
+        )
     }
 
     /// Write an analyzed DIR cache entry if enabled.
-    pub fn write_dir_analyzed(&self, payload: ModuleDir) -> Result<(), CacheError> {
-        self.write_dir_with_kind(CacheKind::DirAnalyzed, payload)
+    pub fn write_dir_analyzed(&self, payload: DirAnalyzed) -> Result<(), CacheError> {
+        self.write_dir_entry(
+            |registry, cache_store, options, context, module_id, payload| {
+                registry.write_dir_analyzed_cache(cache_store, options, context, module_id, payload)
+            },
+            payload,
+        )
     }
 
     /// Write a patched DIR cache entry if enabled.
-    pub fn write_dir_patched(&self, payload: ModuleDir) -> Result<(), CacheError> {
-        self.write_dir_with_kind(CacheKind::DirPatched, payload)
+    pub fn write_dir_patched(&self, payload: DirPatched) -> Result<(), CacheError> {
+        self.write_dir_entry(
+            |registry, cache_store, options, context, module_id, payload| {
+                registry.write_dir_patched_cache(cache_store, options, context, module_id, payload)
+            },
+            payload,
+        )
     }
 
     /// Write a MIR cache entry if enabled.
-    pub fn write_mir(&self, payload: ModuleMir) -> Result<(), CacheError> {
+    pub fn write_mir(&self, payload: MirBase) -> Result<(), CacheError> {
         self.registry.write_mir_cache(
             self.cache_store,
             &self.options,
             &self.context,
             self.module_id,
-            payload,
-        )
-    }
-
-    /// Read a DIR cache entry for a specific stage if available.
-    fn read_dir_with_kind(
-        &self,
-        cache_kind: CacheKind,
-    ) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
-        // skip when cache is disabled
-        if !self.options.is_enabled() {
-            return Ok(None);
-        }
-
-        // read from cache registry
-        let outcome = self.registry.read_dir_cache_outcome(
-            self.cache_store,
-            &self.options,
-            &self.context,
-            self.module_id,
-            cache_kind,
-        );
-
-        // record cache outcome
-        match &outcome {
-            Ok(CacheReadOutcome::Hit { source, .. }) => {
-                self.record_cache_hit(*source, cache_kind);
-            }
-            Ok(CacheReadOutcome::Miss) => {
-                self.stats.record_cache_dir_miss();
-            }
-            Ok(CacheReadOutcome::Error) | Err(_) => {
-                self.stats.record_cache_error();
-            }
-        }
-
-        // map cache outcome to response
-        match outcome {
-            Ok(CacheReadOutcome::Hit { entry, .. }) => Ok(Some(entry)),
-            Ok(CacheReadOutcome::Miss) | Ok(CacheReadOutcome::Error) => Ok(None),
-            Err(_) => Ok(None),
-        }
-    }
-
-    /// Write a DIR cache entry for a specific stage if enabled.
-    fn write_dir_with_kind(
-        &self,
-        cache_kind: CacheKind,
-        payload: ModuleDir,
-    ) -> Result<(), CacheError> {
-        self.registry.write_dir_cache_with_kind(
-            self.cache_store,
-            &self.options,
-            &self.context,
-            self.module_id,
-            cache_kind,
             payload,
         )
     }
@@ -244,6 +251,7 @@ impl CacheHandle<'_> {
                 CacheReadSource::Disk => self.stats.record_cache_ast_hit_disk(),
             },
             CacheKind::DirBase
+            | CacheKind::DirPrepared
             | CacheKind::DirResolved
             | CacheKind::DirAnalyzed
             | CacheKind::DirPatched => match source {
@@ -255,5 +263,77 @@ impl CacheHandle<'_> {
                 CacheReadSource::Disk => self.stats.record_cache_mir_hit_disk(),
             },
         }
+    }
+
+    /// Read one exact DIR cache entry.
+    fn read_dir_entry<T, F>(
+        &self,
+        cache_kind: CacheKind,
+        read: F,
+    ) -> Result<Option<DirCacheEntry<T>>, CacheError>
+    where
+        T: Clone + Serialize + DeserializeOwned,
+        F: FnOnce(
+            &CacheRegistry,
+            &dyn CacheStore,
+            &CacheOptions,
+            &CacheContext,
+            ModuleId,
+        ) -> Result<CacheReadOutcome<DirCacheEntry<T>>, CacheError>,
+    {
+        // skip when cache is disabled
+        if !self.options.is_enabled() {
+            return Ok(None);
+        }
+
+        // read the cache entry and record the outcome
+        let outcome = read(
+            self.registry,
+            self.cache_store,
+            &self.options,
+            &self.context,
+            self.module_id,
+        );
+
+        match &outcome {
+            Ok(CacheReadOutcome::Hit { source, .. }) => {
+                self.record_cache_hit(*source, cache_kind);
+            }
+            Ok(CacheReadOutcome::Miss) => {
+                self.stats.record_cache_dir_miss();
+            }
+            Ok(CacheReadOutcome::Error) | Err(_) => {
+                self.stats.record_cache_error();
+            }
+        }
+
+        match outcome {
+            Ok(CacheReadOutcome::Hit { entry, .. }) => Ok(Some(entry)),
+            Ok(CacheReadOutcome::Miss) | Ok(CacheReadOutcome::Error) => Ok(None),
+            Err(_) => Ok(None),
+        }
+    }
+
+    /// Write one exact DIR cache entry.
+    fn write_dir_entry<T, F>(&self, write: F, payload: T) -> Result<(), CacheError>
+    where
+        T: Clone + Serialize + DeserializeOwned,
+        F: FnOnce(
+            &CacheRegistry,
+            &dyn CacheStore,
+            &CacheOptions,
+            &CacheContext,
+            ModuleId,
+            T,
+        ) -> Result<(), CacheError>,
+    {
+        write(
+            self.registry,
+            self.cache_store,
+            &self.options,
+            &self.context,
+            self.module_id,
+            payload,
+        )
     }
 }

@@ -2,21 +2,19 @@ use destack_source::{
     FileVersion, ModuleId, ModuleStamp, ModuleVersion, PackageId, PackageStamp, PackageVersion,
     ProfileStamp, ProfileVersion,
 };
-use destack_workspace::{Module, ModuleGraphStamp, ModuleGraphVersion, ProfileId};
+use destack_workspace::{Module, ProfileId};
 
-use crate::{Compiler, InternalError, TaskSkipError, TaskSkipReason};
+use crate::{Compiler, InternalError, TaskSkipError};
 
 impl Compiler {
     /// Get the current module version.
     pub fn module_version(&self, module_id: ModuleId) -> ModuleVersion {
-        let module = self.program.modules.get(module_id);
-        module.version()
+        self.program.modules.version(module_id)
     }
 
     /// Get the current source version for one module.
     pub fn module_source_version(&self, module_id: ModuleId) -> FileVersion {
-        let module = self.program.modules.get(module_id);
-        module.source_version()
+        self.program.modules.source_version(module_id)
     }
 
     /// Get the current module stamp.
@@ -36,16 +34,6 @@ impl Compiler {
     /// Get the current profile stamp.
     pub fn profile_stamp(&self, profile_id: ProfileId) -> ProfileStamp {
         ProfileStamp::new(profile_id, self.profile_version(profile_id))
-    }
-
-    /// Get the current module graph version.
-    pub fn module_graph_version(&self, profile_id: ProfileId) -> ModuleGraphVersion {
-        self.program.module_graph_version(profile_id)
-    }
-
-    /// Get the current module graph stamp.
-    pub fn module_graph_stamp(&self, profile_id: ProfileId) -> ModuleGraphStamp {
-        ModuleGraphStamp::new(profile_id, self.module_graph_version(profile_id))
     }
 
     /// Get the current package version.
@@ -70,7 +58,7 @@ impl Compiler {
         if self.module_version_matches(module_id, module_version) {
             Ok(())
         } else {
-            Err(E::skipped(TaskSkipReason::StaleModuleVersion))
+            Err(E::skipped())
         }
     }
 
@@ -83,10 +71,10 @@ impl Compiler {
     where
         E: TaskSkipError,
     {
-        if module.version() == module_version {
+        if self.program.modules.version(module.id) == module_version {
             Ok(())
         } else {
-            Err(E::skipped(TaskSkipReason::StaleModuleVersion))
+            Err(E::skipped())
         }
     }
 
@@ -102,7 +90,7 @@ impl Compiler {
         if self.profile_version_matches(profile_id, profile_version) {
             Ok(())
         } else {
-            Err(E::skipped(TaskSkipReason::StaleProfileVersion))
+            Err(E::skipped())
         }
     }
 
@@ -120,22 +108,6 @@ impl Compiler {
         self.ensure_module_version_matches_guard::<E>(module, module_version)?;
         self.ensure_profile_version_matches::<E>(profile_id, profile_version)?;
         Ok(())
-    }
-
-    /// Ensure a module graph version matches the current program state.
-    pub(crate) fn ensure_module_graph_version_matches<E>(
-        &self,
-        profile_id: ProfileId,
-        graph_version: ModuleGraphVersion,
-    ) -> Result<(), E>
-    where
-        E: TaskSkipError,
-    {
-        if self.module_graph_version_matches(profile_id, graph_version) {
-            Ok(())
-        } else {
-            Err(E::skipped(TaskSkipReason::StaleModuleGraphVersion))
-        }
     }
 
     /// Ensure a module and profile version pair matches the current program state.
@@ -187,16 +159,6 @@ impl Compiler {
     ) -> bool {
         // compare current package version
         let current = self.package_version(package_id);
-        current == expected
-    }
-
-    /// Check whether a module graph version is current.
-    pub(crate) fn module_graph_version_matches(
-        &self,
-        profile_id: ProfileId,
-        expected: ModuleGraphVersion,
-    ) -> bool {
-        let current = self.module_graph_version(profile_id);
         current == expected
     }
 }

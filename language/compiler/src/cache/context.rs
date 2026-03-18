@@ -3,12 +3,12 @@ use destack_source::{
     TargetId,
 };
 use destack_workspace::{
-    ArtifactKey, CacheError, CacheMode, DSCONFIG_CACHE_IGNORED_KEYS, ModuleGraphKey,
-    WorkspaceIndexError, WorkspaceIndexHeader, WorkspaceIndexSnapshot, WorkspaceIndexStore,
-    hash_bytes, hash_workspace_config, resolve_cache_dir, resolve_cache_root_for_scope,
-    trim_json_object,
+    ArtifactKey, CacheError, CacheMode, DSCONFIG_CACHE_IGNORED_KEYS, WorkspaceIndexError,
+    WorkspaceIndexHeader, WorkspaceIndexSnapshot, WorkspaceIndexStore, hash_bytes,
+    hash_workspace_config, resolve_cache_dir, resolve_cache_root_for_scope, trim_json_object,
 };
 
+use crate::BuildKey;
 use crate::compile::Compiler;
 
 use super::hasher::CacheHasher;
@@ -239,7 +239,9 @@ impl Compiler {
         let package = self.program.packages.get(module.package_id);
         let package = package.read();
         if let Some(config) = package.config.as_ref() {
-            let file = self.program.files.get(config.file_id);
+            let Some(file) = self.program.files.get_maybe(config.file_id) else {
+                return hasher.finish();
+            };
             match &file.content {
                 FileContent::Json { value, .. } => {
                     let trimmed = trim_json_object(value, &DSCONFIG_CACHE_IGNORED_KEYS);
@@ -257,22 +259,23 @@ impl Compiler {
         }
 
         // hash tsconfig content when present
-        if let Some(tsconfig_id) = module.tsconfig_id() {
+        if let Some(tsconfig_id) = self.program.modules.tsconfig_id(module.id) {
             let tsconfig = self.program.tsconfigs.get(tsconfig_id);
             let tsconfig = tsconfig.read();
-            let file = self.program.files.get(tsconfig.file_id);
-            match &file.content {
-                FileContent::Json { value, .. } => {
-                    hasher.hash_json_value(value);
+            if let Some(file) = self.program.files.get_maybe(tsconfig.file_id) {
+                match &file.content {
+                    FileContent::Json { value, .. } => {
+                        hasher.hash_json_value(value);
+                    }
+                    FileContent::Text { content } => {
+                        hasher.hash_bytes(content.as_bytes());
+                    }
+                    FileContent::Binary { content } => {
+                        hasher.hash_bytes(content);
+                    }
+                    FileContent::Missing => {}
+                    FileContent::Unloaded => {}
                 }
-                FileContent::Text { content } => {
-                    hasher.hash_bytes(content.as_bytes());
-                }
-                FileContent::Binary { content } => {
-                    hasher.hash_bytes(content);
-                }
-                FileContent::Missing => {}
-                FileContent::Unloaded => {}
             }
         }
 
@@ -329,8 +332,7 @@ impl Compiler {
         })?;
 
         // load the module graph for this profile
-        let graph_key = ModuleGraphKey::new(profile_id);
-        let Some(graph) = self.program.index.module_graphs.get(&graph_key) else {
+        let Some(graph) = self.program.artifacts.module_graph(profile_id) else {
             return Err(CacheError::MissingDependencyData {
                 module_id,
                 profile_id: Some(profile_id),
@@ -341,7 +343,6 @@ impl Compiler {
         // snapshot dependency list and module versions before releasing the graph guard
         let dependencies = graph.dependencies_for(module_id);
         let graph_versions = graph.module_versions.clone();
-        drop(graph);
 
         // hash dependency ids and exact artifact stamps
         let mut hasher = CacheHasher::new();
@@ -357,7 +358,7 @@ impl Compiler {
 
             let module = self.program.modules.get(dependency);
             let module = module.as_ref();
-            let module_version = module.version();
+            let module_version = self.program.modules.version(module.id);
             if graph_version != module_version {
                 return Err(CacheError::MissingDependencyData {
                     module_id,
@@ -366,6 +367,10 @@ impl Compiler {
                 });
             }
             let artifact_key = match cache_kind {
+                CacheKind::DirPrepared => ArtifactKey::DirPrepared {
+                    module: dependency,
+                    profile: profile_id,
+                },
                 CacheKind::DirResolved => ArtifactKey::DirResolved {
                     module: dependency,
                     profile: profile_id,
@@ -386,7 +391,7 @@ impl Compiler {
                     });
                 }
             };
-            let build_key = crate::BuildKey::Artifact(artifact_key);
+            let build_key = BuildKey::artifact(artifact_key);
             let dependency_stamp = self.build_dependency_for_key(&build_key);
 
             hasher.hash_value(&dependency);
@@ -416,7 +421,7 @@ impl Compiler {
         };
 
         // apply snapshot to program state
-        self.program.apply_workspace_index(snapshot);
+        self.session.apply_workspace_index_snapshot(&snapshot);
 
         Ok(())
     }
