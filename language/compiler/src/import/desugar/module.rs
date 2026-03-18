@@ -1,8 +1,7 @@
 use crate::timing::tags;
 use crate::{Compiler, ImportError, ImportResult};
-use destack_dir::Expression;
+use destack_dir::{Expression, NodeTree};
 use destack_source::{ModuleId, ModuleVersion};
-use destack_workspace::ImportDir;
 
 impl Compiler {
     /// Desugar module syntactically: transforms that don't need type information:
@@ -12,7 +11,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         module_version: ModuleVersion,
-        dir: &mut ImportDir,
+        tree: &mut NodeTree,
     ) -> ImportResult<()> {
         // skip stale tasks
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -24,9 +23,9 @@ impl Compiler {
         }
 
         // desugar expressions
-        let expression_ids = dir.tree.iter_node_ids_of_type::<Expression>();
+        let expression_ids = tree.iter_node_ids_of_type::<Expression>();
         for expression_id in expression_ids {
-            self.desugar_expression(expression_id, &mut dir.tree);
+            self.desugar_expression(expression_id, tree);
         }
         Ok(())
     }

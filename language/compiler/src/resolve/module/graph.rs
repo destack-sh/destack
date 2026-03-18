@@ -1,7 +1,7 @@
 use crate::{Compiler, ResolveResult};
 use destack_dir::ModuleTarget;
 use destack_source::{ModuleId, ModuleVersion};
-use destack_workspace::{ModuleDir, ModuleGraph, ModuleGraphKey, ProfileId};
+use destack_workspace::{ArtifactKey, DirResolved, ModuleGraph, ProfileId};
 
 impl Compiler {
     /// Update the module graph from one resolved DIR snapshot.
@@ -10,7 +10,7 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
         module_version: ModuleVersion,
-        dir: &ModuleDir,
+        dir: &DirResolved,
     ) -> ResolveResult<()> {
         // collect module dependency targets from imports and namespace exports
         let mut targets = Vec::new();
@@ -47,15 +47,16 @@ impl Compiler {
         }
 
         // update the graph for this profile
-        let key = ModuleGraphKey::new(profile_id);
-        let mut entry = self
+        let artifact_key = ArtifactKey::module_graph(profile_id);
+        let graph = self
             .program
-            .index
-            .module_graphs
-            .entry(key)
-            .or_insert_with(|| ModuleGraph::new(profile_id));
-        entry.update_module(module_id, module_version, dependencies);
-        self.interface_component_indexes.remove(&profile_id);
+            .artifacts
+            .module_graph(profile_id)
+            .map(|graph| graph.as_ref().clone())
+            .unwrap_or_else(|| ModuleGraph::new(profile_id));
+        let mut graph = graph;
+        graph.update_module(module_id, module_version, dependencies);
+        self.program.artifacts.publish(artifact_key, graph);
 
         Ok(())
     }

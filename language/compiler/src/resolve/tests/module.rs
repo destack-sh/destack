@@ -1,6 +1,22 @@
 use super::*;
 use destack_dir::{StaticKey, SymbolSpace};
-use destack_workspace::ModuleGraphKey;
+
+/// Assert one module exports a type symbol for the requested name.
+fn assert_has_type_export(test: &TestProgram, module_id: destack_source::ModuleId, name: &str) {
+    let profile = test.default_profile_id(module_id);
+    let dir = test.artifact_dir(module_id, profile);
+    let exports = &dir.exported_symbols;
+    let name_id = test.program.strings.intern(name);
+    let key = (SymbolSpace::Type, StaticKey::Name(name_id));
+
+    let Some(export) = exports.get(&key) else {
+        panic!("expected type export '{name}'");
+    };
+    assert!(
+        export.symbol.is_some() || export.item.is_some(),
+        "expected type export '{name}' to carry a target",
+    );
+}
 
 /// Assert one module exports a value symbol for the requested name.
 fn assert_has_value_export(test: &TestProgram, module_id: destack_source::ModuleId, name: &str) {
@@ -54,12 +70,10 @@ value;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(main_module_id);
-    let key = ModuleGraphKey::new(profile);
     let graph = test
         .program
-        .index
-        .module_graphs
-        .get(&key)
+        .artifacts
+        .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
     let dependencies = graph.dependencies_for(main_module_id);
 
@@ -90,12 +104,10 @@ value;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(main_module_id);
-    let key = ModuleGraphKey::new(profile);
     let graph = test
         .program
-        .index
-        .module_graphs
-        .get(&key)
+        .artifacts
+        .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
     let dependencies = graph.dependencies_for(main_module_id);
 
@@ -104,6 +116,42 @@ value;
         dependencies.contains(&dep_module_id),
         "expected module graph to include dep.ts for ./dep.js import"
     );
+}
+
+/// Publish prepared type exports for exported type aliases.
+#[test]
+fn test_module_exports_type_alias_symbol() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "mod.ds",
+        r#"
+export type User = { name: string };
+"#,
+    );
+
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    assert_has_type_export(&test, module_id, "User");
+}
+
+/// Publish prepared default type exports for exported interfaces.
+#[test]
+fn test_module_exports_default_interface_symbol() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "mod.ds",
+        r#"
+export default interface User {
+    name: string;
+}
+"#,
+    );
+
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    assert_has_type_export(&test, module_id, "default");
 }
 
 /// Resolve declaration imports with .js specifiers through declaration targets.
@@ -126,12 +174,10 @@ type Wrapped = TaskResultPack;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(main_module_id);
-    let key = ModuleGraphKey::new(profile);
     let graph = test
         .program
-        .index
-        .module_graphs
-        .get(&key)
+        .artifacts
+        .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
     let dependencies = graph.dependencies_for(main_module_id);
 
@@ -272,12 +318,10 @@ value;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(consumer_module_id);
-    let key = ModuleGraphKey::new(profile);
     let graph = test
         .program
-        .index
-        .module_graphs
-        .get(&key)
+        .artifacts
+        .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
     let dependencies = graph.dependencies_for(consumer_module_id);
 
@@ -306,12 +350,10 @@ export * from "./dep.ts";
     test.compile_check_clean();
 
     let profile = test.default_profile_id(export_module_id);
-    let key = ModuleGraphKey::new(profile);
     let graph = test
         .program
-        .index
-        .module_graphs
-        .get(&key)
+        .artifacts
+        .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
     let dependencies = graph.dependencies_for(export_module_id);
 
@@ -347,12 +389,10 @@ value;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(main_module_id);
-    let key = ModuleGraphKey::new(profile);
     let graph = test
         .program
-        .index
-        .module_graphs
-        .get(&key)
+        .artifacts
+        .module_graph(profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
     let dependencies = graph.dependencies_for(main_module_id);
 

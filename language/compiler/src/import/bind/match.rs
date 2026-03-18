@@ -1,12 +1,13 @@
 use destack_ast::{self as ast};
 use destack_dir::{
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, MatchSelector, NodeTree,
-    NodeType, ScopeKind, SymbolBinding, SymbolSpaceOrder, SymbolTable, TypeTable,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, MatchSelector,
+    ModuleBinding, NodeTree, NodeType, ScopeKind, SymbolBinding, SymbolSpaceOrder, SymbolTable,
+    TypeTable,
 };
 
 use crate::Compiler;
 
-use destack_workspace::{ImportDir, Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -14,8 +15,10 @@ impl Compiler {
     fn bind_match_selector(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope_id: LocalScopeId,
         ast_selector: &ast::MatchSelector,
         parent_id: LocalNodeIdAny,
@@ -31,7 +34,9 @@ impl Compiler {
                 let pattern = self.bind_pattern(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     None,
                     SymbolBinding::Runtime,
@@ -47,7 +52,9 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         guard,
                         Some(parent_id),
@@ -67,8 +74,10 @@ impl Compiler {
     pub(super) fn bind_match_case(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         ast_match_case_id: ast::LocalNodeId<ast::MatchCase>,
         parent_id: Option<LocalNodeIdAny>,
@@ -89,7 +98,9 @@ impl Compiler {
                 let selector = self.bind_match_selector(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope_id,
                     ast_selector,
                     match_case_id,
@@ -100,7 +111,9 @@ impl Compiler {
                 let body = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
                     Some(match_case_id),
@@ -122,7 +135,9 @@ impl Compiler {
                 let selector = self.bind_match_selector(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope_id,
                     ast_selector,
                     match_case_id,
@@ -133,7 +148,9 @@ impl Compiler {
                 let body = self.bind_block(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
                     Some(match_case_id),

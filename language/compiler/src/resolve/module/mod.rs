@@ -3,7 +3,7 @@
 mod active;
 mod canonical;
 mod exports;
-mod globals;
+pub(crate) mod globals;
 mod graph;
 mod member;
 pub(crate) mod module;

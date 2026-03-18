@@ -2,15 +2,15 @@ use crate::Compiler;
 use crate::analyze::evaluate_numeric_literal;
 use destack_ast as ast;
 use destack_dir::{
-    DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Name, NodeTree, SymbolSpaceOrder,
-    SymbolTable, TypeTable,
+    DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Name, NodeTree,
+    SymbolSpaceOrder, SymbolTable, TypeTable,
 };
-use destack_workspace::{ImportDir, Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Bind an AST name into a DIR name.
-    pub(super) fn bind_name(&self, ast: &ModuleAst, name: ast::Name) -> Name {
+    pub(super) fn bind_name(&self, ast: &Ast, name: ast::Name) -> Name {
         // intern the name into the program string pool
         let name_id = name.string();
         let name_id = self.program.strings.intern_from(&ast.strings, name_id);
@@ -27,8 +27,10 @@ impl Compiler {
     pub(super) fn bind_key(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         key: ast::Key,
         parent_id: Option<LocalNodeIdAny>,
@@ -59,7 +61,9 @@ impl Compiler {
                 let expression = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     expression,
                     parent_id,
@@ -75,7 +79,9 @@ impl Compiler {
                 let key = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     key,
                     parent_id,

@@ -1,43 +1,11 @@
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace};
 use destack_source::{ModuleId, PackageId};
-use destack_workspace::{
-    GlobalSymbolGroupKey, GlobalSymbolTableKey, ProfileId, Target, TargetDiscovery, TargetId,
-};
+use destack_workspace::{ProfileId, Target, TargetDiscovery, TargetId};
 
+use super::globals::GlobalSymbolGroupKey;
 use crate::{Compiler, ResolveError, ResolveResult, TargetDiscoveryIssue};
 
 impl Compiler {
-    /// Build the cache key for a module and profile.
-    pub(crate) fn build_global_symbol_table_key(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> ResolveResult<GlobalSymbolTableKey> {
-        // load module and package metadata
-        let module = self.program.modules.get(module_id);
-        let module = module.as_ref();
-        let package_id = module.package_id;
-        let package = self.program.packages.get(package_id);
-        let package = package.read();
-        let has_targets = !package.targets.is_empty();
-        drop(package);
-
-        // select the entry module and target id for the key
-        let entry_module = (!has_targets).then_some(module_id);
-        let target_id = if let Some((target_id, _)) =
-            self.select_target_for_global_symbol_table(module_id, profile_id)?
-        {
-            target_id
-        } else {
-            TargetId::new(package_id, "default")
-        };
-        Ok(GlobalSymbolTableKey {
-            target_id,
-            profile_id,
-            entry_module,
-        })
-    }
-
     /// Resolve a global symbol group by key and space.
     pub(crate) fn get_global_symbol_group(
         &self,
@@ -46,10 +14,9 @@ impl Compiler {
         key: StaticKey,
         space: SymbolSpace,
     ) -> Option<Vec<GlobalSymbolId>> {
-        let cache_key = self
-            .build_global_symbol_table_key(module_id, profile_id)
+        let cache = self
+            .global_symbol_table_for_module(module_id, profile_id)
             .ok()?;
-        let cache = self.program.index.global_symbol_tables.get(&cache_key)?;
         cache
             .sources_by_space
             .get(&GlobalSymbolGroupKey { key, space })
@@ -57,12 +24,11 @@ impl Compiler {
     }
 
     /// Select the global symbol table roots for a module.
-    /// Returns the cache key and root module list.
     pub(crate) fn select_global_symbol_table(
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> ResolveResult<(GlobalSymbolTableKey, Vec<ModuleId>)> {
+    ) -> ResolveResult<Vec<ModuleId>> {
         // load module and package metadata
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
@@ -75,12 +41,7 @@ impl Compiler {
 
         // fall back to the current module when no targets exist
         if !has_targets {
-            let key = GlobalSymbolTableKey {
-                target_id: TargetId::new(package_id, "default"),
-                profile_id,
-                entry_module: Some(module_id),
-            };
-            return Ok((key, vec![module_id]));
+            return Ok(vec![module_id]);
         }
 
         // prefer roots based on the package target discovery rules
@@ -95,12 +56,7 @@ impl Compiler {
                 .discover_include_modules(package_id, &package_path, &target)
                 .map_err(|issue| self.map_target_discovery_issue(issue))?,
         };
-        let key = GlobalSymbolTableKey {
-            target_id,
-            profile_id,
-            entry_module: None,
-        };
-        Ok((key, roots))
+        Ok(roots)
     }
 
     /// Select the target policy used for global symbol table selection.

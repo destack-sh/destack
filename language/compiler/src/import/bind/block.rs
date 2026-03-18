@@ -1,9 +1,9 @@
 use destack_ast::{self as ast};
 use destack_dir::{
-    Block, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType,
-    ScopeKind, SymbolSpaceOrder, SymbolTable, TypeTable,
+    Block, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeTree,
+    NodeType, ScopeKind, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
-use destack_workspace::{ImportDir, Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 use crate::Compiler;
 
@@ -13,8 +13,10 @@ impl Compiler {
     pub(super) fn bind_block(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         ast_block_id: ast::LocalNodeId<ast::Block>,
         parent_id: Option<LocalNodeIdAny>,
@@ -44,7 +46,9 @@ impl Compiler {
                 self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *expression,
                     Some(block_id),

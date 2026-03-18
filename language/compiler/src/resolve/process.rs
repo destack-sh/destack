@@ -1,79 +1,21 @@
 use crate::{
-    BuildKey, BuildRequirement, BuildRequirementCollector, BuildRequirementError,
-    BuildRequirementSet, Compiler, DiagnosticAnchor, ResolveError, ResolveResult,
+    BuildKey, BuildRequirementCollector, BuildRequirementError, Compiler, ResolveError,
+    ResolveResult,
 };
 
 use destack_builtin::BuiltinLibKind;
 use destack_source::ModuleId;
-use std::sync::Arc;
+use destack_workspace::{ArtifactKey, DirResolved, ModuleSource, ProfileId};
 
-use destack_workspace::{ArtifactKey, ModuleDir, ModuleSource, ProfileId};
+use crate::timing::tags;
 
 impl Compiler {
-    /// Build one failed requirement set for one missing committed resolve artifact.
-    fn missing_resolve_artifact_requirement(&self, key: ArtifactKey) -> BuildRequirementSet {
-        let module = match &key {
-            ArtifactKey::DirPrepared { module, .. } | ArtifactKey::DirResolved { module, .. } => {
-                Some(*module)
-            }
-            _ => None,
-        };
-        let anchor = module
-            .map(DiagnosticAnchor::from)
-            .unwrap_or(DiagnosticAnchor::Global);
-        let build_key = BuildKey::Artifact(key);
-        let dependency = self.build_dependency_for_key(&build_key);
-        let requirement = BuildRequirement::new(anchor, build_key, dependency);
-
-        BuildRequirementSet::one(requirement)
-    }
-
-    /// Read one committed prepared DIR snapshot.
-    pub(crate) fn require_artifact_dir_prepared(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Result<Arc<ModuleDir>, BuildRequirementError> {
-        self.require_dir_prepared(module, profile)?;
-
-        let Some(snapshot) = self.program.artifacts.dir_prepared(module, profile) else {
-            return Err(BuildRequirementError::Failed {
-                requirement: self.missing_resolve_artifact_requirement(ArtifactKey::DirPrepared {
-                    module,
-                    profile,
-                }),
-            });
-        };
-
-        Ok(snapshot)
-    }
-
-    /// Read one committed resolved DIR snapshot.
-    pub(crate) fn require_artifact_dir_resolved(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Result<Arc<ModuleDir>, BuildRequirementError> {
-        self.require_dir_resolved(module, profile)?;
-
-        let Some(snapshot) = self.program.artifacts.dir_resolved(module, profile) else {
-            return Err(BuildRequirementError::Failed {
-                requirement: self.missing_resolve_artifact_requirement(ArtifactKey::DirResolved {
-                    module,
-                    profile,
-                }),
-            });
-        };
-
-        Ok(snapshot)
-    }
-
     /// Build the language environment for one profile.
     pub fn process_language_environment(&self, profile: ProfileId) -> ResolveResult<()> {
         let environment = self.resolve_language_environment(profile)?;
         self.program
             .artifacts
-            .set_language_environment(profile, environment);
+            .publish(ArtifactKey::language_environment(profile), environment);
 
         Ok(())
     }
@@ -83,7 +25,7 @@ impl Compiler {
         let environment = self.resolve_lib_environment(profile)?;
         self.program
             .artifacts
-            .set_lib_environment(profile, environment);
+            .publish(ArtifactKey::lib_environment(profile), environment);
 
         Ok(())
     }
@@ -120,8 +62,21 @@ impl Compiler {
             let module = self.program.modules.get(module_id);
             module
         };
-        let mut dir = self.require_artifact_dir_prepared(module_id, profile)?;
+        let prepared = self.require_artifact_dir_prepared(module_id, profile)?;
+        let mut tree = prepared.tree.as_ref().clone();
+        let mut symbols = prepared.symbols.as_ref().clone();
+        let mut export_assignment = prepared.export_assignment;
+        let mut namespace_exports = Vec::new();
+        let mut module_binding_exports = prepared.module_binding_exports.as_ref().clone();
+        let mut imported_modules = prepared.imported_modules.as_ref().clone();
+        let mut exported_symbols = prepared.exported_symbols.as_ref().clone();
         let is_code_module = self.is_code_module(module_id);
+
+        // prepare the consuming package binding table before dependency resolution
+        if is_code_module && !module.is_builtin() {
+            self.require_module_binding_sources(module.package_id, profile)?;
+            let _ = self.module_binding_table_for_module(module_id, profile)?;
+        }
 
         // builtin language and lib modules bootstrap the shared environments themselves
         if !matches!(
@@ -152,12 +107,36 @@ impl Compiler {
             }
         }
 
-        {
-            let dir = Arc::make_mut(&mut dir);
-            self.resolve_module_direct(&module, profile, dir)?;
-            self.resolve_module_canonical(&module, profile, dir)?;
+        // direct resolve
+        if is_code_module {
+            let _timing = self.timing_scope(tags::RESOLVE_MODULE_DIRECT);
+            self.resolve_module_direct(
+                &module,
+                profile,
+                prepared.as_ref(),
+                &mut tree,
+                &mut symbols,
+                &mut export_assignment,
+                &mut namespace_exports,
+                &mut module_binding_exports,
+                &mut imported_modules,
+                &mut exported_symbols,
+            )?;
         }
-        self.update_module_graph_from_dir(module_id, profile, module_version, dir.as_ref())?;
+
+        self.resolve_module_canonical(&module, profile, &mut symbols)?;
+
+        let dir = DirResolved::from_prepared_with(
+            prepared.as_ref(),
+            tree,
+            symbols,
+            export_assignment,
+            namespace_exports,
+            module_binding_exports,
+            imported_modules,
+            exported_symbols,
+        );
+        self.update_module_graph_from_dir(module_id, profile, module_version, &dir)?;
 
         if is_code_module {
             self.stats.record_resolve();
@@ -165,7 +144,7 @@ impl Compiler {
 
         self.program
             .artifacts
-            .set_dir_resolved(module_id, profile, dir);
+            .publish(ArtifactKey::dir_resolved(module_id, profile), dir);
 
         Ok(())
     }
@@ -176,19 +155,13 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
-        if self.current_build_key()
-            == Some(BuildKey::Artifact(ArtifactKey::DirPrepared {
-                module,
-                profile,
-            }))
-        {
+        let build_key = BuildKey::artifact(ArtifactKey::dir_prepared(module, profile));
+
+        if self.current_build_key() == Some(build_key.clone()) {
             return Ok(());
         }
 
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::DirPrepared {
-            module,
-            profile,
-        }))
+        self.require_build_key(build_key)
     }
 
     /// Ensure another module's prepared DIR exists.
@@ -211,20 +184,14 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), BuildRequirementError> {
+        let build_key = BuildKey::artifact(ArtifactKey::dir_resolved(module, profile));
+
         // avoid self dependency while resolving one module
-        if self.current_build_key()
-            == Some(BuildKey::Artifact(ArtifactKey::DirResolved {
-                module,
-                profile,
-            }))
-        {
+        if self.current_build_key() == Some(build_key.clone()) {
             return Ok(());
         }
 
-        self.require_build_key(BuildKey::Artifact(ArtifactKey::DirResolved {
-            module,
-            profile,
-        }))
+        self.require_build_key(build_key)
     }
 
     /// Ensure another module's resolved DIR exists.

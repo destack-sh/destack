@@ -169,7 +169,7 @@ impl Compiler {
         // skip non commonjs modules
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
-        if !module.module_format().is_commonjs() {
+        if !self.program.modules.module_format(module.id).is_commonjs() {
             return Ok(None);
         }
         // ensure the target module is ready before scanning roots

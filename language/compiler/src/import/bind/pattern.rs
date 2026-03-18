@@ -2,11 +2,11 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     BindingCategory, DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, Mutability, NodeTree, NodeType, Pattern, PatternField, ScopeKind, StaticKey,
-    StringId, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType,
-    TypeTable,
+    LocalSymbolId, ModuleBinding, Mutability, NodeTree, NodeType, Pattern, PatternField, ScopeKind,
+    StaticKey, StringId, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    SymbolType, TypeTable,
 };
-use destack_workspace::{ImportDir, Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -116,8 +116,10 @@ impl Compiler {
     pub(super) fn bind_pattern(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
         binding: SymbolBinding,
@@ -139,7 +141,9 @@ impl Compiler {
             ast::Pattern::Must(ast_pattern_id) => Pattern::Must(self.bind_pattern(
                 module,
                 ast,
-                dir,
+                namespace_scope,
+                global_augmentation_scope,
+                module_bindings,
                 scope,
                 export,
                 binding,
@@ -159,7 +163,9 @@ impl Compiler {
                 let right = self.bind_pattern(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     export,
                     binding,
@@ -181,7 +187,9 @@ impl Compiler {
                 let right = self.bind_pattern(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     export,
                     binding,
@@ -206,7 +214,9 @@ impl Compiler {
                     self.bind_pattern(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         export,
                         binding,
@@ -246,7 +256,9 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     *value,
                     Some(pattern_id),
@@ -264,7 +276,9 @@ impl Compiler {
                         self.bind_pattern_field(
                             module,
                             ast,
-                            dir,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
                             scope,
                             export,
                             binding,
@@ -284,7 +298,9 @@ impl Compiler {
                 let ty = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     *ty,
                     Some(pattern_id),
@@ -299,7 +315,9 @@ impl Compiler {
                         self.bind_pattern_field(
                             module,
                             ast,
-                            dir,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
                             scope,
                             export,
                             binding,
@@ -322,7 +340,9 @@ impl Compiler {
                         self.bind_pattern_field(
                             module,
                             ast,
-                            dir,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
                             scope,
                             export,
                             binding,
@@ -345,7 +365,9 @@ impl Compiler {
                         self.bind_pattern_field(
                             module,
                             ast,
-                            dir,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
                             scope,
                             export,
                             binding,
@@ -365,7 +387,9 @@ impl Compiler {
                 let ty = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     *ty,
                     Some(pattern_id),
@@ -380,7 +404,9 @@ impl Compiler {
                         self.bind_pattern_field(
                             module,
                             ast,
-                            dir,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
                             scope,
                             export,
                             binding,
@@ -403,7 +429,9 @@ impl Compiler {
                         self.bind_pattern(
                             module,
                             ast,
-                            dir,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
                             scope,
                             export,
                             binding,
@@ -437,8 +465,10 @@ impl Compiler {
     fn bind_shorthand_named_pattern_for_field(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        _dir: &mut ImportDir,
+        ast: &Ast,
+        _namespace_scope: LocalScopeId,
+        _global_augmentation_scope: LocalScopeId,
+        _module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
         binding: SymbolBinding,
@@ -489,8 +519,10 @@ impl Compiler {
     pub(super) fn bind_pattern_field(
         &self,
         module: &Module,
-        ast: &ModuleAst,
-        dir: &mut ImportDir,
+        ast: &Ast,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
         binding: SymbolBinding,
@@ -527,7 +559,9 @@ impl Compiler {
                     Some(self.bind_pattern(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         export,
                         binding,
@@ -545,7 +579,9 @@ impl Compiler {
                     Some(self.bind_shorthand_named_pattern_for_field(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         export,
                         binding,
@@ -563,7 +599,9 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         default,
                         Some(pattern_field_id),
@@ -590,7 +628,9 @@ impl Compiler {
                 let key = self.bind_expression(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     *key,
                     Some(pattern_field_id),
@@ -603,7 +643,9 @@ impl Compiler {
                     self.bind_pattern(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         export,
                         binding,
@@ -620,7 +662,9 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         default,
                         Some(pattern_field_id),
@@ -653,7 +697,9 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         default,
                         Some(pattern_field_id),
@@ -694,7 +740,9 @@ impl Compiler {
                 let pattern = self.bind_pattern(
                     module,
                     ast,
-                    dir,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    module_bindings,
                     scope,
                     export,
                     binding,
@@ -710,7 +758,9 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         default,
                         Some(pattern_field_id),
@@ -731,7 +781,9 @@ impl Compiler {
                     self.bind_pattern(
                         module,
                         ast,
-                        dir,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        module_bindings,
                         scope,
                         export,
                         binding,

@@ -3,12 +3,12 @@ use destack_ast::{self as ast, StringId};
 use destack_dir::Path;
 use smallvec::SmallVec;
 
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Bind a path to a DIR path.
-    pub(super) fn bind_path(&self, _module: &Module, ast: &ModuleAst, path: &ast::Path) -> Path {
+    pub(super) fn bind_path(&self, _module: &Module, ast: &Ast, path: &ast::Path) -> Path {
         assert!(!path.segments.is_empty());
         let segments: SmallVec<[StringId; 3]> = path
             .segments

@@ -2,9 +2,10 @@ use crate::timing::tags;
 use crate::{Compiler, ResolveError, ResolveResult};
 use destack_dir::{DependencyItem, Export, GlobalSymbolId, LocalSymbolId};
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ImportMeta, ImportMetaTarget, ProfileId, TargetEnv, TargetVendor};
-use std::sync::Arc;
-
+use destack_workspace::{
+    ArtifactKey, DirPrepared, ExportedSymbolTable, ImportMeta, ImportMetaTarget,
+    ImportedModuleTable, ModuleBindingExportTable, ProfileId, TargetEnv, TargetVendor,
+};
 impl Compiler {
     /// Prepare the per profile DIR by cloning from the base DIR.
     pub(crate) fn resolve_module_prepare(
@@ -37,7 +38,7 @@ impl Compiler {
 
         // resolve cache handle
         let cache_handle =
-            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirResolved);
+            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirPrepared);
 
         // load the module
         self.ensure_module_profile_matches::<ResolveError>(
@@ -56,12 +57,16 @@ impl Compiler {
         )?;
         // try to load profile DIR from cache
         if let Some(cache) = cache_handle.as_ref()
-            && let Ok(Some(entry)) = cache.read_dir_resolved()
+            && let Ok(Some(entry)) = cache.read_dir_prepared()
         {
             tracing::trace!(?module_id, ?profile_id, "resolve.module.prepare.cache");
-            self.program
-                .artifacts
-                .set_dir_prepared(module_id, profile_id, entry.payload);
+            self.program.artifacts.publish(
+                ArtifactKey::DirPrepared {
+                    module: module_id,
+                    profile: profile_id,
+                },
+                entry.payload,
+            );
             return Ok(());
         }
 
@@ -114,31 +119,49 @@ impl Compiler {
             env: profile.env.clone(),
         };
 
-        // create the transient profile dir and attach import meta
-        let mut dir = base;
-        {
-            let dir = Arc::make_mut(&mut dir);
-            dir.profile_id = Some(profile_id);
-            dir.import_meta = Some(import_meta);
-        }
+        // clone the mutable prepared locals
+        let mut tree = base.tree.as_ref().clone();
+        let mut symbols = base.symbols.as_ref().clone();
+        let types = base.types.as_ref().clone();
+        let mut roots = base.roots.as_ref().clone();
+        let mut export_assignment = None;
+        let module_bindings = base.module_bindings.as_ref().clone();
+        let mut module_binding_exports = ModuleBindingExportTable::default();
+        let imported_modules = ImportedModuleTable::default();
+        let mut exported_symbols = ExportedSymbolTable::default();
 
         // apply static if decorators before exports are built
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE_STATIC_IF);
-            self.apply_static_if_decorators(module_id, profile_id, Arc::make_mut(&mut dir))?;
+            self.apply_static_if_decorators(
+                module_id,
+                profile_id,
+                Some(&import_meta),
+                &mut tree,
+                &mut symbols,
+                &types,
+                &mut roots,
+            )?;
         }
 
         // build export table from bound declarations
-        let dependency_items_by_scope = self.dependency_items_by_scope(&dir.tree);
-        let export_items_by_scope =
-            self.export_items_by_scope(&dir.tree, &dependency_items_by_scope);
+        let dependency_items_by_scope = self.dependency_items_by_scope(&tree);
+        let export_items_by_scope = self.export_items_by_scope(&tree, &dependency_items_by_scope);
         let export_assignments_by_scope =
-            self.export_assignments_by_scope(module_id, &dir.tree, &export_items_by_scope);
+            self.export_assignments_by_scope(module_id, &tree, &export_items_by_scope);
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE_EXPORTS);
             self.build_module_exports(
                 &module,
-                Arc::make_mut(&mut dir),
+                &tree,
+                &mut symbols,
+                &roots,
+                base.namespace_scope,
+                base.namespace_symbol,
+                base.default_symbol,
+                base.export_assignment_symbol,
+                &mut export_assignment,
+                &mut exported_symbols,
                 &dependency_items_by_scope,
                 &export_items_by_scope,
                 &export_assignments_by_scope,
@@ -148,17 +171,33 @@ impl Compiler {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE_BINDING_EXPORTS);
             self.build_module_binding_exports(
                 &module,
-                Arc::make_mut(&mut dir),
+                &tree,
+                &mut symbols,
+                &module_bindings,
+                &mut module_binding_exports,
                 &dependency_items_by_scope,
                 &export_items_by_scope,
                 &export_assignments_by_scope,
             );
         }
 
+        // publish the prepared artifact
+        let dir = DirPrepared::from_base_with(
+            base.as_ref(),
+            profile_id,
+            tree,
+            symbols,
+            roots,
+            export_assignment,
+            module_binding_exports,
+            imported_modules,
+            exported_symbols,
+        );
+
         // write profile DIR to cache
         if let Some(cache) = cache_handle.as_ref() {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE_CACHE_WRITE);
-            if let Err(error) = cache.write_dir_resolved(dir.as_ref().clone()) {
+            if let Err(error) = cache.write_dir_prepared(dir.clone()) {
                 tracing::debug!(
                     ?module_id,
                     ?profile_id,
@@ -168,9 +207,13 @@ impl Compiler {
             }
         }
 
-        self.program
-            .artifacts
-            .set_dir_prepared(module_id, profile_id, dir);
+        self.program.artifacts.publish(
+            ArtifactKey::DirPrepared {
+                module: module_id,
+                profile: profile_id,
+            },
+            dir,
+        );
 
         Ok(())
     }
@@ -309,7 +352,7 @@ impl Compiler {
     ) -> ResolveResult<()> {
         // resolve cache handle
         let cache_handle =
-            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirResolved);
+            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirPrepared);
 
         let module = self.program.modules.get(module_id);
 
@@ -330,12 +373,16 @@ impl Compiler {
 
         // try to load profile DIR from cache
         if let Some(cache) = cache_handle.as_ref()
-            && let Ok(Some(entry)) = cache.read_dir_resolved()
+            && let Ok(Some(entry)) = cache.read_dir_prepared()
         {
             tracing::trace!(?module_id, ?profile_id, "resolve.module.prepare.cache");
-            self.program
-                .artifacts
-                .set_dir_prepared(module_id, profile_id, entry.payload);
+            self.program.artifacts.publish(
+                ArtifactKey::DirPrepared {
+                    module: module_id,
+                    profile: profile_id,
+                },
+                entry.payload,
+            );
             return Ok(());
         }
 
@@ -344,37 +391,48 @@ impl Compiler {
             .artifact_dir_base(module_id)
             .unwrap_or_else(|| panic!("missing committed base dir artifact for {module_id:?}"));
 
-        // create profile DIR from base
-        let mut payload = base;
-        {
-            let payload_dir = Arc::make_mut(&mut payload);
-            payload_dir.profile_id = Some(profile_id);
+        // populate default export in exported_symbols
+        let default_key_id = self.program.strings.intern("default");
+        let default_key = destack_dir::StaticKey::Name(default_key_id);
+        let default_export = Export::local(
+            module_id,
+            default_key,
+            destack_dir::SymbolSpace::Value,
+            base.default_symbol,
+        );
+        let mut exported_symbols = ExportedSymbolTable::default();
+        exported_symbols.insert(
+            (destack_dir::SymbolSpace::Value, default_key),
+            default_export,
+        );
 
-            // populate default export in exported_symbols
-            let default_key_id = self.program.strings.intern("default");
-            let default_key = destack_dir::StaticKey::Name(default_key_id);
-            let default_export = Export::local(
-                module_id,
-                default_key,
-                destack_dir::SymbolSpace::Value,
-                payload_dir.default_symbol,
-            );
-            payload_dir.exported_symbols_mut().insert(
-                (destack_dir::SymbolSpace::Value, default_key),
-                default_export,
-            );
-        }
+        // publish the prepared data-module artifact
+        let payload = DirPrepared::from_base_with(
+            base.as_ref(),
+            profile_id,
+            base.tree.as_ref().clone(),
+            base.symbols.as_ref().clone(),
+            base.roots.as_ref().clone(),
+            None,
+            ModuleBindingExportTable::default(),
+            ImportedModuleTable::default(),
+            exported_symbols,
+        );
 
         // write profile DIR to cache
         if let Some(cache) = cache_handle.as_ref() {
-            if let Err(error) = cache.write_dir_resolved(payload.as_ref().clone()) {
+            if let Err(error) = cache.write_dir_prepared(payload.clone()) {
                 tracing::debug!(?module_id, ?profile_id, ?error, "resolve.data.cache.write");
             }
         }
 
-        self.program
-            .artifacts
-            .set_dir_prepared(module_id, profile_id, payload);
+        self.program.artifacts.publish(
+            ArtifactKey::DirPrepared {
+                module: module_id,
+                profile: profile_id,
+            },
+            payload,
+        );
 
         Ok(())
     }

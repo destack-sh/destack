@@ -1,11 +1,11 @@
 use destack_ast::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, GlobalNodeIdAny,
-    GlobalSymbolId, LocalNodeId, LocalScopeMark, ModuleTarget, Name, StaticKey, SymbolSpace,
-    SymbolSpaceOrder,
+    GlobalSymbolId, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleTarget, Name,
+    NamespaceExport, NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{ExportedSymbolTable, ImportedModuleTable, Module, ProfileId};
 use rustc_hash::FxHashSet;
 
 use crate::resolve::dependency::cache::{ResolveDependencyItemCache, TargetCacheKey};
@@ -111,7 +111,14 @@ impl Compiler {
     pub(crate) fn resolve_dependency_item(
         &self,
         module: &Module,
-        dir: &mut ModuleDir,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        imported_modules: &mut ImportedModuleTable,
+        exported_symbols: &mut ExportedSymbolTable,
+        namespace_symbol: LocalSymbolId,
+        namespace_scope: LocalScopeId,
+        global_augmentation_scope: LocalScopeId,
+        namespace_exports: &mut Vec<NamespaceExport>,
         profile: ProfileId,
         item_id: LocalNodeId<DependencyItem>,
         mut cache: Option<&mut ResolveDependencyItemCache>,
@@ -120,7 +127,7 @@ impl Compiler {
         let module_handle = module_handle.as_ref();
 
         // resolve the dependency item based on its mode
-        let item = dir.tree.get(item_id).clone();
+        let item = tree.get(item_id).clone();
         let resolved_item: DependencyItem = match item {
             DependencyItem::UnresolvedRemote {
                 source,
@@ -138,9 +145,9 @@ impl Compiler {
                 // preserve any already-resolved target from the item or parent expression
                 let item_target_module = target_module;
                 let expression_target_module =
-                    self.parent_expression_target_module_for_dependency_item(&dir.tree, item_id);
+                    self.parent_expression_target_module_for_dependency_item(tree, item_id);
                 let loader_override = self.parent_expression_loader_override_for_dependency_item(
-                    module, profile, &dir.tree, item_id,
+                    module, profile, tree, item_id,
                 )?;
 
                 // resolve the target module or binding
@@ -155,7 +162,7 @@ impl Compiler {
                     } else {
                         let Some(remote_target) = self.resolve_import_maybe(
                             &module_handle,
-                            dir,
+                            imported_modules,
                             profile,
                             item_id.into_global_any(module.id),
                             source,
@@ -179,7 +186,7 @@ impl Compiler {
                     self.imported_module_resolution_for_specifier(
                         module.id,
                         profile,
-                        Some(dir),
+                        Some(imported_modules),
                         target,
                         self.import_edge_kind(&module_handle, source),
                         None,
@@ -299,15 +306,13 @@ impl Compiler {
                                 && matches!(source, DependencySource::ExportStatement)
                             {
                                 // register `export * from` in module scope
-                                let (item_scope_id, _) = dir.tree.get_scope(item_id);
-                                if item_scope_id == dir.namespace_scope {
-                                    dir.namespace_exports_mut().push(
-                                        destack_dir::NamespaceExport {
-                                            module_id: remote_symbol_target,
-                                            kind,
-                                            item: item_id,
-                                        },
-                                    );
+                                let (item_scope_id, _) = tree.get_scope(item_id);
+                                if item_scope_id == namespace_scope {
+                                    namespace_exports.push(destack_dir::NamespaceExport {
+                                        module_id: remote_symbol_target,
+                                        kind,
+                                        item: item_id,
+                                    });
                                 }
                             }
                             // resolve the namespace symbol
@@ -346,8 +351,8 @@ impl Compiler {
                 };
 
                 // resolve the local symbol in scope
-                let (scope_id, scope, mark) = dir.symbols.get_scope(item_id, &dir.tree);
-                let is_export_item = self.export_item_parent(&dir.tree, item_id).is_some();
+                let (scope_id, scope, mark) = symbols.get_scope(item_id, tree);
+                let is_export_item = self.export_item_parent(tree, item_id).is_some();
                 let mark = if is_export_item {
                     // export specifiers can reference later declarations
                     LocalScopeMark::end()
@@ -359,15 +364,19 @@ impl Compiler {
                 let node = item_id.into_global_any(module.id);
 
                 // resolve in local scope first
-                let local_symbol_id = self.resolve_absolute_symbol(
+                let local_symbol_id = self.resolve_absolute_symbol_from_builder(
                     module,
-                    dir,
                     profile,
                     node,
                     (scope_id, scope, mark),
                     key,
                     space_order,
-                    &dir.symbols,
+                    symbols,
+                    namespace_symbol,
+                    namespace_scope,
+                    global_augmentation_scope,
+                    exported_symbols,
+                    tree,
                     cache.as_mut().map(|cache| cache.scope_indices()),
                 );
 
@@ -376,17 +385,21 @@ impl Compiler {
                 let target_symbol_id = match local_symbol_id {
                     Ok(symbol_id) => Ok(symbol_id),
                     Err(ResolveError::MissingSymbol { .. }) => {
-                        let global_scope_id = dir.global_augmentation_scope;
-                        let global_scope = dir.symbols.get_scope_by_id(global_scope_id);
-                        self.resolve_absolute_symbol(
+                        let global_scope_id = global_augmentation_scope;
+                        let global_scope = symbols.get_scope_by_id(global_scope_id);
+                        self.resolve_absolute_symbol_from_builder(
                             module,
-                            dir,
                             profile,
                             node,
                             (global_scope_id, global_scope, LocalScopeMark::end()),
                             key,
                             space_order,
-                            &dir.symbols,
+                            symbols,
+                            namespace_symbol,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            exported_symbols,
+                            tree,
                             cache.as_mut().map(|cache| cache.scope_indices()),
                         )
                     }

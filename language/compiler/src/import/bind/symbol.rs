@@ -5,7 +5,7 @@ use destack_dir::{
 
 use crate::Compiler;
 
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{Ast, Module};
 
 #[allow(clippy::too_many_arguments)]
 #[allow(dead_code)]
@@ -35,7 +35,7 @@ impl Compiler {
     pub(super) fn bind_named_item(
         &self,
         _module: &Module,
-        _ast: &ModuleAst,
+        _ast: &Ast,
         space: SymbolSpace,
         key: StaticKey,
         scope: (LocalScopeId, LocalScopeMark),
@@ -58,7 +58,7 @@ impl Compiler {
     pub(super) fn bind_named_item_with_scope(
         &self,
         _module: &Module,
-        _ast: &ModuleAst,
+        _ast: &Ast,
         space: SymbolSpace,
         key: StaticKey,
         kind: ScopeKind,
@@ -84,7 +84,7 @@ impl Compiler {
     pub(super) fn bind_anonymous_item(
         &self,
         _module: &Module,
-        _ast: &ModuleAst,
+        _ast: &Ast,
         space: SymbolSpace,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
@@ -106,7 +106,7 @@ impl Compiler {
     pub(super) fn bind_anonymous_item_with_scope(
         &self,
         _module: &Module,
-        _ast: &ModuleAst,
+        _ast: &Ast,
         kind: ScopeKind,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
@@ -130,7 +130,7 @@ impl Compiler {
     pub(super) fn bind_named_local(
         &self,
         _module: &Module,
-        _ast: &ModuleAst,
+        _ast: &Ast,
         space: SymbolSpace,
         key: StaticKey,
         scope: (LocalScopeId, LocalScopeMark),
@@ -152,7 +152,7 @@ impl Compiler {
     pub(super) fn bind_named_local_with_scope(
         &self,
         _module: &Module,
-        _ast: &ModuleAst,
+        _ast: &Ast,
         space: SymbolSpace,
         key: StaticKey,
         kind: ScopeKind,
@@ -177,7 +177,7 @@ impl Compiler {
     pub(super) fn bind_anonymous_local(
         &self,
         _module: &Module,
-        _ast: &ModuleAst,
+        _ast: &Ast,
         space: SymbolSpace,
         scope: (LocalScopeId, LocalScopeMark),
         symbols: &mut SymbolTable,
@@ -198,7 +198,7 @@ impl Compiler {
     pub(super) fn bind_anonymous_local_with_scope(
         &self,
         _module: &Module,
-        _ast: &ModuleAst,
+        _ast: &Ast,
         kind: ScopeKind,
         scope: (LocalScopeId, LocalScopeMark),
         symbols: &mut SymbolTable,
@@ -221,7 +221,7 @@ impl Compiler {
     pub(super) fn bind_named_symbol(
         &self,
         module: &Module,
-        ast: &ModuleAst,
+        ast: &Ast,
         space: SymbolSpace,
         key: StaticKey,
         scope: (LocalScopeId, LocalScopeMark),
@@ -240,7 +240,7 @@ impl Compiler {
     pub(super) fn bind_named_symbol_with_binding(
         &self,
         _module: &Module,
-        _ast: &ModuleAst,
+        _ast: &Ast,
         space: SymbolSpace,
         key: StaticKey,
         binding: SymbolBinding,

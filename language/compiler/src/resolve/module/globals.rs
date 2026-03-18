@@ -6,12 +6,71 @@ use destack_dir::{
     SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{
-    GlobalSymbolGroupKey, GlobalSymbolTable, GlobalSymbolTableKey, Module, ModuleDir, ProfileId,
-};
+use destack_workspace::{DirPrepared, Module, ProfileId};
+use indexmap::IndexMap;
+use std::collections::VecDeque;
 
 use crate::resolve::binding::cache::ResolveScopeIndexCache;
 use crate::{BuildRequirementError, Compiler, ResolveError, ResolveResult};
+
+/// Key for grouping global symbols by name and space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct GlobalSymbolGroupKey {
+    /// The symbol key.
+    pub key: StaticKey,
+    /// The symbol space.
+    pub space: SymbolSpace,
+}
+
+/// Track global symbols from declare global blocks reachable from a root set.
+#[derive(Debug, Clone)]
+pub(crate) struct GlobalSymbolTable {
+    /// Versions for modules included in the table.
+    pub module_versions: IndexMap<ModuleId, destack_source::ModuleVersion>,
+    /// First symbol observed for each global key.
+    pub symbols: IndexMap<StaticKey, GlobalSymbolId>,
+    /// First symbol observed for each global key and space.
+    pub symbols_by_space: IndexMap<GlobalSymbolGroupKey, GlobalSymbolId>,
+    /// All symbols observed for each global key.
+    pub sources: IndexMap<StaticKey, Vec<GlobalSymbolId>>,
+    /// All symbols observed for each global key and space.
+    pub sources_by_space: IndexMap<GlobalSymbolGroupKey, Vec<GlobalSymbolId>>,
+    /// Modules remaining to process.
+    pub pending: VecDeque<ModuleId>,
+}
+
+impl Default for GlobalSymbolTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GlobalSymbolTable {
+    /// Create an empty table.
+    fn new() -> Self {
+        Self {
+            module_versions: IndexMap::new(),
+            symbols: IndexMap::new(),
+            symbols_by_space: IndexMap::new(),
+            sources: IndexMap::new(),
+            sources_by_space: IndexMap::new(),
+            pending: VecDeque::new(),
+        }
+    }
+
+    /// Insert a global symbol and preserve the first binding for the key.
+    fn insert_symbol(&mut self, key: StaticKey, space: SymbolSpace, symbol: GlobalSymbolId) {
+        self.sources.entry(key).or_default().push(symbol);
+        self.symbols.entry(key).or_insert(symbol);
+
+        let group_key = GlobalSymbolGroupKey { key, space };
+        self.sources_by_space
+            .entry(group_key)
+            .or_default()
+            .push(symbol);
+        self.symbols_by_space.entry(group_key).or_insert(symbol);
+    }
+}
 
 /// Track dependency targets while scanning module trees.
 #[derive(Debug, Clone, Copy)]
@@ -28,31 +87,14 @@ struct DependencyTarget {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Prepare the global symbol table for a module and profile.
-    pub(crate) fn require_global_symbol_table(
+    /// Build the global symbol table for a module and profile.
+    pub(crate) fn global_symbol_table_for_module(
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> ResolveResult<GlobalSymbolTableKey> {
-        let (key, roots) = self.select_global_symbol_table(module_id, profile_id)?;
-
-        // build the cache when incomplete
-        let needs_build = self
-            .program
-            .index
-            .global_symbol_tables
-            .get(&key)
-            .map(|c| !c.is_complete())
-            .unwrap_or(true);
-        if needs_build {
-            let cache = self.build_global_symbol_table_resumable(&key, &roots, profile_id)?;
-            self.program
-                .index
-                .global_symbol_tables
-                .insert(key.clone(), cache);
-        }
-
-        Ok(key)
+    ) -> ResolveResult<GlobalSymbolTable> {
+        let roots = self.select_global_symbol_table(module_id, profile_id)?;
+        self.build_global_symbol_table(&roots, profile_id)
     }
 
     /// Resolve a path against the global symbol table.
@@ -69,10 +111,7 @@ impl Compiler {
         tree: &mut NodeTree,
     ) -> ResolveResult<Option<Expression>> {
         // load the cached table for this module
-        let key = self.build_global_symbol_table_key(module.id, profile_id)?;
-        let Some(cache) = self.program.index.global_symbol_tables.get(&key) else {
-            return Ok(None);
-        };
+        let cache = self.global_symbol_table_for_module(module.id, profile_id)?;
 
         // resolve the first path segment against global symbols
         let first_segment = path.first_segment().expect("path is empty");
@@ -365,25 +404,13 @@ impl Compiler {
     }
 
     /// Build the global symbol table for a root module set.
-    /// Resumes from partial state if available.
-    fn build_global_symbol_table_resumable(
+    fn build_global_symbol_table(
         &self,
-        key: &GlobalSymbolTableKey,
         roots: &[ModuleId],
         profile_id: ProfileId,
     ) -> ResolveResult<GlobalSymbolTable> {
-        // resume from partial cache or start fresh
-        let mut cache = self
-            .program
-            .index
-            .global_symbol_tables
-            .remove(key)
-            .map(|(_, c)| c)
-            .unwrap_or_else(|| {
-                let mut c = GlobalSymbolTable::new();
-                c.pending.extend(roots.iter().copied());
-                c
-            });
+        let mut cache = GlobalSymbolTable::new();
+        cache.pending.extend(roots.iter().copied());
 
         // walk the module graph
         while let Some(module_id) = cache.pending.pop_front() {
@@ -394,21 +421,11 @@ impl Compiler {
 
             // ensure bind validation before reading dir data
             if let Err(error) = self.require_dir_base(module_id) {
-                cache.pending.push_front(module_id);
-                self.program
-                    .index
-                    .global_symbol_tables
-                    .insert(key.clone(), cache);
                 return Err(error.into());
             }
 
             // ensure per profile module data is prepared before reading dir data
             if let Err(error) = self.require_dir_prepared(module_id, profile_id) {
-                cache.pending.push_front(module_id);
-                self.program
-                    .index
-                    .global_symbol_tables
-                    .insert(key.clone(), cache);
                 return Err(error.into());
             }
 
@@ -479,7 +496,8 @@ impl Compiler {
         }
 
         // declaration scripts also contribute top-level global declarations
-        module.language_type.is_declaration() && module.source_type().is_script()
+        module.language_type.is_declaration()
+            && self.program.modules.source_type(module.id).is_script()
     }
 
     /// Resolve one dependency target for global symbol table traversal.
@@ -513,7 +531,11 @@ impl Compiler {
             self.canonical_import_specifier(&source_module, profile_id, dependency.node, target)?;
 
         // match direct resolve import edge semantics
-        let is_typescript_commonjs = source_module.module_format().is_commonjs()
+        let is_typescript_commonjs = self
+            .program
+            .modules
+            .module_format(source_module.id)
+            .is_commonjs()
             && source_module.language_type.is_typescript();
         let edge_kind =
             Self::import_edge_kind_for_dependency(dependency.source, is_typescript_commonjs);
@@ -567,7 +589,7 @@ impl Compiler {
     fn collect_global_augmentation_symbols(
         &self,
         module: &Module,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         symbols: &SymbolTable,
         cache: &mut GlobalSymbolTable,
     ) {
@@ -608,7 +630,7 @@ impl Compiler {
     fn collect_namespace_scope_globals(
         &self,
         module: &Module,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         symbols: &SymbolTable,
         cache: &mut GlobalSymbolTable,
     ) {

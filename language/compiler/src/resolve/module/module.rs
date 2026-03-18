@@ -1,31 +1,32 @@
-use destack_workspace::{Module, ModuleDir, ProfileId};
-
 use crate::resolve::binding::cache::ResolveExpressionCache;
 use crate::resolve::dependency::cache::ResolveDependencyItemCache;
 use crate::timing::tags;
 use crate::{BuildRequirementCollector, Compiler, ResolveError, ResolveResult};
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, Expression, GlobalSymbolId, LocalNodeId,
-    LocalScopeId, NodeTree, SymbolSpace,
+    LocalScopeId, NamespaceExport, NodeTree, SymbolSpace, SymbolTable,
+};
+use destack_workspace::{
+    DirPrepared, ExportedSymbolTable, ImportedModuleTable, Module, ModuleBindingExportTable,
+    ProfileId,
 };
 use rustc_hash::FxHashMap;
-use std::sync::Arc;
 
 /// Collect node ids needed for resolve passes.
-struct ResolveModuleWorklist {
+pub(crate) struct ResolveModuleWorklist {
     /// Expressions to resolve after dependency items are applied.
-    resolve_expression_ids: Vec<LocalNodeId<Expression>>,
+    pub(crate) resolve_expression_ids: Vec<LocalNodeId<Expression>>,
     /// Expressions that define dependency items.
-    dependency_expression_ids: Vec<LocalNodeId<Expression>>,
+    pub(crate) dependency_expression_ids: Vec<LocalNodeId<Expression>>,
     /// Declarations that require resolve passes.
-    declaration_ids: Vec<LocalNodeId<Declaration>>,
+    pub(crate) declaration_ids: Vec<LocalNodeId<Declaration>>,
     /// Dependency items grouped by declaring scope.
-    dependency_items_by_scope: FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
+    pub(crate) dependency_items_by_scope: FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
 }
 
 impl ResolveModuleWorklist {
     /// Build resolve worklists from the module tree.
-    fn from_tree(tree: &NodeTree) -> Self {
+    pub(crate) fn from_tree(tree: &NodeTree) -> Self {
         // collect declarations that need resolve passes
         let mut declaration_ids = Vec::new();
         for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
@@ -63,15 +64,12 @@ impl ResolveModuleWorklist {
         }
 
         // group dependency items by scope for export resolution
-        let mut dependency_items_by_scope: FxHashMap<
-            LocalScopeId,
-            Vec<LocalNodeId<DependencyItem>>,
-        > = FxHashMap::default();
+        let mut dependency_items_by_scope = FxHashMap::default();
         for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
             let (item_scope, _) = tree.get_scope(item_id);
             dependency_items_by_scope
                 .entry(item_scope)
-                .or_default()
+                .or_insert_with(Vec::new)
                 .push(item_id);
         }
 
@@ -86,18 +84,71 @@ impl ResolveModuleWorklist {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Resolve expressions, dependencies, and declarations (phase 1).
+    /// Resolve one batch of active expressions for one module.
+    fn resolve_expression_ids(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        prepared: &DirPrepared,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        imported_modules: &mut ImportedModuleTable,
+        exported_symbols: &mut ExportedSymbolTable,
+        expression_ids: &[LocalNodeId<Expression>],
+        expression_cache: &mut ResolveExpressionCache,
+    ) -> ResolveResult<()> {
+        let mut collector = BuildRequirementCollector::new();
+        for expression_id in expression_ids {
+            if !self.is_node_active(tree, symbols, (*expression_id).into_any()) {
+                continue;
+            }
+
+            self.collect(
+                &mut collector,
+                self.resolve_expression(
+                    module,
+                    profile,
+                    tree,
+                    symbols,
+                    &prepared.types,
+                    imported_modules,
+                    prepared.namespace_symbol,
+                    prepared.namespace_scope,
+                    prepared.global_augmentation_scope,
+                    exported_symbols,
+                    *expression_id,
+                    expression_cache,
+                ),
+            );
+        }
+
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(ResolveError::Yield { requirement });
+        }
+
+        Ok(())
+    }
+
+    /// Resolve expressions, dependencies, and declarations for one module.
     pub(crate) fn resolve_module_direct(
         &self,
         module: &Module,
         profile: ProfileId,
-        dir: &mut ModuleDir,
+        prepared: &DirPrepared,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        export_assignment: &mut Option<LocalNodeId<DependencyItem>>,
+        namespace_exports: &mut Vec<NamespaceExport>,
+        module_binding_exports: &mut ModuleBindingExportTable,
+        imported_modules: &mut ImportedModuleTable,
+        exported_symbols: &mut ExportedSymbolTable,
     ) -> ResolveResult<()> {
         let _timing = self.timing_scope(tags::RESOLVE_MODULE_DIRECT);
         if !self.is_code_module(module.id) {
             return Ok(());
         }
 
+        // builtin declarations can skip eager expression validation in some modes
         let is_selected_lib_module = self.is_selected_lib_module(profile, module.id);
         let is_standard_lib_environment_module = self.is_standard_lib_environment_module(module.id);
         let skip_builtin_declaration_expressions = module.language_type.is_declaration()
@@ -107,92 +158,86 @@ impl Compiler {
         let skip_builtin_global_symbol_table = module.language_type.is_declaration()
             && module.is_builtin()
             && !self.options.validate_builtin_libs;
-        let worklist = ResolveModuleWorklist::from_tree(&dir.tree);
+        let worklist = ResolveModuleWorklist::from_tree(tree);
         let mut expression_cache = ResolveExpressionCache::default();
 
+        // dependency expressions and dependency items
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_DEPENDENCIES);
 
-            // resolve module dependency expressions
-            {
-                if !skip_builtin_declaration_expressions {
-                    let mut collector = BuildRequirementCollector::new();
-                    for expression_id in &worklist.dependency_expression_ids {
-                        if !self.is_node_active(
-                            &dir.tree,
-                            &dir.symbols,
-                            (*expression_id).into_any(),
-                        ) {
-                            continue;
-                        }
-                        self.collect(
-                            &mut collector,
-                            self.resolve_expression(
-                                &module,
-                                dir,
-                                profile,
-                                *expression_id,
-                                &mut expression_cache,
-                            ),
-                        );
-                    }
-                    if let Some(requirement) = collector.try_into_requirement() {
-                        return Err(ResolveError::Yield { requirement });
-                    }
-                }
+            if !skip_builtin_declaration_expressions {
+                self.resolve_expression_ids(
+                    module,
+                    profile,
+                    prepared,
+                    tree,
+                    symbols,
+                    imported_modules,
+                    exported_symbols,
+                    &worklist.dependency_expression_ids,
+                    &mut expression_cache,
+                )?;
             }
 
-            // resolve dependencies
-            self.resolve_dependency_items(module, dir, profile)?;
+            self.resolve_dependency_items(
+                module,
+                prepared,
+                tree,
+                symbols,
+                namespace_exports,
+                imported_modules,
+                exported_symbols,
+                profile,
+            )?;
 
-            // build the global symbol table
             if !skip_builtin_global_symbol_table {
-                self.require_global_symbol_table(module.id, profile)?;
+                let _ = self.global_symbol_table_for_module(module.id, profile)?;
             }
         }
 
+        // remaining expressions
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_EXPRESSIONS);
 
-            // resolve expressions
             if !skip_builtin_declaration_expressions {
-                let mut collector = BuildRequirementCollector::new();
-                for expression_id in &worklist.resolve_expression_ids {
-                    if !self.is_node_active(&dir.tree, &dir.symbols, (*expression_id).into_any()) {
-                        continue;
-                    }
-
-                    self.collect(
-                        &mut collector,
-                        self.resolve_expression(
-                            &module,
-                            dir,
-                            profile,
-                            *expression_id,
-                            &mut expression_cache,
-                        ),
-                    );
-                }
-
-                if let Some(requirement) = collector.try_into_requirement() {
-                    return Err(ResolveError::Yield { requirement });
-                }
+                self.resolve_expression_ids(
+                    module,
+                    profile,
+                    prepared,
+                    tree,
+                    symbols,
+                    imported_modules,
+                    exported_symbols,
+                    &worklist.resolve_expression_ids,
+                    &mut expression_cache,
+                )?;
             }
         }
 
+        // declarations
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_DECLARATIONS);
-
-            // resolve declarations
             let mut collector = BuildRequirementCollector::new();
             for declaration_id in &worklist.declaration_ids {
-                if !self.is_node_active(&dir.tree, &dir.symbols, (*declaration_id).into_any()) {
+                if !self.is_node_active(tree, symbols, (*declaration_id).into_any()) {
                     continue;
                 }
 
                 self.collect(
                     &mut collector,
-                    self.resolve_declaration(&module, dir, profile, *declaration_id),
+                    self.resolve_declaration(
+                        module,
+                        profile,
+                        tree,
+                        symbols,
+                        &prepared.types,
+                        imported_modules,
+                        prepared.namespace_symbol,
+                        prepared.namespace_scope,
+                        prepared.global_augmentation_scope,
+                        exported_symbols,
+                        *declaration_id,
+                    ),
                 );
             }
 
@@ -201,17 +246,27 @@ impl Compiler {
             }
         }
 
+        // exports
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_EXPORTS);
-            let module_handle = self.program.modules.get(module.id);
-            let module_handle = module_handle.as_ref();
 
-            // finalize export targets (after dependency resolution)
-            self.finalize_module_exports(&module_handle, profile, dir);
-            self.finalize_module_binding_exports(
-                &module_handle,
+            self.finalize_module_exports(
+                module,
                 profile,
-                dir,
+                tree,
+                symbols,
+                prepared.default_symbol,
+                prepared.export_assignment_symbol,
+                *export_assignment,
+                exported_symbols,
+            );
+            self.finalize_module_binding_exports(
+                module,
+                profile,
+                tree,
+                symbols,
+                &prepared.module_bindings,
+                module_binding_exports,
                 &worklist.dependency_items_by_scope,
             );
         }
@@ -219,39 +274,70 @@ impl Compiler {
         Ok(())
     }
 
-    /// Resolve dependency items (imports/reexports) for a module.
+    /// Resolve dependency items for one module.
     pub(crate) fn resolve_dependency_items(
         &self,
         module: &Module,
-        dir: &mut ModuleDir,
+        prepared: &DirPrepared,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        namespace_exports: &mut Vec<NamespaceExport>,
+        imported_modules: &mut ImportedModuleTable,
+        exported_symbols: &mut ExportedSymbolTable,
         profile: ProfileId,
     ) -> ResolveResult<()> {
         let mut cache = ResolveDependencyItemCache::default();
-        self.resolve_dependency_items_with_cache(module, dir, profile, &mut cache)
+        self.resolve_dependency_items_with_cache(
+            module,
+            prepared,
+            tree,
+            symbols,
+            namespace_exports,
+            imported_modules,
+            exported_symbols,
+            profile,
+            &mut cache,
+        )
     }
 
-    /// Resolve dependency items using a shared cache across modules.
+    /// Resolve dependency items using one shared cache.
     pub(crate) fn resolve_dependency_items_with_cache(
         &self,
         module: &Module,
-        dir: &mut ModuleDir,
+        prepared: &DirPrepared,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        namespace_exports: &mut Vec<NamespaceExport>,
+        imported_modules: &mut ImportedModuleTable,
+        exported_symbols: &mut ExportedSymbolTable,
         profile: ProfileId,
         cache: &mut ResolveDependencyItemCache,
     ) -> ResolveResult<()> {
         // cache module exports for dependency resolution
-        cache.ensure_module_exports(module.id, dir);
+        cache.ensure_module_exports(module.id, exported_symbols);
 
         // collect dependency item ids once
-        let item_ids = cache.dependency_item_ids_for(module.id, &dir.tree);
+        let item_ids = cache.dependency_item_ids_for(module.id, tree);
 
-        // resolve dependency items using read locks
+        // resolve dependency items
         let mut collector = BuildRequirementCollector::new();
         let mut resolved_items = Vec::new();
         for item_id in item_ids {
-            let resolved_item =
-                self.resolve_dependency_item(&module, dir, profile, item_id, Some(cache));
+            let resolved_item = self.resolve_dependency_item(
+                module,
+                tree,
+                symbols,
+                imported_modules,
+                exported_symbols,
+                prepared.namespace_symbol,
+                prepared.namespace_scope,
+                prepared.global_augmentation_scope,
+                namespace_exports,
+                profile,
+                item_id,
+                Some(cache),
+            );
 
-            // collect yields and return on non yield errors
             let resolved_item = match resolved_item {
                 Ok(resolved_item) => resolved_item,
                 Err(error @ ResolveError::UnresolvedModule { .. }) => {
@@ -281,47 +367,37 @@ impl Compiler {
         }
 
         // apply resolved dependency updates
-        if !resolved_items.is_empty() {
-            let ModuleDir { tree, symbols, .. } = dir;
-            let tree = Arc::make_mut(tree);
-            let symbols = Arc::make_mut(symbols);
+        for (item_id, resolved_item, target_info) in resolved_items {
+            let mut resolved_item = resolved_item;
+            if let Some((typed_target_symbol, target_type, target_space)) = target_info {
+                resolved_item =
+                    self.retype_dependency_item_target(resolved_item, typed_target_symbol);
 
-            for (item_id, resolved_item, target_info) in resolved_items {
-                // align resolved target symbols with their declared types
-                let mut resolved_item = resolved_item;
-                if let Some((typed_target_symbol, target_type, target_space)) = target_info {
-                    resolved_item =
-                        self.retype_dependency_item_target(resolved_item, typed_target_symbol);
+                if let Some(symbol_id) = resolved_item.symbol() {
+                    let typed_symbol = symbols.retype_symbol_id(symbol_id, target_type);
+                    resolved_item = self.retype_dependency_item_symbol(resolved_item, typed_symbol);
+                    symbols
+                        .get_symbol_mut(typed_symbol)
+                        .resolve_to(typed_target_symbol);
 
-                    // align local bindings with resolved target types
-                    if let Some(symbol_id) = resolved_item.symbol() {
-                        let typed_symbol = symbols.retype_symbol_id(symbol_id, target_type);
-                        resolved_item =
-                            self.retype_dependency_item_symbol(resolved_item, typed_symbol);
-                        symbols
-                            .get_symbol_mut(typed_symbol)
-                            .resolve_to(typed_target_symbol);
+                    let dependency_kind = match resolved_item {
+                        DependencyItem::Local { kind, .. }
+                        | DependencyItem::Remote { kind, .. }
+                        | DependencyItem::UnresolvedLocal { kind, .. }
+                        | DependencyItem::UnresolvedRemote { kind, .. } => Some(kind),
+                        DependencyItem::Value { .. } => None,
+                    };
 
-                        // adjust dependency kind and space for the resolved binding
-                        let dependency_kind = match resolved_item {
-                            DependencyItem::Local { kind, .. }
-                            | DependencyItem::Remote { kind, .. }
-                            | DependencyItem::UnresolvedLocal { kind, .. }
-                            | DependencyItem::UnresolvedRemote { kind, .. } => Some(kind),
-                            DependencyItem::Value { .. } => None,
-                        };
-
-                        if dependency_kind == Some(DependencyKind::Type)
-                            || (dependency_kind == Some(DependencyKind::Value)
-                                && target_space == SymbolSpace::Type)
-                        {
-                            symbols.get_symbol_mut(typed_symbol).space = SymbolSpace::Type;
-                        }
+                    if dependency_kind == Some(DependencyKind::Type)
+                        || (dependency_kind == Some(DependencyKind::Value)
+                            && target_space == SymbolSpace::Type)
+                    {
+                        symbols.get_symbol_mut(typed_symbol).space = SymbolSpace::Type;
                     }
                 }
-
-                *tree.get_mut(item_id) = resolved_item;
             }
+
+            *tree.get_mut(item_id) = resolved_item;
         }
 
         // yield unresolved dependency items after updates

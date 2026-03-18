@@ -1,6 +1,5 @@
 use crate::{
     BuildRequirementError, BuildRequirementSet, DiagnosticAnchor, DiagnosticDefinition, TaskError,
-    TaskSkipReason,
 };
 use destack_ast::StringId;
 use destack_compiler_macros::DefineError;
@@ -26,7 +25,7 @@ pub enum ImportError {
 
     /// Task was skipped due to stale versions.
     #[error(code = "EI002", message = "task skipped")]
-    Skipped { reason: TaskSkipReason },
+    Skipped,
 
     // -------------------------------------------------------------------------
     // 1xx: Module / file resolution

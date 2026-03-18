@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use destack_builtin::builtin_lib;
 use destack_core::StringId;
 use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
-use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
+use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{
     ImportEdgeKind, Loader, Module, ModuleSource, NodeLinker, Package, PackageKind, ProfileId,
@@ -47,6 +47,66 @@ enum SourceImportResolvePolicy {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Refresh package dsconfig state from the filesystem.
+    fn refresh_package_dsconfig(
+        &self,
+        package_id: PackageId,
+        directory: &Path,
+        resolver: &Resolver,
+    ) {
+        // stop when the package already has config state
+        if self
+            .program
+            .packages
+            .get(package_id)
+            .read()
+            .dsconfig
+            .is_some()
+        {
+            return;
+        }
+
+        // search parent directories until a package boundary
+        let mut current = directory.to_path_buf();
+        let mut dsconfig_path = None;
+        loop {
+            let candidate = current.join("dsconfig.json");
+            if resolver
+                .fs()
+                .metadata(&candidate)
+                .is_ok_and(|meta| meta.is_file)
+            {
+                dsconfig_path = Some(candidate);
+                break;
+            }
+
+            let package_json_path = current.join("package.json");
+            if resolver
+                .fs()
+                .metadata(&package_json_path)
+                .is_ok_and(|meta| meta.is_file)
+            {
+                break;
+            }
+
+            let Some(parent) = current.parent() else {
+                break;
+            };
+            current = parent.to_path_buf();
+        }
+
+        // load and attach the discovered config
+        let Some(dsconfig_path) = dsconfig_path else {
+            return;
+        };
+        let Some(dsconfig) = self.session.load_dsconfig_for_path(&dsconfig_path) else {
+            return;
+        };
+
+        let package = self.program.packages.get(package_id);
+        package.write().dsconfig = Some(dsconfig);
+    }
+
     /// Resolve a specifier to a ModuleId, registering a blank module if needed.
     ///
     /// If `loader_override` is provided and the module doesn't exist yet, the module
@@ -503,7 +563,7 @@ impl Compiler {
             .to_string_lossy()
             .into_owned();
         let file_id = self.program.files.next_id();
-        let file_version = self.program.workspace_file_version_for_path(path);
+        let file_version = self.session.workspace_file_version_for_path(path);
         let file = File::unloaded(file_id, name, uri.clone(), Some(path.clone()), ty)
             .with_version(file_version);
         self.program.files.insert(file);
@@ -535,23 +595,24 @@ impl Compiler {
         let module = Module::blank(
             module_id,
             file_id,
-            file_version,
             uri,
             Some(path.clone()),
             package_id,
-            tsconfig_id,
-            source_type,
-            module_format,
             language_type,
             loader,
             ModuleSource::User,
         );
         let module_version = self
-            .program
+            .session
             .workspace_module_version_for_id(module_id, file_version);
-        let mut module = module;
-        module.state.get_mut().version = module_version;
-        self.program.modules.insert(module);
+        self.program.modules.insert(
+            module,
+            module_version,
+            file_version,
+            tsconfig_id,
+            source_type,
+            module_format,
+        );
 
         // mark as registered
         *import_guard = Some(module_id);
@@ -632,7 +693,7 @@ impl Compiler {
         let source_module = self.program.modules.get(source_module_id);
         let source_module = source_module.as_ref();
         let package_id = source_module.package_id;
-        let tsconfig_id = source_module.tsconfig_id();
+        let tsconfig_id = self.program.modules.tsconfig_id(source_module.id);
 
         // prefer package config ownership over tsconfig fallbacks
         let package = self.program.packages.get(package_id);
@@ -766,7 +827,7 @@ impl Compiler {
     ) -> Option<PathBuf> {
         let module_id = source_module?;
         let module = self.program.modules.get(module_id);
-        let module_file = self.program.files.get(module.read().file_id);
+        let module_file = self.program.files.get(module.file_id);
         module_file
             .path
             .clone()
@@ -790,6 +851,9 @@ impl Compiler {
         {
             let package = self.program.packages.get(package_id);
             let package_root = package.read().path.clone();
+            if let Some(package_root) = package_root.as_deref() {
+                self.refresh_package_dsconfig(package_id, package_root, resolver);
+            }
             return Ok((package_id, package_root));
         }
 
@@ -799,6 +863,7 @@ impl Compiler {
 
         // check if synthetic package already exists
         if self.program.packages.contains(package_id) {
+            self.refresh_package_dsconfig(package_id, directory, resolver);
             return Ok((package_id, Some(directory.to_path_buf())));
         }
 
@@ -839,7 +904,6 @@ impl Compiler {
                     .ok()
             })
         };
-
         // create and insert synthetic package
         let package_name = self.synthetic_package_name(directory);
         let package = Package {
@@ -856,6 +920,7 @@ impl Compiler {
             targets: Default::default(),
         };
         self.program.packages.insert(package);
+        self.refresh_package_dsconfig(package_id, directory, resolver);
 
         Ok((package_id, Some(directory.to_path_buf())))
     }

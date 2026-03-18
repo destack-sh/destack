@@ -1,23 +1,29 @@
-use destack_dir::{
-    Declaration, DependencyKind, Expression, GlobalSymbolId, ImportAliasTarget, LocalNodeId,
-    NodeTree, NodeVisitor, NodeVisitorOptions, Type, TypeKind, TypeTable, walk_expression,
-};
-
-use destack_workspace::{Module, ModuleDir, ProfileId};
-
 use crate::resolve::binding::cache::ResolveExpressionCache;
 use crate::{Compiler, ResolveResult};
+use destack_dir::{
+    Declaration, DependencyKind, Expression, GlobalSymbolId, ImportAliasTarget, LocalNodeId,
+    NodeTree, NodeVisitor, NodeVisitorOptions, SymbolTable, Type, TypeKind, TypeTable,
+    walk_expression,
+};
+use destack_workspace::{ExportedSymbolTable, ImportedModuleTable, Module, ProfileId};
 
 impl Compiler {
     /// Resolve a Declaration node (updates target_symbol if applicable).
     pub(crate) fn resolve_declaration(
         &self,
         module: &Module,
-        dir: &mut ModuleDir,
         profile: ProfileId,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        types: &TypeTable,
+        imported_modules: &mut ImportedModuleTable,
+        namespace_symbol: destack_dir::LocalSymbolId,
+        namespace_scope: destack_dir::LocalScopeId,
+        global_augmentation_scope: destack_dir::LocalScopeId,
+        exported_symbols: &mut ExportedSymbolTable,
         declaration_id: LocalNodeId<Declaration>,
     ) -> ResolveResult<()> {
-        let declaration = dir.tree.get(declaration_id).clone();
+        let declaration = tree.get(declaration_id).clone();
         match declaration {
             Declaration::Extension {
                 target_type,
@@ -34,25 +40,34 @@ impl Compiler {
                 //  like if we did this centrally and earlier in resolve/expression or something.)
                 let unresolved_expression_ids = {
                     let mut collector = UnresolvedExpressionCollector::default();
-                    let tree = dir.tree.as_ref();
                     let expression = tree.get(target_type);
                     collector.visit_expression(tree, target_type, expression);
                     collector.unresolved_expression_ids
                 };
                 let mut cache = ResolveExpressionCache::default();
                 for expression_id in unresolved_expression_ids {
-                    self.resolve_expression(module, dir, profile, expression_id, &mut cache)?;
+                    self.resolve_expression(
+                        module,
+                        profile,
+                        tree,
+                        symbols,
+                        types,
+                        imported_modules,
+                        namespace_symbol,
+                        namespace_scope,
+                        global_augmentation_scope,
+                        exported_symbols,
+                        expression_id,
+                        &mut cache,
+                    )?;
                 }
 
                 // resolve the target symbol for the extension target
-                let resolved_target_symbol = self.target_symbol_for_type_expression(
-                    dir.tree.as_ref(),
-                    dir.types.as_ref(),
-                    target_type,
-                );
+                let resolved_target_symbol =
+                    self.target_symbol_for_type_expression(tree, types, target_type);
                 if let Some(resolved_target_symbol) = resolved_target_symbol
                     && let Declaration::Extension { target_symbol, .. } =
-                        dir.tree_mut().get_mut(declaration_id)
+                        tree.get_mut(declaration_id)
                 {
                     *target_symbol = Some(resolved_target_symbol);
                 }
@@ -67,7 +82,7 @@ impl Compiler {
                 ..
             } => {
                 let symbol_id = descriptor.symbol;
-                let symbol = dir.symbols.get_symbol(symbol_id);
+                let symbol = symbols.get_symbol(symbol_id);
 
                 // bail if symbol already has a target_symbol
                 if symbol.target_symbol.is_some() {
@@ -80,12 +95,12 @@ impl Compiler {
                 }
 
                 // extract the aliased type expression
-                let value_expr = dir.tree.get(value);
+                let value_expr = tree.get(value);
 
                 // extract the target symbol from the resolved reference expressions
                 if let Some(resolved_target_symbol) = value_expr.target_symbol() {
                     // set the type alias symbol's target_symbol
-                    dir.symbols_mut()
+                    symbols
                         .get_symbol_mut(symbol_id)
                         .resolve_to(resolved_target_symbol);
                 }
@@ -99,7 +114,7 @@ impl Compiler {
                 target,
             } => {
                 let symbol_id = descriptor.symbol;
-                let symbol = dir.symbols.get_symbol(symbol_id);
+                let symbol = symbols.get_symbol(symbol_id);
 
                 // bail if symbol already has a target_symbol
                 if symbol.target_symbol.is_some() {
@@ -109,9 +124,9 @@ impl Compiler {
                 // type-only aliases should only resolve type targets
                 if kind == DependencyKind::Type {
                     if let ImportAliasTarget::Path { value } = target
-                        && let Some(resolved_target_symbol) = dir.tree.get(value).target_symbol()
+                        && let Some(resolved_target_symbol) = tree.get(value).target_symbol()
                     {
-                        dir.symbols_mut()
+                        symbols
                             .get_symbol_mut(symbol_id)
                             .resolve_to(resolved_target_symbol);
                     }
@@ -120,9 +135,9 @@ impl Compiler {
 
                 // resolve path aliases to their target symbols
                 if let ImportAliasTarget::Path { value } = target
-                    && let Some(resolved_target_symbol) = dir.tree.get(value).target_symbol()
+                    && let Some(resolved_target_symbol) = tree.get(value).target_symbol()
                 {
-                    dir.symbols_mut()
+                    symbols
                         .get_symbol_mut(symbol_id)
                         .resolve_to(resolved_target_symbol);
                 }

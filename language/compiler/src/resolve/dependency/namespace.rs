@@ -6,7 +6,7 @@ use destack_dir::{
     GlobalSymbolId, LocalNodeId, LocalScopeId, ModuleTarget, NodeTree, StaticKey,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{DirPrepared, Module, ProfileId};
 use rustc_hash::FxHashMap;
 
 use crate::resolve::dependency::cache::{
@@ -25,7 +25,7 @@ impl Compiler {
         profile: ProfileId,
         scope_id: LocalScopeId,
         cache: Option<&mut ResolveDependencyItemCache>,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
     ) -> ResolveResult<Vec<destack_dir::NamespaceExport>> {
         // use cached exports when available
         if let Some(cache) = cache {
@@ -61,7 +61,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         tree: &NodeTree,
         item_ids: &[LocalNodeId<DependencyItem>],
         scope_id: LocalScopeId,
@@ -86,7 +86,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         tree: &NodeTree,
         item_ids: &[LocalNodeId<DependencyItem>],
     ) -> ResolveResult<FxHashMap<LocalScopeId, Vec<destack_dir::NamespaceExport>>> {
@@ -111,7 +111,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         tree: &NodeTree,
         item_id: LocalNodeId<DependencyItem>,
         scope_id: LocalScopeId,
@@ -134,7 +134,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        dir: &ModuleDir,
+        dir: &DirPrepared,
         tree: &NodeTree,
         item_id: LocalNodeId<DependencyItem>,
     ) -> ResolveResult<Option<(LocalScopeId, destack_dir::NamespaceExport)>> {
